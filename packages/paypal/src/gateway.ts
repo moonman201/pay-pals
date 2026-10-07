@@ -5,6 +5,7 @@
  */
 import type {
   CaptureResult,
+  CreateOrderOptions,
   CreateOrderResult,
   ItemCard,
   PayPalCaptureStatus,
@@ -40,7 +41,7 @@ export type CreateOrderWithRaw = CreateOrderResult & { raw: Json };
 export type CaptureWithRaw = CaptureResult & { raw: Json };
 
 export interface PayPalsGateway extends PayPalGateway {
-  createDealOrder(lockedCard: ItemCard, dealId: string): Promise<CreateOrderWithRaw>;
+  createDealOrder(lockedCard: ItemCard, dealId: string, options?: CreateOrderOptions): Promise<CreateOrderWithRaw>;
   captureOrder(orderId: string): Promise<CaptureWithRaw>;
   getOrder(orderId: string): Promise<Json>;
   /** Low-level access for the gate script and sandbox tests. */
@@ -89,8 +90,8 @@ export function createPayPalGateway(config: PayPalConfig, deps: GatewayDeps = {}
   return {
     http,
 
-    async createDealOrder(lockedCard: ItemCard, dealId: string): Promise<CreateOrderWithRaw> {
-      const body = buildOrderBody(lockedCard, dealId);
+    async createDealOrder(lockedCard: ItemCard, dealId: string, options: CreateOrderOptions = {}): Promise<CreateOrderWithRaw> {
+      const body = buildOrderBody(lockedCard, dealId, options.historyHash);
       const order = await http.request("POST", "/v2/checkout/orders", body, {
         "PayPal-Request-Id": requestIds.create(dealId, lockedCard.version),
         Prefer: "return=representation",
