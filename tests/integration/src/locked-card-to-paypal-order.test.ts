@@ -1,17 +1,17 @@
 /**
- * The locked card is the PayPal order. Lock the clean-garmin card in the
+ * The locked card is the PayPal order. Lock the clean-ps5 card in the
  * store, hand what the store returns to buildOrderBody, and check that the
  * payee, deal id, title, serial, condition and amount all come through within
  * PayPal's field limits.
  */
 import { describe, expect, it } from "vitest";
-import { CONDITION_LABELS, PAYPAL_LIMITS, cleanGarmin, toPaypalAmount } from "@pay-pals/contracts";
+import { CONDITION_LABELS, PAYPAL_LIMITS, cleanPs5, toPaypalAmount } from "@pay-pals/contracts";
 import type { ItemCard } from "@pay-pals/contracts";
 import { CardNotLockedError, buildOrderBody } from "@pay-pals/paypal";
 import { driveTo, seedFixture } from "./seed";
 
 async function lockedCleanCard(): Promise<{ card: ItemCard; dealId: string }> {
-  const seeded = await seedFixture(cleanGarmin);
+  const seeded = await seedFixture(cleanPs5);
   await driveTo(seeded, "AGREED");
   const current = (await seeded.store.getCurrentCard(seeded.dealId))!;
   await seeded.store.lockCard(seeded.dealId, current.version);
@@ -27,7 +27,7 @@ describe("locked card text survives into the PayPal order", () => {
 
     expect(body.intent).toBe("CAPTURE");
     expect(body.purchase_units).toHaveLength(1);
-    expect(unit.payee.email_address).toBe(cleanGarmin.cards[1]!.sellerPaypalEmail);
+    expect(unit.payee.email_address).toBe(cleanPs5.cards[1]!.sellerPaypalEmail);
     expect(unit.payee.email_address).toBe(card.sellerPaypalEmail);
     expect(unit.custom_id).toBe(dealId);
     expect(unit.invoice_id).toBe(dealId);
@@ -51,11 +51,11 @@ describe("locked card text survives into the PayPal order", () => {
     const { card, dealId } = await lockedCleanCard();
     const unit = buildOrderBody(card, dealId).purchase_units[0];
 
-    expect(unit.amount.value).toBe("475.00");
+    expect(unit.amount.value).toBe("420.00");
     expect(unit.amount.value).toBe(toPaypalAmount(card.askingPrice));
     expect(unit.amount.currency_code).toBe("USD");
-    expect(unit.amount.breakdown.item_total).toEqual({ currency_code: "USD", value: "475.00" });
-    expect(unit.items[0].unit_amount).toEqual({ currency_code: "USD", value: "475.00" });
+    expect(unit.amount.breakdown.item_total).toEqual({ currency_code: "USD", value: "420.00" });
+    expect(unit.items[0].unit_amount).toEqual({ currency_code: "USD", value: "420.00" });
   });
 
   it("keeps every string inside PAYPAL_LIMITS", async () => {
@@ -91,7 +91,7 @@ describe("locked card text survives into the PayPal order", () => {
   });
 
   it("refuses an unlocked card", async () => {
-    const seeded = await seedFixture(cleanGarmin);
+    const seeded = await seedFixture(cleanPs5);
     const current = (await seeded.store.getCurrentCard(seeded.dealId))!;
     expect(current.lockedAt).toBeNull();
     expect(() => buildOrderBody(current, seeded.dealId)).toThrow(CardNotLockedError);

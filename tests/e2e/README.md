@@ -1,6 +1,6 @@
 # tests/e2e
 
-Playwright runs of the three demo scenarios against `apps/web`, on fixtures, with no keys. Scam stopped, clean deal paid with the demo buttons, wrong item with an evidence pack, plus a phone-width pass.
+Playwright runs of the three demo scenarios against `apps/web`, on fixtures, with no keys. Scam stopped, clean deal paid with the demo buttons, empty box with an evidence pack, plus a phone-width pass.
 
 **Not part of the root `npm test`.** The root test gate runs `tests/integration` only. This workspace has no `test` script on purpose, so `npm test --workspaces` skips it. Run it with:
 
@@ -45,7 +45,7 @@ Do not run `npm run build` and the e2e at the same time: both use `apps/web/.nex
 | `src/scam-stopped.spec.ts` | The review blocks the scam deal: payment-method flag, no Agree button, no override, timeline says why. |
 | `src/clean-deal.spec.ts` | Listed to Complete as the buyer and the seller: review, both sides agree and the card locks, demo pay, ship with checklist and tracking, deliver, arrival matches, complete. |
 | `src/card-change-reagree.spec.ts` | Buyer agrees, the seller changes the card instead, the deal goes back to Listed, both sides review and agree again, locked at version 2. |
-| `src/wrong-item.spec.ts` | Same path to Delivered, then the serial mismatch, the issue, and the evidence page with the locked card and the arrival photos. |
+| `src/empty-box.spec.ts` | Same path to Delivered, then the arrival check finds no console to read a serial from, the issue, and the evidence page with the locked card and the arrival photos. |
 | `src/phone-width.spec.ts` | The clean deal again at 390 px: no horizontal scroll on the landing page, the deal room or the evidence pack. |
 | `src/paypal-buttons.real.spec.ts` | Real mode only. The SDK v6 script loads from the sandbox, `paypal-button` and `venmo-button` render, no demo button, the Venmo window is observed, the PayPal window is driven as the sandbox buyer, the badge reaches Paid and the API shows a CAPTURED sandbox payment. |
 

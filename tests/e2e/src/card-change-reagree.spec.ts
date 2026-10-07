@@ -1,12 +1,12 @@
 /**
  * A card change after one side agreed sends the deal back for a fresh review
  * and clears the agreement. Clean deal as buyer: review, buyer agrees, the
- * seller adds the battery photo (card version 2), the deal reads Listed
+ * seller adds the Console Information screen photo (card version 2), the deal reads Listed
  * again, the buyer reviews and agrees again, the seller agrees, locked at
  * version 2. Fixtures only, no keys.
  */
 import { expect, test } from "@playwright/test";
-import { cleanGarmin } from "@pay-pals/contracts";
+import { cleanPs5 } from "@pay-pals/contracts";
 import { WEB_PRESENT } from "./env";
 import { agreeAsBuyer, agreeAsSeller, reviewAsBuyer } from "./flows";
 import { addAllDemoPhotos, expectState, openRoomAs, panel, snapshot, startDemo } from "./helpers";
@@ -15,7 +15,7 @@ test.describe("card change after one side agreed", () => {
   test.skip(!WEB_PRESENT, "apps/web is not on this branch yet, nothing to load");
 
   test("needs a fresh review and fresh agreement from both sides, then locks version 2", async ({ page }) => {
-    const dealId = await startDemo(page, cleanGarmin, "buyer");
+    const dealId = await startDemo(page, cleanPs5, "buyer");
     await expectState(page, "Listed");
     await reviewAsBuyer(page);
     await agreeAsBuyer(page, 1);
@@ -28,8 +28,10 @@ test.describe("card change after one side agreed", () => {
     await expect(step).toBeVisible();
     const open = step.getByRole("button", { name: "Add a photo or note" });
     if ((await open.count()) > 0) await open.click();
-    await addAllDemoPhotos(step);
-    await step.getByLabel("Your reply").fill("Added. About 11 days in smartwatch mode.");
+    // The one photo version 2 adds: the Console Information screen the buyer's pal asked for.
+    await expect(step.getByText(/Console Information screen/)).toBeVisible();
+    expect(await addAllDemoPhotos(step)).toBe(1);
+    await step.getByLabel("Your reply").fill("Added. Same serial on the screen, software is current.");
     await step.getByRole("button", { name: "Save a new card version" }).click();
 
     await expectState(page, "Listed");

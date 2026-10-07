@@ -1,11 +1,12 @@
 /**
- * Scenario 3 across the modules: the wrong-item deal runs through the store
- * to DELIVERED, the Buyer Pal compares the arrival photos to the locked card
- * and names the serial mismatch, the deal moves to ISSUE, and the evidence
- * pack carries the locked card, the arrival photos and both serials.
+ * Scenario 3 across the modules: the empty-box deal runs through the store
+ * to DELIVERED, the Buyer Pal reads the arrival photos, finds no console to
+ * read a serial from, names the mismatch against the locked card, the deal
+ * moves to ISSUE, and the evidence pack carries the locked card (console and
+ * box serial), the arrival photos and the mismatch in its summary.
  */
 import { describe, expect, it } from "vitest";
-import { EvidencePackSchema, WRONG_ITEM_ARRIVED_SERIAL, WRONG_ITEM_LOCKED_SERIAL, wrongItem } from "@pay-pals/contracts";
+import { EMPTY_BOX_LOCKED_SERIAL, EvidencePackSchema, emptyBox } from "@pay-pals/contracts";
 import type { ArrivalCheck, EvidenceInput, EvidencePack, ItemCard } from "@pay-pals/contracts";
 import { buildEvidencePack, createBuyerPal, createFixturePriceLookup } from "@pay-pals/agents";
 import { driveTo, seedFixture } from "./seed";
@@ -13,19 +14,21 @@ import type { SeededDeal } from "./seed";
 
 const buyerPal = createBuyerPal({ anthropic: null, priceLookup: createFixturePriceLookup() });
 
+const NOT_PRESENT = "not present, box arrived empty";
+
 interface DeliveredDeal {
   seeded: SeededDeal;
   lockedCard: ItemCard;
 }
 
 /** Review, agree and lock, pay, ship, deliver. Saves the verdict, payment and shipment along the way. */
-async function deliverWrongItem(): Promise<DeliveredDeal> {
-  const seeded = await seedFixture(wrongItem);
+async function deliverEmptyBox(): Promise<DeliveredDeal> {
+  const seeded = await seedFixture(emptyBox);
   const { store, dealId } = seeded;
 
   const card = (await store.getCurrentCard(dealId))!;
   const chat = await store.listMessages(dealId, "deal");
-  const { data: verdict } = await buyerPal.review(card, chat, { seller: wrongItem.seller });
+  const { data: verdict } = await buyerPal.review(card, chat, { seller: emptyBox.seller });
   expect(verdict.overall).not.toBe("stop");
   await store.saveVerdict(verdict);
 
@@ -45,7 +48,7 @@ async function checkAndRaiseIssue(delivered: DeliveredDeal): Promise<ArrivalChec
   const { seeded, lockedCard } = delivered;
   const { data: check } = await buyerPal.checkArrival(lockedCard, seeded.arrivalPhotos);
   await seeded.store.saveArrivalCheck(check);
-  await seeded.store.transition(seeded.dealId, "ISSUE", "buyer_pal", "Issue opened: the item that arrived is not the one on the card.");
+  await seeded.store.transition(seeded.dealId, "ISSUE", "buyer_pal", "Issue opened: the box arrived empty.");
   return check;
 }
 
@@ -66,29 +69,37 @@ async function gatherEvidence(delivered: DeliveredDeal): Promise<EvidenceInput> 
   };
 }
 
-describe("wrong-item: arrival check to evidence pack", () => {
-  it("names the serial mismatch against the locked card", async () => {
-    const delivered = await deliverWrongItem();
+describe("empty-box: arrival check to evidence pack", () => {
+  it("finds no console serial, names the mismatch against the locked card, and the box label does not count", async () => {
+    const delivered = await deliverEmptyBox();
     const check = await checkAndRaiseIssue(delivered);
 
     expect(check.matches).toBe(false);
     expect(check.cardVersion).toBe(delivered.lockedCard.version);
     const fields = check.mismatches.map((m) => m.field);
-    for (const field of wrongItem.expectedArrival!.mismatchFields) expect(fields).toContain(field);
+    for (const field of emptyBox.expectedArrival!.mismatchFields) expect(fields).toContain(field);
+    expect(fields).toContain("other");
 
     const serial = check.mismatches.find((m) => m.field === "serial")!;
-    expect(serial.expected).toBe(WRONG_ITEM_LOCKED_SERIAL);
-    expect(serial.observed).toBe(WRONG_ITEM_ARRIVED_SERIAL);
-    expect(check.observed.serial).toBe(WRONG_ITEM_ARRIVED_SERIAL);
-    expect(check.palMessage).toContain(WRONG_ITEM_ARRIVED_SERIAL);
+    expect(serial.expected).toBe(EMPTY_BOX_LOCKED_SERIAL);
+    expect(serial.observed).toBe(NOT_PRESENT);
+    expect(serial.explanation).toContain(EMPTY_BOX_LOCKED_SERIAL);
+    expect(serial.explanation).toContain("box label");
+    expect(check.observed.serial).toBeNull();
+
+    const other = check.mismatches.find((m) => m.field === "other")!;
+    expect(other.observed).toContain("Only the foam insert inside");
+    expect(check.palMessage).toContain("without the item");
+    expect(check.palMessage).toContain("does not count");
+    expect(check.palMessage).toContain("dispute");
 
     const { store, dealId } = delivered.seeded;
     expect((await store.getArrivalCheck(dealId))!.matches).toBe(false);
     expect((await store.getDeal(dealId))!.state).toBe("ISSUE");
   });
 
-  it("builds an evidence pack with the locked card, the arrival photos and both serials in the summary", async () => {
-    const delivered = await deliverWrongItem();
+  it("builds an evidence pack with the locked card, both serial fields, the arrival photos and the mismatch in the summary", async () => {
+    const delivered = await deliverEmptyBox();
     await checkAndRaiseIssue(delivered);
     const input = await gatherEvidence(delivered);
 
@@ -99,26 +110,28 @@ describe("wrong-item: arrival check to evidence pack", () => {
 
     expect(pack.lockedCard.lockedAt).not.toBeNull();
     expect(pack.lockedCard.version).toBe(delivered.lockedCard.version);
-    expect(pack.lockedCard.serial).toBe(WRONG_ITEM_LOCKED_SERIAL);
+    expect(pack.lockedCard.serial).toBe(EMPTY_BOX_LOCKED_SERIAL);
+    expect(pack.lockedCard.boxSerial).toBe(EMPTY_BOX_LOCKED_SERIAL);
 
     const urls = pack.photos.map((p) => p.url);
-    for (const photo of wrongItem.arrivalPhotos) expect(urls).toContain(photo.url);
+    for (const photo of emptyBox.arrivalPhotos) expect(urls).toContain(photo.url);
     for (const photo of delivered.lockedCard.photos) expect(urls).toContain(photo.url);
     expect(new Set(urls).size).toBe(urls.length);
 
-    expect(pack.summary).toContain(WRONG_ITEM_LOCKED_SERIAL);
-    expect(pack.summary).toContain(WRONG_ITEM_ARRIVED_SERIAL);
-    expect(pack.summary).toContain(wrongItem.payment!.paypalOrderId);
-    expect(pack.summary).toContain(wrongItem.shipment!.trackingNumber);
+    expect(pack.summary).toContain(EMPTY_BOX_LOCKED_SERIAL);
+    expect(pack.summary).toContain(NOT_PRESENT);
+    expect(pack.summary).toContain(emptyBox.payment!.paypalOrderId);
+    expect(pack.summary).toContain(emptyBox.shipment!.trackingNumber);
+    expect(pack.summary).toContain(emptyBox.arrivalPhotos[0]!.whatItShows);
     expect(pack.arrivalCheck?.matches).toBe(false);
-    expect(pack.payment?.paypalOrderId).toBe(wrongItem.payment!.paypalOrderId);
-    expect(pack.shipment?.trackingNumber).toBe(wrongItem.shipment!.trackingNumber);
+    expect(pack.payment?.paypalOrderId).toBe(emptyBox.payment!.paypalOrderId);
+    expect(pack.shipment?.trackingNumber).toBe(emptyBox.shipment!.trackingNumber);
     expect(pack.timeline.some((e) => e.kind === "state_changed" && e.toState === "ISSUE")).toBe(true);
     expect(palMessage).toContain("dispute");
   });
 
   it("stores the pack and reads it back unchanged", async () => {
-    const delivered = await deliverWrongItem();
+    const delivered = await deliverEmptyBox();
     await checkAndRaiseIssue(delivered);
     const { data: pack } = await buildEvidencePack(await gatherEvidence(delivered), { anthropic: null });
     const { store, dealId } = delivered.seeded;

@@ -4,7 +4,7 @@
  * id. A dispute on a DELIVERED deal opens an ISSUE.
  */
 import { describe, expect, it } from "vitest";
-import { canTransition, cleanGarmin, wrongItem } from "@pay-pals/contracts";
+import { canTransition, cleanPs5, emptyBox } from "@pay-pals/contracts";
 import type { DealState, PaymentRecord, ScenarioFixture, WebhookEvent } from "@pay-pals/contracts";
 import { handleWebhookEvent } from "@pay-pals/paypal";
 import { driveTo, seedFixture } from "./seed";
@@ -45,8 +45,8 @@ function disputeCreated(dealId: string, eventId = "WH-4M0448861R1427938-6U117646
     dispute_id: "PP-D-27803",
     reason: "MERCHANDISE_OR_SERVICE_NOT_AS_DESCRIBED",
     status: "OPEN",
-    dispute_amount: { currency_code: "USD", value: "440.00" },
-    disputed_transactions: [{ seller_transaction_id: CAPTURE_ID, custom: dealId, invoice_number: dealId, seller: { email: wrongItem.seller.email } }],
+    dispute_amount: { currency_code: "USD", value: "410.00" },
+    disputed_transactions: [{ seller_transaction_id: CAPTURE_ID, custom: dealId, invoice_number: dealId, seller: { email: emptyBox.seller.email } }],
     create_time: "2026-10-27T15:20:00Z",
   });
 }
@@ -74,10 +74,10 @@ async function dealWithPayment(fixture: ScenarioFixture, state: DealState): Prom
 
 describe("PAYMENT.CAPTURE.COMPLETED on a PAYMENT_PENDING deal", () => {
   it("marks the payment CAPTURED and moves the deal to PAID", async () => {
-    const { seeded, payment } = await dealWithPayment(cleanGarmin, "PAYMENT_PENDING");
+    const { seeded, payment } = await dealWithPayment(cleanPs5, "PAYMENT_PENDING");
     const { store, dealId } = seeded;
 
-    const outcome = await handleWebhookEvent(captureCompleted(dealId, "475.00"), store);
+    const outcome = await handleWebhookEvent(captureCompleted(dealId, "420.00"), store);
     expect(outcome).toMatchObject({ handled: true, duplicate: false, retry: false, dealId });
 
     const saved = (await store.getPayment(dealId))!;
@@ -85,21 +85,21 @@ describe("PAYMENT.CAPTURE.COMPLETED on a PAYMENT_PENDING deal", () => {
     expect(saved.captureId).toBe(CAPTURE_ID);
     expect(saved.capturedAt).toBe("2026-10-21T16:05:00Z");
     expect(saved.paypalOrderId).toBe(payment.paypalOrderId);
-    expect(saved.payeeEmail).toBe(cleanGarmin.cards[1]!.sellerPaypalEmail);
+    expect(saved.payeeEmail).toBe(cleanPs5.cards[1]!.sellerPaypalEmail);
     expect((await store.getDeal(dealId))!.state).toBe("PAID");
 
     const events = await store.listEvents(dealId);
     const captured = events.filter((e) => e.kind === "payment_captured");
     expect(captured).toHaveLength(1);
     expect(captured[0]!.actor).toBe("paypal");
-    expect(captured[0]!.summary).toContain("$475.00");
+    expect(captured[0]!.summary).toContain("$420.00");
     expect(events.at(-1)).toMatchObject({ kind: "state_changed", fromState: "PAYMENT_PENDING", toState: "PAID" });
   });
 
   it("reports a redelivery of the same event id as duplicate and writes nothing twice", async () => {
-    const { seeded } = await dealWithPayment(cleanGarmin, "PAYMENT_PENDING");
+    const { seeded } = await dealWithPayment(cleanPs5, "PAYMENT_PENDING");
     const { store, dealId } = seeded;
-    const event = captureCompleted(dealId, "475.00");
+    const event = captureCompleted(dealId, "420.00");
 
     await handleWebhookEvent(event, store);
     const eventsAfterFirst = await store.listEvents(dealId);
@@ -114,10 +114,10 @@ describe("PAYMENT.CAPTURE.COMPLETED on a PAYMENT_PENDING deal", () => {
   });
 
   it("asks PayPal to retry when the payment row is not saved yet, and succeeds on redelivery", async () => {
-    const seeded = await seedFixture(cleanGarmin);
+    const seeded = await seedFixture(cleanPs5);
     await driveTo(seeded, "PAYMENT_PENDING");
     const { store, dealId } = seeded;
-    const event = captureCompleted(dealId, "475.00");
+    const event = captureCompleted(dealId, "420.00");
 
     const early = await handleWebhookEvent(event, store);
     expect(early).toMatchObject({ handled: false, duplicate: false, retry: true });
@@ -133,7 +133,7 @@ describe("PAYMENT.CAPTURE.COMPLETED on a PAYMENT_PENDING deal", () => {
 
 describe("CUSTOMER.DISPUTE.CREATED", () => {
   it("moves a DELIVERED deal to ISSUE and marks the payment DISPUTED", async () => {
-    const { seeded } = await dealWithPayment(wrongItem, "DELIVERED");
+    const { seeded } = await dealWithPayment(emptyBox, "DELIVERED");
     const { store, dealId } = seeded;
     await store.savePayment({ ...(await store.getPayment(dealId))!, status: "CAPTURED", captureId: CAPTURE_ID, capturedAt: "2026-10-22T15:55:00Z" });
 
@@ -150,7 +150,7 @@ describe("CUSTOMER.DISPUTE.CREATED", () => {
   });
 
   it("is reported duplicate on redelivery with no second dispute event", async () => {
-    const { seeded } = await dealWithPayment(wrongItem, "DELIVERED");
+    const { seeded } = await dealWithPayment(emptyBox, "DELIVERED");
     const { store, dealId } = seeded;
     const event = disputeCreated(dealId);
 
@@ -163,7 +163,7 @@ describe("CUSTOMER.DISPUTE.CREATED", () => {
   // Contracts v1.2.0: a dispute before delivery (item never arrived) is an issue too.
   for (const from of ["PAID", "SHIPPED"] as const) {
     it(`moves a ${from} deal to ISSUE`, async () => {
-      const { seeded } = await dealWithPayment(wrongItem, from);
+      const { seeded } = await dealWithPayment(emptyBox, from);
       const { store, dealId } = seeded;
       expect(canTransition(from, "ISSUE")).toBe(true);
 
