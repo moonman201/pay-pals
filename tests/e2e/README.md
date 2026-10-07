@@ -9,7 +9,11 @@ npm run e2e:install -w tests/e2e   # once, downloads Chromium
 npm run test:e2e                   # from the repo root
 ```
 
-The config starts `apps/web` on port 3100 (override with `E2E_PORT`) and reuses a server already on that port. To run against a server you started yourself, or the deployed app, set `E2E_BASE_URL`. When `apps/web` is not on the branch the specs skip themselves.
+The config starts `apps/web` on port 3100 (override with `E2E_PORT`) and reuses a server already on that port. When `apps/web` is not on the branch the specs skip themselves.
+
+**The suite always runs in demo-only mode.** The server it starts gets `PAY_PALS_DEMO_ONLY=1`, which forces the memory store, rules-only pals, fixture prices and the mock PayPal gateway no matter what keys the shell or `.env.local` carry. The suite never spends a Claude or PayPal call, and a key in your shell does not change the result.
+
+A real-mode run (real Buyer Pal, real sandbox) is a manual job: start `apps/web` yourself with the keys you want, then point the same specs at it with `E2E_BASE_URL=http://localhost:3000 npm run test:e2e`. The waits after a pal call (review, arrival check) allow 60 s for that; every other wait stays short. Note that a reused server on port 3100 keeps whatever mode it was started in.
 
 Do not run `npm run build` and the e2e at the same time: both use `apps/web/.next`.
 

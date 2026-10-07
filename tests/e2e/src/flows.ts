@@ -5,12 +5,12 @@
  */
 import { expect, type Page } from "@playwright/test";
 import type { ScenarioFixture } from "@pay-pals/contracts";
-import { addAllDemoPhotos, expectState, openRoomAs, panel, pressAction } from "./helpers";
+import { PAL_TIMEOUT, addAllDemoPhotos, expectState, expectStateAfterPal, openRoomAs, panel, pressAction } from "./helpers";
 
 /** Buyer asks for the review. Caution flags get the override box ticked; a payment-method flag would block, which these two scenarios never raise. */
 export async function reviewAndAgree(page: Page): Promise<void> {
   await pressAction(page, "Ask my pal to review");
-  await expectState(page, "Reviewed");
+  await expectStateAfterPal(page, "Reviewed");
   await expect(panel(page, "Buyer Pal review")).toBeVisible();
 
   const override = panel(page, "Next step").getByRole("checkbox");
@@ -67,7 +67,7 @@ export async function runArrivalCheck(page: Page, fixture: ScenarioFixture): Pro
   const added = await addAllDemoPhotos(step);
   expect(added).toBe(fixture.arrivalPhotos.length);
   await step.getByRole("button", { name: "Ask my pal to check" }).click();
-  await expect(panel(page, "Arrival check").getByText(/^(matches|does not match)$/)).toBeVisible();
+  await expect(panel(page, "Arrival check").getByText(/^(matches|does not match)$/)).toBeVisible({ timeout: PAL_TIMEOUT });
 }
 
 /** Review, agree, pay, ship, deliver. Leaves the buyer in a Delivered room with the arrival step open. */

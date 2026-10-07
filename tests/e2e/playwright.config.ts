@@ -42,6 +42,11 @@ export default defineConfig({
         url: BASE_URL,
         reuseExistingServer: !process.env.CI,
         timeout: 120_000,
+        // Demo-only mode: memory store, rules-only pals, fixture prices and the
+        // mock gateway, whatever keys the shell or .env.local carry. The suite
+        // never spends Claude or PayPal calls. A real-mode run is a manual job
+        // against a server you start yourself, through E2E_BASE_URL.
+        env: { ...process.env, PAY_PALS_DEMO_ONLY: "1" },
       }
     : undefined,
 });
