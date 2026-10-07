@@ -5,14 +5,15 @@
  * locked, no further edits.
  */
 import { describe, expect, it } from "vitest";
-import { CLEAN_SERIAL, IllegalTransitionError, PAYMENT_METHOD_FLAGS, canTransition, cleanPs5, hasStop, isPaymentMethodFlag, scamPs5 } from "@pay-pals/contracts";
+import { CLEAN_SERIAL, FAKE_SLAB_CERT, IllegalTransitionError, PAYMENT_METHOD_FLAGS, canTransition, cleanPs5, hasStop, isPaymentMethodFlag, fakeSlab } from "@pay-pals/contracts";
+import { createMemoryDealStore } from "@pay-pals/db";
 import type { Verdict } from "@pay-pals/contracts";
-import { createBuyerPal, createFixturePriceLookup } from "@pay-pals/agents";
-import { AgreementNotAllowedError, CardLockedError, CardNotEditableError } from "@pay-pals/db";
+import { createBuyerPal, createFixtureCertLookup, createFixturePriceLookup } from "@pay-pals/agents";
+import { AgreementNotAllowedError, CardLockedError, CardNotEditableError, SellerJoinNotAllowedError } from "@pay-pals/db";
 import { driveTo, seedFixture } from "./seed";
 import type { SeededDeal } from "./seed";
 
-const buyerPal = createBuyerPal({ anthropic: null, priceLookup: createFixturePriceLookup() });
+const buyerPal = createBuyerPal({ anthropic: null, priceLookup: createFixturePriceLookup(), certLookup: createFixtureCertLookup() });
 
 /** Review the current card against the saved chat, save the verdict, and move LISTED -> REVIEWED. */
 async function reviewAndSave(seeded: SeededDeal): Promise<Verdict> {
@@ -26,16 +27,27 @@ async function reviewAndSave(seeded: SeededDeal): Promise<Verdict> {
   return verdict;
 }
 
-describe("scam-ps5: a payment-method flag blocks the deal", () => {
+describe("fake-slab: a payment-method flag blocks the deal", () => {
   it("raises every required flag, says stop, and the verdict is read back from the store", async () => {
-    const seeded = await seedFixture(scamPs5);
+    const seeded = await seedFixture(fakeSlab);
     const verdict = await reviewAndSave(seeded);
 
     expect(verdict.overall).toBe("stop");
     const codes = verdict.flags.map((f) => f.code);
-    for (const required of scamPs5.expectedVerdict.requiredFlags) expect(codes).toContain(required);
+    for (const required of fakeSlab.expectedVerdict.requiredFlags) expect(codes).toContain(required);
     expect(hasStop(verdict.flags)).toBe(true);
     expect(verdict.flags.some(isPaymentMethodFlag)).toBe(true);
+
+    // The slab's cert number is registered with PSA as a different card and grade.
+    const cert = verdict.flags.find((f) => f.code === "CERT_MISMATCH")!;
+    expect(cert.severity).toBe("stop");
+    expect(cert.raisedByRule).toBe(true);
+    expect(cert.evidence).toContain(FAKE_SLAB_CERT);
+    expect(cert.evidence).toContain(fakeSlab.certRecord!.subject!);
+    expect(verdict.certCheck?.matches).toBe(false);
+    expect(verdict.certCheck?.record.certNumber).toBe(FAKE_SLAB_CERT);
+    expect(verdict.certCheck?.record.subject).toBe(fakeSlab.certRecord!.subject);
+    expect(verdict.certCheck?.explanation).toContain(FAKE_SLAB_CERT);
 
     const saved = await seeded.store.listVerdicts(seeded.dealId);
     expect(saved).toHaveLength(1);
@@ -47,7 +59,7 @@ describe("scam-ps5: a payment-method flag blocks the deal", () => {
   });
 
   it("moves REVIEWED -> BLOCKED and then refuses AGREED and PAYMENT_PENDING", async () => {
-    const seeded = await seedFixture(scamPs5);
+    const seeded = await seedFixture(fakeSlab);
     const verdict = await reviewAndSave(seeded);
     const { store, dealId } = seeded;
 
@@ -67,7 +79,7 @@ describe("scam-ps5: a payment-method flag blocks the deal", () => {
   });
 
   it("refuses to lock the card on a BLOCKED deal", async () => {
-    const seeded = await seedFixture(scamPs5);
+    const seeded = await seedFixture(fakeSlab);
     await reviewAndSave(seeded);
     await seeded.store.transition(seeded.dealId, "BLOCKED", "buyer_pal", "Blocked.");
 
@@ -80,7 +92,7 @@ describe("scam-ps5: a payment-method flag blocks the deal", () => {
   });
 
   it("refuses a new card version on a BLOCKED deal", async () => {
-    const seeded = await seedFixture(scamPs5);
+    const seeded = await seedFixture(fakeSlab);
     await reviewAndSave(seeded);
     await seeded.store.transition(seeded.dealId, "BLOCKED", "buyer_pal", "Blocked.");
     const current = (await seeded.store.getCurrentCard(seeded.dealId))!;
@@ -217,5 +229,83 @@ describe("two-sided agreement in the store (contracts v1.3.0)", () => {
     expect(deal.state).toBe("AGREED");
     expect(deal.lockedCardVersion).toBe(version);
     expect((await store.listEvents(dealId)).filter((e) => e.kind === "agreed")).toHaveLength(2);
+  });
+});
+
+/** A buyer-started deal waiting for the seller: DRAFT -> INVITED, no card yet. */
+async function invitedDeal() {
+  const store = createMemoryDealStore();
+  const deal = await store.createDeal({
+    startedBy: "buyer",
+    seller: fakeSlab.seller,
+    buyer: fakeSlab.buyer,
+    listingUrl: fakeSlab.deal.listingUrl,
+    scenario: "fake-slab",
+  });
+  await store.transition(deal.id, "INVITED", "system", "Waiting for the seller.");
+  return { store, dealId: deal.id };
+}
+
+describe("buyer-first: a refused invite blocks the deal with no card", () => {
+  it("review(null, chat, { inviteDeclined }) gives INVITE_REFUSED, a payment-method stop, and INVITED -> REVIEWED -> BLOCKED is legal", async () => {
+    const { store, dealId } = await invitedDeal();
+    expect((await store.getDeal(dealId))!.startedBy).toBe("buyer");
+    expect((await store.getCurrentCard(dealId))).toBeNull();
+    const first = fakeSlab.chat[0]!;
+    const { id: _ignored, ...message } = first;
+    await store.addMessage({ ...message, dealId });
+    const chat = await store.listMessages(dealId, "deal");
+
+    const { data: verdict } = await buyerPal.review(null, chat, { dealId, inviteDeclined: true, seller: fakeSlab.seller, sellerJoined: false });
+    expect(verdict.dealId).toBe(dealId);
+    expect(verdict.cardVersion).toBe(0);
+    expect(verdict.overall).toBe("stop");
+    expect(verdict.priceCheck).toBeNull();
+    const refused = verdict.flags.find((f) => f.code === "INVITE_REFUSED")!;
+    expect(refused.severity).toBe("stop");
+    expect(refused.raisedByRule).toBe(true);
+    expect(isPaymentMethodFlag(refused)).toBe(true);
+    expect(PAYMENT_METHOD_FLAGS).toContain("INVITE_REFUSED");
+    expect(refused.explanation).toContain("refused Pay Pals protection");
+    await store.saveVerdict(verdict);
+
+    expect(canTransition("INVITED", "REVIEWED")).toBe(true);
+    expect(canTransition("REVIEWED", "BLOCKED")).toBe(true);
+    await store.transition(dealId, "REVIEWED", "system", "Reviewed.");
+    const blocked = await store.transition(dealId, "BLOCKED", "buyer_pal", refused.explanation);
+    expect(blocked.state).toBe("BLOCKED");
+    expect(blocked.sellerJoinedAt).toBeNull();
+    await expect(store.transition(dealId, "LISTED", "system", "Listed.")).rejects.toBeInstanceOf(IllegalTransitionError);
+    expect((await store.listVerdicts(dealId))[0]!.flags.map((f) => f.code)).toContain("INVITE_REFUSED");
+  });
+});
+
+describe("buyer-first: the seller joins", () => {
+  it("markSellerJoined sets sellerJoinedAt, appends one seller_joined event, and is idempotent", async () => {
+    const { store, dealId } = await invitedDeal();
+
+    const joined = await store.markSellerJoined(dealId, { displayName: fakeSlab.seller.displayName });
+    expect(joined.state).toBe("INVITED");
+    expect(joined.sellerJoinedAt).not.toBeNull();
+    expect(joined.seller.displayName).toBe(fakeSlab.seller.displayName);
+
+    const again = await store.markSellerJoined(dealId);
+    expect(again.sellerJoinedAt).toBe(joined.sellerJoinedAt);
+
+    const events = await store.listEvents(dealId);
+    const joins = events.filter((e) => e.kind === "seller_joined");
+    expect(joins).toHaveLength(1);
+    expect(joins[0]).toMatchObject({ actor: "seller", summary: `${fakeSlab.seller.displayName} joined the deal.` });
+    expect(joins[0]!.at).toBe(joined.sellerJoinedAt);
+
+    await store.transition(dealId, "LISTED", "system", "Listed.");
+    expect((await store.getDeal(dealId))!.sellerJoinedAt).toBe(joined.sellerJoinedAt);
+  });
+
+  it("is refused before the invite goes out", async () => {
+    const store = createMemoryDealStore();
+    const deal = await store.createDeal({ startedBy: "buyer", seller: fakeSlab.seller, buyer: fakeSlab.buyer, scenario: "fake-slab" });
+    await expect(store.markSellerJoined(deal.id)).rejects.toBeInstanceOf(SellerJoinNotAllowedError);
+    expect((await store.listEvents(deal.id)).filter((e) => e.kind === "seller_joined")).toHaveLength(0);
   });
 });

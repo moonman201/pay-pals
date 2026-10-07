@@ -5,7 +5,7 @@
  * PayPal's field limits.
  */
 import { describe, expect, it } from "vitest";
-import { CONDITION_LABELS, PAYPAL_LIMITS, cleanPs5, toPaypalAmount } from "@pay-pals/contracts";
+import { CONDITION_LABELS, PAYPAL_LIMITS, buildCustomId, cleanPs5, parseCustomId, toPaypalAmount } from "@pay-pals/contracts";
 import type { ItemCard } from "@pay-pals/contracts";
 import { CardNotLockedError, buildOrderBody } from "@pay-pals/paypal";
 import { driveTo, seedFixture } from "./seed";
@@ -88,6 +88,23 @@ describe("locked card text survives into the PayPal order", () => {
     expect(item.description).toContain(long.serial!);
     expect(item.description).toContain(CONDITION_LABELS[long.conditionGrade]);
     expect(unit.description.length).toBeLessThanOrEqual(PAYPAL_LIMITS.purchaseUnitDescription);
+  });
+
+  it("writes the history head into custom_id as dealId#hash and keeps invoice_id as the bare deal id", async () => {
+    const { card, dealId } = await lockedCleanCard();
+    const historyHash = "a".repeat(64);
+    const unit = buildOrderBody(card, dealId, historyHash).purchase_units[0];
+
+    expect(unit.custom_id).toBe(`${dealId}#${historyHash}`);
+    expect(unit.custom_id).toBe(buildCustomId(dealId, historyHash));
+    expect(unit.custom_id.length).toBeLessThanOrEqual(PAYPAL_LIMITS.customId);
+    expect(parseCustomId(unit.custom_id)).toEqual({ dealId, historyHash });
+    expect(unit.invoice_id).toBe(dealId);
+    expect(parseCustomId(unit.invoice_id)).toEqual({ dealId, historyHash: null });
+
+    const without = buildOrderBody(card, dealId, null).purchase_units[0];
+    expect(without.custom_id).toBe(dealId);
+    expect(without.invoice_id).toBe(dealId);
   });
 
   it("refuses an unlocked card", async () => {
