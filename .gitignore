@@ -12,3 +12,7 @@ test-results/
 *.log
 .claude/worktrees/
 *.tsbuildinfo
+# Third-party reference skills installed locally with npx skills, not part of the product
+.agents/
+.claude/skills/
+skills-lock.json
