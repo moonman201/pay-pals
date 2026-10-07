@@ -3,12 +3,18 @@
  * cache answers. Searches brand plus model as the query (Channel3 says to put
  * model names in the query; brand_ids would cost a second call), asks for
  * both new and used offers when the card is used, keeps the offers whose
- * titles actually match the model, and turns their prices into a range:
- *   - low  = 20th percentile of matching USD offers (rounded down),
- *     high = 80th percentile (rounded up), so one odd listing does not set it;
- *   - Channel3 is mostly retail. When the card is used and no used offers
- *     came back, both ends are scaled by USED_FACTOR for the grade. That
- *     scaling is a fallback only.
+ * titles actually match the model, and turns their prices into a range.
+ *
+ * Range rules, decided with the Lead on 2026-10-07 after live numbers:
+ *   - percentiles: low = 20th percentile (rounded down), high = 80th
+ *     (rounded up), so one odd listing does not set the range;
+ *   - card condition "new": the range of all matching in-stock offers;
+ *   - card condition used (anything else): Channel3 is mostly new retail,
+ *     so the range is the new offers scaled by USED_FACTOR for the grade.
+ *     Genuinely cheaper used offers pull the low end down, never up:
+ *     low = min(scaled new low, lowest used offer), high = scaled new high.
+ *     With no new offers the used offers stand as they are. The path taken
+ *     is recorded as the first entry in sources so a judge can see it.
  * Responses are cached on disk for a day in dev, keyed on the normalized
  * query and the request options, so repeated runs and tests spend nothing.
  */
@@ -30,7 +36,7 @@ export interface Channel3Options {
   limit?: number;
 }
 
-/** Share of the retail price a used unit fetches, by condition grade. Fallback only. */
+/** Share of the new retail price a used unit fetches, by condition grade. */
 export const USED_FACTOR: Record<string, number> = {
   new: 1,
   like_new: 0.8,
@@ -38,6 +44,9 @@ export const USED_FACTOR: Record<string, number> = {
   fair: 0.55,
   for_parts: 0.3,
 };
+
+/** Prefix of the sources entry that records how a used range was derived. */
+export const ESTIMATE_NOTE_PREFIX = "Estimated for a used unit";
 
 const MAX_SOURCES = 8;
 
@@ -85,12 +94,26 @@ function round(value: number): number {
   return Math.round(value * 100) / 100;
 }
 
+interface PricedOffer {
+  product: Channel3Product;
+  offer: Channel3Offer;
+}
+
+function rangeOf(offers: PricedOffer[]): { low: number; high: number } {
+  const prices = offers.map((o) => o.offer.price.price).sort((a, b) => a - b);
+  return { low: percentile(prices, 0.2, "low"), high: percentile(prices, 0.8, "high") };
+}
+
+function percentLabel(factor: number): string {
+  return `${Math.round(factor * 100)}% of new`;
+}
+
 export function deriveRange(
   response: Channel3SearchResponse,
   query: { brand: string; model: string; condition: string },
 ): Omit<PriceCheck, "checkedAt"> {
   const products = relevantProducts(response.products, query.brand, query.model);
-  const offers: Array<{ product: Channel3Product; offer: Channel3Offer }> = [];
+  const offers: PricedOffer[] = [];
   for (const product of products) {
     for (const offer of product.offers ?? []) {
       if (offer.price.currency === "USD" && offer.price.price > 0) offers.push({ product, offer });
@@ -98,10 +121,6 @@ export function deriveRange(
   }
   const inStock = offers.filter((o) => o.offer.availability === "InStock");
   const pool = inStock.length > 0 ? inStock : offers;
-  const prices = pool.map((o) => o.offer.price.price).sort((a, b) => a - b);
-
-  const anyUsed = pool.some((o) => o.offer.condition === "used");
-  const factor = anyUsed ? 1 : (USED_FACTOR[query.condition] ?? 1);
 
   const sources: PriceSource[] = pool.slice(0, MAX_SOURCES).map(({ product, offer }) => ({
     name: `${offer.domain}: ${product.title}`.slice(0, 120),
@@ -110,11 +129,35 @@ export function deriveRange(
     condition: offer.condition ?? "new",
   }));
 
+  const isUsedCard = query.condition !== "new";
+  const factor = USED_FACTOR[query.condition] ?? 1;
+  const newOffers = pool.filter((o) => o.offer.condition !== "used");
+  const usedOffers = pool.filter((o) => o.offer.condition === "used");
+
+  let low: number;
+  let high: number;
+  let note: string | null = null;
+  if (!isUsedCard || pool.length === 0) {
+    ({ low, high } = rangeOf(pool));
+  } else if (newOffers.length > 0) {
+    const scaled = rangeOf(newOffers);
+    const lowestUsed = usedOffers.length > 0 ? Math.min(...usedOffers.map((o) => o.offer.price.price)) : Number.POSITIVE_INFINITY;
+    low = Math.min(scaled.low * factor, lowestUsed);
+    high = scaled.high * factor;
+    note =
+      lowestUsed < scaled.low * factor
+        ? `${ESTIMATE_NOTE_PREFIX} from new retail prices (${query.condition.replace("_", " ")}: ${percentLabel(factor)}); a cheaper used offer at $${lowestUsed} set the low end`
+        : `${ESTIMATE_NOTE_PREFIX} from new retail prices (${query.condition.replace("_", " ")}: ${percentLabel(factor)})`;
+  } else {
+    ({ low, high } = rangeOf(usedOffers));
+    note = `${ESTIMATE_NOTE_PREFIX} from used offers only`;
+  }
+
   return {
-    marketLow: round(percentile(prices, 0.2, "low") * factor),
-    marketHigh: round(percentile(prices, 0.8, "high") * factor),
+    marketLow: round(low),
+    marketHigh: round(high),
     currency: "USD",
-    sources,
+    sources: note ? [{ name: note }, ...sources] : sources,
     provider: "channel3",
   };
 }

@@ -7,7 +7,7 @@ import type { Rule } from "./types";
 import { findMatch, flag, quoted, sellerPassages } from "./text";
 
 const PATTERNS = [
-  /\bfriends?\s*(?:and|&|n|\+)\s*family\b/i,
+  /\bfriends?\s*(?:and|&|n|\+|\/)\s*family\b/i,
   /\bf\s*(?:&|and|n)\s*f\b/i,
   /\bfnf\b/i,
   /\b(?:no|not|don'?t|avoid|skip)\b[^.?!]{0,40}\bgoods?\s*(?:and|&)\s*services\b/i,

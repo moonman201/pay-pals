@@ -58,9 +58,16 @@ function transcript(chat: Message[]): string {
     .join("\n");
 }
 
+/** The note the Channel3 lookup puts first in sources when a used range was estimated from new retail. */
+function estimateNote(priceCheck: PriceCheck | null): string | null {
+  const first = priceCheck?.sources[0];
+  return first && first.price === undefined && first.url === undefined ? first.name : null;
+}
+
 function priceLine(priceCheck: PriceCheck | null): string {
   if (!priceCheck || priceCheck.marketLow <= 0) return "No market price was available.";
-  return `Market range $${priceCheck.marketLow} to $${priceCheck.marketHigh} (${priceCheck.provider}).`;
+  const note = estimateNote(priceCheck);
+  return `Market range $${priceCheck.marketLow} to $${priceCheck.marketHigh} (${priceCheck.provider}${note ? `; ${note.toLowerCase()}` : ""}).`;
 }
 
 function fallbackQuestions(card: ItemCard, flags: RedFlag[]): string[] {
@@ -90,7 +97,7 @@ function fallbackMessage(card: ItemCard, flags: RedFlag[], priceCheck: PriceChec
   return sentences(
     "This looks fair.",
     priceCheck && priceCheck.marketLow > 0
-      ? `The asking price of $${card.askingPrice} sits within the market range of $${priceCheck.marketLow} to $${priceCheck.marketHigh}.`
+      ? `The asking price of $${card.askingPrice} sits within the market range of $${priceCheck.marketLow} to $${priceCheck.marketHigh}${estimateNote(priceCheck) ? `, ${estimateNote(priceCheck)!.charAt(0).toLowerCase()}${estimateNote(priceCheck)!.slice(1)}` : ""}.`
       : null,
     card.serial ? `The serial ${card.serial} is on the card, so we can check it when the item arrives.` : null,
     "Nothing in the chat worries me.",

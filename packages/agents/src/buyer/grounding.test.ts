@@ -8,7 +8,7 @@ const scam = buildGroundingCorpus(scamPs5.cards[0]!, scamPs5.chat);
 describe("isGrounded", () => {
   it("accepts a quote from the chat, even with different quoting and case", () => {
     expect(isGrounded('Seller wrote: "Everything is on the card my pal built."', clean)).toBe(true);
-    expect(isGrounded("seller said “ZELLE WORKS TOO”", scam)).toBe(true);
+    expect(isGrounded("seller said “IN THE NEXT HOUR OR IT GOES TO THE NEXT PERSON”", scam)).toBe(true);
   });
   it("accepts a card field with its value", () => {
     expect(isGrounded("sellerPaypalEmail: quickcash.deals.2026@example.com", scam)).toBe(true);
