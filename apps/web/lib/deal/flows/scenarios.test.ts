@@ -56,6 +56,18 @@ describe("scam-ps5", () => {
 });
 
 describe("clean-ps5", () => {
+  it("seeds only the chat from before the first review, so the chat never runs ahead of card v1", async () => {
+    const services = noKeys();
+    const deal = await startDemoDeal(services, "clean-ps5");
+    const firstReview = cleanPs5.timeline.find((e) => e.kind === "review_posted")!.at;
+    const expected = cleanPs5.chat.filter((m) => m.at < firstReview);
+    expect(expected.length).toBeGreaterThan(0);
+    expect(expected.length).toBeLessThan(cleanPs5.chat.length);
+    const seeded = await services.store.listMessages(deal.id, "deal");
+    expect(seeded.map((m) => m.text)).toEqual(expected.map((m) => m.text));
+    expect(seeded.every((m) => m.photos.length === 0)).toBe(true);
+  });
+
   it("runs review, a seller photo update, both agreements, pay, ship, deliver, arrival match, complete", async () => {
     const services = noKeys();
     const deal = await startDemoDeal(services, "clean-ps5");
