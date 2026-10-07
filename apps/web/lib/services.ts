@@ -52,13 +52,28 @@ type Log = (line: string) => void;
 
 const has = (env: Env, key: string) => Boolean(env[key]?.trim());
 
-export function createServices(env: Env = process.env, log: Log = (line) => console.info(line)): Services {
-  const modes: ServiceModes = {
-    store: has(env, "DATABASE_URL") ? "postgres" : "memory",
-    claude: has(env, "ANTHROPIC_API_KEY"),
-    prices: has(env, "CHANNEL3_API_KEY") ? "channel3" : "fixture",
-    paypal: has(env, "PAYPAL_CLIENT_ID") && has(env, "PAYPAL_CLIENT_SECRET") ? "sandbox" : "mock",
-  };
+/**
+ * PAY_PALS_DEMO_ONLY=1 (or true) is a test knob: memory store, rules-only
+ * pals, fixture prices and the mock gateway no matter which keys are
+ * present, so an e2e run never calls Claude or the PayPal sandbox.
+ */
+export function isDemoOnly(env: Env): boolean {
+  const value = env.PAY_PALS_DEMO_ONLY?.trim().toLowerCase();
+  return value === "1" || value === "true";
+}
+
+const DEMO_ONLY_MODES: ServiceModes = { store: "memory", claude: false, prices: "fixture", paypal: "mock" };
+
+export function createServices(env: Env = process.env, log: Log = (line) => console.info(line), demoOnly = isDemoOnly(env)): Services {
+  if (demoOnly) log("[pay-pals] demo-only mode is on (PAY_PALS_DEMO_ONLY): keys in the environment are ignored");
+  const modes: ServiceModes = demoOnly
+    ? DEMO_ONLY_MODES
+    : {
+        store: has(env, "DATABASE_URL") ? "postgres" : "memory",
+        claude: has(env, "ANTHROPIC_API_KEY"),
+        prices: has(env, "CHANNEL3_API_KEY") ? "channel3" : "fixture",
+        paypal: has(env, "PAYPAL_CLIENT_ID") && has(env, "PAYPAL_CLIENT_SECRET") ? "sandbox" : "mock",
+      };
 
   const anthropic = modes.claude ? createAnthropicClientFromEnv() : null;
   const priceLookup = modes.prices === "channel3" ? createChannel3PriceLookup(env.CHANNEL3_API_KEY!.trim()) : createFixturePriceLookup();
@@ -105,8 +120,10 @@ const globalRef = globalThis as typeof globalThis & { __payPalsServices?: Servic
 /** One instance per server process. Kept on globalThis so dev hot reloads do not lose demo deals. */
 export function getServices(): Services {
   if (!globalRef.__payPalsServices) {
+    // Read the test knob from the real environment first, so a .env.local file cannot turn it off.
+    const demoOnly = isDemoOnly(process.env);
     loadRootEnvLocal();
-    globalRef.__payPalsServices = createServices(process.env);
+    globalRef.__payPalsServices = createServices(process.env, undefined, demoOnly);
   }
   return globalRef.__payPalsServices;
 }

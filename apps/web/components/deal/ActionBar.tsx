@@ -21,6 +21,13 @@ interface Props {
 
 const VARIANT: Partial<Record<ActionId, ButtonVariant>> = { cancel: "danger", report_issue: "danger", complete: "primary" };
 
+/** What to say under the buttons while a slow move runs. Claude reviews can take ten seconds or more. */
+const WORKING_NOTES: Partial<Record<ActionId, string>> = {
+  review: "Your pal is reading the chat and checking prices. This can take a few seconds.",
+  agree: "Locking the card.",
+  report_issue: "Opening the issue and building the evidence pack.",
+};
+
 const ENDINGS: Partial<Record<DealState, string>> = {
   COMPLETE: "This deal is complete. Both sides have the locked card, the payment record and the photos.",
   BLOCKED: BLOCKED_SENTENCE + " No order was created and no money moved.",
@@ -69,6 +76,11 @@ export function ActionBar({ state, role, verdict, dealId, busy, hasLockedCard, o
           );
         })}
       </div>
+      {busy && WORKING_NOTES[busy as ActionId] ? (
+        <p role="status" aria-live="polite" className="mt-3 text-sm text-[var(--accent-ink)]">
+          {WORKING_NOTES[busy as ActionId]}
+        </p>
+      ) : null}
       {isWaitingOnOther(state, role) ? (
         <p className="mt-3 text-sm text-muted">
           Waiting for the {other}. In demo mode you can{" "}
