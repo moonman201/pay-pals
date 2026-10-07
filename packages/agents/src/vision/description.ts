@@ -40,7 +40,22 @@ export function brandFromText(text: string, expectedBrand: string): string | nul
   return new RegExp(`\\b${brand}\\b`, "i").test(text) ? brand : null;
 }
 
-const PACKAGING = /\b(?:box label|label on the box|packaging|carton|sleeve|retail box|original box|shipping box|box that arrived)\b/i;
+const CERT = /\bcert(?:ificate|ification)?(?:\s*(?:number|no\.?|num\.?|#))?\s*(?:is|:)?\s*#?\s*(\d{6,12})\b/i;
+const GRADE = /\b(PSA|BGS|CGC|SGC)\s*-?\s*(10|[1-9](?:\.5)?)\b/i;
+
+/** A grading certificate number named in text, for example "cert 81234567". */
+export function certFromText(text: string): string | null {
+  const match = text.match(CERT);
+  return match ? match[1]! : null;
+}
+
+/** A grade as printed on a slab label, for example "PSA 10". */
+export function gradeFromText(text: string): string | null {
+  const match = text.match(GRADE);
+  return match ? `${match[1]!.toUpperCase()} ${match[2]}` : null;
+}
+
+const PACKAGING =/\b(?:box label|label on the box|packaging|carton|sleeve|retail box|original box|shipping box|box that arrived)\b/i;
 
 /** True when the description is of a box, label or packaging rather than the item itself. */
 export function isPackagingDescription(text: string): boolean {
