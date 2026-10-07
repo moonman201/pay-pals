@@ -1,6 +1,7 @@
 /**
  * Pay Pals database schema. Owned by the Lead. Frozen Fri Oct 9, 2026.
  * v1.3.0 (Oct 7): deals.buyer_agreed_at and seller_agreed_at, deal_event_kind gains "agreed".
+ * v1.4.0 (Oct 7): scenario enum values are scam-ps5, clean-ps5, empty-box (demo item changed to a PlayStation 5).
  *
  * One table per thing a deal produces. Card, verdict, payment, shipment and
  * evidence rows are never updated in place once written, except the fields

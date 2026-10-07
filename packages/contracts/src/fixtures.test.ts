@@ -10,8 +10,8 @@ import { canTransition } from "./deal-state";
 
 describe("scenario fixtures", () => {
   it("ships all three scenarios", () => {
-    expect(Object.keys(FIXTURES).sort()).toEqual(["clean-garmin", "scam-garmin", "wrong-item"]);
-    expect(getFixture("scam-garmin").id).toBe("scam-garmin");
+    expect(Object.keys(FIXTURES).sort()).toEqual(["clean-ps5", "empty-box", "scam-ps5"]);
+    expect(getFixture("scam-ps5").id).toBe("scam-ps5");
   });
 
   for (const fx of ALL_FIXTURES) {
@@ -65,17 +65,22 @@ describe("scenario fixtures", () => {
   }
 
   it("scam scenario expects the three required flags and a stop", () => {
-    const v = FIXTURES["scam-garmin"].expectedVerdict;
+    const v = FIXTURES["scam-ps5"].expectedVerdict;
     expect(v.overall).toBe("stop");
     expect(v.requiredFlags).toEqual(
       expect.arrayContaining(["FRIENDS_AND_FAMILY_REQUEST", "PRICE_FAR_BELOW_MARKET", "URGENCY_PRESSURE"]),
     );
   });
 
-  it("wrong item scenario locks one serial and receives another", () => {
-    const fx = FIXTURES["wrong-item"];
-    const lockedSerial = fx.cards[0]!.serial!;
-    expect(fx.arrivalPhotos.some((p) => p.whatItShows.includes(lockedSerial))).toBe(false);
+  it("clean scenario card carries matching console and box serials", () => {
+    const card = FIXTURES["clean-ps5"].cards[0]!;
+    expect(card.serial).not.toBeNull();
+    expect(card.boxSerial).toBe(card.serial);
+  });
+
+  it("empty box scenario arrives with no console", () => {
+    const fx = FIXTURES["empty-box"];
+    expect(fx.arrivalPhotos.some((p) => /no console/i.test(p.whatItShows))).toBe(true);
     expect(fx.expectedArrival?.matches).toBe(false);
     expect(fx.expectedArrival?.mismatchFields).toContain("serial");
   });
