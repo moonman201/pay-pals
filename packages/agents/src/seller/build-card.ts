@@ -23,9 +23,16 @@ export interface BuildCardDeps {
 
 export class MissingPriceError extends Error {
   constructor() {
-    super("No asking price found in the listing or notes. Ask the seller for a price before building the card.");
+    super("No asking price found in the listing or notes and none was typed. Ask the seller for a price before building the card.");
     this.name = "MissingPriceError";
   }
+}
+
+/** The listing's own price wins; the seller's typed price fills in when the listing names none. */
+export function resolveAskingPrice(fromListing: number | null, typed: number | undefined): number | null {
+  if (fromListing !== null) return fromListing;
+  if (typeof typed === "number" && Number.isFinite(typed) && typed > 0) return Math.round(typed * 100) / 100;
+  return null;
 }
 
 const clip = (max: number) => z.string().transform((s) => s.trim().slice(0, max));
@@ -95,7 +102,8 @@ async function draftFields(input: BuildCardInput, client: ClaudeClient | null): 
 
 export async function buildCardFromListing(input: BuildCardInput, deps: BuildCardDeps): Promise<PalResult<ItemCard>> {
   const fields = await draftFields(input, deps.client);
-  if (fields.askingPrice === null) throw new MissingPriceError();
+  const askingPrice = resolveAskingPrice(fields.askingPrice, input.askingPrice);
+  if (askingPrice === null) throw new MissingPriceError();
 
   const readings = await readPhotos(input.photos, {
     client: deps.client,
@@ -118,7 +126,7 @@ export async function buildCardFromListing(input: BuildCardInput, deps: BuildCar
     conditionNotes: fields.conditionNotes,
     included: fields.included,
     photos: input.photos,
-    askingPrice: Math.round(fields.askingPrice * 100) / 100,
+    askingPrice: Math.round(askingPrice * 100) / 100,
     currency: "USD",
     sellerPaypalEmail: input.sellerPaypalEmail,
     lockedAt: null,

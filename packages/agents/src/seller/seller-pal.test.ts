@@ -83,9 +83,19 @@ describe("SellerPal.buildCard", () => {
     expect(card.serial).toBe("7LP091337");
   });
 
-  it("refuses to invent a price", async () => {
+  it("uses the seller's typed price when the listing names none, and refuses to invent one otherwise", async () => {
     const pal = createSellerPal({ anthropic: null });
-    await expect(pal.buildCard({ ...buildInput(cleanGarmin), listingText: "Garmin Fenix 7 Pro, worn daily.", sellerNotes: "" })).rejects.toBeInstanceOf(MissingPriceError);
+    const noPrice = { ...buildInput(cleanGarmin), listingText: "Garmin Fenix 7 Pro, worn daily.", sellerNotes: "" };
+    const { data: card } = await pal.buildCard({ ...noPrice, askingPrice: 450 });
+    expect(card.askingPrice).toBe(450);
+    await expect(pal.buildCard(noPrice)).rejects.toBeInstanceOf(MissingPriceError);
+    await expect(pal.buildCard({ ...noPrice, askingPrice: 0 })).rejects.toBeInstanceOf(MissingPriceError);
+  });
+
+  it("prefers the price in the listing over a typed one", async () => {
+    const pal = createSellerPal({ anthropic: null });
+    const { data: card } = await pal.buildCard({ ...buildInput(cleanGarmin), askingPrice: 999 });
+    expect(card.askingPrice).toBe(475);
   });
 });
 

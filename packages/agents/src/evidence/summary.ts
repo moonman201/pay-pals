@@ -51,6 +51,12 @@ export function deterministicSummary(input: EvidenceInput): string {
       parts.push(`Arrival check on ${day(arrivalCheck.createdAt)}: the item did not match the locked card. ${details}.`);
     }
   }
+  const arrivalPhotos = input.arrivalPhotos ?? [];
+  if (arrivalPhotos.length > 0) {
+    parts.push(
+      `${arrivalPhotos.length} arrival photo${arrivalPhotos.length === 1 ? "" : "s"} taken by the buyer: ${arrivalPhotos.map((p) => p.whatItShows).join("; ")}.`,
+    );
+  }
   parts.push(`${messages.length} chat message${messages.length === 1 ? "" : "s"} and ${timeline.length} timeline event${timeline.length === 1 ? "" : "s"} are attached in full.`);
   return plainCopy(parts.join(" "), 4000);
 }
@@ -64,6 +70,7 @@ const SYSTEM = [
 export async function writeSummary(input: EvidenceInput, client: ClaudeClient | null): Promise<string> {
   const facts = deterministicSummary(input);
   if (!client) return facts;
-  const text = await callText(client, SYSTEM, `Facts, in order:\n${facts}\n\nWrite the summary.`);
+  const arrivalNote = (input.arrivalPhotos ?? []).length > 0 ? " Mention that the buyer's arrival photos are attached and what they show." : "";
+  const text = await callText(client, SYSTEM, `Facts, in order:\n${facts}\n\nWrite the summary.${arrivalNote}`);
   return text ? plainCopy(text, 4000) : facts;
 }
