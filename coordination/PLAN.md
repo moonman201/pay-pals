@@ -24,7 +24,9 @@ tests/e2e            Playwright runs of the three demo scenarios                
 ```
 Modules talk only through `packages/contracts` interfaces. apps/web is the only place modules are wired together.
 
-## Contracts (draft, frozen Fri Oct 9)
+## Contracts (v1.0.0-draft in `packages/contracts`, frozen Fri Oct 9)
+
+The TypeScript in `packages/contracts/src` is the contract. This section is the summary. Where they differ, the code wins and the Lead fixes this file.
 
 ### Deal states
 `DRAFT -> LISTED -> REVIEWED -> AGREED -> PAYMENT_PENDING -> PAID -> SHIPPED -> DELIVERED -> COMPLETE`
@@ -109,17 +111,18 @@ Save every working call as a Postman collection in `docs/postman/`.
 - Grand Prize, or the Best Agentic Commerce honorable mention.
 - One sponsor prize only (rules allow one): **Channel3**. The Buyer Pal's price check must call the Channel3 API for real.
 
-## Open decisions for Matt
-1. **Can a buyer override a `stop`?** Recommendation: yes for `caution`, no for `stop` flags tied to payment method (Friends & Family, off-platform). Pay Pals simply never creates anything but a Goods & Services checkout payment, so the override question only applies to price and photo flags.
-2. **Who starts a deal?** Recommendation: either side. Seller usually does; buyer can paste a listing link to start one and invite the seller.
-3. **Accounts for v1.** Recommendation: no sign-up. A deal link plus the party's email is enough for the hackathon.
+## Decisions (Matt, Oct 6)
+1. **Overrides.** A buyer can override `caution` flags. A buyer can never override a payment-method flag (`FRIENDS_AND_FAMILY_REQUEST`, `OFF_PLATFORM_PAYMENT`). Pay Pals only ever creates a Goods and Services checkout payment, so those flags end the deal. Encoded as `PAYMENT_METHOD_FLAGS` in `packages/contracts/src/red-flag.ts`.
+2. **Who starts a deal.** Either side. The seller usually does; a buyer can paste a listing and invite the seller.
+3. **Accounts.** None in v1. A deal link plus the party's email is enough.
+4. **Brand names.** Real brand and product names are fine in demo data, UI and video. No copied logos or artwork.
 
 ## Status (Lead keeps this current)
 | Lane | Status | Last merge |
 |---|---|---|
-| Lead: contracts, schema, fixtures | not started | |
-| Lane 0 gate (builder-paypal) | waiting on Matt's sandbox credentials | |
-| builder-agents | not started | |
-| builder-paypal | not started | |
-| builder-web | not started | |
+| Lead: contracts, schema, fixtures | contracts v1.0.0-draft, schema and three fixtures on main; 24 tests green | 2026-10-06 |
+| Lane 0 gate (builder-paypal) | launched 2026-10-06; sandbox run blocked until `.env.local` has credentials | |
+| builder-agents | launched 2026-10-06 against contracts v1.0.0-draft | |
+| builder-paypal | launched 2026-10-06 (state machine, repositories, PayPal client) | |
+| builder-web | launched 2026-10-06 on fixtures | |
 | qa | not started | |

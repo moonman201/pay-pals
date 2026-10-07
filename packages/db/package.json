@@ -1,0 +1,29 @@
+{
+  "name": "@pay-pals/db",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Drizzle schema (defined by the Lead), repositories and the deal state machine (built by builder-paypal).",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./schema": {
+      "types": "./schema.ts",
+      "default": "./schema.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@pay-pals/contracts": "*",
+    "drizzle-orm": "^0.45.2"
+  },
+  "devDependencies": {
+    "drizzle-kit": "^0.31.0"
+  }
+}
