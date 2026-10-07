@@ -1,6 +1,6 @@
 # PLAN.md: Pay Pals v1
 
-Owner: Architect. Draft written 2026-10-06 by Claude for Matt. Architect refines in Phase 1 and 2; every lane posts explicit approval in WORKLOG.md before Phase 3.
+Owner: the Lead (the one Claude Code session Matt runs; see CLAUDE.md). Draft written 2026-10-06. The Lead refines it while writing contracts and keeps the status table current.
 
 ## Stack (decided, do not relitigate)
 - **TypeScript monorepo, npm workspaces.** Node 20+.
@@ -14,13 +14,13 @@ Owner: Architect. Draft written 2026-10-06 by Claude for Matt. Architect refines
 
 ## Module map
 ```
-packages/contracts   types, deal state machine, agent + PayPal interfaces, fixtures   (Architect)
-packages/agents      Seller Pal, Buyer Pal, red-flag rules, Channel3 client, evidence pack   (Builder-A)
-packages/paypal      OAuth token, create/capture order, webhook verify                 (Builder-B)
-packages/db          Drizzle schema (Architect defines), repositories, migrations      (Builder-B)
-apps/web             pages, deal room UI, API routes wiring the modules together       (Builder-C)
-tests/integration    cross-module tests against the contracts                          (QA)
-tests/e2e            Playwright runs of the three demo scenarios                       (QA)
+packages/contracts   types, deal state machine, agent + PayPal interfaces, fixtures   (Lead)
+packages/agents      Seller Pal, Buyer Pal, red-flag rules, Channel3 client, evidence pack   (builder-agents)
+packages/paypal      OAuth token, create/capture order, webhook verify                 (builder-paypal)
+packages/db          Drizzle schema (Lead defines), repositories, migrations      (builder-paypal)
+apps/web             pages, deal room UI, API routes wiring the modules together       (builder-web)
+tests/integration    cross-module tests against the contracts                          (qa)
+tests/e2e            Playwright runs of the three demo scenarios                       (qa)
 ```
 Modules talk only through `packages/contracts` interfaces. apps/web is the only place modules are wired together.
 
@@ -55,44 +55,41 @@ Each returns typed data plus a short `pal message` string for the UI. Determinis
 - Tracking is stored in our DB. Pushing tracking into PayPal is a stretch goal (only the payee's own credentials can do it).
 
 ## Lane assignments
+Each lane is a Claude Code subagent in `.claude/agents/`. The Lead launches independent lanes in parallel, each in its own worktree, and merges their branches. Matt does not open extra windows.
 
-### Lane 0 (gate), owned by Builder-B, first thing Wed Oct 7
+### Lane 0 (gate), run by builder-paypal, first thing Wed Oct 7
 In sandbox: create an order with payee = a sandbox **personal** account, pay it as a sandbox buyer, confirm the money lands. Also confirm with payee = a sandbox business account.
 - **Pass:** post to WORKLOG and continue.
 - **Fail on personal:** STOP. Post to BLOCKERS for Matt. Options: (a) v1 sellers must have a business account (free to open), (b) ask PayPal in the hackathon Discord, (c) both. Recommendation: (c), and keep building against business-account payees meanwhile.
 Save every working call as a Postman collection in `docs/postman/`.
 
-### Architect: `packages/contracts`, `packages/db/schema.ts`, `coordination/`, `docs/adr/`
+### Lead: `packages/contracts`, `packages/db/schema.ts`, `coordination/`, `docs/adr/`
 - Must not write feature code.
 - Owes: contracts and schema above as real TypeScript, plus fixtures for all three demo scenarios (`fixtures/scam-garmin`, `fixtures/clean-garmin`, `fixtures/wrong-item`) so every lane can build against mocks on day one.
-- Done: `npm run build` passes on contracts; fixtures load; every lane posted approval. **Lands first, by Fri Oct 9.**
+- Done: `npm run build` passes on contracts; fixtures load. **Lands first, by Fri Oct 9.** Lead also owns merging, deploy (Vercel + Neon), CHANGELOG.md and `docs/SUBMISSION.md`.
 
-### Builder-A: `packages/agents`
+### builder-agents: `packages/agents`
 - Must not touch PayPal, the database or UI.
 - Depends on: contracts. Owes: the agent interfaces above.
 - Builds: Claude tool-use loops for both pals; rule engine for red flags; Channel3 client with caching (save credits); vision reads of serials from photos; evidence pack builder.
 - Done: unit tests where the scam fixture yields `FRIENDS_AND_FAMILY_REQUEST`, `PRICE_FAR_BELOW_MARKET` and `URGENCY_PRESSURE` with overall `stop`; the clean fixture yields `go` or `caution` with no `stop`; the wrong-item fixture yields `matches: false` with the serial mismatch named.
-- Lands any time after contracts. No dependency on B or C.
+- Lands any time after contracts. No dependency on builder-paypal or builder-web.
 
-### Builder-B: `packages/paypal`, `packages/db` (repositories and migrations, not schema design)
+### builder-paypal: `packages/paypal`, `packages/db` (repositories and migrations, not schema design)
 - Must not touch agents or UI.
 - Depends on: contracts, schema. Owes: the PayPal interface and repositories (`deals`, `itemCards`, `messages`, `verdicts`, `payments`, `shipments`, `evidence`) plus the deal state machine enforcing legal transitions.
 - Done: integration test creates and captures a real sandbox order to the seller payee with the card text visible on the order; webhook handler verified with a sandbox event; illegal state transitions rejected in tests.
 - Starts with Lane 0.
 
-### Builder-C: `apps/web`
+### builder-web: `apps/web`
 - Must not put business logic in the UI. Calls modules only through their interfaces.
 - Depends on: contracts (mocks first, real modules as they land). Owes: the product a judge clicks through.
 - Builds: seller "start a deal" flow; the deal link page with buyer view (blue) and seller view (gold) matching the hero image; item card; each pal's chat pane plus a shared timeline; PayPal and Venmo buttons (JS SDK v6); shipping step; arrival check; evidence pack page; a "demo mode" landing that lets a judge pick one of the three scenarios and play either side.
 - Done: all three scenarios clickable end to end on mocks by Sat Oct 17, on real modules by Fri Oct 23.
 
-### QA: `tests/integration`, `tests/e2e`
+### qa: `tests/integration`, `tests/e2e`
 - Writes tests against contracts during Phase 3, not after.
 - Done: Playwright runs all three scenarios against the sandbox, green on the integration branch. Files findings in REVIEW.md with repro steps.
-
-### Integrator: merges, `CHANGELOG.md`, deploy
-- Only lane that merges to `main`. Owns Vercel + Neon production setup and env vars, the public repo hygiene (README, LICENSE, no secrets), and the Devpost checklist in `docs/SUBMISSION.md`.
-- Pings Matt in WORKLOG at each phase gate.
 
 ### Matt
 - Credentials into `.env.local` (see `.env.example`): PayPal sandbox app, sandbox accounts (buyer personal, seller personal, seller business), Anthropic key, Channel3 key, Neon URL.
@@ -102,7 +99,7 @@ Save every working call as a Postman collection in `docs/postman/`.
 ## Schedule
 | Dates | Phase | Gate |
 |---|---|---|
-| Wed Oct 7 to Fri Oct 9 | 1 Explore, 2 Divide | Lane 0 result. Contracts and schema frozen Fri Oct 9. All lanes approve. |
+| Wed Oct 7 to Fri Oct 9 | Contracts + Lane 0 | Lane 0 result. Contracts, schema and fixtures frozen Fri Oct 9. |
 | Sat Oct 10 to Fri Oct 23 | 3 Execute | Sat Oct 17: scenario 2 end to end on mocks. Fri Oct 23: all three on real sandbox. |
 | Sat Oct 24 to Sun Nov 1 | 4 Review | REVIEW.md empty, e2e green, deployed. **Feature freeze Sun Nov 1.** |
 | Mon Nov 2 to Sun Nov 8 | 5 Submit prep | Video recorded and edited. Devpost draft. |
@@ -116,3 +113,13 @@ Save every working call as a Postman collection in `docs/postman/`.
 1. **Can a buyer override a `stop`?** Recommendation: yes for `caution`, no for `stop` flags tied to payment method (Friends & Family, off-platform). Pay Pals simply never creates anything but a Goods & Services checkout payment, so the override question only applies to price and photo flags.
 2. **Who starts a deal?** Recommendation: either side. Seller usually does; buyer can paste a listing link to start one and invite the seller.
 3. **Accounts for v1.** Recommendation: no sign-up. A deal link plus the party's email is enough for the hackathon.
+
+## Status (Lead keeps this current)
+| Lane | Status | Last merge |
+|---|---|---|
+| Lead: contracts, schema, fixtures | not started | |
+| Lane 0 gate (builder-paypal) | waiting on Matt's sandbox credentials | |
+| builder-agents | not started | |
+| builder-paypal | not started | |
+| builder-web | not started | |
+| qa | not started | |

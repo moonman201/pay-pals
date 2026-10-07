@@ -18,8 +18,8 @@ Claude works the whole batch without checking in.
 
 **Stopping means stopping, not asking permission to continue.** Surface the decision with a recommendation and the consequence of each branch, finish whatever else is unblocked, and wait.
 
-## 2. Use the lanes
-Six worktrees: `~/Projects/pay-pals-{architect,builder-a,builder-b,builder-c,qa,integrator}`. Each lane's assignment is in `PLAN.md`: its boundary, what it must not touch, the contract it depends on and owes, what done means, and what it lands before or after.
+## 2. One session, many agents
+Matt runs one Claude Code session in `~/Projects/pay-pals`. That session is the Lead. When work has independent pieces, the Lead does not build them serially: it launches the lane subagents in `.claude/agents/` in parallel, each in its own worktree, then reviews, tests and merges. Each lane's boundary, contract, done criteria and ordering are in `PLAN.md`. Matt approves gates and makes product calls; he does not manage windows.
 
 ## 3. Deadline discipline
 - Feature freeze Sun Nov 1. After that, fixes only.
