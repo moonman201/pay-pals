@@ -6,6 +6,7 @@
 import { eq } from "drizzle-orm";
 import type { CreateDealInput, Deal, DealEvent, DealState, Party } from "@pay-pals/contracts";
 import { dealEvents, deals } from "../../schema";
+import { agreedEvent, agreementField, assertAgreementAllowed } from "../card-rules";
 import { DealNotFoundError } from "../errors";
 import { planTransition } from "../state-machine";
 import type { Db } from "./db";
@@ -52,6 +53,25 @@ export function dealsRepo(db: Db) {
         .returning();
       if (!row) throw new DealNotFoundError(dealId);
       return toDeal(row);
+    },
+
+    async recordAgreement(dealId: string, role: "buyer" | "seller", at: string = new Date().toISOString()): Promise<Deal> {
+      return db.transaction(async (tx) => {
+        const row = await lockRow(tx, dealId);
+        const deal = toDeal(row);
+        assertAgreementAllowed(dealId, deal.state);
+        const field = agreementField(role);
+        if (deal[field] !== null) return deal;
+        const when = new Date(at);
+        const [updated] = await tx
+          .update(deals)
+          .set({ [field]: when, updatedAt: when })
+          .where(eq(deals.id, dealId))
+          .returning();
+        const fresh = toDeal(updated!);
+        await tx.insert(dealEvents).values({ id: uuidv7(), ...toEventRow(agreedEvent(fresh, role, fresh[field]!)) });
+        return fresh;
+      });
     },
 
     async transition(dealId: string, to: DealState, actor: DealEvent["actor"], summary: string): Promise<Deal> {

@@ -22,7 +22,7 @@ import type {
   Shipment,
   Verdict,
 } from "@pay-pals/contracts";
-import { assertCardLockable, assertCardSavable } from "../card-rules";
+import { agreedEvent, agreementField, assertAgreementAllowed, assertCardLockable, assertCardSavable } from "../card-rules";
 import { CardLockedError, CardNotFoundError, CardVersionError, DealNotFoundError } from "../errors";
 import { planTransition } from "../state-machine";
 import type { PayPalsStore } from "@pay-pals/contracts";
@@ -70,6 +70,8 @@ export function createMemoryDealStore(): PayPalsStore {
         buyer: input.buyer ? copy(input.buyer) : null,
         currentCardVersion: 0,
         lockedCardVersion: null,
+        buyerAgreedAt: null,
+        sellerAgreedAt: null,
         createdAt: at,
         updatedAt: at,
       };
@@ -99,6 +101,18 @@ export function createMemoryDealStore(): PayPalsStore {
       return copy(rec.deal);
     },
 
+    async recordAgreement(dealId: string, role: "buyer" | "seller", at: string = now()): Promise<Deal> {
+      const rec = must(dealId);
+      assertAgreementAllowed(dealId, rec.deal.state);
+      const field = agreementField(role);
+      if (rec.deal[field] === null) {
+        rec.deal[field] = at;
+        rec.deal.updatedAt = at;
+        pushEvent(rec, agreedEvent(rec.deal, role, at));
+      }
+      return copy(rec.deal);
+    },
+
     async transition(dealId: string, to: DealState, actor: DealEvent["actor"], summary: string): Promise<Deal> {
       const rec = must(dealId);
       const plan = planTransition(rec.deal, to, actor, summary);
@@ -117,6 +131,9 @@ export function createMemoryDealStore(): PayPalsStore {
       const stored = { ...copy(card), lockedAt: null };
       rec.cards.push(stored);
       rec.deal.currentCardVersion = card.version;
+      // A changed card needs fresh agreement from both sides.
+      rec.deal.buyerAgreedAt = null;
+      rec.deal.sellerAgreedAt = null;
       rec.deal.updatedAt = now();
       return copy(stored);
     },

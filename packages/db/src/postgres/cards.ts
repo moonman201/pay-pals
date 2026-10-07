@@ -22,7 +22,11 @@ export function cardsRepo(db: Db, lockDeal: LockRow) {
         const expected = deal.currentCardVersion + 1;
         if (card.version !== expected) throw new CardVersionError(card.dealId, expected, card.version);
         const [row] = await tx.insert(itemCards).values(toCardRow(card)).returning();
-        await tx.update(deals).set({ currentCardVersion: card.version, updatedAt: new Date() }).where(eq(deals.id, card.dealId));
+        // A changed card needs fresh agreement from both sides.
+        await tx
+          .update(deals)
+          .set({ currentCardVersion: card.version, buyerAgreedAt: null, sellerAgreedAt: null, updatedAt: new Date() })
+          .where(eq(deals.id, card.dealId));
         return toCard(row!);
       });
     },
