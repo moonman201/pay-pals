@@ -20,6 +20,8 @@ export const PaymentRecordSchema = z.object({
   method: z.enum(PAYMENT_METHODS).nullable(),
   createdAt: z.string().datetime(),
   capturedAt: z.string().datetime().nullable(),
+  /** Head of the deal's event hash chain when the order was created. Also written into the PayPal order's custom_id. */
+  historyHash: z.string().length(64).nullable().optional(),
   /** PayPal's own order and capture responses, kept for the evidence pack. */
   rawOrder: z.record(z.unknown()).nullable().optional(),
   rawCapture: z.record(z.unknown()).nullable().optional(),

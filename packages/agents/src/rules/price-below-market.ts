@@ -12,7 +12,7 @@ export const STOP_RATIO = 0.6;
 export const CAUTION_RATIO = 0.75;
 
 export const priceBelowMarketRule: Rule = ({ card, priceCheck }) => {
-  if (!priceCheck || priceCheck.marketLow <= 0) return [];
+  if (!card || !priceCheck || priceCheck.marketLow <= 0) return [];
   const ratio = card.askingPrice / priceCheck.marketLow;
   if (ratio >= CAUTION_RATIO) return [];
 

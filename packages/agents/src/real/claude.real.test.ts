@@ -6,8 +6,9 @@
 import { describe, expect, it } from "vitest";
 import Anthropic from "@anthropic-ai/sdk";
 import type { Verdict } from "@pay-pals/contracts";
-import { CLEAN_SERIAL, cleanPs5, hasStop, scamPs5 } from "@pay-pals/contracts";
+import { CLEAN_SERIAL, cleanPs5, hasStop, fakeSlab } from "@pay-pals/contracts";
 import { createBuyerPal } from "../buyer/buyer-pal";
+import { createFixtureCertLookup } from "../cert/fixture-lookup";
 import { createSellerPal } from "../seller/seller-pal";
 import { createFixturePriceLookup } from "../price/fixture-lookup";
 import { hasKey } from "../testing/env";
@@ -24,12 +25,13 @@ describe.skipIf(!enabled)("real Claude (needs ANTHROPIC_API_KEY)", () => {
   const anthropic = new Anthropic();
   const priceLookup = createFixturePriceLookup();
 
-  it("scam-ps5 still stops with the required flags after the model weighs in", async () => {
-    const pal = createBuyerPal({ anthropic, priceLookup });
-    const { data: verdict } = await pal.review(scamPs5.cards.at(-1)!, scamPs5.chat, { seller: scamPs5.seller });
-    print("scam-ps5 v1", verdict);
+  it("fake-slab still stops with the required flags, including CERT_MISMATCH, after the model weighs in", async () => {
+    const pal = createBuyerPal({ anthropic, priceLookup, certLookup: createFixtureCertLookup() });
+    const { data: verdict } = await pal.review(fakeSlab.cards.at(-1)!, fakeSlab.chat, { seller: fakeSlab.seller });
+    print("fake-slab v1", verdict);
+    expect(verdict.certCheck?.matches).toBe(false);
     const codes = verdict.flags.map((f) => f.code);
-    for (const code of scamPs5.expectedVerdict.requiredFlags) expect(codes).toContain(code);
+    for (const code of fakeSlab.expectedVerdict.requiredFlags) expect(codes).toContain(code);
     expect(verdict.overall).toBe("stop");
     expect(verdict.palMessage.length).toBeGreaterThan(20);
     expect(verdict.palMessage).not.toMatch(/[—!]/);

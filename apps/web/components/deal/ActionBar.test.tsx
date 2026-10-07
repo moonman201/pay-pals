@@ -94,6 +94,34 @@ describe("ActionBar: buttons per state and role", () => {
   });
 });
 
+describe("ActionBar: invited deals", () => {
+  it("INVITED buyer with nothing to review: only cancel, and a pointer to the seller's join page", () => {
+    renderBar({ state: "INVITED", role: "buyer", cardVersion: 0 });
+    expect(buttonNames()).toEqual(["Cancel the deal"]);
+    expect(screen.getByText(/Waiting for the seller to join/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /seller's join page/ })).toHaveAttribute("href", "/deals/d1/join?as=seller");
+  });
+
+  it("INVITED buyer with a refusal to review: the review button, worded for the refusal", async () => {
+    const onAction = renderBar({ state: "INVITED", role: "buyer", cardVersion: 0, refusalToReview: true });
+    expect(buttonNames()).toEqual(["Ask my pal to review the refusal", "Cancel the deal"]);
+    await userEvent.click(screen.getByRole("button", { name: "Ask my pal to review the refusal" }));
+    expect(onAction).toHaveBeenCalledWith("review", { override: false });
+  });
+
+  it("INVITED seller: only cancel", () => {
+    renderBar({ state: "INVITED", role: "seller", cardVersion: 0 });
+    expect(buttonNames()).toEqual(["Cancel the deal"]);
+  });
+
+  it("REVIEWED with no card (a refusal that did not block) offers no agree", () => {
+    renderBar({ state: "REVIEWED", role: "buyer", cardVersion: 0, verdict: verdict("caution", [flag("URGENCY_PRESSURE", "caution")]) });
+    expect(buttonNames()).toEqual(["Cancel the deal"]);
+    expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+    expect(screen.getByText(/Waiting for the seller to join/)).toBeInTheDocument();
+  });
+});
+
 describe("ActionBar: two-sided agreement", () => {
   it("REVIEWED seller sees Agree to this card", async () => {
     const onAction = renderBar({ state: "REVIEWED", role: "seller", verdict: verdict("go") });

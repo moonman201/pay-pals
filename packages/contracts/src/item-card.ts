@@ -39,6 +39,10 @@ export const ItemCardSchema = z.object({
   serial: z.string().min(1).max(64).nullable(),
   /** Serial printed on the original box label, when the item ships with its box. The Seller Pal reads it and says whether it matches. */
   boxSerial: z.string().min(1).max(64).nullable().optional(),
+  /** Grading certificate number for a graded collectible (PSA slab). The Buyer Pal checks it against the grader. */
+  certNumber: z.string().min(1).max(32).nullable().optional(),
+  /** Grade as printed on the slab label, for example "PSA 10". */
+  grade: z.string().min(1).max(32).nullable().optional(),
   conditionGrade: z.enum(CONDITION_GRADES),
   conditionNotes: z.string().max(600),
   included: z.array(z.string().min(1).max(80)),

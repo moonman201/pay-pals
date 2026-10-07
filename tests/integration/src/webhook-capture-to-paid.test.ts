@@ -4,7 +4,7 @@
  * id. A dispute on a DELIVERED deal opens an ISSUE.
  */
 import { describe, expect, it } from "vitest";
-import { canTransition, cleanPs5, emptyBox } from "@pay-pals/contracts";
+import { buildCustomId, canTransition, cleanPs5, emptyBox, historyMatchesHead, parseCustomId, verifyChain } from "@pay-pals/contracts";
 import type { DealState, PaymentRecord, ScenarioFixture, WebhookEvent } from "@pay-pals/contracts";
 import { handleWebhookEvent } from "@pay-pals/paypal";
 import { driveTo, seedFixture } from "./seed";
@@ -111,6 +111,27 @@ describe("PAYMENT.CAPTURE.COMPLETED on a PAYMENT_PENDING deal", () => {
     expect(await store.getPayment(dealId)).toEqual(paymentAfterFirst);
     expect((await store.getDeal(dealId))!.state).toBe("PAID");
     expect(await store.hasWebhookReceipt(event.id)).toBe(true);
+  });
+
+  it("resolves a capture whose custom_id carries the history hash, with no invoice_id and no order id", async () => {
+    const { seeded, payment } = await dealWithPayment(cleanPs5, "PAYMENT_PENDING");
+    const { store, dealId } = seeded;
+    const historyHash = verifyChain(await store.listEvents(dealId)).head!;
+    await store.savePayment({ ...payment, historyHash });
+
+    const event = captureCompleted(dealId, "420.00", "WH-CUSTOM-ID-ONLY-0001");
+    delete event.resource.invoice_id;
+    delete event.resource.supplementary_data;
+    event.resource.custom_id = buildCustomId(dealId, historyHash);
+    expect(parseCustomId(String(event.resource.custom_id))).toEqual({ dealId, historyHash });
+
+    const outcome = await handleWebhookEvent(event, store);
+    expect(outcome).toMatchObject({ handled: true, duplicate: false, retry: false, dealId });
+    const saved = (await store.getPayment(dealId))!;
+    expect(saved.status).toBe("CAPTURED");
+    expect(saved.historyHash).toBe(historyHash);
+    expect((await store.getDeal(dealId))!.state).toBe("PAID");
+    expect(historyMatchesHead(await store.listEvents(dealId), historyHash)).toBe(true);
   });
 
   it("asks PayPal to retry when the payment row is not saved yet, and succeeds on redelivery", async () => {

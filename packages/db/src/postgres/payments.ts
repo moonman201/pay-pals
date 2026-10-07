@@ -29,6 +29,7 @@ export function paymentsRepo(db: Db) {
               amountCents: row.amountCents,
               rawOrder: row.rawOrder,
               rawCapture: row.rawCapture,
+              historyHash: row.historyHash,
               updatedAt: new Date(),
             },
           })

@@ -1,6 +1,6 @@
 # tests/e2e
 
-Playwright runs of the three demo scenarios against `apps/web`, on fixtures, with no keys. Scam stopped, clean deal paid with the demo buttons, empty box with an evidence pack, plus a phone-width pass.
+Playwright runs of the three demo scenarios against `apps/web`, on fixtures, with no keys. Fake slab stopped, buyer-first start and refusal, clean deal paid with the demo buttons, empty box with an evidence pack, plus a phone-width pass.
 
 **Not part of the root `npm test`.** The root test gate runs `tests/integration` only. This workspace has no `test` script on purpose, so `npm test --workspaces` skips it. Run it with:
 
@@ -42,7 +42,9 @@ Do not run `npm run build` and the e2e at the same time: both use `apps/web/.nex
 | File | What it proves |
 |---|---|
 | `src/landing.spec.ts` | The landing page loads and names all three scenarios. |
-| `src/scam-stopped.spec.ts` | The review blocks the scam deal: payment-method flag, no Agree button, no override, timeline says why. |
+| `src/fake-slab.spec.ts` | Buyer-started demo: the timeline shows the invite and the seeded join, the review blocks the deal on the cert mismatch, Friends and Family, pressure and price, no Agree button, no override. |
+| `src/buyer-first.spec.ts` | "Use Pay Pals Protection" on the landing page: the room waits for the seller with the invite link, the seller joins through the link, Listed. |
+| `src/refusal.spec.ts` | The seller opens the invite link and will not use Pay Pals; the Buyer Pal reviews the refusal with no card: payment-method stop, no override, Blocked. |
 | `src/clean-deal.spec.ts` | Listed to Complete as the buyer and the seller: review, both sides agree and the card locks, demo pay, ship with checklist and tracking, deliver, arrival matches, complete. |
 | `src/card-change-reagree.spec.ts` | Buyer agrees, the seller changes the card instead, the deal goes back to Listed, both sides review and agree again, locked at version 2. |
 | `src/empty-box.spec.ts` | Same path to Delivered, then the arrival check finds no console to read a serial from, the issue, and the evidence page with the locked card and the arrival photos. |

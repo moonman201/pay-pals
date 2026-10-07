@@ -29,7 +29,7 @@ export function paypalEmailLooksLikeSeller(seller: { displayName: string; email:
 }
 
 export const nameMismatchRule: Rule = ({ card, seller }) => {
-  if (!seller) return [];
+  if (!card || !seller) return [];
   if (paypalEmailLooksLikeSeller(seller, card.sellerPaypalEmail)) return [];
   return [
     flag(

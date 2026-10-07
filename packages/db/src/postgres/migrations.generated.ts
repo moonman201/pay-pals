@@ -71,5 +71,32 @@ export const MIGRATIONS: readonly BundledMigration[] = [
     "bps": true,
     "folderMillis": 1791368065910,
     "hash": "27ac8e6693a314505c3dccb3533d1df6bf2e40b30863763fb28ba2a2ba4dde11"
+  },
+  {
+    "tag": "0003_buyer_first_history",
+    "sql": [
+      "CREATE TYPE \"public\".\"deal_starter\" AS ENUM('buyer', 'seller');",
+      "\nALTER TYPE \"public\".\"deal_event_kind\" ADD VALUE 'seller_invited' BEFORE 'card_updated';",
+      "\nALTER TYPE \"public\".\"deal_event_kind\" ADD VALUE 'seller_joined' BEFORE 'card_updated';",
+      "\nALTER TYPE \"public\".\"deal_event_kind\" ADD VALUE 'invite_declined' BEFORE 'card_updated';",
+      "\nALTER TYPE \"public\".\"deal_state\" ADD VALUE 'INVITED' BEFORE 'LISTED';",
+      "\nCREATE TYPE \"public\".\"scenario_new\" AS ENUM('fake-slab', 'clean-ps5', 'empty-box');",
+      "\nALTER TABLE \"deals\" ALTER COLUMN \"scenario\" SET DATA TYPE \"public\".\"scenario_new\" USING (\n  CASE \"scenario\"::text\n    WHEN 'scam-ps5' THEN 'fake-slab'\n    ELSE \"scenario\"::text\n  END\n)::\"public\".\"scenario_new\";",
+      "\nDROP TYPE \"public\".\"scenario\";",
+      "\nALTER TYPE \"public\".\"scenario_new\" RENAME TO \"scenario\";",
+      "\nALTER TABLE \"deal_events\" ADD COLUMN \"prev_hash\" text;",
+      "\nALTER TABLE \"deal_events\" ADD COLUMN \"hash\" text;",
+      "\nALTER TABLE \"deals\" ADD COLUMN \"started_by\" \"deal_starter\" DEFAULT 'seller' NOT NULL;",
+      "\nALTER TABLE \"deals\" ADD COLUMN \"listing_url\" text;",
+      "\nALTER TABLE \"deals\" ADD COLUMN \"seller_joined_at\" timestamp with time zone;",
+      "\nALTER TABLE \"item_cards\" ADD COLUMN \"box_serial\" text;",
+      "\nALTER TABLE \"item_cards\" ADD COLUMN \"cert_number\" text;",
+      "\nALTER TABLE \"item_cards\" ADD COLUMN \"grade\" text;",
+      "\nALTER TABLE \"payments\" ADD COLUMN \"history_hash\" text;",
+      "\nCREATE UNIQUE INDEX \"deal_events_hash_idx\" ON \"deal_events\" USING btree (\"hash\");\n"
+    ],
+    "bps": true,
+    "folderMillis": 1791373896303,
+    "hash": "e79112dc0abb885183291fa84bbcc4387472fb36e41f8b261255cde621e258ad"
   }
 ];

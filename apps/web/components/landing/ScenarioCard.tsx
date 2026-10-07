@@ -3,7 +3,7 @@ import Link from "next/link";
 import { buttonClass } from "../ui/Button";
 
 const ENDINGS: Record<ScenarioFixture["id"], string> = {
-  "scam-ps5": "Ends blocked. No money moves.",
+  "fake-slab": "Ends blocked. No money moves.",
   "clean-ps5": "Ends complete. Paid, shipped, matched.",
   "empty-box": "Ends in an issue with an evidence pack.",
 };

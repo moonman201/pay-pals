@@ -70,9 +70,27 @@ export interface WebhookEvent {
   create_time: string;
 }
 
+export interface CreateOrderOptions {
+  /** Head of the deal's event hash chain. Written into custom_id so PayPal's record proves the history. */
+  historyHash?: string | null;
+}
+
+/** custom_id carries the deal id and, after a "#", the history hash. invoice_id stays the bare deal id. */
+export const CUSTOM_ID_SEPARATOR = "#";
+
+export function buildCustomId(dealId: string, historyHash?: string | null): string {
+  return historyHash ? `${dealId}${CUSTOM_ID_SEPARATOR}${historyHash}` : dealId;
+}
+
+export function parseCustomId(customId: string): { dealId: string; historyHash: string | null } {
+  const i = customId.indexOf(CUSTOM_ID_SEPARATOR);
+  if (i === -1) return { dealId: customId, historyHash: null };
+  return { dealId: customId.slice(0, i), historyHash: customId.slice(i + 1) || null };
+}
+
 export interface PayPalGateway {
   /** Create a Goods and Services checkout order for the locked card. Throws if the card is not locked. */
-  createDealOrder(lockedCard: ItemCard, dealId: string): Promise<CreateOrderResult>;
+  createDealOrder(lockedCard: ItemCard, dealId: string, options?: CreateOrderOptions): Promise<CreateOrderResult>;
   captureOrder(orderId: string): Promise<CaptureResult>;
   /** Verify a webhook signature with PayPal. rawBody must be the exact bytes received. */
   verifyWebhook(headers: WebhookHeaders, rawBody: string): Promise<boolean>;

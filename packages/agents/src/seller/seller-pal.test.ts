@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CLEAN_SERIAL, EMPTY_BOX_LOCKED_SERIAL, ItemCardSchema, cleanPs5, emptyBox, scamPs5 } from "@pay-pals/contracts";
+import { CLEAN_SERIAL, EMPTY_BOX_LOCKED_SERIAL, FAKE_SLAB_CERT, ItemCardSchema, cleanPs5, emptyBox, fakeSlab } from "@pay-pals/contracts";
 import { fakeClaude, promptText } from "../testing/fake-claude";
 import { CardLockedError } from "./apply-request";
 import { MissingPriceError } from "./build-card";
@@ -26,12 +26,15 @@ describe("parseListing", () => {
     expect(draft.included).toContain("Original box");
     expect(draft.conditionNotes).toContain("scuff");
   });
-  it("reads the scam listing as like new at $220 with Sony as the brand", () => {
-    const draft = parseListing(scamPs5.listingText, scamPs5.sellerNotes);
-    expect(draft.brand).toBe("Sony");
-    expect(draft.model).toBe("PS5 disc edition");
-    expect(draft.askingPrice).toBe(220);
+  it("reads the slab listing as like new at $750 with Pokemon as the brand", () => {
+    const draft = parseListing(fakeSlab.listingText, fakeSlab.sellerNotes);
+    expect(draft.brand).toBe("Pokemon");
+    expect(draft.model).toBe("1999 Pokemon Base Set Charizard Holo PSA 10");
+    expect(draft.askingPrice).toBe(750);
     expect(draft.conditionGrade).toBe("like_new");
+  });
+  it("reads a PS5 listing with PS5 as the only brand word as Sony", () => {
+    expect(parseListing("PS5 disc edition with original box, controller and all cables. Like new. $220 FIRM.", "")).toMatchObject({ brand: "Sony", model: "PS5 disc edition", askingPrice: 220 });
   });
   it("keeps the first word as the brand when it is one", () => {
     expect(parseListing("Bose QuietComfort 45, barely used. $150.", "")).toMatchObject({ brand: "Bose", model: "QuietComfort 45" });
@@ -95,12 +98,22 @@ describe("SellerPal.buildCard", () => {
     expect(promptText(model.calls[0]!)).toContain(cleanPs5.listingText);
   });
 
-  it("leaves both serials null for the scam listing and says so", async () => {
+  it("reads the cert number and grade from the slab label and leaves both serials null", async () => {
     const pal = createSellerPal({ anthropic: null });
-    const { data: card, palMessage } = await pal.buildCard(buildInput(scamPs5));
+    const { data: card, palMessage } = await pal.buildCard(buildInput(fakeSlab));
+    expect(ItemCardSchema.safeParse(card).success).toBe(true);
     expect(card.serial).toBeNull();
     expect(card.boxSerial).toBeNull();
-    expect(card.askingPrice).toBe(220);
+    expect(card.certNumber).toBe(FAKE_SLAB_CERT);
+    expect(card.grade).toBe("PSA 10");
+    expect(card.askingPrice).toBe(750);
+    expect(palMessage).toContain(`Cert ${FAKE_SLAB_CERT} (PSA 10) read from the slab label`);
+    expect(palMessage).not.toContain("could not find a serial");
+  });
+
+  it("still asks for a serial when there is neither a serial nor a cert", async () => {
+    const pal = createSellerPal({ anthropic: null });
+    const { palMessage } = await pal.buildCard({ ...buildInput(cleanPs5), photos: [cleanPs5.listingPhotos[2]!], sellerNotes: "" });
     expect(palMessage).toContain("could not find a serial");
   });
 

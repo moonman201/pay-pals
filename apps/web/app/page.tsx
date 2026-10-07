@@ -1,14 +1,14 @@
 import { ALL_FIXTURES } from "@pay-pals/contracts";
 import Link from "next/link";
+import { ProtectionPanel } from "@/components/landing/ProtectionPanel";
 import { ScenarioCard } from "@/components/landing/ScenarioCard";
-import { buttonClass } from "@/components/ui/Button";
 import { getServices } from "@/lib/services";
 
 const STEPS: { who: string; what: string; tone: "theme-seller" | "theme-buyer" }[] = [
-  { who: "Seller Pal", what: "turns the listing and photos into an item card with the serial on it.", tone: "theme-seller" },
-  { who: "Buyer Pal", what: "checks the price against the market and reads the chat for scam patterns.", tone: "theme-buyer" },
-  { who: "Both sides agree", what: "and the card locks. The locked card becomes the PayPal Goods and Services order.", tone: "theme-buyer" },
-  { who: "Proof until it arrives", what: "packing photos, tracking, an arrival check against the serial, and an evidence pack if anything is off.", tone: "theme-seller" },
+  { who: "You invite the seller", what: "with their PayPal email and the listing link. They get a link to join.", tone: "theme-buyer" },
+  { who: "Seller Pal", what: "turns their photos into an item card with the serial or cert number on it.", tone: "theme-seller" },
+  { who: "Buyer Pal", what: "checks the price, the cert and the chat. A refusal to use Pay Pals is the strongest warning sign.", tone: "theme-buyer" },
+  { who: "Both agree, then proof", what: "the card locks into a PayPal Goods and Services order; packing photos, tracking and an arrival check follow.", tone: "theme-seller" },
 ];
 
 export const dynamic = "force-dynamic";
@@ -21,10 +21,14 @@ export default async function HomePage() {
         <p className="text-sm font-semibold uppercase tracking-widest text-blue">Pay Pals</p>
         <h1 className="mt-3 text-4xl font-black tracking-tight text-navy sm:text-5xl">Two AI agents. One safe deal.</h1>
         <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-muted sm:text-lg">
-          Buying from a stranger on an online marketplace. The Buyer Pal vets the listing. The Seller Pal locks the exact item into a PayPal Goods and
-          Services payment. Both keep proof until it arrives.
+          Buying from a stranger on an online marketplace. Your Buyer Pal vets the listing. The seller&apos;s pal locks the exact item into a PayPal Goods and Services payment.
+          Both keep proof until it arrives.
         </p>
       </header>
+
+      <section className="mx-auto mt-10 max-w-2xl">
+        <ProtectionPanel />
+      </section>
 
       <section className="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {STEPS.map((s, i) => (
@@ -43,8 +47,8 @@ export default async function HomePage() {
             <h2 className="text-2xl font-bold text-navy">Try a demo deal</h2>
             <p className="mt-1 text-sm text-muted">Pick a scenario and a side. Nothing to set up. Everything runs on the PayPal sandbox.</p>
           </div>
-          <Link href="/deals/new" className={buttonClass("secondary")}>
-            Start a real deal
+          <Link href="/deals/new" className="text-sm font-semibold text-navy underline-offset-2 hover:underline">
+            Selling? List an item instead
           </Link>
         </div>
         <div className="mt-5 grid gap-4 md:grid-cols-3">

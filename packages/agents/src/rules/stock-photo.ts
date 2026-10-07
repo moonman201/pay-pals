@@ -16,7 +16,7 @@ function isCatalogOrReused(photo: Photo): boolean {
 }
 
 export const stockPhotoRule: Rule = ({ card }) => {
-  if (card.photos.length === 0) return [];
+  if (!card || card.photos.length === 0) return [];
   const suspect = card.photos.filter(isCatalogOrReused);
   if (suspect.length === 0 || suspect.length < card.photos.length) return [];
   const first = suspect[0]!;

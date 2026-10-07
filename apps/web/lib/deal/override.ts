@@ -30,8 +30,12 @@ const FLAG_WORDS: Readonly<Record<RedFlagCode, string>> = {
   STOCK_OR_REUSED_PHOTO: "a catalog photo instead of the real item",
   MISSING_SERIAL: "no serial number",
   SHIP_BEFORE_PAY_TRICK: "a trick to get money before shipping",
+  INVITE_REFUSED: "the seller refused Pay Pals protection",
+  CERT_MISMATCH: "a grading cert that does not match PSA's record",
   OTHER: "another concern",
 };
+
+export { FLAG_WORDS };
 
 export function stopFlags(verdict: Verdict): RedFlag[] {
   return verdict.flags.filter((f) => f.severity === "stop" && !isPaymentMethodFlag(f));

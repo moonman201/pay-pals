@@ -1,7 +1,10 @@
 /**
  * Pay Pals database schema. Owned by the Lead. Frozen Fri Oct 9, 2026.
  * v1.3.0 (Oct 7): deals.buyer_agreed_at and seller_agreed_at, deal_event_kind gains "agreed".
- * v1.4.0 (Oct 7): scenario enum values are scam-ps5, clean-ps5, empty-box (demo item changed to a PlayStation 5).
+ * v1.4.0 (Oct 7): scenario enum values changed (demo item changed to a PlayStation 5).
+ * v1.5.0 (Oct 7): buyer-first deals (started_by, listing_url, seller_joined_at, state INVITED, three event kinds),
+ *   graded items (item_cards.cert_number, grade), tamper-evident history (deal_events.prev_hash, hash; payments.history_hash),
+ *   scenario enum fake-slab replaces scam-ps5.
  *
  * One table per thing a deal produces. Card, verdict, payment, shipment and
  * evidence rows are never updated in place once written, except the fields
@@ -28,6 +31,7 @@ import {
   CONDITION_GRADES,
   DEAL_EVENT_KINDS,
   DEAL_STATES,
+  DEAL_STARTERS,
   MESSAGE_CHANNELS,
   PAYMENT_METHODS,
   PAYMENT_STATUSES,
@@ -53,6 +57,7 @@ export const paymentMethodEnum = pgEnum("payment_method", PAYMENT_METHODS);
 export const carrierEnum = pgEnum("carrier", CARRIERS);
 export const dealEventKindEnum = pgEnum("deal_event_kind", DEAL_EVENT_KINDS);
 export const verdictKindEnum = pgEnum("verdict_kind", ["review", "arrival"]);
+export const dealStarterEnum = pgEnum("deal_starter", DEAL_STARTERS);
 
 const timestamps = {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -64,6 +69,9 @@ export const deals = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     state: dealStateEnum("state").notNull().default("DRAFT"),
+    startedBy: dealStarterEnum("started_by").notNull().default("seller"),
+    listingUrl: text("listing_url"),
+    sellerJoinedAt: timestamp("seller_joined_at", { withTimezone: true }),
     scenario: scenarioEnum("scenario"),
     sellerName: text("seller_name").notNull(),
     sellerEmail: text("seller_email").notNull(),
@@ -92,6 +100,9 @@ export const itemCards = pgTable(
     brand: text("brand").notNull(),
     model: text("model").notNull(),
     serial: text("serial"),
+    boxSerial: text("box_serial"),
+    certNumber: text("cert_number"),
+    grade: text("grade"),
     conditionGrade: conditionGradeEnum("condition_grade").notNull(),
     conditionNotes: text("condition_notes").notNull().default(""),
     included: jsonb("included").$type<string[]>().notNull().default([]),
@@ -157,6 +168,8 @@ export const payments = pgTable(
     amountCents: integer("amount_cents").notNull(),
     currency: text("currency").notNull().default("USD"),
     method: paymentMethodEnum("method"),
+    /** Head of the event hash chain when the order was created; also in the PayPal order's custom_id. */
+    historyHash: text("history_hash"),
     /** Raw PayPal responses for the evidence pack and debugging. */
     rawOrder: jsonb("raw_order").$type<Record<string, unknown>>(),
     rawCapture: jsonb("raw_capture").$type<Record<string, unknown>>(),
@@ -218,8 +231,11 @@ export const dealEvents = pgTable(
     toState: dealStateEnum("to_state"),
     data: jsonb("data").$type<DealEvent["data"]>(),
     at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
+    /** Hash chain (contracts history.ts). Computed by the repository on append, never by callers. */
+    prevHash: text("prev_hash"),
+    hash: text("hash").notNull(),
   },
-  (t) => [index("deal_events_deal_at_idx").on(t.dealId, t.at)],
+  (t) => [index("deal_events_deal_at_idx").on(t.dealId, t.at), uniqueIndex("deal_events_hash_idx").on(t.hash)],
 );
 
 /** Idempotency for PayPal webhooks: one row per event id we have handled. */

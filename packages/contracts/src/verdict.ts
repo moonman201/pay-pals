@@ -28,12 +28,40 @@ export const PriceCheckSchema = z.object({
 });
 export type PriceCheck = z.infer<typeof PriceCheckSchema>;
 
+export const CERT_PROVIDERS = ["psa", "fixture"] as const;
+
+/** What the grader's records say about a certificate number. */
+export const CertRecordSchema = z.object({
+  provider: z.enum(CERT_PROVIDERS),
+  certNumber: z.string().min(1),
+  /** Null when the grader has no record for this number. */
+  subject: z.string().nullable(),
+  grade: z.string().nullable(),
+  year: z.string().nullable(),
+  brand: z.string().nullable(),
+  /** Raw grader response, kept for the evidence pack. */
+  raw: z.record(z.unknown()).nullable(),
+  checkedAt: z.string().datetime(),
+});
+export type CertRecord = z.infer<typeof CertRecordSchema>;
+
+export const CertCheckSchema = z.object({
+  record: CertRecordSchema,
+  /** True when the record describes the card on the item card; false on a mismatch or a missing record; null when nothing could be compared. */
+  matches: z.boolean().nullable(),
+  explanation: z.string().min(1).max(300),
+});
+export type CertCheck = z.infer<typeof CertCheckSchema>;
+
 export const VerdictSchema = z.object({
   dealId: z.string().min(1),
-  cardVersion: z.number().int().positive(),
+  /** 0 when the review ran with no card (a refusal reviewed from the chat alone). */
+  cardVersion: z.number().int().nonnegative(),
   overall: z.enum(VERDICT_OVERALLS),
   flags: z.array(RedFlagSchema),
   priceCheck: PriceCheckSchema.nullable(),
+  /** Set when the card carries a certificate number. */
+  certCheck: CertCheckSchema.nullable().optional(),
   /** Things the Buyer Pal wants before it will say go. Shown to the seller. */
   questionsForSeller: z.array(z.string().min(1).max(300)),
   /** Short plain summary for the buyer's chat pane. */

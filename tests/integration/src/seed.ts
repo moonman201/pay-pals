@@ -21,9 +21,15 @@ export interface SeededDeal {
 
 const rekey = <T extends { dealId: string }>(row: T, dealId: string): T => ({ ...row, dealId });
 
-/** Creates the deal, saves every card version in order and adds the shared chat. The deal is left in DRAFT. */
+/** Creates the deal as the fixture's starter, saves every card version in order and adds the shared chat. The deal is left in DRAFT. */
 export async function seedFixture(fixture: ScenarioFixture, store: PayPalsStore = createMemoryDealStore()): Promise<SeededDeal> {
-  const deal = await store.createDeal({ seller: fixture.seller, buyer: fixture.buyer, scenario: fixture.id });
+  const deal = await store.createDeal({
+    startedBy: fixture.deal.startedBy,
+    seller: fixture.seller,
+    buyer: fixture.buyer,
+    listingUrl: fixture.deal.listingUrl,
+    scenario: fixture.id,
+  });
   const cards: ItemCard[] = [];
   for (const card of fixture.cards) cards.push(await store.saveCard(rekey(card, deal.id)));
   const chat: Message[] = [];

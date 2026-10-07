@@ -16,7 +16,11 @@ test.describe("phone width", () => {
     expect(testInfo.project.use.viewport?.width, "run this spec through the phone project").toBe(390);
 
     await page.goto("/");
-    await expectNoHorizontalScroll(page, "landing page");
+    const protection = page.getByRole("form", { name: "Use Pay Pals Protection" });
+    await expect(protection).toBeVisible();
+    await expect(protection.getByLabel("Seller's PayPal email")).toBeVisible();
+    await expect(protection.getByRole("button", { name: "Use Pay Pals Protection" })).toBeVisible();
+    await expectNoHorizontalScroll(page, "landing page with the protection panel");
 
     const dealId = await startDemo(page, cleanPs5, "buyer");
     await expectState(page, "Listed");

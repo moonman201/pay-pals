@@ -22,6 +22,25 @@ export class CardNotEditableError extends Error {
   }
 }
 
+/** The seller tried to join a deal that has not been opened to them (DRAFT) or is already over. */
+export class SellerJoinNotAllowedError extends Error {
+  constructor(
+    public readonly dealId: string,
+    public readonly state: string,
+  ) {
+    super(`The seller cannot join deal ${dealId} while it is ${state}`);
+    this.name = "SellerJoinNotAllowedError";
+  }
+}
+
+/** A stored event has no hash yet. Run the backfill (npm run db:backfill-hashes -w packages/db). */
+export class EventNotHashedError extends Error {
+  constructor(public readonly eventId: string) {
+    super(`Event ${eventId} has no hash. Run: npm run db:backfill-hashes -w packages/db`);
+    this.name = "EventNotHashedError";
+  }
+}
+
 /** A side tried to agree while the deal was not LISTED or REVIEWED. */
 export class AgreementNotAllowedError extends Error {
   constructor(

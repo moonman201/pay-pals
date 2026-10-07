@@ -7,7 +7,7 @@ import type { ItemCard, Photo } from "../item-card";
 import type { DealEvent, Message } from "../messages";
 import type { RedFlagCode } from "../red-flag";
 import type { Shipment } from "../shipping";
-import type { PriceCheck, VerdictOverall, MismatchField } from "../verdict";
+import type { CertRecord, PriceCheck, VerdictOverall, MismatchField } from "../verdict";
 import type { PaymentRecord } from "../payment";
 
 export interface ExpectedVerdict {
@@ -44,12 +44,14 @@ export interface ScenarioFixture {
   chat: Message[];
   /** Canned market price answer so tests never spend Channel3 credits. */
   marketPrice: PriceCheck;
+  /** Canned grader answer for the card's certNumber, so tests never call PSA. Null when the item has no cert. */
+  certRecord: CertRecord | null;
   expectedVerdict: ExpectedVerdict;
   /** Set for scenarios that reach payment and shipping. */
   payment: PaymentRecord | null;
   shipment: Shipment | null;
   arrivalPhotos: Photo[];
   expectedArrival: ExpectedArrival | null;
-  /** The timeline as it stands at the end of the scenario, for the web mock. */
+  /** The timeline as it stands at the end of the scenario, hash-chained, for the web mock. */
   timeline: DealEvent[];
 }

@@ -7,7 +7,7 @@ import { expect, test } from "@playwright/test";
 import { cleanPs5 } from "@pay-pals/contracts";
 import { WEB_PRESENT } from "./env";
 import { driveToDelivered, runArrivalCheck } from "./flows";
-import { expectState, panel, pressAction, snapshot, startDemo } from "./helpers";
+import { expectState, panel, pressAction, snapshot, startDemo, waitForHydration } from "./helpers";
 
 test.describe("clean deal", () => {
   test.skip(!WEB_PRESENT, "apps/web is not on this branch yet, nothing to load");
@@ -38,5 +38,18 @@ test.describe("clean deal", () => {
     const snap = await snapshot(page, dealId);
     expect(snap.deal.state).toBe("COMPLETE");
     expect(snap.deal.lockedCardVersion).toBe(1);
+    expect(snap.deal.startedBy).toBe("buyer");
+    expect(snap.payment?.historyHash).toMatch(/^[0-9a-f]{64}$/);
+
+    // The evidence pack: the chain head PayPal holds still reproduces from the stored events.
+    await page.goto(`/deals/${dealId}/evidence?as=buyer`);
+    await waitForHydration(page);
+    await page.getByRole("button", { name: "Build the evidence pack" }).click();
+    await expect(page.getByText("Pay Pals evidence pack")).toBeVisible();
+    const history = page.locator("section").filter({ has: page.getByRole("heading", { name: "Tamper-evident history" }) });
+    await expect(history).toBeVisible();
+    await expect(history).toContainText(`${dealId}#${snap.payment!.historyHash}`);
+    await expect(history).toContainText("Verified: the stored events reproduce this hash.");
+    await expect(history).not.toContainText("Does not verify");
   });
 });

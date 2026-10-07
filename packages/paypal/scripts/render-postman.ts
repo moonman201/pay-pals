@@ -6,11 +6,15 @@
  * variables. Run after a fixture or order-body change:
  *   npx tsx scripts/render-postman.ts
  */
+import { createHash } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { getFixture } from "@pay-pals/contracts";
 import { buildOrderBody } from "../src/order-body";
+
+/** A stable stand-in for the deal's chain head, so the sample custom_id has the real "dealId#hash" shape. */
+const SAMPLE_HISTORY_HASH = createHash("sha256").update("pay-pals sample history head").digest("hex");
 
 const COLLECTION = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "docs", "postman", "pay-pals-sandbox.postman_collection.json");
 
@@ -21,7 +25,7 @@ interface PostmanItem {
 
 function renderBody(payeeVariable: string): string {
   const card = { ...getFixture("clean-ps5").cards[1]!, sellerPaypalEmail: payeeVariable };
-  const body = buildOrderBody(card, "{{dealId}}");
+  const body = buildOrderBody(card, "{{dealId}}", SAMPLE_HISTORY_HASH);
   return JSON.stringify(body, null, 2);
 }
 

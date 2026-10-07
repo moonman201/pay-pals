@@ -22,5 +22,8 @@ export const EvidencePackSchema = z.object({
   timeline: z.array(DealEventSchema),
   /** Plain-language account of what happened, written for a dispute reviewer. */
   summary: z.string().min(1),
+  /** The chain head recorded on the PayPal order, and whether the stored events still reproduce it. */
+  historyHash: z.string().length(64).nullable().optional(),
+  historyVerified: z.boolean().nullable().optional(),
 });
 export type EvidencePack = z.infer<typeof EvidencePackSchema>;

@@ -8,7 +8,7 @@
  * Signature verification happens before this, in the API route, with
  * PayPalGateway.verifyWebhook.
  */
-import { canTransition } from "@pay-pals/contracts";
+import { canTransition, parseCustomId } from "@pay-pals/contracts";
 import type { PayPalsStore, PaymentRecord, WebhookEvent } from "@pay-pals/contracts";
 
 /** The store the handler needs: deals plus webhook receipts, as packages/db returns it. */
@@ -41,6 +41,17 @@ interface Applied {
 
 type Res = Record<string, unknown>;
 const str = (v: unknown): string | null => (typeof v === "string" && v.length > 0 ? v : null);
+
+/**
+ * The deal id as PayPal echoes it back: invoice_id is the bare id, custom_id
+ * is "dealId#historyHash" (or the bare id on orders made before the chain).
+ */
+export function dealIdFromPayPal(invoiceId: unknown, customId: unknown): string | null {
+  const invoice = str(invoiceId);
+  if (invoice) return invoice;
+  const custom = str(customId);
+  return custom ? parseCustomId(custom).dealId || null : null;
+}
 const money = (p: PaymentRecord) => `$${p.amount.toFixed(2)}`;
 const noPayment = (what: string): Applied => ({ handled: false, dealId: null, note: `No payment found for ${what}; will retry.`, retry: true });
 
@@ -56,7 +67,7 @@ async function onCaptureCompleted(resource: Res, event: WebhookEvent, store: Web
   const captureId = str(resource.id);
   const related = (resource.supplementary_data as Res | undefined)?.related_ids as Res | undefined;
   const orderId = str(related?.order_id);
-  const dealIdHint = str(resource.custom_id) ?? str(resource.invoice_id);
+  const dealIdHint = dealIdFromPayPal(resource.invoice_id, resource.custom_id);
   const payment = (orderId ? await store.getPaymentByOrderId(orderId) : null) ?? (dealIdHint ? await store.getPayment(dealIdHint) : null);
   if (!payment || !captureId) return noPayment(`capture ${captureId ?? "(missing id)"}`);
 
@@ -91,7 +102,7 @@ async function onCaptureCompleted(resource: Res, event: WebhookEvent, store: Web
 async function onDisputeCreated(resource: Res, event: WebhookEvent, store: WebhookStore): Promise<Applied> {
   const disputeId = str(resource.dispute_id) ?? str(resource.id) ?? "(unknown)";
   const tx = ((resource.disputed_transactions as Res[] | undefined) ?? [])[0] ?? {};
-  const dealId = str(tx.custom) ?? str(tx.invoice_number);
+  const dealId = dealIdFromPayPal(tx.invoice_number, tx.custom);
   const payment = dealId ? await store.getPayment(dealId) : null;
   if (!payment) return { handled: false, dealId, note: `Dispute ${disputeId} does not match a Pay Pals deal.` };
 

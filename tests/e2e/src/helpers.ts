@@ -39,6 +39,40 @@ export async function openRoomAs(page: Page, dealId: string, side: Side): Promis
   await waitForHydration(page);
 }
 
+export interface BuyerFirstInput {
+  sellerEmail: string;
+  listingUrl: string;
+  buyerName: string;
+  buyerEmail: string;
+}
+
+/**
+ * The main way in: the landing page's "Use Pay Pals Protection" panel. The
+ * buyer gives the seller's PayPal email and the listing link, plus a name and
+ * email, and lands in a room that waits for the seller. Returns the deal id.
+ */
+export async function startBuyerFirst(page: Page, input: BuyerFirstInput): Promise<string> {
+  await page.goto("/");
+  await waitForHydration(page);
+  const form = page.getByRole("form", { name: "Use Pay Pals Protection" });
+  await expect(form).toBeVisible();
+  await form.getByLabel("Seller's PayPal email").fill(input.sellerEmail);
+  await form.getByLabel("Listing link").fill(input.listingUrl);
+  await form.getByLabel("Your name").fill(input.buyerName);
+  await form.getByLabel("Your email").fill(input.buyerEmail);
+  await form.getByRole("button", { name: "Use Pay Pals Protection" }).click();
+  await expect(page).toHaveURL(/\/deals\/[^/?]+\?as=buyer$/);
+  const id = /\/deals\/([^/?]+)/.exec(page.url())?.[1];
+  if (!id) throw new Error(`No deal id in ${page.url()}`);
+  await waitForHydration(page);
+  return id;
+}
+
+/** The seller's invite link. */
+export function joinPath(dealId: string): string {
+  return `/deals/${dealId}/join?as=seller`;
+}
+
 /**
  * How long a step that calls a pal may take. Demo mode answers in
  * milliseconds; a real Buyer Pal review or arrival check (Claude plus a
@@ -89,9 +123,23 @@ export async function expectNoHorizontalScroll(page: Page, where: string): Promi
   expect(widths.scroll, `${where}: scrollWidth ${widths.scroll} > innerWidth ${widths.inner}`).toBeLessThanOrEqual(widths.inner);
 }
 
+export interface Snapshot {
+  deal: {
+    state: string;
+    startedBy: "buyer" | "seller";
+    listingUrl: string | null;
+    sellerJoinedAt: string | null;
+    lockedCardVersion: number | null;
+    currentCardVersion: number;
+  };
+  hasEvidence: boolean;
+  inviteDeclined: boolean;
+  payment: { historyHash?: string | null } | null;
+}
+
 /** GET /api/deals/[id], the full snapshot, for the few checks that are awkward on the page. */
-export async function snapshot(page: Page, dealId: string): Promise<{ deal: { state: string; lockedCardVersion: number | null }; hasEvidence: boolean }> {
+export async function snapshot(page: Page, dealId: string): Promise<Snapshot> {
   const res = await page.request.get(`/api/deals/${dealId}`);
   expect(res.ok(), `GET /api/deals/${dealId} -> ${res.status()}`).toBe(true);
-  return (await res.json()) as { deal: { state: string; lockedCardVersion: number | null }; hasEvidence: boolean };
+  return (await res.json()) as Snapshot;
 }

@@ -4,11 +4,12 @@
  */
 import { assertTransition } from "@pay-pals/contracts";
 import type { Deal, DealEvent, DealState } from "@pay-pals/contracts";
+import type { NewEvent } from "./event-chain";
 
 export interface TransitionPlan {
   from: DealState;
   to: DealState;
-  event: Omit<DealEvent, "id">;
+  event: NewEvent;
 }
 
 /** Throws IllegalTransitionError when the move is not in DEAL_TRANSITIONS. */

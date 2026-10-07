@@ -18,7 +18,13 @@ type SeedServices = Pick<Services, "store" | "buyerPal" | "buildEvidencePack" | 
 
 async function replay(services: SeedServices, fixture: ScenarioFixture): Promise<string> {
   const { store } = services;
-  const deal = await store.createDeal({ seller: fixture.seller, buyer: fixture.buyer, scenario: fixture.id });
+  const deal = await store.createDeal({
+    startedBy: fixture.deal.startedBy,
+    seller: fixture.seller,
+    buyer: fixture.buyer,
+    listingUrl: fixture.deal.listingUrl,
+    scenario: fixture.id,
+  });
   const id = deal.id;
   let savedCards = 0;
   let lockedCard: ItemCard | null = null;
@@ -50,11 +56,23 @@ async function replay(services: SeedServices, fixture: ScenarioFixture): Promise
         const card = await store.getCurrentCard(id);
         if (card) {
           const chat = await store.listMessages(id, "deal");
-          const result = await services.buyerPal.review(card, chat, { seller: fixture.seller });
+          const current = await store.getDeal(id);
+          const result = await services.buyerPal.review(card, chat, {
+            dealId: id,
+            seller: fixture.seller,
+            listingUrl: fixture.deal.listingUrl,
+            sellerJoined: (current?.sellerJoinedAt ?? null) !== null,
+            inviteDeclined: false,
+          });
           await store.saveVerdict(result.data);
           await store.addMessage({ dealId: id, channel: "buyer_pal", author: "buyer_pal", text: result.palMessage, photos: [], at: nowIso() });
         }
         await recordEvent(event);
+        break;
+      }
+      case "seller_joined": {
+        // The store sets sellerJoinedAt and appends the event itself.
+        await store.markSellerJoined(id, fixture.seller);
         break;
       }
       case "agreed": {
@@ -70,13 +88,18 @@ async function replay(services: SeedServices, fixture: ScenarioFixture): Promise
       }
       case "payment_created": {
         if (fixture.payment) {
-          await store.savePayment({ ...fixture.payment, dealId: id, payeeEmail: services.demoPayee ?? fixture.payment.payeeEmail, status: "CREATED", captureId: null, capturedAt: null });
+          const events = await store.listEvents(id);
+          const historyHash = events[events.length - 1]?.hash ?? null;
+          await store.savePayment({ ...fixture.payment, dealId: id, payeeEmail: services.demoPayee ?? fixture.payment.payeeEmail, status: "CREATED", captureId: null, capturedAt: null, historyHash });
         }
         await recordEvent(event);
         break;
       }
       case "payment_captured": {
-        if (fixture.payment) await store.savePayment({ ...fixture.payment, dealId: id, payeeEmail: services.demoPayee ?? fixture.payment.payeeEmail });
+        if (fixture.payment) {
+          const created = await store.getPayment(id);
+          await store.savePayment({ ...fixture.payment, dealId: id, payeeEmail: services.demoPayee ?? fixture.payment.payeeEmail, historyHash: created?.historyHash ?? null });
+        }
         await recordEvent(event);
         break;
       }

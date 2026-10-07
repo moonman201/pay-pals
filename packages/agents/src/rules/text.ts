@@ -16,7 +16,7 @@ export function sellerPassages(input: RuleInput): Passage[] {
   const chat = input.chat
     .filter((m) => m.channel === "deal" && m.author === "seller" && m.text.trim().length > 0)
     .map((m) => ({ source: "chat" as const, text: m.text }));
-  const card = [input.card.title, input.card.conditionNotes]
+  const card = (input.card ? [input.card.title, input.card.conditionNotes] : [])
     .filter((t) => t.trim().length > 0)
     .map((text) => ({ source: "card" as const, text }));
   return [...chat, ...card];

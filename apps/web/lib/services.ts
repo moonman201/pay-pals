@@ -15,7 +15,9 @@ import {
   createBuyerPal,
   createChannel3PriceLookup,
   createEvidencePackBuilder,
+  createFixtureCertLookup,
   createFixturePriceLookup,
+  createPsaCertLookup,
   createSellerPal,
 } from "@pay-pals/agents";
 import type { BuyerPal, EvidencePackBuilder, PayPalGateway, PayPalsStore, ScenarioId, SellerPal, WebhookEvent } from "@pay-pals/contracts";
@@ -29,6 +31,7 @@ export interface ServiceModes {
   store: "postgres" | "memory";
   claude: boolean;
   prices: "channel3" | "fixture";
+  certs: "psa" | "fixture";
   paypal: "sandbox" | "mock";
 }
 
@@ -67,7 +70,7 @@ export function isDemoOnly(env: Env): boolean {
   return value === "1" || value === "true";
 }
 
-const DEMO_ONLY_MODES: ServiceModes = { store: "memory", claude: false, prices: "fixture", paypal: "mock" };
+const DEMO_ONLY_MODES: ServiceModes = { store: "memory", claude: false, prices: "fixture", certs: "fixture", paypal: "mock" };
 
 export function createServices(env: Env = process.env, log: Log = (line) => console.info(line), demoOnly = isDemoOnly(env)): Services {
   if (demoOnly) log("[pay-pals] demo-only mode is on (PAY_PALS_DEMO_ONLY): keys in the environment are ignored");
@@ -77,18 +80,21 @@ export function createServices(env: Env = process.env, log: Log = (line) => cons
         store: has(env, "DATABASE_URL") ? "postgres" : "memory",
         claude: has(env, "ANTHROPIC_API_KEY"),
         prices: has(env, "CHANNEL3_API_KEY") ? "channel3" : "fixture",
+        certs: has(env, "PSA_API_TOKEN") ? "psa" : "fixture",
         paypal: has(env, "PAYPAL_CLIENT_ID") && has(env, "PAYPAL_CLIENT_SECRET") ? "sandbox" : "mock",
       };
 
   const anthropic = modes.claude ? createAnthropicClientFromEnv() : null;
   const priceLookup = modes.prices === "channel3" ? createChannel3PriceLookup(env.CHANNEL3_API_KEY!.trim()) : createFixturePriceLookup();
+  const certLookup = modes.certs === "psa" ? createPsaCertLookup(env.PSA_API_TOKEN!.trim()) : createFixtureCertLookup();
   const sellerPal = createSellerPal({ anthropic });
-  const buyerPal = createBuyerPal({ anthropic, priceLookup });
+  const buyerPal = createBuyerPal({ anthropic, priceLookup, certLookup });
   const buildEvidencePack = createEvidencePackBuilder({ anthropic });
   const paypal = modes.paypal === "sandbox" ? createPayPalGateway(loadPayPalConfig(env)) : createMockPayPalGateway();
 
   log(`[pay-pals] pals: real Seller Pal and Buyer Pal, ${modes.claude ? "Claude on" : "rules only (ANTHROPIC_API_KEY not set)"}`);
   log(`[pay-pals] prices: ${modes.prices === "channel3" ? "Channel3" : "fixture ranges (CHANNEL3_API_KEY not set)"}`);
+  log(`[pay-pals] certs: ${modes.certs === "psa" ? "PSA cert lookup" : "fixture cert records (PSA_API_TOKEN not set)"}`);
   log(`[pay-pals] paypal: ${modes.paypal === "sandbox" ? "sandbox gateway" : "mock gateway, no network (PAYPAL_CLIENT_ID not set)"}`);
 
   const demoPayee = env.SANDBOX_SELLER_PERSONAL_EMAIL?.trim() || null;

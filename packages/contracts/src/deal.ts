@@ -4,7 +4,7 @@
 import { z } from "zod";
 import { DEAL_STATES } from "./deal-state";
 
-export const SCENARIO_IDS = ["scam-ps5", "clean-ps5", "empty-box"] as const;
+export const SCENARIO_IDS = ["fake-slab", "clean-ps5", "empty-box"] as const;
 export type ScenarioId = (typeof SCENARIO_IDS)[number];
 
 export const PartySchema = z.object({
@@ -14,9 +14,18 @@ export const PartySchema = z.object({
 });
 export type Party = z.infer<typeof PartySchema>;
 
+export const DEAL_STARTERS = ["buyer", "seller"] as const;
+export type DealStarter = (typeof DEAL_STARTERS)[number];
+
 export const DealSchema = z.object({
   id: z.string().min(1),
   state: z.enum(DEAL_STATES),
+  /** Who opened the deal. Buyer-started is the main path: the buyer invites the seller by PayPal email. */
+  startedBy: z.enum(DEAL_STARTERS),
+  /** The marketplace listing the buyer pasted, when there is one. */
+  listingUrl: z.string().url().nullable(),
+  /** Set when the seller opened the invite link. Null until then; stays null if they refuse. */
+  sellerJoinedAt: z.string().datetime().nullable(),
   /** Set when the deal was started from demo mode. Null for a real deal. */
   scenario: z.enum(SCENARIO_IDS).nullable(),
   seller: PartySchema,

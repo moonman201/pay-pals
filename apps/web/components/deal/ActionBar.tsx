@@ -20,6 +20,8 @@ interface Props {
   cardVersion: number;
   /** This side agreed to an earlier version and the card changed since. */
   cardChangedSinceAgree: boolean;
+  /** In INVITED: there is a refusal or a pasted reply for the Buyer Pal to review. */
+  refusalToReview?: boolean;
   onAction: (id: ActionId, opts?: { override?: boolean }) => void;
 }
 
@@ -40,16 +42,21 @@ const ENDINGS: Partial<Record<DealState, string>> = {
 };
 
 /** The moves this side can make right now, straight from the transition table. */
-export function ActionBar({ state, role, verdict, dealId, busy, hasLockedCard, agreement, cardVersion, cardChangedSinceAgree, onAction }: Props) {
+export function ActionBar({ state, role, verdict, dealId, busy, hasLockedCard, agreement, cardVersion, cardChangedSinceAgree, refusalToReview = false, onAction }: Props) {
   const [understood, setUnderstood] = useState(false);
   const other = otherRole(role);
-  const agreeing = state === "REVIEWED";
+  const agreeing = state === "REVIEWED" && cardVersion > 0;
   const mineDone = agreeing && hasAgreed(agreement, role);
   // The buyer's override rules apply only to the buyer's agree.
   const gate = agreeing && role === "buyer" ? gateFor(verdict) : "open";
   const needsCheckbox = gate === "override" || gate === "stop_override";
-  const actions = allowedActions(state, role).filter((a) => !(a.id === "agree" && (mineDone || gate === "blocked")));
-  const waiting = isWaitingOnOther(state, role) || (mineDone && actions.every((a) => a.id === "cancel"));
+  const actions = allowedActions(state, role).filter((a) => {
+    if (a.id === "agree") return cardVersion > 0 && !mineDone && gate !== "blocked";
+    // In INVITED the Buyer Pal has nothing to review until the seller refuses or the buyer pastes a reply.
+    if (a.id === "review" && state === "INVITED") return refusalToReview;
+    return true;
+  });
+  const waiting = isWaitingOnOther(state, role) || (actions.every((a) => a.id === "cancel") && (mineDone || state === "INVITED" || (state === "REVIEWED" && cardVersion === 0)));
 
   if (isTerminal(state)) {
     return (
@@ -76,6 +83,9 @@ export function ActionBar({ state, role, verdict, dealId, busy, hasLockedCard, a
           ))}
         </div>
       ) : null}
+      {state === "INVITED" && refusalToReview && role === "buyer" ? (
+        <p className="mb-3 text-sm">The seller has not joined. Ask your pal to review what they said before you do anything else.</p>
+      ) : null}
       {agreeing && cardChangedSinceAgree && !mineDone ? (
         <p className="mb-3 text-sm text-caution">Card changed since you agreed. Read version {cardVersion} and agree again.</p>
       ) : null}
@@ -90,7 +100,7 @@ export function ActionBar({ state, role, verdict, dealId, busy, hasLockedCard, a
         {actions.map((a) => {
           const disabled = busy !== null || (a.id === "agree" && needsCheckbox && !understood);
           const variant: ButtonVariant = VARIANT[a.id] ?? (a.id === "cancel" ? "danger" : actions.length > 1 && a.id !== actions[0]?.id ? "secondary" : "primary");
-          const label = a.id === "agree" ? agreeLabel(role, agreement) : a.label;
+          const label = a.id === "agree" ? agreeLabel(role, agreement) : a.id === "review" && state === "INVITED" ? "Ask my pal to review the refusal" : a.label;
           return (
             <Button key={a.id} variant={variant} disabled={disabled} onClick={() => onAction(a.id, { override: a.id === "agree" && needsCheckbox })}>
               {busy === a.id ? "Working" : label}
@@ -106,11 +116,19 @@ export function ActionBar({ state, role, verdict, dealId, busy, hasLockedCard, a
       {mineDone ? <p className="mt-3 text-sm text-muted">You agreed to version {cardVersion}, waiting for the other side.</p> : null}
       {waiting ? (
         <p className="mt-3 text-sm text-muted">
-          Waiting for the {other}. In demo mode you can{" "}
-          <Link href={`/deals/${dealId}?as=${other}`} className="font-semibold text-[var(--accent-ink)] underline-offset-2 hover:underline">
-            switch to the {other} view
-          </Link>{" "}
-          and make that move yourself.
+          {state === "INVITED" || (state === "REVIEWED" && cardVersion === 0) ? (
+            <>Waiting for the seller to join and add photos. In demo mode you can open the{" "}
+              <Link href={`/deals/${dealId}/join?as=seller`} className="font-semibold text-[var(--accent-ink)] underline-offset-2 hover:underline">
+                seller&apos;s join page
+              </Link>{" "}
+              yourself.</>
+          ) : (
+            <>Waiting for the {other}. In demo mode you can{" "}
+              <Link href={`/deals/${dealId}?as=${other}`} className="font-semibold text-[var(--accent-ink)] underline-offset-2 hover:underline">
+                switch to the {other} view
+              </Link>{" "}
+              and make that move yourself.</>
+          )}
         </p>
       ) : null}
     </Panel>
