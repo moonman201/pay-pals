@@ -1,0 +1,2 @@
+# Channel3 responses cached on disk in dev so tests do not spend credits.
+.cache/
