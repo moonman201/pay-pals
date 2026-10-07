@@ -5,7 +5,36 @@
  */
 import { expect, type Page } from "@playwright/test";
 import type { ScenarioFixture } from "@pay-pals/contracts";
-import { PAL_TIMEOUT, addAllDemoPhotos, expectState, expectStateAfterPal, openRoomAs, panel, pressAction } from "./helpers";
+import { PAL_TIMEOUT, addAllDemoPhotos, expectState, expectStateAfterPal, joinPath, openRoomAs, panel, pressAction, waitForHydration } from "./helpers";
+
+/**
+ * The seller opens the invite link and joins with the scenario's listing text
+ * and its first photo. The Seller Pal builds card version 1 and the deal
+ * reads Listed in the seller's room.
+ */
+export async function joinAsSeller(page: Page, dealId: string, fixture: ScenarioFixture): Promise<void> {
+  await page.goto(joinPath(dealId));
+  await waitForHydration(page);
+  await expect(page.getByRole("heading", { name: /wants to buy from you with Pay Pals Protection$/ })).toBeVisible();
+
+  const form = page.locator("form").filter({ has: page.getByRole("heading", { name: "Join and add your photos" }) });
+  await form.getByLabel("Your name").fill(fixture.seller.displayName);
+  await expect(form.getByLabel("PayPal email that gets paid")).toHaveValue(fixture.seller.email);
+  await form.getByLabel("Listing text or a few lines about the item").fill(fixture.listingText);
+  await form.getByLabel("Notes for your pal").fill(fixture.sellerNotes);
+
+  // One photo by URL, with its description, the way a seller without the demo picker adds one.
+  const photo = fixture.cards[0]!.photos[0]!;
+  await form.getByPlaceholder("Photo URL").fill(photo.url);
+  await form.getByPlaceholder("What it shows").fill(photo.whatItShows);
+  await form.getByRole("button", { name: "Add URL" }).click();
+  await expect(form.getByText("1 added")).toBeVisible();
+
+  await form.getByRole("button", { name: "Join and add your photos" }).click();
+  await expect(page).toHaveURL(new RegExp(`/deals/${dealId}\\?as=seller$`), { timeout: PAL_TIMEOUT });
+  await waitForHydration(page);
+  await expectState(page, "Listed");
+}
 
 /** Buyer asks for the review. */
 export async function reviewAsBuyer(page: Page): Promise<void> {
