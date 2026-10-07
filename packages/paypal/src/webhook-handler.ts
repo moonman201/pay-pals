@@ -8,18 +8,11 @@
  * Signature verification happens before this, in the API route, with
  * PayPalGateway.verifyWebhook.
  */
-import type { DealStore, PaymentRecord, WebhookEvent } from "@pay-pals/contracts";
+import { canTransition } from "@pay-pals/contracts";
+import type { PayPalsStore, PaymentRecord, WebhookEvent } from "@pay-pals/contracts";
 
-/** Same shape packages/db exports as WebhookReceiptStore. Declared here so this package depends on contracts only. */
-export interface WebhookReceipts {
-  hasWebhookReceipt(eventId: string): Promise<boolean>;
-  /** Claims the event id. Returns false when it was already claimed. */
-  recordWebhookReceipt(eventId: string, eventType: string): Promise<boolean>;
-  /** Drops a claim so the event can be handled again. */
-  releaseWebhookReceipt(eventId: string): Promise<void>;
-}
-
-export type WebhookStore = DealStore & WebhookReceipts;
+/** The store the handler needs: deals plus webhook receipts, as packages/db returns it. */
+export type WebhookStore = PayPalsStore;
 
 export interface WebhookOutcome {
   eventId: string;
@@ -73,6 +66,8 @@ async function onCaptureCompleted(resource: Res, event: WebhookEvent, store: Web
       status: "CAPTURED",
       captureId,
       capturedAt: str(resource.create_time) ?? event.create_time,
+      // The capture response from captureOrder wins; the webhook's capture resource fills the gap otherwise.
+      rawCapture: payment.rawCapture ?? resource,
     });
   }
 
@@ -112,11 +107,11 @@ async function onDisputeCreated(resource: Res, event: WebhookEvent, store: Webho
     data: { disputeId, reason: resource.reason ?? null, captureId: tx.seller_transaction_id ?? null, paypalTime: event.create_time },
     at: new Date().toISOString(),
   });
-  if (deal.state === "DELIVERED") {
+  if (canTransition(deal.state, "ISSUE")) {
     await store.transition(deal.id, "ISSUE", "system", "Issue raised: a PayPal dispute is open.");
     return { handled: true, dealId: deal.id, note: `Dispute ${disputeId} recorded; deal moved to ISSUE.` };
   }
-  return { handled: true, dealId: deal.id, note: `Dispute ${disputeId} recorded; deal is ${deal.state}, only DELIVERED can move to ISSUE.` };
+  return { handled: true, dealId: deal.id, note: `Dispute ${disputeId} recorded; deal is ${deal.state}, which cannot move to ISSUE.` };
 }
 
 async function apply(event: WebhookEvent, store: WebhookStore): Promise<Applied> {

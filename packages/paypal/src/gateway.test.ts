@@ -48,6 +48,7 @@ describe("createPayPalGateway", () => {
       orderId: "5O190127TN364715T",
       status: "CREATED",
       approveUrl: "https://www.sandbox.paypal.com/checkoutnow?token=5O190127TN364715T",
+      raw: createdOrder,
     });
     const call = f.calls[1]!;
     expect(call.url).toBe(`${SANDBOX_BASE_URL}/v2/checkout/orders`);
@@ -97,6 +98,7 @@ describe("createPayPalGateway", () => {
       payeeEmail: locked.sellerPaypalEmail,
       amount: "475.00",
       currency: "USD",
+      raw: capturedOrder,
     });
     expect(f.calls[1]!.url).toBe(`${SANDBOX_BASE_URL}/v2/checkout/orders/5O190127TN364715T/capture`);
     expect(f.calls[1]!.method).toBe("POST");

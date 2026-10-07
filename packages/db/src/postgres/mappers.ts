@@ -123,6 +123,8 @@ export function toPayment(row: PaymentRow): PaymentRecord {
     method: row.method,
     createdAt: iso(row.createdAt),
     capturedAt: isoOrNull(row.capturedAt),
+    rawOrder: row.rawOrder ?? null,
+    rawCapture: row.rawCapture ?? null,
   };
 }
 
@@ -138,6 +140,8 @@ export function toPaymentRow(p: PaymentRecord): typeof payments.$inferInsert {
     method: p.method,
     createdAt: date(p.createdAt),
     capturedAt: dateOrNull(p.capturedAt),
+    rawOrder: p.rawOrder ?? null,
+    rawCapture: p.rawCapture ?? null,
   };
 }
 

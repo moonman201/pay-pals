@@ -9,7 +9,7 @@ import { migrate } from "drizzle-orm/pglite/migrator";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import * as schema from "../../schema";
 import { runDealStoreConformance } from "../conformance/deal-store.conformance";
-import type { PayPalsStore } from "../store-types";
+import type { PayPalsStore } from "@pay-pals/contracts";
 import { MIGRATIONS_FOLDER } from "./db";
 import { createPostgresDealStoreFromDb } from "./postgres-store";
 
