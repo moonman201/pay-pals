@@ -5,7 +5,7 @@
  * into .next and the drizzle folder is not deployed.
  *
  * Drizzle's own migrate() for each driver is readMigrationFiles(folder)
- * followed by db.dialect.migrate(migrations, db.session, config). This calls
+ * followed by db.dialect.migrate(metas, db.session, config). This calls
  * the second half directly with the same migration shape and hashes, so the
  * __drizzle_migrations bookkeeping table stays compatible.
  */
@@ -19,10 +19,17 @@ interface MigratableDb {
   session: PgSession;
 }
 
+export interface RunMigrationsOptions {
+  /** Stop after this migration tag (for example "0001_agreement"). Tests use it to stage an older database. */
+  through?: string;
+}
+
 const CONFIG: MigrationConfig = { migrationsFolder: "bundled:packages/db/drizzle" };
 
-export async function runMigrations(db: Db): Promise<void> {
+export async function runMigrations(db: Db, options: RunMigrationsOptions = {}): Promise<void> {
   const { dialect, session } = db as unknown as MigratableDb;
-  const metas: MigrationMeta[] = MIGRATIONS.map(({ sql, bps, folderMillis, hash }) => ({ sql: [...sql], bps, folderMillis, hash }));
+  const stopAt = options.through ? MIGRATIONS.findIndex((m) => m.tag === options.through) : MIGRATIONS.length - 1;
+  if (stopAt < 0) throw new Error(`Unknown migration tag ${options.through}`);
+  const metas: MigrationMeta[] = MIGRATIONS.slice(0, stopAt + 1).map(({ sql, bps, folderMillis, hash }) => ({ sql: [...sql], bps, folderMillis, hash }));
   await dialect.migrate(metas, session, CONFIG);
 }

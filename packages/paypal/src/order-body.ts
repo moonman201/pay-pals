@@ -19,7 +19,7 @@ export function trimTo(text: string, limit: number): string {
   return `${text.slice(0, limit - 3)}...`;
 }
 
-/** "Serial 7LP045912. Condition: Good. Light scuff..." within the item description limit. */
+/** "Serial AH912345678. Condition: Good. Owned from new..." within the item description limit. */
 export function describeCard(card: ItemCard): string {
   const serial = card.serial ? `Serial ${card.serial}.` : "Serial not provided.";
   const condition = `Condition: ${CONDITION_LABELS[card.conditionGrade]}.`;

@@ -2,7 +2,7 @@
  * Lane 0 gate: can a sandbox PERSONAL account be the payee on an Orders v2
  * checkout order, and can a BUSINESS account? For each account this script
  * creates an order with payee.email_address set to that account, carrying
- * the clean-garmin fixture card as the line item, gets it approved, captures
+ * the clean-ps5 fixture card as the line item, gets it approved, captures
  * it, then reads the order back and checks the payee and the card text.
  *
  * Approval, in order of preference:
@@ -169,7 +169,7 @@ async function verify(gateway: PayPalsGateway, orderId: string, card: ItemCard, 
 }
 
 async function gateOne(gateway: PayPalsGateway, account: string, payee: string, noWait: boolean): Promise<Outcome> {
-  const fx = getFixture("clean-garmin");
+  const fx = getFixture("clean-ps5");
   const card: ItemCard = { ...fx.cards[1]!, sellerPaypalEmail: payee };
   const base = { account, payee: mask(payee) };
   console.log(`\n== ${account.toUpperCase()} payee ${mask(payee)}`);
