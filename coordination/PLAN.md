@@ -123,6 +123,6 @@ Save every working call as a Postman collection in `docs/postman/`.
 | Lead: contracts, schema, fixtures | contracts v1.0.0-draft, schema and three fixtures on main; 24 tests green | 2026-10-06 |
 | Lane 0 gate (builder-paypal) | PASS personal and PASS business, sandbox, 2026-10-07. Personal payee cannot take direct card funding; wallet flow works. | |
 | builder-agents | merged to main 9e83667, follow-up merged (v1.1.0 fields, model stop cap). 69 tests, reality-check holds. Real Claude tests ran 3/3; Channel3 live schema unverified until a key lands. | 2026-10-07 |
-| builder-paypal | launched 2026-10-06 (state machine, repositories, PayPal client) | |
-| builder-web | launched 2026-10-06 on fixtures | |
+| builder-paypal | merged to main 61c7ca0: gateway, webhook handler, memory and Postgres stores, migration, Postman collection. 82 tests, reality-check holds. Follow-up open: skip flag, dispute handler, gate prints deal id. | 2026-10-07 |
+| builder-web | all three scenarios hold on fixtures (reality-check over HTTP). Follow-up on branch: v1.2.0 tests, mocks leak, GET evidence. Merge after. | |
 | qa | not started | |
