@@ -3,7 +3,7 @@
  * the buyer approves. The seller's PayPal email is the payee on the order.
  */
 import type { PaymentMethod, PaymentRecord } from "@pay-pals/contracts";
-import { nowIso } from "../../mocks/ids";
+import { nowIso } from "../../time";
 import type { Services } from "../../services";
 import { FlowError } from "../errors";
 import { expectState, mustDeal, mustLockedCard, note, say } from "./shared";

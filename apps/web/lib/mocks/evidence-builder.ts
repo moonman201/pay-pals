@@ -4,7 +4,7 @@
  */
 import { CONDITION_LABELS, type EvidenceInput, type EvidencePack, type EvidencePackBuilder, type PalResult, type Photo } from "@pay-pals/contracts";
 import { formatTime } from "../format";
-import { nowIso } from "./ids";
+import { nowIso } from "../time";
 
 function uniquePhotos(lists: Photo[][]): Photo[] {
   const seen = new Set<string>();

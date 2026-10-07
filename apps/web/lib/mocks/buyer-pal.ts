@@ -6,7 +6,7 @@
  */
 import type { ArrivalCheck, BuyerPal, ItemCard, Message, Mismatch, PalResult, Photo, Verdict } from "@pay-pals/contracts";
 import { fixtureForCard, readModel, readSerial } from "./fixture-match";
-import { nowIso } from "./ids";
+import { nowIso } from "../time";
 import { verdictFromFixture } from "./verdicts";
 
 function genericVerdict(card: ItemCard): Verdict {

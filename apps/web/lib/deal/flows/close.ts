@@ -2,6 +2,8 @@
 import type { Deal } from "@pay-pals/contracts";
 import type { Role } from "../../role";
 import type { Services } from "../../services";
+import { FlowError } from "../errors";
+import { ISSUE_REASON_LABELS, issueReasonsFor, type IssueReason } from "../issue";
 import { buildEvidence } from "./evidence";
 import { expectState, mustDeal, say } from "./shared";
 
@@ -15,12 +17,22 @@ export async function completeDeal(services: Services, dealId: string): Promise<
   return updated;
 }
 
-export async function reportIssue(services: Services, dealId: string): Promise<Deal> {
+/** Allowed from PAID, SHIPPED and DELIVERED; the store's transition table has the final say. */
+export async function reportIssue(services: Services, dealId: string, reason: IssueReason, details = ""): Promise<Deal> {
   const deal = await mustDeal(services, dealId);
-  expectState(deal, "DELIVERED");
-  const updated = await services.store.transition(dealId, "ISSUE", "buyer", "Issue opened.");
+  if (!issueReasonsFor(deal.state).includes(reason)) {
+    throw new FlowError(`"${ISSUE_REASON_LABELS[reason]}" is not a reason you can give while the deal is ${deal.state}.`, 409);
+  }
+  const label = ISSUE_REASON_LABELS[reason];
+  const summary = `Issue opened: ${label.toLowerCase()}.${details ? ` ${details}` : ""}`.slice(0, 300);
+  const updated = await services.store.transition(dealId, "ISSUE", "buyer", summary);
   await buildEvidence(services, dealId, "buyer");
-  await say(services, dealId, "deal", "buyer_pal", "The buyer reported that the item does not match the locked card. An evidence pack has been built for a PayPal dispute.");
+  await say(services, dealId, "deal", "buyer_pal", `The buyer opened an issue: ${label.toLowerCase()}. An evidence pack has been built for a PayPal dispute.`);
+  const tip =
+    reason === "arrival_mismatch"
+      ? "Open the dispute as \"significantly not as described\"."
+      : "Open the dispute as \"item not received\". The tracking number and timeline are in the pack.";
+  await say(services, dealId, "buyer_pal", "buyer_pal", `Issue opened. ${tip} Your payment was a Goods and Services payment, so PayPal purchase protection applies.`);
   return updated;
 }
 

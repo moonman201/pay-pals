@@ -3,7 +3,7 @@
  * the start form (either side pastes a listing). Both end in LISTED.
  */
 import type { Deal, Party, Photo, ScenarioId } from "@pay-pals/contracts";
-import { fixtureById } from "../../mocks/fixture-match";
+import { fixtureById } from "../../scenarios";
 import type { Role } from "../../role";
 import type { Services } from "../../services";
 import { FlowError } from "../errors";

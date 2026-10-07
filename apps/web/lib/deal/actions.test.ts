@@ -15,13 +15,14 @@ describe("allowedActions", () => {
     expect(ids("AGREED", "seller")).toEqual(["cancel"]);
   });
 
-  it("lets only the seller ship, and nobody cancel once paid", () => {
+  it("lets only the seller ship once paid; nobody can cancel, but the buyer can report an issue", () => {
     expect(ids("PAID", "seller")).toEqual(["ship"]);
-    expect(ids("PAID", "buyer")).toEqual([]);
+    expect(ids("PAID", "buyer")).toEqual(["report_issue"]);
   });
 
-  it("lets the buyer confirm delivery, then complete or report an issue", () => {
-    expect(ids("SHIPPED", "buyer")).toEqual(["confirm_delivery"]);
+  it("lets the buyer confirm delivery or report an issue, then complete or report an issue", () => {
+    expect(ids("SHIPPED", "buyer")).toEqual(["confirm_delivery", "report_issue"]);
+    expect(ids("SHIPPED", "seller")).toEqual([]);
     expect(ids("DELIVERED", "buyer")).toEqual(["complete", "report_issue"]);
     expect(ids("DELIVERED", "seller")).toEqual([]);
   });
@@ -34,8 +35,9 @@ describe("allowedActions", () => {
     }
   });
 
-  it("knows when a side is waiting on the other", () => {
+  it("knows when a side is waiting on the other (an escape hatch like report_issue does not count)", () => {
     expect(isWaitingOnOther("PAID", "buyer")).toBe(true);
+    expect(isWaitingOnOther("SHIPPED", "buyer")).toBe(false);
     expect(isWaitingOnOther("AGREED", "seller")).toBe(true);
     expect(isWaitingOnOther("AGREED", "buyer")).toBe(false);
   });

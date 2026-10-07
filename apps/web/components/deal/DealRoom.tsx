@@ -1,6 +1,6 @@
 "use client";
 
-import { isCardEditable } from "@pay-pals/contracts";
+import { canTransition, isCardEditable } from "@pay-pals/contracts";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { ActionId } from "@/lib/deal/actions";
@@ -19,6 +19,7 @@ import { ShipmentSummary } from "./ShipmentSummary";
 import { Timeline } from "./Timeline";
 import { VerdictPanel } from "./VerdictPanel";
 import { ArrivalStep } from "./steps/ArrivalStep";
+import { IssueStep } from "./steps/IssueStep";
 import { JoinForm } from "./steps/JoinForm";
 import { PayStep } from "./steps/PayStep";
 import { RequestStep } from "./steps/RequestStep";
@@ -33,6 +34,7 @@ export function DealRoom({ snapshot, role }: { snapshot: DealSnapshot; role: Rol
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [issueOpen, setIssueOpen] = useState(false);
   const { deal, currentCard } = snapshot;
   const state = deal.state;
 
@@ -61,7 +63,12 @@ export function DealRoom({ snapshot, role }: { snapshot: DealSnapshot; role: Rol
       case "complete":
         return run(id, api("complete"));
       case "report_issue":
-        return run(id, api("issue"));
+        // A failed arrival check already says what is wrong; otherwise ask.
+        if (state === "DELIVERED" && snapshot.arrivalCheck && !snapshot.arrivalCheck.matches) {
+          return run(id, api("issue", { reason: "arrival_mismatch" }));
+        }
+        setIssueOpen(true);
+        return;
       case "cancel":
         if (window.confirm("Cancel this deal?")) return run(id, api("cancel", { by: role }));
         return;
@@ -105,6 +112,9 @@ export function DealRoom({ snapshot, role }: { snapshot: DealSnapshot; role: Rol
               {role === "buyer" && canStillPay(state) && snapshot.lockedCard ? <PayStep dealId={deal.id} card={snapshot.lockedCard} onDone={refresh} /> : null}
               {role === "seller" && state === "PAID" && snapshot.checklist ? (
                 <ShipStep dealId={deal.id} checklist={snapshot.checklist} palMessage={snapshot.checklistMessage} demo={snapshot.demo?.packing ?? null} onDone={refresh} />
+              ) : null}
+              {role === "buyer" && issueOpen && canTransition(state, "ISSUE") ? (
+                <IssueStep dealId={deal.id} state={state} onDone={() => { setIssueOpen(false); refresh(); }} onClose={() => setIssueOpen(false)} />
               ) : null}
               {role === "buyer" && state === "DELIVERED" && !snapshot.arrivalCheck ? (
                 <ArrivalStep dealId={deal.id} suggestions={snapshot.demo?.arrivalPhotos ?? []} onDone={refresh} />

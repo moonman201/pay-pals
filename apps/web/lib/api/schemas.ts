@@ -1,6 +1,7 @@
 /** Request bodies for the deal routes. Reuses the contract schemas where they exist. */
 import { CARRIERS, PAYMENT_METHODS, PhotoSchema } from "@pay-pals/contracts";
 import { z } from "zod";
+import { ISSUE_REASONS } from "../deal/issue";
 
 export const RoleSchema = z.enum(["buyer", "seller"]);
 
@@ -34,6 +35,8 @@ export const ShipBody = z.object({
 export const ArrivalBody = z.object({ photos: z.array(PhotoSchema).min(1) });
 
 export const ByBody = z.object({ by: RoleSchema });
+
+export const IssueBody = z.object({ reason: z.enum(ISSUE_REASONS), details: z.string().trim().max(300).default("") });
 
 export const StartDealBody = z.object({
   startedBy: RoleSchema,

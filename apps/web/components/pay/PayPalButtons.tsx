@@ -47,6 +47,7 @@ export function PayPalButtons({ clientId, amount, createOrder, onApproved, onErr
       try {
         await loadSdk();
         if (!window.paypal) throw new Error("PayPal SDK did not initialise.");
+        // Wallet buttons only, never "card-fields": the payee may be a personal PayPal account, which cannot take direct card funding (Lane 0).
         const sdk = await window.paypal.createInstance({ clientId, components: ["paypal-payments", "venmo-payments"], pageType: "checkout" });
         const methods = await sdk.findEligibleMethods({ currencyCode: "USD", amount: amount.toFixed(2) });
         const make = (method: PaymentMethod): PayPalSessionOptions => ({

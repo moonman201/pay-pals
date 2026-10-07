@@ -4,7 +4,7 @@
  * removed). Demo hints come from the scenario fixture and only prefill forms.
  */
 import type { ArrivalCheck, ChecklistItem, Deal, DealEvent, ItemCard, Message, PaymentRecord, Photo, Shipment, Verdict } from "@pay-pals/contracts";
-import { fixtureById } from "../mocks/fixture-match";
+import { fixtureById } from "../scenarios";
 import { palChannel, type Role } from "../role";
 import type { Services } from "../services";
 import { notFound } from "./errors";

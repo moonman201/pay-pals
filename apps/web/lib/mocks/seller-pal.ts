@@ -4,7 +4,8 @@
  * serial if one is written down, and a condition grade from the words used.
  */
 import type { BuildCardInput, BuyerRequest, ChecklistItem, ConditionGrade, Deal, ItemCard, PalResult, Photo, SellerPal } from "@pay-pals/contracts";
-import { fixtureById, fixtureForCard, fixtureForListing, nextFixtureCard, readSerial } from "./fixture-match";
+import { fixtureById } from "../scenarios";
+import { fixtureForCard, fixtureForListing, nextFixtureCard, readSerial } from "./fixture-match";
 
 function gradeFromText(text: string): ConditionGrade {
   const t = text.toLowerCase();

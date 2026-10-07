@@ -33,10 +33,13 @@ export function allowedActions(state: DealState, role: Role): DealAction[] {
   return DEAL_ACTIONS.filter((a) => (a.role === role || a.role === "either") && canTransition(state, a.to));
 }
 
-/** True when this side has nothing to do and the deal is still moving. */
+/** Moves that end the deal rather than advance it. They do not count as "something to do". */
+const ESCAPE_HATCHES: readonly ActionId[] = ["cancel", "report_issue"];
+
+/** True when this side has nothing to do but wait (or bail out) and the deal is still moving. */
 export function isWaitingOnOther(state: DealState, role: Role): boolean {
   if (isTerminal(state)) return false;
-  return allowedActions(state, role).every((a) => a.id === "cancel");
+  return allowedActions(state, role).every((a) => ESCAPE_HATCHES.includes(a.id));
 }
 
 /** Paying keeps the deal in PAYMENT_PENDING while PayPal captures, so the pay step also shows there. */

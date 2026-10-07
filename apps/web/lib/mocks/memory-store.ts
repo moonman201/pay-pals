@@ -20,7 +20,8 @@ import {
   type Shipment,
   type Verdict,
 } from "@pay-pals/contracts";
-import { newId, nowIso } from "./ids";
+import { nowIso } from "../time";
+import { newId } from "./ids";
 
 export interface DealRecord {
   deal: Deal;

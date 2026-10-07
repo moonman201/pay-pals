@@ -5,7 +5,7 @@
  */
 import type { ItemCard, Message, RedFlag, RedFlagCode, RedFlagSeverity, ScenarioFixture, Verdict } from "@pay-pals/contracts";
 import { nextFixtureCard } from "./fixture-match";
-import { nowIso } from "./ids";
+import { nowIso } from "../time";
 
 const FLAG_TEXT: Record<RedFlagCode, { severity: RedFlagSeverity; explanation: string }> = {
   FRIENDS_AND_FAMILY_REQUEST: { severity: "stop", explanation: "The seller asked for a Friends and Family payment, which has no buyer protection." },

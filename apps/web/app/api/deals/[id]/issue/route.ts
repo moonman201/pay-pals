@@ -1,7 +1,11 @@
-import { handle, type Params } from "@/lib/api/handle";
+import { handle, readBody, type Params } from "@/lib/api/handle";
+import { IssueBody } from "@/lib/api/schemas";
 import { reportIssue } from "@/lib/deal/flows/close";
 import { getServices } from "@/lib/services";
 
-export async function POST(_req: Request, { params }: Params) {
-  return handle(async () => reportIssue(getServices(), (await params).id));
+export async function POST(req: Request, { params }: Params) {
+  return handle(async () => {
+    const body = await readBody(req, IssueBody);
+    return reportIssue(getServices(), (await params).id, body.reason, body.details);
+  });
 }

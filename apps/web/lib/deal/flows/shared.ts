@@ -1,6 +1,6 @@
 /** Small helpers every flow uses: load a deal or fail, post a pal message, stamp events. */
 import type { Deal, DealEvent, ItemCard, Message, Photo } from "@pay-pals/contracts";
-import { nowIso } from "../../mocks/ids";
+import { nowIso } from "../../time";
 import type { Services } from "../../services";
 import { FlowError, notFound } from "../errors";
 

@@ -1,6 +1,6 @@
 /** Gather everything the store holds and hand it to the evidence pack builder. */
 import { PhotoSchema, type Deal, type DealEvent, type EvidencePack, type Photo } from "@pay-pals/contracts";
-import { fixtureById } from "../../mocks/fixture-match";
+import { fixtureById } from "../../scenarios";
 import type { Role } from "../../role";
 import type { Services } from "../../services";
 import { mustDeal, mustLockedCard, note, say } from "./shared";

@@ -42,15 +42,16 @@ describe("ActionBar: buttons per state and role", () => {
     expect(buttonNames()).toEqual(["Mark as shipped"]);
   });
 
-  it("PAID buyer has nothing to press", () => {
+  it("PAID buyer can only report an issue, and is told to wait for the seller", () => {
     renderBar({ state: "PAID", role: "buyer" });
-    expect(buttonNames()).toEqual([]);
+    expect(buttonNames()).toEqual(["Report an issue"]);
     expect(screen.getByText(/Waiting for the seller/)).toBeInTheDocument();
   });
 
-  it("SHIPPED: buyer confirms delivery", () => {
+  it("SHIPPED: buyer confirms delivery or reports an issue", () => {
     renderBar({ state: "SHIPPED", role: "buyer" });
-    expect(buttonNames()).toEqual(["Confirm delivery"]);
+    expect(buttonNames()).toEqual(["Confirm delivery", "Report an issue"]);
+    expect(screen.queryByText(/Waiting for the seller/)).not.toBeInTheDocument();
   });
 
   it("DELIVERED: buyer completes or reports an issue", () => {

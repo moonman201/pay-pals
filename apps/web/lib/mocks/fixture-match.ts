@@ -3,12 +3,7 @@
  * answer with that scenario's expected results. Demo deals get fresh ids, so
  * matching is by content, not by deal id.
  */
-import { ALL_FIXTURES, type ItemCard, type ScenarioFixture, type ScenarioId } from "@pay-pals/contracts";
-
-export function fixtureById(id: ScenarioId | null | undefined): ScenarioFixture | null {
-  if (!id) return null;
-  return ALL_FIXTURES.find((f) => f.id === id) ?? null;
-}
+import { ALL_FIXTURES, type ItemCard, type ScenarioFixture } from "@pay-pals/contracts";
 
 export function fixtureForListing(listingText: string): ScenarioFixture | null {
   const wanted = listingText.trim();
