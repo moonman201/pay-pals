@@ -5,7 +5,7 @@
  * locked, no further edits.
  */
 import { describe, expect, it } from "vitest";
-import { IllegalTransitionError, PAYMENT_METHOD_FLAGS, canTransition, cleanGarmin, hasStop, isPaymentMethodFlag, scamGarmin } from "@pay-pals/contracts";
+import { CLEAN_SERIAL, IllegalTransitionError, PAYMENT_METHOD_FLAGS, canTransition, cleanPs5, hasStop, isPaymentMethodFlag, scamPs5 } from "@pay-pals/contracts";
 import type { Verdict } from "@pay-pals/contracts";
 import { createBuyerPal, createFixturePriceLookup } from "@pay-pals/agents";
 import { AgreementNotAllowedError, CardLockedError, CardNotEditableError } from "@pay-pals/db";
@@ -26,14 +26,14 @@ async function reviewAndSave(seeded: SeededDeal): Promise<Verdict> {
   return verdict;
 }
 
-describe("scam-garmin: a payment-method flag blocks the deal", () => {
+describe("scam-ps5: a payment-method flag blocks the deal", () => {
   it("raises every required flag, says stop, and the verdict is read back from the store", async () => {
-    const seeded = await seedFixture(scamGarmin);
+    const seeded = await seedFixture(scamPs5);
     const verdict = await reviewAndSave(seeded);
 
     expect(verdict.overall).toBe("stop");
     const codes = verdict.flags.map((f) => f.code);
-    for (const required of scamGarmin.expectedVerdict.requiredFlags) expect(codes).toContain(required);
+    for (const required of scamPs5.expectedVerdict.requiredFlags) expect(codes).toContain(required);
     expect(hasStop(verdict.flags)).toBe(true);
     expect(verdict.flags.some(isPaymentMethodFlag)).toBe(true);
 
@@ -47,7 +47,7 @@ describe("scam-garmin: a payment-method flag blocks the deal", () => {
   });
 
   it("moves REVIEWED -> BLOCKED and then refuses AGREED and PAYMENT_PENDING", async () => {
-    const seeded = await seedFixture(scamGarmin);
+    const seeded = await seedFixture(scamPs5);
     const verdict = await reviewAndSave(seeded);
     const { store, dealId } = seeded;
 
@@ -67,7 +67,7 @@ describe("scam-garmin: a payment-method flag blocks the deal", () => {
   });
 
   it("refuses to lock the card on a BLOCKED deal", async () => {
-    const seeded = await seedFixture(scamGarmin);
+    const seeded = await seedFixture(scamPs5);
     await reviewAndSave(seeded);
     await seeded.store.transition(seeded.dealId, "BLOCKED", "buyer_pal", "Blocked.");
 
@@ -80,12 +80,12 @@ describe("scam-garmin: a payment-method flag blocks the deal", () => {
   });
 
   it("refuses a new card version on a BLOCKED deal", async () => {
-    const seeded = await seedFixture(scamGarmin);
+    const seeded = await seedFixture(scamPs5);
     await reviewAndSave(seeded);
     await seeded.store.transition(seeded.dealId, "BLOCKED", "buyer_pal", "Blocked.");
     const current = (await seeded.store.getCurrentCard(seeded.dealId))!;
 
-    await expect(seeded.store.saveCard({ ...current, version: 2, serial: "7LP000000" })).rejects.toBeInstanceOf(CardNotEditableError);
+    await expect(seeded.store.saveCard({ ...current, version: 2, serial: "ZZ000000000" })).rejects.toBeInstanceOf(CardNotEditableError);
     const deal = (await seeded.store.getDeal(seeded.dealId))!;
     expect(deal.currentCardVersion).toBe(1);
     expect(deal.lockedCardVersion).toBeNull();
@@ -93,26 +93,26 @@ describe("scam-garmin: a payment-method flag blocks the deal", () => {
   });
 });
 
-describe("clean-garmin: go ends AGREED with the card locked", () => {
+describe("clean-ps5: go ends AGREED with the card locked", () => {
   it("says go with no stop flag and the deal reaches AGREED", async () => {
-    const seeded = await seedFixture(cleanGarmin);
+    const seeded = await seedFixture(cleanPs5);
     const verdict = await reviewAndSave(seeded);
     const { store, dealId } = seeded;
 
     expect(verdict.overall).not.toBe("stop");
     expect(hasStop(verdict.flags)).toBe(false);
     expect(verdict.flags.some(isPaymentMethodFlag)).toBe(false);
-    expect(verdict.cardVersion).toBe(cleanGarmin.cards.length);
+    expect(verdict.cardVersion).toBe(cleanPs5.cards.length);
     expect(verdict.priceCheck).not.toBeNull();
-    expect(cleanGarmin.cards.at(-1)!.askingPrice).toBeGreaterThanOrEqual(verdict.priceCheck!.marketLow);
-    expect(cleanGarmin.cards.at(-1)!.askingPrice).toBeLessThanOrEqual(verdict.priceCheck!.marketHigh);
+    expect(cleanPs5.cards.at(-1)!.askingPrice).toBeGreaterThanOrEqual(verdict.priceCheck!.marketLow);
+    expect(cleanPs5.cards.at(-1)!.askingPrice).toBeLessThanOrEqual(verdict.priceCheck!.marketHigh);
 
     const agreed = await store.transition(dealId, "AGREED", "buyer", "Both sides agreed.");
     expect(agreed.state).toBe("AGREED");
   });
 
   it("locks the current card at AGREED and refuses every later card change", async () => {
-    const seeded = await seedFixture(cleanGarmin);
+    const seeded = await seedFixture(cleanPs5);
     await reviewAndSave(seeded);
     const { store, dealId } = seeded;
     await store.transition(dealId, "AGREED", "buyer", "Both sides agreed.");
@@ -124,7 +124,7 @@ describe("clean-garmin: go ends AGREED with the card locked", () => {
     const locked = await store.lockCard(dealId, current.version);
     expect(locked.lockedAt).not.toBeNull();
     expect(locked.version).toBe(2);
-    expect(locked.serial).toBe(cleanGarmin.cards[1]!.serial);
+    expect(locked.serial).toBe(cleanPs5.cards[1]!.serial);
 
     const deal = (await store.getDeal(dealId))!;
     expect(deal.lockedCardVersion).toBe(2);
@@ -134,11 +134,32 @@ describe("clean-garmin: go ends AGREED with the card locked", () => {
     await expect(store.lockCard(dealId, 1)).rejects.toBeInstanceOf(CardLockedError);
     expect((await store.listCards(dealId)).map((c) => c.version)).toEqual([1, 2]);
   });
+
+  it("keeps the box serial equal to the console serial through the store, on every version and after the lock", async () => {
+    for (const fixtureCard of cleanPs5.cards) {
+      expect(fixtureCard.boxSerial).toBe(fixtureCard.serial);
+      expect(fixtureCard.serial).toBe(CLEAN_SERIAL);
+    }
+
+    const seeded = await seedFixture(cleanPs5);
+    const { store, dealId } = seeded;
+    for (const stored of seeded.cards) {
+      expect(stored.boxSerial).toBe(CLEAN_SERIAL);
+      expect((await store.getCard(dealId, stored.version))!.boxSerial).toBe(CLEAN_SERIAL);
+    }
+
+    await reviewAndSave(seeded);
+    await store.transition(dealId, "AGREED", "buyer", "Both sides agreed.");
+    const locked = await store.lockCard(dealId, cleanPs5.cards.length);
+    expect(locked.boxSerial).toBe(locked.serial);
+    expect(locked.boxSerial).toBe(CLEAN_SERIAL);
+    expect((await store.getCurrentCard(dealId))!.boxSerial).toBe(CLEAN_SERIAL);
+  });
 });
 
 describe("two-sided agreement in the store (contracts v1.3.0)", () => {
   it("records buyer then seller in REVIEWED without moving the deal, and a new card version clears both", async () => {
-    const seeded = await seedFixture(cleanGarmin);
+    const seeded = await seedFixture(cleanPs5);
     await driveTo(seeded, "REVIEWED");
     const { store, dealId } = seeded;
     const version = (await store.getDeal(dealId))!.currentCardVersion;
@@ -182,7 +203,7 @@ describe("two-sided agreement in the store (contracts v1.3.0)", () => {
   });
 
   it("refuses agreement once the card is locked and the deal is AGREED", async () => {
-    const seeded = await seedFixture(cleanGarmin);
+    const seeded = await seedFixture(cleanPs5);
     await driveTo(seeded, "REVIEWED");
     const { store, dealId } = seeded;
     await store.recordAgreement(dealId, "buyer");

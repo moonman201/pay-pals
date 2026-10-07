@@ -12,7 +12,7 @@ import {
   TERMINAL_STATES,
   assertTransition,
   canTransition,
-  cleanGarmin,
+  cleanPs5,
   isTerminal,
 } from "@pay-pals/contracts";
 import type { DealState } from "@pay-pals/contracts";
@@ -58,7 +58,7 @@ describe("DEAL_TRANSITIONS", () => {
 describe("memory store enforces the table", () => {
   it("accepts exactly the pairs canTransition accepts", async () => {
     for (const [from, to] of pairs) {
-      const seeded = await seedFixture(cleanGarmin);
+      const seeded = await seedFixture(cleanPs5);
       await driveTo(seeded, from);
       const { store, dealId } = seeded;
       expect((await store.getDeal(dealId))!.state).toBe(from);
@@ -79,7 +79,7 @@ describe("memory store enforces the table", () => {
 
   it("refuses to cancel once money has moved", async () => {
     for (const from of ["PAID", "SHIPPED", "DELIVERED", "COMPLETE", "ISSUE"] as const) {
-      const seeded = await seedFixture(cleanGarmin);
+      const seeded = await seedFixture(cleanPs5);
       await driveTo(seeded, from);
       await expect(seeded.store.transition(seeded.dealId, "CANCELLED", "buyer", "Cancel.")).rejects.toBeInstanceOf(IllegalTransitionError);
     }
