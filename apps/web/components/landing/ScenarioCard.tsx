@@ -9,7 +9,7 @@ const ENDINGS: Record<ScenarioFixture["id"], string> = {
 };
 
 /** One demo scenario. Posting the form creates a fresh copy of it and opens the deal room. */
-export function ScenarioCard({ fixture, index }: { fixture: ScenarioFixture; index: number }) {
+export function ScenarioCard({ fixture, index, finishedDealId }: { fixture: ScenarioFixture; index: number; finishedDealId: string | null }) {
   return (
     <article className="flex flex-col rounded-2xl border border-line bg-white p-5 shadow-sm">
       <p className="text-xs font-semibold uppercase tracking-wide text-muted">Scenario {index}</p>
@@ -25,9 +25,11 @@ export function ScenarioCard({ fixture, index }: { fixture: ScenarioFixture; ind
           Play as seller
         </button>
       </form>
-      <Link href={`/deals/${fixture.deal.id}?as=buyer`} className="mt-3 text-center text-xs text-muted underline-offset-2 hover:underline">
-        See the finished deal
-      </Link>
+      {finishedDealId ? (
+        <Link href={`/deals/${finishedDealId}?as=buyer`} className="mt-3 text-center text-xs text-muted underline-offset-2 hover:underline">
+          See the finished deal
+        </Link>
+      ) : null}
     </article>
   );
 }

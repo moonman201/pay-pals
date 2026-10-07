@@ -2,6 +2,7 @@ import { ALL_FIXTURES } from "@pay-pals/contracts";
 import Link from "next/link";
 import { ScenarioCard } from "@/components/landing/ScenarioCard";
 import { buttonClass } from "@/components/ui/Button";
+import { getServices } from "@/lib/services";
 
 const STEPS: { who: string; what: string; tone: "theme-seller" | "theme-buyer" }[] = [
   { who: "Seller Pal", what: "turns the listing and photos into an item card with the serial on it.", tone: "theme-seller" },
@@ -10,7 +11,10 @@ const STEPS: { who: string; what: string; tone: "theme-seller" | "theme-buyer" }
   { who: "Proof until it arrives", what: "packing photos, tracking, an arrival check against the serial, and an evidence pack if anything is off.", tone: "theme-seller" },
 ];
 
-export default function HomePage() {
+export const dynamic = "force-dynamic";
+
+export default async function HomePage() {
+  const seeded = await getServices().seededDeals;
   return (
     <main className="mx-auto max-w-5xl px-4 pb-16 pt-10 sm:pt-16">
       <header className="text-center">
@@ -45,7 +49,7 @@ export default function HomePage() {
         </div>
         <div className="mt-5 grid gap-4 md:grid-cols-3">
           {ALL_FIXTURES.map((f, i) => (
-            <ScenarioCard key={f.id} fixture={f} index={i + 1} />
+            <ScenarioCard key={f.id} fixture={f} index={i + 1} finishedDealId={seeded[f.id] ?? null} />
           ))}
         </div>
       </section>

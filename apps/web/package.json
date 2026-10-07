@@ -11,7 +11,10 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@pay-pals/agents": "*",
     "@pay-pals/contracts": "*",
+    "@pay-pals/db": "*",
+    "@pay-pals/paypal": "*",
     "next": "^15.5.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
