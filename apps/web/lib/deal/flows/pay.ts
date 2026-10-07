@@ -2,6 +2,11 @@
  * Payment: create the PayPal order for the locked card, then capture it once
  * the buyer approves. The seller's PayPal email is the payee on the order.
  * PayPal's own responses are kept on the record as rawOrder and rawCapture.
+ *
+ * Pressing a second wallet button reuses the open order (the gateway's
+ * PayPal-Request-Id is deterministic per deal and card version), so an open
+ * payment is returned as is: no second payment_created event, and the method
+ * stays what the first button said until the capture reports otherwise.
  */
 import type { PaymentMethod, PaymentRecord } from "@pay-pals/contracts";
 import type { Services } from "../../services";
@@ -15,11 +20,28 @@ export function rawBody(result: object): Record<string, unknown> | null {
   return raw && typeof raw === "object" && !Array.isArray(raw) ? (raw as Record<string, unknown>) : null;
 }
 
+/** The wallet PayPal says paid, read from a capture or order body's payment_source. Null when it does not say. */
+export function fundingSourceOf(raw: Record<string, unknown> | null): PaymentMethod | null {
+  const source = raw?.payment_source;
+  if (!source || typeof source !== "object") return null;
+  if ("venmo" in source) return "venmo";
+  if ("paypal" in source) return "paypal";
+  return null;
+}
+
+const OPEN_STATUSES: readonly PaymentRecord["status"][] = ["CREATED", "APPROVED"];
+
 export async function createOrder(services: Services, dealId: string, method: PaymentMethod): Promise<PaymentRecord> {
   const deal = await mustDeal(services, dealId);
   expectState(deal, "AGREED", "PAYMENT_PENDING");
-  const card = await mustLockedCard(services, deal);
 
+  const existing = await services.store.getPayment(dealId);
+  if (existing && OPEN_STATUSES.includes(existing.status)) {
+    if (existing.method !== null) return existing;
+    return services.store.savePayment({ ...existing, method });
+  }
+
+  const card = await mustLockedCard(services, deal);
   const order = await services.paypal.createDealOrder(card, dealId);
   const payment = await services.store.savePayment({
     dealId,
@@ -49,17 +71,20 @@ export async function captureOrder(services: Services, dealId: string, orderId: 
   if (!existing || existing.paypalOrderId !== orderId) throw new FlowError("That order does not belong to this deal.", 409);
 
   const capture = await services.paypal.captureOrder(orderId);
+  const rawCapture = rawBody(capture);
   if (capture.status !== "COMPLETED" && capture.status !== "PENDING") {
-    await services.store.savePayment({ ...existing, status: "FAILED", rawCapture: rawBody(capture) });
+    await services.store.savePayment({ ...existing, status: "FAILED", rawCapture });
     throw new FlowError(`PayPal reported the capture as ${capture.status}.`, 409);
   }
+  const reported = fundingSourceOf(rawCapture);
   const payment = await services.store.savePayment({
     ...existing,
     captureId: capture.captureId,
     status: "CAPTURED",
     payeeEmail: capture.payeeEmail ?? existing.payeeEmail,
+    method: reported ?? existing.method,
     capturedAt: nowIso(),
-    rawCapture: rawBody(capture),
+    rawCapture,
   });
   const via = payment.method === "venmo" ? " via Venmo" : "";
   await note(services, dealId, "payment_captured", "paypal", `Payment of $${payment.amount.toFixed(2)} captured${via}.`, { captureId: capture.captureId });

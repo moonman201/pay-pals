@@ -41,6 +41,11 @@ export interface Services {
   /** Verified PayPal webhook events go here. */
   handleWebhook: (event: WebhookEvent) => Promise<WebhookOutcome>;
   modes: ServiceModes;
+  /**
+   * Payee used for deals started from demo mode, from SANDBOX_SELLER_PERSONAL_EMAIL.
+   * Fixture payees have no sandbox account, so a capture to them never moves a balance.
+   */
+  demoPayee: string | null;
   /** Resolves once migration (Postgres) or seeding (memory) has finished. */
   ready: Promise<void>;
   /** Finished demo deals seeded into the memory store, scenario id to deal id. Empty on Postgres. */
@@ -86,10 +91,13 @@ export function createServices(env: Env = process.env, log: Log = (line) => cons
   log(`[pay-pals] prices: ${modes.prices === "channel3" ? "Channel3" : "fixture ranges (CHANNEL3_API_KEY not set)"}`);
   log(`[pay-pals] paypal: ${modes.paypal === "sandbox" ? "sandbox gateway" : "mock gateway, no network (PAYPAL_CLIENT_ID not set)"}`);
 
+  const demoPayee = env.SANDBOX_SELLER_PERSONAL_EMAIL?.trim() || null;
+  if (demoPayee) log("[pay-pals] demo payee: sandbox seller account (SANDBOX_SELLER_PERSONAL_EMAIL) replaces the fixture payee on demo deals");
+
   let store: PayPalsStore;
   let ready: Promise<void>;
   let seededDeals: Promise<Partial<Record<ScenarioId, string>>>;
-  const services = { sellerPal, buyerPal, buildEvidencePack, paypal } as Services;
+  const services = { sellerPal, buyerPal, buildEvidencePack, paypal, demoPayee } as Services;
 
   if (modes.store === "postgres") {
     const pg = createPostgresDealStore(env.DATABASE_URL!.trim());
