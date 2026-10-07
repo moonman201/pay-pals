@@ -24,6 +24,7 @@ const KNOWN_FAMILIES: ReadonlyArray<[RegExp, string]> = [
   [/\b(?:nintendo|switch)\b/i, "Nintendo"],
   [/\b(?:iphone|ipad|macbook|airpods|apple)\b/i, "Apple"],
   [/\b(?:galaxy|samsung)\b/i, "Samsung"],
+  [/\bpok[eé]mon\b/i, "Pokemon"],
 ];
 
 export function parsePrice(text: string): number | null {

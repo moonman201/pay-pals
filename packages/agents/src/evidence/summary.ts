@@ -4,7 +4,7 @@
  * facts; Claude rewrites it into readable prose when a client is available.
  */
 import type { EvidenceInput } from "@pay-pals/contracts";
-import { CONDITION_LABELS } from "@pay-pals/contracts";
+import { CONDITION_LABELS, historyMatchesHead } from "@pay-pals/contracts";
 import type { ClaudeClient } from "../claude/client";
 import { callText } from "../claude/text-call";
 import { plainCopy } from "../copy";
@@ -27,7 +27,10 @@ export function deterministicSummary(input: EvidenceInput): string {
   if (verdicts.length > 0) {
     const lines = verdicts.map((v) => `card version ${v.cardVersion}: ${v.overall}${v.flags.length > 0 ? ` (${v.flags.map((f) => `${f.code} ${f.severity}`).join(", ")})` : " with no flags"}`);
     parts.push(`Buyer Pal reviews before payment: ${lines.join("; ")}.`);
+    const cert = [...verdicts].reverse().find((v) => v.certCheck)?.certCheck;
+    if (cert) parts.push(`Grading cert check: ${cert.explanation}`);
   }
+  if (card.certNumber) parts.push(`The card carries grading cert ${card.certNumber}${card.grade ? `, grade ${card.grade}` : ""}.`);
   if (payment) {
     parts.push(
       `Payment: PayPal order ${payment.paypalOrderId}, status ${payment.status}, $${payment.amount.toFixed(2)} ${payment.currency} to ${payment.payeeEmail}${payment.method ? ` via ${payment.method}` : ""}${payment.captureId ? `, capture ${payment.captureId}` : ""}${payment.capturedAt ? `, captured ${day(payment.capturedAt)}` : ""}.`,
@@ -57,8 +60,21 @@ export function deterministicSummary(input: EvidenceInput): string {
       `${arrivalPhotos.length} arrival photo${arrivalPhotos.length === 1 ? "" : "s"} taken by the buyer: ${arrivalPhotos.map((p) => p.whatItShows).join("; ")}.`,
     );
   }
+  const head = payment?.historyHash ?? null;
+  if (head) {
+    const verified = historyMatchesHead(timeline, head);
+    parts.push(
+      `Tamper check: the deal history hash recorded on the PayPal order at payment time is ${head}. The ${timeline.length} stored timeline events ${verified ? "reproduce that hash, so the history was not edited after payment" : "do not reproduce that hash, so the stored history differs from what PayPal holds"}.`,
+    );
+  }
   parts.push(`${messages.length} chat message${messages.length === 1 ? "" : "s"} and ${timeline.length} timeline event${timeline.length === 1 ? "" : "s"} are attached in full.`);
   return plainCopy(parts.join(" "), 4000);
+}
+
+/** The chain head on the payment and whether the stored events reproduce it. Both undefined when no payment carries a hash. */
+export function historyStatus(input: EvidenceInput): { historyHash: string; historyVerified: boolean } | null {
+  const head = input.payment?.historyHash ?? null;
+  return head ? { historyHash: head, historyVerified: historyMatchesHead(input.timeline, head) } : null;
 }
 
 const SYSTEM = [

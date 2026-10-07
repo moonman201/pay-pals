@@ -54,6 +54,15 @@ describe("buildOrderBody", () => {
     expect(item.description.endsWith("...")).toBe(true);
   });
 
+  it("writes the history head into custom_id and keeps invoice_id as the bare deal id", () => {
+    const head = "f".repeat(64);
+    const unit = buildOrderBody(locked, dealId, head).purchase_units[0];
+    expect(unit.custom_id).toBe(`${dealId}#${head}`);
+    expect(unit.custom_id.length).toBeLessThanOrEqual(PAYPAL_LIMITS.customId);
+    expect(unit.invoice_id).toBe(dealId);
+    expect(buildOrderBody(locked, dealId, null).purchase_units[0].custom_id).toBe(dealId);
+  });
+
   it("says when there is no serial instead of leaving it out", () => {
     expect(describeCard({ ...locked, serial: null })).toMatch(/^Serial not provided\. Condition: Good\./);
     expect(buildOrderBody({ ...locked, serial: null }, dealId).purchase_units[0].items[0].sku).toBeUndefined();

@@ -7,7 +7,7 @@ import type { EvidenceInput, EvidencePack, EvidencePackBuilder, PalResult, Photo
 import type { ClaudeClient } from "../claude/client";
 import { createAnthropicClientFromEnv } from "../claude/client";
 import { sentences } from "../copy";
-import { writeSummary } from "./summary";
+import { historyStatus, writeSummary } from "./summary";
 
 export interface EvidencePackOptions {
   anthropic: ClaudeClient | null;
@@ -33,7 +33,9 @@ export async function buildEvidencePack(input: EvidenceInput, options?: Evidence
   const client = options ? options.anthropic : createAnthropicClientFromEnv();
   const photos = collectPhotos(input);
   const summary = await writeSummary(input, client);
+  const history = historyStatus(input);
   const pack: EvidencePack = {
+    ...(history ?? {}),
     dealId: input.deal.id,
     builtBy: input.requestedBy === "buyer" ? "buyer_pal" : "seller_pal",
     builtAt: new Date().toISOString(),
@@ -52,6 +54,7 @@ export async function buildEvidencePack(input: EvidenceInput, options?: Evidence
     input.payment ? `PayPal order ${input.payment.paypalOrderId},` : "no PayPal order,",
     input.shipment ? `${input.shipment.carrier} tracking ${input.shipment.trackingNumber},` : "no shipment,",
     input.arrivalCheck ? `and the arrival check (${input.arrivalCheck.matches ? "matched" : "did not match"}).` : "and the full timeline.",
+    history ? (history.historyVerified ? "The history hash on the PayPal order matches the stored events." : "The stored events do not reproduce the history hash on the PayPal order.") : null,
     input.arrivalCheck && !input.arrivalCheck.matches ? "Open a dispute in PayPal for this order and attach this pack." : "Keep this in case either side needs it.",
   );
   return { data: pack, palMessage };

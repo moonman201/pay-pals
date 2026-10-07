@@ -11,7 +11,7 @@ import { z } from "zod";
 import type { ClaudeClient } from "../claude/client";
 import { callTool } from "../claude/tool-call";
 import { sentences } from "../copy";
-import { normalizeSerial, serialFromText } from "../vision/description";
+import { certFromText, gradeFromText, normalizeSerial, serialFromText } from "../vision/description";
 import type { ImageFetcher } from "../vision/fetch-image";
 import { itemSerial, packagingSerial, readPhotos } from "../vision/read-photo";
 import { parseListing, type ListingDraft } from "./listing-parse";
@@ -118,6 +118,10 @@ export async function buildCardFromListing(input: BuildCardInput, deps: BuildCar
   const boxSerial = fromBox?.serial ?? null;
   const serialsMatch = serial && boxSerial ? normalizeSerial(serial) === normalizeSerial(boxSerial) : null;
   const usedDescriptions = readings.length > 0 && readings.every((r) => r.source === "description");
+  // A graded collectible is identified by its cert number and grade, read from the slab label text or the listing.
+  const labelText = [...input.photos.map((p) => p.whatItShows), input.listingText, input.sellerNotes].join("\n");
+  const certNumber = certFromText(labelText);
+  const grade = gradeFromText(labelText);
 
   const card: ItemCard = {
     dealId: input.dealId,
@@ -127,6 +131,7 @@ export async function buildCardFromListing(input: BuildCardInput, deps: BuildCar
     model: fields.model,
     serial,
     boxSerial,
+    ...(certNumber ? { certNumber, grade } : {}),
     conditionGrade: fields.conditionGrade,
     conditionNotes: fields.conditionNotes,
     included: fields.included,
@@ -143,8 +148,9 @@ export async function buildCardFromListing(input: BuildCardInput, deps: BuildCar
     !fromPhoto && typedSerial ? `Serial ${serial} taken from your notes. A photo of it on the item would make the card stronger.` : null,
     serialsMatch === true ? `The box label shows the same serial. They match.` : null,
     serialsMatch === false ? `The box label reads ${boxSerial}, which does not match the item. Say why before you share the card, because the buyer's pal will raise it.` : null,
+    certNumber ? `Cert ${certNumber}${grade ? ` (${grade})` : ""} read from the slab label. The buyer's pal will check it with the grader.` : null,
     !serial && boxSerial ? `The only serial I found is on the box label (${boxSerial}). A box label is not the item. Add a photo of the serial on the item itself.` : null,
-    !serial && !boxSerial ? "I could not find a serial number in the photos. Add a clear photo of the serial on the item itself before you share the card." : null,
+    !serial && !boxSerial && !certNumber ? "I could not find a serial number in the photos. Add a clear photo of the serial on the item itself before you share the card." : null,
     usedDescriptions ? "I went by your photo descriptions because I could not open the image files." : null,
     "Check every line before you share it. Once the buyer agrees, this card becomes the PayPal order.",
   );

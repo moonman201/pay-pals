@@ -29,6 +29,8 @@ export interface BuildCardInput {
 
 /** What the Buyer Pal knows about the deal beyond the card and the chat. */
 export interface ReviewContext {
+  /** The deal id, needed when the review runs with no card (a refusal reviewed from the chat alone). */
+  dealId?: string;
   /** The seller as the deal knows them, so the NAME_MISMATCH rule can compare against the PayPal email. */
   seller?: Pick<Party, "displayName" | "email"> | null;
   /** The listing the buyer pasted, when the deal was buyer-started. */
