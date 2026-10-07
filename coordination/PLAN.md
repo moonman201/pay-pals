@@ -24,7 +24,7 @@ tests/e2e            Playwright runs of the three demo scenarios                
 ```
 Modules talk only through `packages/contracts` interfaces. apps/web is the only place modules are wired together.
 
-## Contracts (v1.3.0-draft on branch contracts-v1.3.0, merges with the stores in `packages/contracts`, frozen Fri Oct 9)
+## Contracts (v1.3.0-draft on main in `packages/contracts`, frozen Fri Oct 9)
 
 The TypeScript in `packages/contracts/src` is the contract. This section is the summary. Where they differ, the code wins and the Lead fixes this file.
 
