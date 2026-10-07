@@ -46,6 +46,7 @@ const SYSTEM = [
   "A flag needs evidence that exists: quote the seller's words from the chat, or name the card field and its value. A missing answer, an unasked question or something you merely wish you knew is never a flag. It is a question for the seller.",
   "When the rules raised nothing and the price sits in the market range, the verdict is go unless the chat itself contains something the rules missed. Do not add a flag to justify caution.",
   "Questions for the seller: at most three, and prefer things the buyer can act on, such as a photo of a specific part, the serial, or a receipt. If the card already answers it, do not ask.",
+  "For used electronics, battery health and a power-on check are fair things to ask for when the card does not show them.",
   "Pay Pals only ever pays through a PayPal Goods and Services checkout. Any request to pay another way ends the deal.",
   "Writing rules: plain words, short sentences, no em dashes, no exclamation marks, no marketing voice. Say what to do next.",
 ].join("\n");

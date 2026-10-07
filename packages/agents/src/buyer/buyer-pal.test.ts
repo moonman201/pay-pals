@@ -116,6 +116,14 @@ describe("BuyerPal.review on clean-garmin", () => {
     expect(verdict.questionsForSeller).toEqual(["Can you add a photo of the charging port?", "Do you have the receipt?", "Where will it ship from?"]);
   });
 
+  it("tells the model that battery health and a power-on check are fair asks for used electronics", async () => {
+    const model = fakeClaude(quietModel);
+    await createBuyerPal({ anthropic: model, priceLookup }).review(cleanGarmin.cards[0]!, cleanGarmin.chat.slice(0, 2));
+    const shown = promptText(model.calls[0]!);
+    expect(shown).toContain("battery health and a power-on check are fair things to ask for when the card does not show them");
+    expect(shown).toContain("A missing answer, an unasked question or something you merely wish you knew is never a flag.");
+  });
+
   it("clean-garmin v1 with rules only is go with no questions", async () => {
     const { data: verdict } = await createBuyerPal({ anthropic: null, priceLookup }).review(cleanGarmin.cards[0]!, cleanGarmin.chat.slice(0, 2));
     expect(verdict.overall).toBe("go");
