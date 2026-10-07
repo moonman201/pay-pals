@@ -1,16 +1,21 @@
 /**
- * A tiny JSON file cache keyed by request, with a time to live. Keeps
- * Channel3 calls from repeating in dev and tests. Lives in
- * packages/agents/.cache, gitignored. Entries expire after a day by default;
- * production uses noCache so prices are always fresh.
+ * A tiny JSON file cache keyed by request, with a time to live. Keeps the
+ * Channel3 and PSA calls from repeating in dev and tests. Lives under
+ * packages/agents/.cache/<name>, gitignored. Entries expire after a day by
+ * default; production uses noCache so prices and records are always fresh.
  */
 import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-export const DEFAULT_CACHE_DIR = join(dirname(fileURLToPath(import.meta.url)), "..", "..", ".cache", "channel3");
+export const CACHE_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..", ".cache");
 export const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+
+/** The on-disk folder for one provider's cache, for example cacheDir("channel3"). */
+export function cacheDir(name: string): string {
+  return join(CACHE_ROOT, name);
+}
 
 export interface DiskCache {
   get<T>(key: unknown): Promise<T | null>;
@@ -35,7 +40,7 @@ function fileFor(dir: string, key: unknown): string {
 }
 
 export function createDiskCache(options: DiskCacheOptions = {}): DiskCache {
-  const dir = options.dir ?? DEFAULT_CACHE_DIR;
+  const dir = options.dir ?? cacheDir("channel3");
   const ttlMs = options.ttlMs ?? ONE_DAY_MS;
   const now = options.now ?? Date.now;
   return {
@@ -54,6 +59,11 @@ export function createDiskCache(options: DiskCacheOptions = {}): DiskCache {
       await writeFile(fileFor(dir, key), JSON.stringify(entry, null, 2), "utf8");
     },
   };
+}
+
+/** The cache for a provider: on disk for a day in dev, off in production. */
+export function defaultCacheFor(name: string): DiskCache {
+  return process.env.NODE_ENV === "production" ? noCache : createDiskCache({ dir: cacheDir(name) });
 }
 
 export const noCache: DiskCache = {

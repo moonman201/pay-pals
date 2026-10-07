@@ -27,7 +27,7 @@ import {
   type Channel3SearchResponse,
   type FetchLike,
 } from "./channel3-api";
-import { createDiskCache, noCache, type DiskCache } from "./disk-cache";
+import { createDiskCache, noCache, type DiskCache } from "../cache/disk-cache";
 
 export interface Channel3Options {
   fetchImpl?: FetchLike;
@@ -47,6 +47,16 @@ export const USED_FACTOR: Record<string, number> = {
 
 /** Prefix of the sources entry that records how a used range was derived. */
 export const ESTIMATE_NOTE_PREFIX = "Estimated for a used unit";
+
+/** The note returned when a graded collectible has no graded listings on Channel3. */
+export const NO_GRADED_LISTINGS_NOTE = "No graded listings on Channel3 for this item, so the price was not checked";
+
+const GRADER = /\b(?:psa|bgs|cgc|sgc)\b/i;
+
+/** True when the query is for a graded collectible (a grader and grade, or the words graded or slab). */
+export function isGradedQuery(model: string): boolean {
+  return /\b(?:psa|bgs|cgc|sgc)\s*(?:10|[1-9](?:\.5)?)\b|\bgraded\b|\bslab\b/i.test(model);
+}
 
 const MAX_SOURCES = 8;
 
@@ -112,7 +122,13 @@ export function deriveRange(
   response: Channel3SearchResponse,
   query: { brand: string; model: string; condition: string },
 ): Omit<PriceCheck, "checkedAt"> {
-  const products = relevantProducts(response.products, query.brand, query.model);
+  // A graded card only compares with other graded listings. Channel3 is retail, so this usually means no price check.
+  const graded = isGradedQuery(query.model);
+  const candidates = graded ? response.products.filter((p) => GRADER.test(p.title)) : response.products;
+  if (graded && candidates.length === 0) {
+    return { marketLow: 0, marketHigh: 0, currency: "USD", sources: [{ name: NO_GRADED_LISTINGS_NOTE }], provider: "channel3" };
+  }
+  const products = relevantProducts(candidates, query.brand, query.model);
   const offers: PricedOffer[] = [];
   for (const product of products) {
     for (const offer of product.offers ?? []) {
