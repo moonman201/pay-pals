@@ -22,7 +22,12 @@ test.describe("phone width", () => {
     await expectState(page, "Listed");
     await expectNoHorizontalScroll(page, "deal room, Listed");
 
-    await driveToDelivered(page, dealId, cleanGarmin);
+    await driveToDelivered(page, dealId, cleanGarmin, {
+      afterBuyerAgreed: async () => {
+        await expect(panel(page, "Next step").getByText("You agreed to version 1, waiting for the other side.")).toBeVisible();
+        await expectNoHorizontalScroll(page, "deal room, buyer agreed and waiting");
+      },
+    });
     await expectNoHorizontalScroll(page, "deal room, Delivered");
 
     await runArrivalCheck(page, cleanGarmin);

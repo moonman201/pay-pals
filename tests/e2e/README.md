@@ -30,7 +30,8 @@ Do not run `npm run build` and the e2e at the same time: both use `apps/web/.nex
 |---|---|
 | `src/landing.spec.ts` | The landing page loads and names all three scenarios. |
 | `src/scam-stopped.spec.ts` | The review blocks the scam deal: payment-method flag, no Agree button, no override, timeline says why. |
-| `src/clean-deal.spec.ts` | Listed to Complete as the buyer and the seller: review, agree and lock, demo pay, ship with checklist and tracking, deliver, arrival matches, complete. |
+| `src/clean-deal.spec.ts` | Listed to Complete as the buyer and the seller: review, both sides agree and the card locks, demo pay, ship with checklist and tracking, deliver, arrival matches, complete. |
+| `src/card-change-reagree.spec.ts` | Buyer agrees, the seller changes the card instead, the deal goes back to Listed, both sides review and agree again, locked at version 2. |
 | `src/wrong-item.spec.ts` | Same path to Delivered, then the serial mismatch, the issue, and the evidence page with the locked card and the arrival photos. |
 | `src/phone-width.spec.ts` | The clean deal again at 390 px: no horizontal scroll on the landing page, the deal room or the evidence pack. |
 

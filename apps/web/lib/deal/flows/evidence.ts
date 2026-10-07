@@ -1,5 +1,5 @@
 /** Gather everything the store holds and hand it to the evidence pack builder. */
-import { PhotoSchema, type Deal, type DealEvent, type EvidencePack, type Photo } from "@pay-pals/contracts";
+import { PhotoSchema, type ArrivalCheck, type Deal, type DealEvent, type EvidencePack, type Photo } from "@pay-pals/contracts";
 import type { Role } from "../../role";
 import { fixtureById } from "../../scenarios";
 import type { Services } from "../../services";
@@ -8,8 +8,9 @@ import { mustDeal, note, say } from "./shared";
 
 type EvidenceServices = Pick<Services, "store" | "buildEvidencePack">;
 
-/** The buyer's arrival photos: from the arrival_checked event, or the scenario fixture for a seeded finished deal. */
-export function arrivalPhotosFrom(deal: Deal, timeline: DealEvent[]): Photo[] {
+/** The buyer's arrival photos: on the check itself (v1.3.0), else the arrival_checked event, else the scenario fixture for a seeded finished deal. */
+export function arrivalPhotosFrom(deal: Deal, timeline: DealEvent[], check: ArrivalCheck | null = null): Photo[] {
+  if (check?.photos && check.photos.length > 0) return check.photos;
   const event = [...timeline].reverse().find((e) => e.kind === "arrival_checked" && Array.isArray(e.data?.photos));
   if (event) {
     const parsed = PhotoSchema.array().safeParse(event.data?.photos);
@@ -32,7 +33,7 @@ export async function buildEvidenceFor(services: EvidenceServices, deal: Deal, r
     store.getShipment(deal.id),
     store.listEvents(deal.id),
   ]);
-  const arrivalPhotos = arrivalCheck ? arrivalPhotosFrom(deal, timeline) : [];
+  const arrivalPhotos = arrivalCheck ? arrivalPhotosFrom(deal, timeline, arrivalCheck) : [];
   const result = await services.buildEvidencePack({ deal, lockedCard, verdicts, arrivalCheck, messages, payment, shipment, timeline, arrivalPhotos, requestedBy });
   const pack = await store.saveEvidence(result.data);
   await note(services, deal.id, "evidence_built", pack.builtBy, "Evidence pack built for a PayPal dispute.");

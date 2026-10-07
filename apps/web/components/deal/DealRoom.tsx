@@ -57,7 +57,7 @@ export function DealRoom({ snapshot, role }: { snapshot: DealSnapshot; role: Rol
       case "review":
         return run(id, api("review"));
       case "agree":
-        return run(id, api("agree", { override: Boolean(opts?.override) }));
+        return run(id, api("agree", { by: role, override: Boolean(opts?.override) }));
       case "confirm_delivery":
         return run(id, api("deliver"));
       case "complete":
@@ -84,6 +84,9 @@ export function DealRoom({ snapshot, role }: { snapshot: DealSnapshot; role: Rol
   const shared = snapshot.messages.filter((m) => m.channel === "deal");
   const needsBuyer = role === "buyer" && deal.buyer === null;
   const openQuestions = snapshot.verdict && currentCard && snapshot.verdict.cardVersion === currentCard.version ? snapshot.verdict.questionsForSeller : [];
+  // This side agreed to an earlier version and the store cleared it when the card changed.
+  const agreedEarlier = snapshot.events.some((e) => e.kind === "agreed" && e.actor === role);
+  const cardChangedSinceAgree = agreedEarlier && (role === "buyer" ? deal.buyerAgreedAt : deal.sellerAgreedAt) === null;
 
   return (
     <div className={`theme-${role} min-h-screen bg-wash`}>
@@ -100,7 +103,18 @@ export function DealRoom({ snapshot, role }: { snapshot: DealSnapshot; role: Rol
             <JoinForm dealId={deal.id} onDone={refresh} />
           ) : (
             <>
-              <ActionBar state={state} role={role} verdict={snapshot.verdict} dealId={deal.id} busy={busy} hasLockedCard={snapshot.lockedCard !== null} onAction={onAction} />
+              <ActionBar
+                state={state}
+                role={role}
+                verdict={snapshot.verdict}
+                dealId={deal.id}
+                busy={busy}
+                hasLockedCard={snapshot.lockedCard !== null}
+                agreement={{ buyerAgreedAt: deal.buyerAgreedAt, sellerAgreedAt: deal.sellerAgreedAt }}
+                cardVersion={deal.currentCardVersion}
+                cardChangedSinceAgree={cardChangedSinceAgree}
+                onAction={onAction}
+              />
               {error ? (
                 <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-stop">
                   {error}

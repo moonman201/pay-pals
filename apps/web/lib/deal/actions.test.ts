@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { allowedActions, isWaitingOnOther } from "./actions";
+import { agreeLabel, allowedActions, hasAgreed, isWaitingOnOther } from "./actions";
 
 const ids = (state: Parameters<typeof allowedActions>[0], role: Parameters<typeof allowedActions>[1]) => allowedActions(state, role).map((a) => a.id);
 
@@ -9,8 +9,9 @@ describe("allowedActions", () => {
     expect(ids("LISTED", "seller")).toEqual(["cancel"]);
   });
 
-  it("lets the buyer agree after review, pay after agreeing", () => {
+  it("lets both sides agree after review, and the buyer pay after agreeing", () => {
     expect(ids("REVIEWED", "buyer")).toEqual(["agree", "cancel"]);
+    expect(ids("REVIEWED", "seller")).toEqual(["agree", "cancel"]);
     expect(ids("AGREED", "buyer")).toEqual(["pay", "cancel"]);
     expect(ids("AGREED", "seller")).toEqual(["cancel"]);
   });
@@ -40,5 +41,22 @@ describe("allowedActions", () => {
     expect(isWaitingOnOther("SHIPPED", "buyer")).toBe(false);
     expect(isWaitingOnOther("AGREED", "seller")).toBe(true);
     expect(isWaitingOnOther("AGREED", "buyer")).toBe(false);
+    expect(isWaitingOnOther("REVIEWED", "seller")).toBe(false);
+  });
+});
+
+describe("agreement labels", () => {
+  const none = { buyerAgreedAt: null, sellerAgreedAt: null };
+  const sellerDone = { buyerAgreedAt: null, sellerAgreedAt: "2026-10-07T00:00:00.000Z" };
+
+  it("names the move for each side", () => {
+    expect(agreeLabel("seller", none)).toBe("Agree to this card");
+    expect(agreeLabel("buyer", none)).toBe("Agree");
+    expect(agreeLabel("buyer", sellerDone)).toBe("Agree and lock the card");
+  });
+
+  it("knows who has agreed", () => {
+    expect(hasAgreed(sellerDone, "seller")).toBe(true);
+    expect(hasAgreed(sellerDone, "buyer")).toBe(false);
   });
 });
