@@ -21,3 +21,7 @@
 - Two-sided agreement: both sides agree to a card version, the second agreement locks it, a card change clears both and needs a fresh review (contracts v1.3.0-draft, migration 0001, UI, e2e).
 - Non-payment stops stay overridable behind a sterner warning. Payment-method flags remain a hard block.
 - Channel3 client aligned with the official API reference, day-long disk cache in dev, one call per review.
+- Demo item is now a PlayStation 5 with its original box (contracts v1.4.0-draft): scenarios scam-ps5, clean-ps5, empty-box. Seller Pal reads console and box serials and says whether they match; a box label never counts as the item serial; an empty box yields a serial mismatch and an evidence pack. Migration 0002 maps old scenario ids.
+- Buyer Pal price range for a used item is derived from new retail scaled by condition, with cheaper used offers pulling it down; the pal says so.
+- Env loader reads the app and root .env.local files; idempotent finished-deal seed on Postgres; a second wallet button reuses the open order; the sandbox seller account is the demo payee when configured.
+- Real-mode Playwright spec (`npm run test:e2e:real`) completes a sandbox payment through the PayPal SDK buttons headless.
