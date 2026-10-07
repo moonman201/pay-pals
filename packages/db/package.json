@@ -19,7 +19,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "migrate": "tsx scripts/migrate.ts",
-    "db:generate": "drizzle-kit generate --config drizzle.config.ts"
+    "db:generate": "drizzle-kit generate --config drizzle.config.ts && tsx scripts/generate-migrations.ts",
+    "db:bundle": "tsx scripts/generate-migrations.ts"
   },
   "dependencies": {
     "@pay-pals/contracts": "*",

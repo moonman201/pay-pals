@@ -14,8 +14,13 @@ the database.
 
 ## Schema and migrations
 
-`schema.ts` is owned by the Lead. Migrations live in `drizzle/` and are
-generated with `npm run db:generate -w packages/db` after a schema change.
+`schema.ts` is owned by the Lead. Migrations live in `drizzle/` (the source
+of truth) and are generated with `npm run db:generate -w packages/db` after
+a schema change. That command also renders the folder into
+`src/postgres/migrations.generated.ts`, which is what `migrate()` runs from.
+The migrator reads nothing from disk, so it works inside a Next.js server
+bundle where the `drizzle/` folder is not deployed. A test fails when the
+generated module is stale; `npm run db:bundle -w packages/db` refreshes it.
 
 ## Tests
 

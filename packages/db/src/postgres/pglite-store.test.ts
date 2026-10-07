@@ -5,12 +5,11 @@
  */
 import { PGlite } from "@electric-sql/pglite";
 import { drizzle } from "drizzle-orm/pglite";
-import { migrate } from "drizzle-orm/pglite/migrator";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import * as schema from "../../schema";
 import { runDealStoreConformance } from "../conformance/deal-store.conformance";
 import type { PayPalsStore } from "@pay-pals/contracts";
-import { MIGRATIONS_FOLDER } from "./db";
+import { runMigrations } from "./migrate";
 import { createPostgresDealStoreFromDb } from "./postgres-store";
 
 let client: PGlite;
@@ -19,7 +18,8 @@ let store: PayPalsStore;
 beforeAll(async () => {
   client = new PGlite();
   const db = drizzle(client, { schema });
-  await migrate(db, { migrationsFolder: MIGRATIONS_FOLDER });
+  // The same bundled migrator production uses, not drizzle's folder reader.
+  await runMigrations(db);
   store = createPostgresDealStoreFromDb(db);
 }, 60_000);
 
