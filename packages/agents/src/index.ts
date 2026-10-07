@@ -8,6 +8,7 @@ export { CardLockedError } from "./seller/apply-request";
 export { MissingPriceError } from "./seller/build-card";
 export { buildEvidencePack, createEvidencePackBuilder, type EvidencePackOptions } from "./evidence/build-evidence-pack";
 export { createChannel3PriceLookup, type Channel3Options } from "./price/channel3-lookup";
+export { Channel3Error, channel3CallCount } from "./price/channel3-api";
 export { createFixturePriceLookup } from "./price/fixture-lookup";
 export { runRules, overallFromFlags, type RuleInput, type SellerIdentity } from "./rules";
 export { createAnthropicClientFromEnv, modelId, DEFAULT_MODEL, type ClaudeClient } from "./claude/client";

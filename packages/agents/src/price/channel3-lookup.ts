@@ -1,24 +1,36 @@
 /**
- * MarketPriceLookup backed by Channel3. Searches for the product, keeps the
- * offers whose titles actually match the model, and turns their prices into
- * a low/high range. How the range is derived, in one place:
- *   - low  = 20th percentile of matching USD offers, high = 80th percentile,
- *     so one mispriced listing does not set the range;
- *   - Channel3 is mostly retail (new). When the card is used and no used
- *     offers came back, both ends are scaled by USED_FACTOR for the grade.
- * Responses are cached on disk in dev so tests do not spend credits.
+ * MarketPriceLookup backed by Channel3. One search per lookup, none when the
+ * cache answers. Searches brand plus model as the query (Channel3 says to put
+ * model names in the query; brand_ids would cost a second call), asks for
+ * both new and used offers when the card is used, keeps the offers whose
+ * titles actually match the model, and turns their prices into a range:
+ *   - low  = 20th percentile of matching USD offers (rounded down),
+ *     high = 80th percentile (rounded up), so one odd listing does not set it;
+ *   - Channel3 is mostly retail. When the card is used and no used offers
+ *     came back, both ends are scaled by USED_FACTOR for the grade. That
+ *     scaling is a fallback only.
+ * Responses are cached on disk for a day in dev, keyed on the normalized
+ * query and the request options, so repeated runs and tests spend nothing.
  */
 import type { MarketPriceLookup, PriceCheck, PriceSource } from "@pay-pals/contracts";
-import { channel3Search, type Channel3Offer, type Channel3Product, type Channel3SearchResponse, type FetchLike } from "./channel3-api";
+import {
+  channel3Search,
+  type Channel3Offer,
+  type Channel3Product,
+  type Channel3SearchRequest,
+  type Channel3SearchResponse,
+  type FetchLike,
+} from "./channel3-api";
 import { createDiskCache, noCache, type DiskCache } from "./disk-cache";
 
 export interface Channel3Options {
   fetchImpl?: FetchLike;
   cache?: DiskCache;
+  /** Results per search, 1 to 30. */
   limit?: number;
 }
 
-/** Share of the retail price a used unit fetches, by condition grade. */
+/** Share of the retail price a used unit fetches, by condition grade. Fallback only. */
 export const USED_FACTOR: Record<string, number> = {
   new: 1,
   like_new: 0.8,
@@ -28,6 +40,20 @@ export const USED_FACTOR: Record<string, number> = {
 };
 
 const MAX_SOURCES = 8;
+
+export function normalizeQuery(brand: string, model: string): string {
+  return `${brand} ${model}`.toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+export function buildSearchRequest(query: { brand: string; model: string; condition: string }, limit: number): Channel3SearchRequest {
+  const used = query.condition !== "new";
+  return {
+    query: normalizeQuery(query.brand, query.model),
+    limit: Math.min(30, Math.max(1, limit)),
+    ...(used ? { filters: { conditions: ["new", "used"] as const } } : {}),
+    config: { country: "US", currency: "USD" },
+  };
+}
 
 function tokens(text: string): string[] {
   return text.toLowerCase().split(/[^a-z0-9]+/).filter((t) => t.length >= 2);
@@ -66,7 +92,7 @@ export function deriveRange(
   const products = relevantProducts(response.products, query.brand, query.model);
   const offers: Array<{ product: Channel3Product; offer: Channel3Offer }> = [];
   for (const product of products) {
-    for (const offer of product.offers) {
+    for (const offer of product.offers ?? []) {
       if (offer.price.currency === "USD" && offer.price.price > 0) offers.push({ product, offer });
     }
   }
@@ -98,7 +124,7 @@ export function createChannel3PriceLookup(apiKey: string, options: Channel3Optio
   const limit = options.limit ?? 20;
   return {
     async priceRange(query): Promise<PriceCheck> {
-      const request = { query: `${query.brand} ${query.model}`.trim(), limit, config: { country: "US" as const, currency: "USD" as const } };
+      const request = buildSearchRequest(query, limit);
       let response = await cache.get<Channel3SearchResponse>(request);
       if (!response) {
         response = await channel3Search(apiKey, request, options.fetchImpl);
