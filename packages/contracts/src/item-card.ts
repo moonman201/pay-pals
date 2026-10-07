@@ -37,6 +37,8 @@ export const ItemCardSchema = z.object({
   model: z.string().min(1).max(80),
   /** Null until read from a photo or typed by the seller. */
   serial: z.string().min(1).max(64).nullable(),
+  /** Serial printed on the original box label, when the item ships with its box. The Seller Pal reads it and says whether it matches. */
+  boxSerial: z.string().min(1).max(64).nullable().optional(),
   conditionGrade: z.enum(CONDITION_GRADES),
   conditionNotes: z.string().max(600),
   included: z.array(z.string().min(1).max(80)),
