@@ -1,9 +1,9 @@
-import { cleanGarmin } from "@pay-pals/contracts";
+import { cleanPs5 } from "@pay-pals/contracts";
 import { render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { PayStep } from "./PayStep";
 
-const lockedCard = cleanGarmin.cards[1];
+const lockedCard = cleanPs5.cards[1];
 if (!lockedCard) throw new Error("fixture needs a locked card");
 
 describe("PayStep", () => {
@@ -32,7 +32,7 @@ describe("PayStep", () => {
 
   it("names the payee and the locked card in the intro", () => {
     render(<PayStep dealId="d1" card={lockedCard} payMode="mock" onDone={() => {}} />);
-    expect(screen.getByText(/luis\.o@example\.com/)).toBeInTheDocument();
-    expect(screen.getByText(/serial 7LP045912/)).toBeInTheDocument();
+    expect(screen.getByText(new RegExp(lockedCard.sellerPaypalEmail.replace(".", "\\.")))).toBeInTheDocument();
+    expect(screen.getByText(/serial AH912345678/)).toBeInTheDocument();
   });
 });

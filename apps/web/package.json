@@ -4,7 +4,9 @@
   "private": true,
   "description": "The Pay Pals web app: demo landing, start a deal, deal room, pay, ship, arrival check and evidence pack. Wires the packages together through their contract interfaces.",
   "scripts": {
+    "predev": "node scripts/copy-demo-photos.mjs",
     "dev": "next dev",
+    "prebuild": "node scripts/copy-demo-photos.mjs",
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",

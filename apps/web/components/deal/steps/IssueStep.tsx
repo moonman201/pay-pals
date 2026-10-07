@@ -3,7 +3,7 @@
 import type { DealState } from "@pay-pals/contracts";
 import { useState } from "react";
 import { dealApi, postJson } from "@/lib/client/api";
-import { ISSUE_REASON_LABELS, issueReasonsFor, type IssueReason } from "@/lib/deal/issue";
+import { issueChoicesFor } from "@/lib/deal/issue";
 import { Button } from "../../ui/Button";
 import { StepError, StepPanel } from "./StepPanel";
 
@@ -16,18 +16,21 @@ interface Props {
 
 /** The buyer says why they are opening an issue. The evidence pack is built either way. */
 export function IssueStep({ dealId, state, onDone, onClose }: Props) {
-  const reasons = issueReasonsFor(state);
-  const [reason, setReason] = useState<IssueReason>(reasons[0] ?? "other");
+  const choices = issueChoicesFor(state);
+  const [choiceId, setChoiceId] = useState<string>(choices[0]?.id ?? "other");
   const [details, setDetails] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    const choice = choices.find((c) => c.id === choiceId) ?? choices[0];
+    if (!choice) return;
     setBusy(true);
     setError(null);
     try {
-      await postJson(dealApi(dealId, "issue"), { reason, details: details.trim() });
+      const text = [choice.details, details.trim()].filter(Boolean).join(" ").slice(0, 300);
+      await postJson(dealApi(dealId, "issue"), { reason: choice.reason, details: text });
       onDone();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not open the issue.");
@@ -46,10 +49,10 @@ export function IssueStep({ dealId, state, onDone, onClose }: Props) {
       <form onSubmit={submit} className="space-y-4">
         <fieldset className="space-y-2">
           <legend className="text-sm font-semibold">Reason</legend>
-          {reasons.map((r) => (
-            <label key={r} className="flex items-center gap-2 text-sm">
-              <input type="radio" name="reason" value={r} checked={reason === r} onChange={() => setReason(r)} />
-              {ISSUE_REASON_LABELS[r]}
+          {choices.map((c) => (
+            <label key={c.id} className="flex items-center gap-2 text-sm">
+              <input type="radio" name="reason" value={c.id} checked={choiceId === c.id} onChange={() => setChoiceId(c.id)} />
+              {c.label}
             </label>
           ))}
         </fieldset>

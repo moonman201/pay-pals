@@ -57,7 +57,8 @@ export async function startDemoDeal(services: Services, scenario: ScenarioId): P
   let deal = await store.createDeal({ seller: fixture.seller, buyer: fixture.buyer, scenario });
   await note(services, deal.id, "deal_created", "seller", `${fixture.seller.displayName} started a deal.`);
   await store.saveCard({ ...cardV1, dealId: deal.id, lockedAt: null });
-  const serialNote = cardV1.serial ? `Serial ${cardV1.serial} read from the caseback photo.` : "No serial found in the photos.";
+  const boxNote = cardV1.boxSerial ? (cardV1.boxSerial === cardV1.serial ? " The box label shows the same serial." : ` The box label shows a different serial, ${cardV1.boxSerial}.`) : "";
+  const serialNote = cardV1.serial ? `Serial ${cardV1.serial} read from the photos.${boxNote}` : "No serial found in the photos.";
   await say(services, deal.id, "seller_pal", "seller_pal", `I built card version 1 from your listing. ${serialNote}`);
   await note(services, deal.id, "card_updated", "seller_pal", `Seller Pal built card version 1. ${serialNote}`);
   deal = await store.transition(deal.id, "LISTED", "system", "Listed.");
