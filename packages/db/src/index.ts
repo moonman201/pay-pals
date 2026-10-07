@@ -9,6 +9,8 @@
  */
 export * as schema from "../schema";
 export { createMemoryDealStore } from "./memory/memory-store";
+export { createPostgresDealStore, createPostgresDealStoreFromDb } from "./postgres/postgres-store";
+export type { PostgresDealStore } from "./postgres/postgres-store";
 export type { PayPalsStore } from "./store-types";
 export type { WebhookReceiptStore } from "./webhook-receipts";
 export { CardLockedError, CardNotFoundError, CardVersionError, DealNotFoundError } from "./errors";

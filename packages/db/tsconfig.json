@@ -4,6 +4,14 @@
     "rootDir": ".",
     "outDir": "dist"
   },
-  "include": ["schema.ts", "src"],
-  "exclude": ["src/**/*.test.ts", "dist"]
+  "include": [
+    "schema.ts",
+    "src",
+    "scripts",
+    "drizzle.config.ts"
+  ],
+  "exclude": [
+    "src/**/*.test.ts",
+    "dist"
+  ]
 }
