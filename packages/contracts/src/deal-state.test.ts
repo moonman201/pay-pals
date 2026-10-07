@@ -21,6 +21,14 @@ describe("deal state table", () => {
     }
   });
 
+  it("routes buyer-started deals through INVITED", () => {
+    expect(canTransition("DRAFT", "INVITED")).toBe(true);
+    expect(canTransition("INVITED", "LISTED")).toBe(true);
+    expect(canTransition("INVITED", "REVIEWED")).toBe(true);
+    expect(canTransition("INVITED", "AGREED")).toBe(false);
+    expect(isCardEditable("INVITED")).toBe(true);
+  });
+
   it("allows the three side exits only where the plan says", () => {
     expect(canTransition("REVIEWED", "BLOCKED")).toBe(true);
     expect(canTransition("LISTED", "BLOCKED")).toBe(false);

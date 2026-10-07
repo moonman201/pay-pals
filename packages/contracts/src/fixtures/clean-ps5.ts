@@ -1,5 +1,7 @@
 /**
- * Scenario 2: clean deal. Matt sells his PlayStation 5 with its original box.
+ * Scenario 2: clean deal. Buyer-started. Priya taps "Use Pay Pals Protection"
+ * on Matt's listing and invites him by PayPal email. Matt joins and uploads
+ * photos of his PlayStation 5 with its original box.
  * Seller Pal reads the serial on the back of the console and the serial on the
  * box label and confirms they match. Buyer Pal confirms the price and asks for
  * a photo of the Console Information screen. Seller adds it (card version 2).
@@ -8,6 +10,7 @@
  * Serial values are placeholders until the real photos land in
  * assets/demo-photos; see BLOCKERS.md.
  */
+import { chainEvents } from "../history";
 import type { ScenarioFixture } from "./types";
 import type { ItemCard } from "../item-card";
 
@@ -24,21 +27,21 @@ const consoleSerialPhoto = {
   url: "/fixtures/clean-ps5/console-back-serial.jpg",
   whatItShows: `Back of the console. Serial ${CLEAN_SERIAL} and model CFI-1215A on the label.`,
   addedBy: "seller",
-  addedAt: at(0),
+  addedAt: at(3),
 } as const;
 
 const boxLabelPhoto = {
   url: "/fixtures/clean-ps5/box-label-serial.jpg",
   whatItShows: `Original box label. Serial ${CLEAN_SERIAL}, model CFI-1215A.`,
   addedBy: "seller",
-  addedAt: at(0),
+  addedAt: at(3),
 } as const;
 
 const frontPhoto = {
   url: "/fixtures/clean-ps5/front-with-box.jpg",
   whatItShows: "Console standing next to its open box with the controller and cables.",
   addedBy: "seller",
-  addedAt: at(0),
+  addedAt: at(3),
 } as const;
 
 const consoleInfoPhoto = {
@@ -84,6 +87,9 @@ export const cleanPs5: ScenarioFixture = {
   deal: {
     id: dealId,
     state: "COMPLETE",
+    startedBy: "buyer",
+    listingUrl: "https://marketplace.example/listings/5120",
+    sellerJoinedAt: at(3),
     scenario: "clean-ps5",
     seller,
     buyer,
@@ -100,7 +106,7 @@ export const cleanPs5: ScenarioFixture = {
   listingPhotos: [consoleSerialPhoto, boxLabelPhoto, frontPhoto],
   cards: [cardV1, cardV2],
   chat: [
-    { id: "m1", dealId, channel: "deal", author: "buyer", text: "Hi Matt, interested in the PS5. Still available?", photos: [], at: at(10) },
+    { id: "m1", dealId, channel: "deal", author: "buyer", text: "Hi Matt, I sent you a Pay Pals invite for the PS5. Still available?", photos: [], at: at(10) },
     { id: "m2", dealId, channel: "deal", author: "seller", text: "Yes. Everything is on the card my pal built. Ask away.", photos: [], at: at(12) },
     { id: "m3", dealId, channel: "deal", author: "buyer", text: "My pal says the price is fair and the serials match. It wants a photo of the Console Information screen before I commit. Can you add one?", photos: [], at: at(35) },
     { id: "m4", dealId, channel: "deal", author: "seller", text: "Sure, one second.", photos: [], at: at(38) },
@@ -119,6 +125,7 @@ export const cleanPs5: ScenarioFixture = {
       { name: "Retailer, new", price: 499, condition: "new" },
     ],
   },
+  certRecord: null,
   expectedVerdict: {
     overall: "go",
     requiredFlags: [],
@@ -158,10 +165,13 @@ export const cleanPs5: ScenarioFixture = {
     { url: "/fixtures/clean-ps5/arrival-console-serial.jpg", whatItShows: `Back of the console as received. Serial ${CLEAN_SERIAL}.`, addedBy: "buyer", addedAt: at(5 * 24 * 60 + 20) },
   ],
   expectedArrival: { matches: true, mismatchFields: [] },
-  timeline: [
-    { id: "e1", dealId, kind: "deal_created", actor: "seller", summary: "Matt M. started a deal.", at: at(0) },
-    { id: "e2", dealId, kind: "card_updated", actor: "seller_pal", summary: `Seller Pal built card version 1. Console serial ${CLEAN_SERIAL} read from the back of the console; the box label shows the same serial.`, at: at(1) },
-    { id: "e3", dealId, kind: "state_changed", actor: "system", summary: "Listed.", fromState: "DRAFT", toState: "LISTED", at: at(1) },
+  timeline: chainEvents([
+    { id: "e1", dealId, kind: "deal_created", actor: "buyer", summary: "Priya S. started a deal from a listing and invited the seller.", at: at(0) },
+    { id: "e1b", dealId, kind: "seller_invited", actor: "system", summary: "Invite sent to the seller's PayPal email.", at: at(0) },
+    { id: "e1c", dealId, kind: "state_changed", actor: "system", summary: "Waiting for the seller.", fromState: "DRAFT", toState: "INVITED", at: at(0) },
+    { id: "e1d", dealId, kind: "seller_joined", actor: "seller", summary: "Matt M. joined the deal.", at: at(3) },
+    { id: "e2", dealId, kind: "card_updated", actor: "seller_pal", summary: `Seller Pal built card version 1. Console serial ${CLEAN_SERIAL} read from the back of the console; the box label shows the same serial.`, at: at(4) },
+    { id: "e3", dealId, kind: "state_changed", actor: "system", summary: "Listed.", fromState: "INVITED", toState: "LISTED", at: at(4) },
     { id: "e4", dealId, kind: "review_posted", actor: "buyer_pal", summary: "Buyer Pal reviewed the deal: go, pending one photo.", at: at(30) },
     { id: "e5", dealId, kind: "state_changed", actor: "system", summary: "Reviewed.", fromState: "LISTED", toState: "REVIEWED", at: at(30) },
     { id: "e6", dealId, kind: "card_updated", actor: "seller_pal", summary: "Card version 2: Console Information screen photo added.", at: at(42) },
@@ -179,5 +189,5 @@ export const cleanPs5: ScenarioFixture = {
     { id: "e16", dealId, kind: "state_changed", actor: "system", summary: "Delivered.", fromState: "SHIPPED", toState: "DELIVERED", at: at(5 * 24 * 60) },
     { id: "e17", dealId, kind: "arrival_checked", actor: "buyer_pal", summary: `Arrival matches the locked card. Serial ${CLEAN_SERIAL} confirmed.`, at: at(5 * 24 * 60 + 25) },
     { id: "e18", dealId, kind: "state_changed", actor: "system", summary: "Complete.", fromState: "DELIVERED", toState: "COMPLETE", at: at(5 * 24 * 60 + 30) },
-  ],
+  ]),
 };

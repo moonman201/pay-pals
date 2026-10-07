@@ -24,13 +24,13 @@ tests/e2e            Playwright runs of the three demo scenarios                
 ```
 Modules talk only through `packages/contracts` interfaces. apps/web is the only place modules are wired together.
 
-## Contracts (v1.4.0-draft on main in `packages/contracts`, frozen Fri Oct 9)
+## Contracts (v1.5.0-draft on branch buyer-first, merges with all lanes in `packages/contracts`, frozen Fri Oct 9)
 
 The TypeScript in `packages/contracts/src` is the contract. This section is the summary. Where they differ, the code wins and the Lead fixes this file.
 
 ### Deal states
 `DRAFT -> LISTED -> REVIEWED -> AGREED -> PAYMENT_PENDING -> PAID -> SHIPPED -> DELIVERED -> COMPLETE`
-Side exits: `BLOCKED` (Buyer Pal hard stop, from REVIEWED), `ISSUE` (from PAID, SHIPPED or DELIVERED: item never arrived, wrong item, or a PayPal dispute; evidence pack built), `CANCELLED` (either party, before PAID).
+`INVITED` sits between DRAFT and LISTED for buyer-started deals (INVITED -> LISTED when the seller uploads, INVITED -> REVIEWED when the buyer has the pal review a refusal with no card). Side exits: `BLOCKED` (Buyer Pal hard stop, from REVIEWED), `ISSUE` (from PAID, SHIPPED or DELIVERED: item never arrived, wrong item, or a PayPal dispute; evidence pack built), `CANCELLED` (either party, before PAID).
 Rule: the item card can change until AGREED. Both sides agree to a card version (`Deal.buyerAgreedAt`, `Deal.sellerAgreedAt`); a new version clears both; when the second agreement lands the card locks and the deal moves to AGREED. The locked card becomes the PayPal order description. Any change after that requires a new deal.
 
 ### ItemCard (versioned)
@@ -117,6 +117,9 @@ Save every working call as a Postman collection in `docs/postman/`.
 3. **Accounts.** None in v1. A deal link plus the party's email is enough.
 4. **Brand names.** Real brand and product names are fine in demo data, UI and video. No copied logos or artwork.
 5. **Two-sided agreement (Oct 7).** Both the buyer and the seller agree to a specific card version. The card locks and the deal moves to AGREED when the second agreement lands. A new card version clears both. Shipped Oct 7 as contracts v1.3.0-draft (3b71ad6).
+7. **Buyer starts the deal (Oct 7).** Entry point is a payment screen: "Use Pay Pals Protection," seller PayPal email, listing link. Seller gets an invite link to join and upload photos. State `INVITED` between DRAFT and LISTED. A refusal ("Friends & Family only") is `INVITE_REFUSED`, a payment-method flag, non-overridable. Seller-started stays, secondary. Email delivery of the invite is a stretch; v1 shows a link to send.
+8. **Two demo items (Oct 7).** PS5 (clean deal, empty box) and a PSA-graded Pokemon slab (fake slab). Buyer Pal checks graded items against PSA's cert API; a mismatch is `CERT_MISMATCH`, stop.
+9. **Tamper-evident history (Oct 7).** Every DealEvent carries prevHash and hash (contracts history.ts). The chain head at order creation goes into the PayPal order custom_id (`dealId#hash`) and the payment record. The evidence pack verifies the stored events against it.
 6. **Non-payment stops (Oct 7).** A stop that is not about payment method (price far below market, ship-before-pay) stays overridable with the acknowledgment checkbox and stronger warning wording. Only payment-method flags end the deal.
 
 ## Status (Lead keeps this current)

@@ -2,7 +2,7 @@
  * Interface packages/db implements. apps/web reads and writes deals only
  * through this. Builders mock it in tests.
  */
-import type { Deal, Party, ScenarioId } from "./deal";
+import type { Deal, DealStarter, Party, ScenarioId } from "./deal";
 import type { DealState } from "./deal-state";
 import type { ItemCard } from "./item-card";
 import type { DealEvent, Message, MessageChannel } from "./messages";
@@ -12,8 +12,11 @@ import type { ArrivalCheck, Verdict } from "./verdict";
 import type { EvidencePack } from "./evidence";
 
 export interface CreateDealInput {
+  startedBy: DealStarter;
+  /** Buyer-started: the seller's PayPal email is all the buyer has; displayName may be the email's local part. */
   seller: Party;
   buyer?: Party | null;
+  listingUrl?: string | null;
   scenario?: ScenarioId | null;
 }
 
@@ -26,6 +29,8 @@ export interface DealStore {
    */
   findDeals(query: { scenario?: ScenarioId | null; states?: readonly DealState[] }): Promise<Deal[]>;
   setBuyer(dealId: string, buyer: Party): Promise<Deal>;
+  /** The seller opened the invite link. Sets sellerJoinedAt and appends seller_joined. Idempotent. */
+  markSellerJoined(dealId: string, seller?: Partial<Party>): Promise<Deal>;
   /**
    * Move the deal to a new state. Rejects with IllegalTransitionError when the
    * move is not in DEAL_TRANSITIONS. Appends a state_changed event.
@@ -67,7 +72,8 @@ export interface DealStore {
   saveEvidence(pack: EvidencePack): Promise<EvidencePack>;
   getEvidence(dealId: string): Promise<EvidencePack | null>;
 
-  appendEvent(event: Omit<DealEvent, "id">): Promise<DealEvent>;
+  /** Appends with prevHash and hash computed from the stored chain (see history.ts). Callers never pass hashes. */
+  appendEvent(event: Omit<DealEvent, "id" | "prevHash" | "hash">): Promise<DealEvent>;
   listEvents(dealId: string): Promise<DealEvent[]>;
 }
 
