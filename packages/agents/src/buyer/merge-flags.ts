@@ -8,12 +8,17 @@
  *   - the model cannot create a stop on its own. A stop always traces back
  *     to a rule, or to a code that is stop by definition: a payment-method
  *     flag or PRICE_FAR_BELOW_MARKET. Any other model raise or addition is
- *     capped at caution.
+ *     capped at caution;
+ *   - a model-added flag is kept only when its evidence is grounded in the
+ *     chat or the card (see grounding.ts). Ungrounded additions are dropped
+ *     and logged at debug level only. Raises on rule flags are not subject
+ *     to this check because their evidence is the rule's.
  */
 import type { RedFlag, RedFlagCode, RedFlagSeverity } from "@pay-pals/contracts";
 import { PAYMENT_METHOD_FLAGS } from "@pay-pals/contracts";
 import { plainCopy } from "../copy";
 import { severityRank } from "../rules";
+import { isGrounded, type GroundingCorpus } from "./grounding";
 import type { ModelReview } from "./review-tool";
 
 /** Codes the model may mark stop without a rule behind it. */
@@ -26,7 +31,15 @@ export function capModelSeverity(code: RedFlagCode, requested: RedFlagSeverity):
   return requested;
 }
 
-export function mergeModelReview(ruleFlags: readonly RedFlag[], review: ModelReview | null): RedFlag[] {
+function debug(message: string): void {
+  if (process.env.PAY_PALS_DEBUG) console.debug(`[pay-pals agents] ${message}`);
+}
+
+/**
+ * @param corpus What the model was shown. When given, every model-added flag
+ * must be grounded in it. Pass null only in tests of the other invariants.
+ */
+export function mergeModelReview(ruleFlags: readonly RedFlag[], review: ModelReview | null, corpus: GroundingCorpus | null = null): RedFlag[] {
   const merged = new Map<RedFlag["code"], RedFlag>();
   for (const flag of ruleFlags) {
     const existing = merged.get(flag.code);
@@ -56,6 +69,10 @@ export function mergeModelReview(ruleFlags: readonly RedFlag[], review: ModelRev
     const evidence = added.evidence.trim();
     const explanation = plainCopy(added.explanation, 300);
     if (evidence.length === 0 || explanation.length === 0) continue;
+    if (corpus && !isGrounded(evidence, corpus)) {
+      debug(`dropped ungrounded ${added.code} flag from the model. Evidence: ${evidence}`);
+      continue;
+    }
     merged.set(added.code, { code: added.code, severity, evidence: evidence.slice(0, 500), explanation, raisedByRule: false });
   }
 

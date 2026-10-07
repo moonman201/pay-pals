@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { RedFlag } from "@pay-pals/contracts";
+import { cleanGarmin } from "@pay-pals/contracts";
+import { buildGroundingCorpus } from "./grounding";
 import { capModelSeverity, mergeModelReview } from "./merge-flags";
 
 const ff: RedFlag = { code: "FRIENDS_AND_FAMILY_REQUEST", severity: "stop", evidence: "Seller wrote: \"Send it F&F\"", explanation: "No protection.", raisedByRule: true };
@@ -77,6 +79,35 @@ describe("mergeModelReview", () => {
     });
     expect(flags).toHaveLength(1);
     expect(flags[0]!.evidence).toBe(ff.evidence);
+  });
+});
+
+describe("mergeModelReview grounding", () => {
+  const corpus = buildGroundingCorpus(cleanGarmin.cards[1]!, cleanGarmin.chat);
+
+  it("drops a model-added flag whose evidence is not in the chat or on the card", () => {
+    const flags = mergeModelReview([], {
+      ...empty,
+      additional_flags: [
+        { code: "OTHER", severity: "caution", evidence: "the seller only answered the battery question and skipped the ownership, lost-or-stolen and firmware questions your pal asked", explanation: "The seller skipped questions." },
+      ],
+    }, corpus);
+    expect(flags).toEqual([]);
+  });
+
+  it("keeps a model-added flag that quotes a real seller line, and still applies the cap", () => {
+    const flags = mergeModelReview([], {
+      ...empty,
+      additional_flags: [{ code: "OTHER", severity: "stop", evidence: 'Seller wrote: "Everything is on the card my pal built. Ask away."', explanation: "The seller will not answer directly." }],
+    }, corpus);
+    expect(flags).toHaveLength(1);
+    expect(flags[0]).toMatchObject({ code: "OTHER", severity: "caution", raisedByRule: false });
+  });
+
+  it("does not apply the grounding check to raises on rule flags", () => {
+    const flags = mergeModelReview([urgency], { ...empty, severity_raises: [{ code: "URGENCY_PRESSURE", severity: "caution" }], explanations: [{ code: "URGENCY_PRESSURE", explanation: "Rushing." }] }, corpus);
+    expect(flags).toHaveLength(1);
+    expect(flags[0]!.explanation).toBe("Rushing.");
   });
 });
 

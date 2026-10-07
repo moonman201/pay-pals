@@ -37,7 +37,7 @@ export const REVIEW_TOOL: Anthropic.Tool = {
     properties: {
       additional_flags: {
         type: "array",
-        description: "Flags the rules did not raise. Quote the evidence.",
+        description: "Flags the rules did not raise. Evidence must be a quote from the chat or a card field with its value; a flag without such evidence is discarded. A missing answer is a question, not a flag.",
         items: {
           type: "object",
           properties: {
@@ -78,7 +78,7 @@ export const REVIEW_TOOL: Anthropic.Tool = {
       },
       questions_for_seller: {
         type: "array",
-        description: "Up to five specific things the buyer should get from the seller before paying. Empty when the deal is a stop or when nothing is missing.",
+        description: "Up to three specific things the buyer should get from the seller before paying, things they can act on first (a photo of a part, the serial, a receipt). Empty when the deal is a stop or when nothing is missing.",
         items: { type: "string" },
       },
       pal_message: {

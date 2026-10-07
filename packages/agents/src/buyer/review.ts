@@ -7,8 +7,20 @@ import type { ClaudeClient } from "../claude/client";
 import { callTool } from "../claude/tool-call";
 import { plainCopy, sentences } from "../copy";
 import { overallFromFlags, runRules } from "../rules";
+import { buildGroundingCorpus } from "./grounding";
 import { mergeModelReview } from "./merge-flags";
 import { ModelReviewSchema, REVIEW_TOOL } from "./review-tool";
+
+export const MAX_QUESTIONS = 3;
+/** Questions a buyer can act on come first: something to photograph or show. */
+const ACTIONABLE = /\b(?:photo|picture|serial|receipt|proof of purchase|invoice|box|screenshot|video)\b/i;
+
+export function pickQuestions(questions: string[]): string[] {
+  const cleaned = questions.map((q) => plainCopy(q, 300)).filter((q) => q.length > 0);
+  const actionable = cleaned.filter((q) => ACTIONABLE.test(q));
+  const rest = cleaned.filter((q) => !ACTIONABLE.test(q));
+  return [...actionable, ...rest].slice(0, MAX_QUESTIONS);
+}
 
 export interface ReviewDeps {
   client: ClaudeClient | null;
@@ -30,7 +42,10 @@ const FLAG_WORDS: Record<RedFlag["code"], string> = {
 const SYSTEM = [
   "You are the Buyer Pal in Pay Pals. You protect a buyer in a deal with a stranger on an online marketplace.",
   "Deterministic rules have already run. Their flags are fixed facts: they stay in the verdict exactly as given, you cannot remove or soften them, and you should not restate them as new flags.",
-  "Your job: notice anything the rules missed, raise a severity when the chat makes a flag worse, reword explanations in plain words a first-time buyer understands, list specific questions for the seller, and write a short message to the buyer.",
+  "Your job: notice anything in the chat or on the card that the rules missed, raise a severity when the chat makes a flag worse, reword explanations in plain words a first-time buyer understands, list up to three questions for the seller, and write a short message to the buyer.",
+  "A flag needs evidence that exists: quote the seller's words from the chat, or name the card field and its value. A missing answer, an unasked question or something you merely wish you knew is never a flag. It is a question for the seller.",
+  "When the rules raised nothing and the price sits in the market range, the verdict is go unless the chat itself contains something the rules missed. Do not add a flag to justify caution.",
+  "Questions for the seller: at most three, and prefer things the buyer can act on, such as a photo of a specific part, the serial, or a receipt. If the card already answers it, do not ask.",
   "Pay Pals only ever pays through a PayPal Goods and Services checkout. Any request to pay another way ends the deal.",
   "Writing rules: plain words, short sentences, no em dashes, no exclamation marks, no marketing voice. Say what to do next.",
 ].join("\n");
@@ -109,10 +124,10 @@ export async function reviewCard(card: ItemCard, chat: Message[], context: Revie
     review = result.value;
   }
 
-  const flags = mergeModelReview(ruleFlags, review);
+  const flags = mergeModelReview(ruleFlags, review, buildGroundingCorpus(card, chat));
   const overall = overallFromFlags(flags);
-  const questions = (review?.questions_for_seller.filter((q) => q.length > 0) ?? []).slice(0, 5);
-  const questionsForSeller = questions.length > 0 ? questions : fallbackQuestions(card, flags);
+  const questions = pickQuestions(review?.questions_for_seller ?? []);
+  const questionsForSeller = questions.length > 0 ? questions : pickQuestions(fallbackQuestions(card, flags));
   const palMessage = review?.pal_message ? plainCopy(review.pal_message) : fallbackMessage(card, flags, priceCheck);
 
   const verdict: Verdict = {
@@ -121,7 +136,7 @@ export async function reviewCard(card: ItemCard, chat: Message[], context: Revie
     overall,
     flags,
     priceCheck,
-    questionsForSeller: questionsForSeller.map((q) => plainCopy(q, 300)),
+    questionsForSeller,
     palMessage,
     createdAt: new Date().toISOString(),
   };

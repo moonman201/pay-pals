@@ -80,19 +80,46 @@ describe("BuyerPal.review on clean-garmin", () => {
     }
   });
 
-  it("keeps a flag the model adds, at the severity it chose", async () => {
+  it("drops a model flag built from its own unanswered questions, so the clean deal stays go", async () => {
     const model = fakeClaude(() => ({
-      additional_flags: [{ code: "OTHER", severity: "caution", evidence: "chat", explanation: "Seller has not said where it ships from." }],
+      additional_flags: [
+        {
+          code: "OTHER",
+          severity: "caution",
+          evidence: "the seller only answered the battery question and skipped the ownership, lost-or-stolen and firmware questions your pal asked",
+          explanation: "The seller did not answer everything.",
+        },
+      ],
       severity_raises: [],
       explanations: [],
-      questions_for_seller: ["Where will it ship from?"],
+      questions_for_seller: ["Where did you buy it?"],
+      pal_message: "Mostly fine.",
+    }));
+    const { data: verdict } = await createBuyerPal({ anthropic: model, priceLookup }).review(cleanGarmin.cards.at(-1)!, cleanGarmin.chat);
+    expect(verdict.overall).toBe("go");
+    expect(verdict.flags).toEqual([]);
+    expect(verdict.questionsForSeller).toEqual(["Where did you buy it?"]);
+  });
+
+  it("keeps a model flag that quotes a real seller line, at the severity it chose", async () => {
+    const model = fakeClaude(() => ({
+      additional_flags: [{ code: "OTHER", severity: "caution", evidence: 'Seller wrote: "Everything is on the card my pal built. Ask away."', explanation: "The seller points at the card instead of answering." }],
+      severity_raises: [],
+      explanations: [],
+      questions_for_seller: ["Where will it ship from?", "How long have you owned it?", "Can you add a photo of the charging port?", "Any warranty left?", "Do you have the receipt?"],
       pal_message: "Price is fair. One question first.",
     }));
     const { data: verdict } = await createBuyerPal({ anthropic: model, priceLookup }).review(cleanGarmin.cards.at(-1)!, cleanGarmin.chat);
     expect(verdict.overall).toBe("caution");
     expect(verdict.flags).toHaveLength(1);
     expect(verdict.flags[0]!.raisedByRule).toBe(false);
-    expect(verdict.questionsForSeller).toEqual(["Where will it ship from?"]);
+    expect(verdict.questionsForSeller).toEqual(["Can you add a photo of the charging port?", "Do you have the receipt?", "Where will it ship from?"]);
+  });
+
+  it("clean-garmin v1 with rules only is go with no questions", async () => {
+    const { data: verdict } = await createBuyerPal({ anthropic: null, priceLookup }).review(cleanGarmin.cards[0]!, cleanGarmin.chat.slice(0, 2));
+    expect(verdict.overall).toBe("go");
+    expect(verdict.questionsForSeller).toEqual([]);
   });
 });
 
