@@ -122,7 +122,7 @@ Save every working call as a Postman collection in `docs/postman/`.
 |---|---|---|
 | Lead: contracts, schema, fixtures | contracts v1.0.0-draft, schema and three fixtures on main; 24 tests green | 2026-10-06 |
 | Lane 0 gate (builder-paypal) | PASS personal and PASS business, sandbox, 2026-10-07. Personal payee cannot take direct card funding; wallet flow works. | |
-| builder-agents | merged to main 9e83667, follow-up merged (v1.1.0 fields, model stop cap). 69 tests, reality-check holds. Real Claude tests ran 3/3; Channel3 live schema unverified until a key lands. | 2026-10-07 |
+| builder-agents | merged 9e83667 plus follow-ups (v1.1.0 fields, model stop cap, grounded model flags, battery-health ask). 80 tests, reality-check holds; real Claude runs: scam stop, clean go. Real Claude tests ran 3/3; Channel3 live schema unverified until a key lands. | 2026-10-07 |
 | builder-paypal | merged 61c7ca0, follow-up merged (v1.2.0 types, raw bodies, dispute via table, skip flag, gate prints deal id). 83 tests, reality-check holds. | 2026-10-07 |
-| builder-web | merged 29c211b: all three scenarios on fixtures, reality-check over HTTP holds. In progress: real packages through the seam. | 2026-10-07 |
+| builder-web | merged 77114c6: real agents, db and paypal behind lib/services.ts, demo mode with no keys, webhook route, PAY_PALS_DEMO_ONLY switch. Reality-check holds incl. a real sandbox order. Milestone "all three on real modules" (due Oct 23) met Oct 7 except the SDK buttons (no public client id yet) and Postgres (no DATABASE_URL yet). | 2026-10-07 |
 | qa | merged 095bce8: 28 integration tests; Playwright for all three scenarios plus phone width, 5 specs green. Milestone "scenario 2 end to end on fixtures" (due Oct 17) met Oct 7 for all three. | 2026-10-07 |

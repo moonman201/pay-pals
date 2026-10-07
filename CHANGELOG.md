@@ -14,3 +14,7 @@
 - `packages/db`: in-memory and Postgres deal stores sharing one conformance suite (memory and PGlite), state machine on the contract table, initial migration. 47 tests.
 - Contracts v1.2.0-draft: ISSUE reachable from PAID and SHIPPED, webhook receipt store, raw payment records, optional review context, seller price hint, arrival photos in the evidence input.
 - `apps/web`: demo landing, start a deal, deal room with buyer and seller views, pal panes, shared chat and timeline, pay step (PayPal and Venmo wallet buttons, placeholder without a client id), ship, arrival check, issue step with reasons, evidence page and GET route. Fixture mocks behind one service seam. 36 tests.
+- `apps/web` on the real packages behind one seam, webhook route, demo-only switch, issue reasons, thinking line during reviews.
+- `tests/integration`: 28 cross-module tests on the memory store. `tests/e2e`: Playwright for all three scenarios and a phone-width pass, demo-only server.
+- Buyer Pal: model-added flags must be grounded in the chat or card, model raises cannot create a stop on their own, three questions at most, battery-health ask for used electronics.
+- `packages/db`: card writes follow the deal state; migrations bundled into a generated module.
