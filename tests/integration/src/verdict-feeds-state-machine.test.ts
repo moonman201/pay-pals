@@ -8,8 +8,8 @@ import { describe, expect, it } from "vitest";
 import { IllegalTransitionError, PAYMENT_METHOD_FLAGS, canTransition, cleanGarmin, hasStop, isPaymentMethodFlag, scamGarmin } from "@pay-pals/contracts";
 import type { Verdict } from "@pay-pals/contracts";
 import { createBuyerPal, createFixturePriceLookup } from "@pay-pals/agents";
-import { CardLockedError, CardNotEditableError } from "@pay-pals/db";
-import { seedFixture } from "./seed";
+import { AgreementNotAllowedError, CardLockedError, CardNotEditableError } from "@pay-pals/db";
+import { driveTo, seedFixture } from "./seed";
 import type { SeededDeal } from "./seed";
 
 const buyerPal = createBuyerPal({ anthropic: null, priceLookup: createFixturePriceLookup() });
@@ -133,5 +133,68 @@ describe("clean-garmin: go ends AGREED with the card locked", () => {
     await expect(store.saveCard({ ...current, version: 3, conditionNotes: "Changed after agreement." })).rejects.toBeInstanceOf(CardLockedError);
     await expect(store.lockCard(dealId, 1)).rejects.toBeInstanceOf(CardLockedError);
     expect((await store.listCards(dealId)).map((c) => c.version)).toEqual([1, 2]);
+  });
+});
+
+describe("two-sided agreement in the store (contracts v1.3.0)", () => {
+  it("records buyer then seller in REVIEWED without moving the deal, and a new card version clears both", async () => {
+    const seeded = await seedFixture(cleanGarmin);
+    await driveTo(seeded, "REVIEWED");
+    const { store, dealId } = seeded;
+    const version = (await store.getDeal(dealId))!.currentCardVersion;
+
+    const afterBuyer = await store.recordAgreement(dealId, "buyer");
+    expect(afterBuyer.state).toBe("REVIEWED");
+    expect(afterBuyer.buyerAgreedAt).not.toBeNull();
+    expect(afterBuyer.sellerAgreedAt).toBeNull();
+
+    const afterSeller = await store.recordAgreement(dealId, "seller");
+    expect(afterSeller.state).toBe("REVIEWED");
+    expect(afterSeller.buyerAgreedAt).toBe(afterBuyer.buyerAgreedAt);
+    expect(afterSeller.sellerAgreedAt).not.toBeNull();
+    expect(afterSeller.lockedCardVersion).toBeNull();
+
+    // Agreeing twice is a no-op: no second timestamp, no second event.
+    const again = await store.recordAgreement(dealId, "buyer");
+    expect(again.buyerAgreedAt).toBe(afterBuyer.buyerAgreedAt);
+
+    const agreed = (await store.listEvents(dealId)).filter((e) => e.kind === "agreed");
+    expect(agreed.map((e) => e.actor)).toEqual(["buyer", "seller"]);
+    expect(agreed.map((e) => e.summary)).toEqual([`The buyer agreed to card version ${version}.`, `The seller agreed to card version ${version}.`]);
+    for (const e of agreed) expect(e.data).toMatchObject({ cardVersion: version });
+
+    const current = (await store.getCurrentCard(dealId))!;
+    await store.saveCard({ ...current, version: version + 1, conditionNotes: `${current.conditionNotes} Strap replaced last month.` });
+    const afterChange = (await store.getDeal(dealId))!;
+    expect(afterChange.state).toBe("REVIEWED");
+    expect(afterChange.currentCardVersion).toBe(version + 1);
+    expect(afterChange.buyerAgreedAt).toBeNull();
+    expect(afterChange.sellerAgreedAt).toBeNull();
+
+    // Both sides agree again to the new version; the events name it.
+    await store.recordAgreement(dealId, "seller");
+    const reagreed = await store.recordAgreement(dealId, "buyer");
+    expect(reagreed.buyerAgreedAt).not.toBeNull();
+    expect(reagreed.sellerAgreedAt).not.toBeNull();
+    const all = (await store.listEvents(dealId)).filter((e) => e.kind === "agreed");
+    expect(all).toHaveLength(4);
+    expect(all.slice(2).map((e) => e.data?.cardVersion)).toEqual([version + 1, version + 1]);
+  });
+
+  it("refuses agreement once the card is locked and the deal is AGREED", async () => {
+    const seeded = await seedFixture(cleanGarmin);
+    await driveTo(seeded, "REVIEWED");
+    const { store, dealId } = seeded;
+    await store.recordAgreement(dealId, "buyer");
+    await store.recordAgreement(dealId, "seller");
+    const version = (await store.getDeal(dealId))!.currentCardVersion;
+    await store.lockCard(dealId, version);
+    await store.transition(dealId, "AGREED", "seller", "Agreed.");
+
+    await expect(store.recordAgreement(dealId, "buyer")).rejects.toBeInstanceOf(AgreementNotAllowedError);
+    const deal = (await store.getDeal(dealId))!;
+    expect(deal.state).toBe("AGREED");
+    expect(deal.lockedCardVersion).toBe(version);
+    expect((await store.listEvents(dealId)).filter((e) => e.kind === "agreed")).toHaveLength(2);
   });
 });
