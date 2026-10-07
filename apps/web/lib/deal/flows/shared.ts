@@ -31,7 +31,7 @@ export function expectState(deal: Deal, ...states: Deal["state"][]): void {
 }
 
 export async function say(
-  services: Services,
+  services: Pick<Services, "store">,
   dealId: string,
   channel: Message["channel"],
   author: Message["author"],
@@ -42,7 +42,7 @@ export async function say(
 }
 
 export async function note(
-  services: Services,
+  services: Pick<Services, "store">,
   dealId: string,
   kind: DealEvent["kind"],
   actor: DealEvent["actor"],

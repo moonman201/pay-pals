@@ -3,7 +3,7 @@
  * trimmed to what one side may see (the other pal's private channel is
  * removed). Demo hints come from the scenario fixture and only prefill forms.
  */
-import type { ArrivalCheck, ChecklistItem, Deal, DealEvent, ItemCard, Message, PaymentRecord, Photo, Shipment, Verdict } from "@pay-pals/contracts";
+import type { ArrivalCheck, ChecklistItem, Deal, DealEvent, ItemCard, Message, PalResult, PaymentRecord, Photo, Shipment, Verdict } from "@pay-pals/contracts";
 import { fixtureById } from "../scenarios";
 import { palChannel, type Role } from "../role";
 import type { Services } from "../services";
@@ -49,6 +49,9 @@ function demoHints(deal: Deal, currentCard: ItemCard | null): DemoHints | null {
   };
 }
 
+/** The Seller Pal's checklist is asked for once per locked card, not on every page view. */
+const checklistCache = new Map<string, PalResult<ChecklistItem[]>>();
+
 export async function loadSnapshot(services: Services, dealId: string): Promise<DealSnapshot> {
   await services.ready;
   const { store } = services;
@@ -71,7 +74,12 @@ export async function loadSnapshot(services: Services, dealId: string): Promise<
   let checklist: ChecklistItem[] | null = shipment?.checklist ?? null;
   let checklistMessage: string | null = null;
   if (!checklist && deal.state === "PAID" && lockedCard) {
-    const result = await services.sellerPal.shipmentChecklist(deal, lockedCard);
+    const key = `${deal.id}:${lockedCard.version}`;
+    let result = checklistCache.get(key);
+    if (!result) {
+      result = await services.sellerPal.shipmentChecklist(deal, lockedCard);
+      checklistCache.set(key, result);
+    }
     checklist = result.data;
     checklistMessage = result.palMessage;
   }
