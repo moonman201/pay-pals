@@ -1,0 +1,218 @@
+{
+  "info": {
+    "name": "Pay Pals: PayPal sandbox",
+    "description": "Every PayPal call Pay Pals makes, against the sandbox only. Fill in clientId, clientSecret, sellerPersonalEmail, sellerBusinessEmail and webhookId in the collection variables. Run the requests top to bottom: the token request stores accessToken, the create requests store orderId. Approve the order as the sandbox buyer with the link the create request prints, or run 'Confirm with sandbox test card' if the app accepts cards, then capture.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "https://api-m.sandbox.paypal.com" },
+    { "key": "clientId", "value": "" },
+    { "key": "clientSecret", "value": "" },
+    { "key": "accessToken", "value": "" },
+    { "key": "sellerPersonalEmail", "value": "" },
+    { "key": "sellerBusinessEmail", "value": "" },
+    { "key": "webhookId", "value": "" },
+    { "key": "dealId", "value": "" },
+    { "key": "orderId", "value": "" },
+    { "key": "captureId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "1. OAuth token",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('token issued', () => pm.response.to.have.status(200));",
+              "pm.collectionVariables.set('accessToken', pm.response.json().access_token);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/x-www-form-urlencoded" }],
+        "auth": {
+          "type": "basic",
+          "basic": [
+            { "key": "username", "value": "{{clientId}}", "type": "string" },
+            { "key": "password", "value": "{{clientSecret}}", "type": "string" }
+          ]
+        },
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [{ "key": "grant_type", "value": "client_credentials" }]
+        },
+        "url": { "raw": "{{baseUrl}}/v1/oauth2/token", "host": ["{{baseUrl}}"], "path": ["v1", "oauth2", "token"] }
+      }
+    },
+    {
+      "name": "2a. Create order, payee = personal seller",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": { "type": "text/javascript", "exec": ["pm.collectionVariables.set('dealId', pm.variables.replaceIn('{{$guid}}'));"] }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('order created', () => pm.response.to.have.status(201));",
+              "const body = pm.response.json();",
+              "pm.collectionVariables.set('orderId', body.id);",
+              "const approve = (body.links || []).find(l => l.rel === 'approve');",
+              "console.log('approve as the sandbox buyer:', approve && approve.href);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "PayPal-Request-Id", "value": "{{$guid}}" },
+          { "key": "Prefer", "value": "return=representation" }
+        ],
+        "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }] },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"intent\": \"CAPTURE\",\n  \"purchase_units\": [\n    {\n      \"reference_id\": \"deal-{{dealId}}-v2\",\n      \"custom_id\": \"{{dealId}}\",\n      \"invoice_id\": \"{{dealId}}\",\n      \"description\": \"Garmin Fenix 7 Pro Sapphire Solar 47mm\",\n      \"payee\": { \"email_address\": \"{{sellerPersonalEmail}}\" },\n      \"amount\": {\n        \"currency_code\": \"USD\",\n        \"value\": \"475.00\",\n        \"breakdown\": { \"item_total\": { \"currency_code\": \"USD\", \"value\": \"475.00\" } }\n      },\n      \"items\": [\n        {\n          \"name\": \"Garmin Fenix 7 Pro Sapphire Solar 47mm\",\n          \"description\": \"Serial 7LP045912. Condition: Good. Worn daily for about a year. Light scuff on the bezel at 2 o'clock, screen clear, no scra...\",\n          \"sku\": \"7LP045912\",\n          \"unit_amount\": { \"currency_code\": \"USD\", \"value\": \"475.00\" },\n          \"quantity\": \"1\",\n          \"category\": \"PHYSICAL_GOODS\"\n        }\n      ]\n    }\n  ]\n}"
+        },
+        "url": { "raw": "{{baseUrl}}/v2/checkout/orders", "host": ["{{baseUrl}}"], "path": ["v2", "checkout", "orders"] }
+      }
+    },
+    {
+      "name": "2b. Create order, payee = business seller",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": { "type": "text/javascript", "exec": ["pm.collectionVariables.set('dealId', pm.variables.replaceIn('{{$guid}}'));"] }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('order created', () => pm.response.to.have.status(201));",
+              "const body = pm.response.json();",
+              "pm.collectionVariables.set('orderId', body.id);",
+              "const approve = (body.links || []).find(l => l.rel === 'approve');",
+              "console.log('approve as the sandbox buyer:', approve && approve.href);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "PayPal-Request-Id", "value": "{{$guid}}" },
+          { "key": "Prefer", "value": "return=representation" }
+        ],
+        "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }] },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"intent\": \"CAPTURE\",\n  \"purchase_units\": [\n    {\n      \"reference_id\": \"deal-{{dealId}}-v2\",\n      \"custom_id\": \"{{dealId}}\",\n      \"invoice_id\": \"{{dealId}}\",\n      \"description\": \"Garmin Fenix 7 Pro Sapphire Solar 47mm\",\n      \"payee\": { \"email_address\": \"{{sellerBusinessEmail}}\" },\n      \"amount\": {\n        \"currency_code\": \"USD\",\n        \"value\": \"475.00\",\n        \"breakdown\": { \"item_total\": { \"currency_code\": \"USD\", \"value\": \"475.00\" } }\n      },\n      \"items\": [\n        {\n          \"name\": \"Garmin Fenix 7 Pro Sapphire Solar 47mm\",\n          \"description\": \"Serial 7LP045912. Condition: Good. Worn daily for about a year. Light scuff on the bezel at 2 o'clock, screen clear, no scra...\",\n          \"sku\": \"7LP045912\",\n          \"unit_amount\": { \"currency_code\": \"USD\", \"value\": \"475.00\" },\n          \"quantity\": \"1\",\n          \"category\": \"PHYSICAL_GOODS\"\n        }\n      ]\n    }\n  ]\n}"
+        },
+        "url": { "raw": "{{baseUrl}}/v2/checkout/orders", "host": ["{{baseUrl}}"], "path": ["v2", "checkout", "orders"] }
+      }
+    },
+    {
+      "name": "3. Get order",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('order found', () => pm.response.to.have.status(200));",
+              "const unit = pm.response.json().purchase_units[0];",
+              "pm.test('payee is the seller', () => pm.expect(unit.payee.email_address).to.be.a('string'));",
+              "pm.test('line item carries serial and condition', () => pm.expect(unit.items[0].description).to.include('Serial').and.include('Condition'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }] },
+        "url": { "raw": "{{baseUrl}}/v2/checkout/orders/{{orderId}}", "host": ["{{baseUrl}}"], "path": ["v2", "checkout", "orders", "{{orderId}}"] }
+      }
+    },
+    {
+      "name": "4. Confirm with sandbox test card (optional, unattended approval)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "PayPal-Request-Id", "value": "{{$guid}}" }
+        ],
+        "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }] },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"payment_source\": {\n    \"card\": {\n      \"number\": \"4111111111111111\",\n      \"expiry\": \"2030-12\",\n      \"security_code\": \"123\",\n      \"name\": \"Sandbox Buyer\",\n      \"billing_address\": {\n        \"address_line_1\": \"1 Main St\",\n        \"admin_area_2\": \"San Jose\",\n        \"admin_area_1\": \"CA\",\n        \"postal_code\": \"95131\",\n        \"country_code\": \"US\"\n      }\n    }\n  }\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/v2/checkout/orders/{{orderId}}/confirm-payment-source",
+          "host": ["{{baseUrl}}"],
+          "path": ["v2", "checkout", "orders", "{{orderId}}", "confirm-payment-source"]
+        }
+      }
+    },
+    {
+      "name": "5. Capture order",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('captured', () => pm.response.to.have.status(201));",
+              "const unit = pm.response.json().purchase_units[0];",
+              "const capture = unit.payments.captures[0];",
+              "pm.collectionVariables.set('captureId', capture.id);",
+              "pm.test('capture completed', () => pm.expect(capture.status).to.eql('COMPLETED'));",
+              "console.log('paid to', unit.payee && unit.payee.email_address, 'capture', capture.id);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "PayPal-Request-Id", "value": "{{$guid}}" },
+          { "key": "Prefer", "value": "return=representation" }
+        ],
+        "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }] },
+        "body": { "mode": "raw", "raw": "{}" },
+        "url": {
+          "raw": "{{baseUrl}}/v2/checkout/orders/{{orderId}}/capture",
+          "host": ["{{baseUrl}}"],
+          "path": ["v2", "checkout", "orders", "{{orderId}}", "capture"]
+        }
+      }
+    },
+    {
+      "name": "6. Verify webhook signature",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }] },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"auth_algo\": \"<paypal-auth-algo header>\",\n  \"cert_url\": \"<paypal-cert-url header>\",\n  \"transmission_id\": \"<paypal-transmission-id header>\",\n  \"transmission_sig\": \"<paypal-transmission-sig header>\",\n  \"transmission_time\": \"<paypal-transmission-time header>\",\n  \"webhook_id\": \"{{webhookId}}\",\n  \"webhook_event\": { \"paste\": \"the raw webhook body here\" }\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/v1/notifications/verify-webhook-signature",
+          "host": ["{{baseUrl}}"],
+          "path": ["v1", "notifications", "verify-webhook-signature"]
+        }
+      }
+    }
+  ]
+}

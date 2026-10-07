@@ -1,0 +1,25 @@
+{
+  "name": "@pay-pals/paypal",
+  "version": "0.1.0",
+  "private": true,
+  "description": "PayPal sandbox gateway: OAuth token, create a checkout order paid to the seller, capture, webhook verification and webhook handling.",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "gate": "tsx scripts/lane0-gate.ts"
+  },
+  "dependencies": {
+    "@pay-pals/contracts": "*"
+  },
+  "devDependencies": {
+    "@pay-pals/db": "*"
+  }
+}
