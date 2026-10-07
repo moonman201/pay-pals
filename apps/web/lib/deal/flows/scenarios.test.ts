@@ -154,12 +154,16 @@ describe("empty-box", () => {
     expect(check.matches).toBe(false);
     expect(check.mismatches.map((m) => m.field)).toEqual(expect.arrayContaining(emptyBox.expectedArrival!.mismatchFields));
 
-    await reportIssue(services, deal.id, "arrival_mismatch");
+    // The issue step's "The box arrived empty" choice: the mismatch reason plus a detail line.
+    await reportIssue(services, deal.id, "arrival_mismatch", "The box arrived empty.");
     snap = await loadSnapshot(services, deal.id);
     expect(snap.deal.state).toBe("ISSUE");
     expect(snap.hasEvidence).toBe(true);
+    const opened = snap.events.find((e) => e.kind === "state_changed" && e.toState === "ISSUE");
+    expect(opened?.summary).toContain("The box arrived empty.");
     const pack = await services.store.getEvidence(deal.id);
     expect(pack?.lockedCard.serial).toBe(EMPTY_BOX_LOCKED_SERIAL);
+    expect(pack?.lockedCard.boxSerial).toBe(EMPTY_BOX_LOCKED_SERIAL);
     expect(pack?.arrivalCheck?.matches).toBe(false);
     for (const photo of arrivalPhotos) expect(pack?.photos.map((p) => p.url)).toContain(photo.url);
   });
