@@ -15,7 +15,8 @@
   "scripts": {
     "build": "npm run build --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
-    "test": "npm test --workspaces --if-present"
+    "test": "npm test --workspaces --if-present",
+    "test:e2e": "npm run e2e -w tests/e2e"
   },
   "devDependencies": {
     "@types/node": "^22.7.0",
