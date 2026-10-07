@@ -7,17 +7,57 @@ import { expect, type Page } from "@playwright/test";
 import type { ScenarioFixture } from "@pay-pals/contracts";
 import { PAL_TIMEOUT, addAllDemoPhotos, expectState, expectStateAfterPal, openRoomAs, panel, pressAction } from "./helpers";
 
-/** Buyer asks for the review. Caution flags get the override box ticked; a payment-method flag would block, which these two scenarios never raise. */
-export async function reviewAndAgree(page: Page): Promise<void> {
+/** Buyer asks for the review. */
+export async function reviewAsBuyer(page: Page): Promise<void> {
   await pressAction(page, "Ask my pal to review");
   await expectStateAfterPal(page, "Reviewed");
   await expect(panel(page, "Buyer Pal review")).toBeVisible();
+}
 
-  const override = panel(page, "Next step").getByRole("checkbox");
+/**
+ * Buyer agrees to the current version. Caution flags get the override box
+ * ticked; a payment-method flag would block, which these scenarios never
+ * raise. The button reads "Agree", or "Agree and lock the card" when the
+ * seller already agreed. Nothing locks until both sides have agreed.
+ */
+export async function agreeAsBuyer(page: Page, version: number): Promise<void> {
+  const next = panel(page, "Next step");
+  const override = next.getByRole("checkbox");
   if ((await override.count()) > 0) await override.check();
-  await pressAction(page, "Agree and lock the card");
+  await next.getByRole("button", { name: /^Agree( and lock the card)?$/ }).click();
+  await expect(next.getByText(`You agreed to version ${version}, waiting for the other side.`)).toBeVisible();
+  await expectState(page, "Reviewed");
+}
+
+/** Seller agrees second: the card locks and the deal reads "Agreed, card locked". */
+export async function agreeAsSeller(page: Page, dealId: string, version: number): Promise<void> {
+  await openRoomAs(page, dealId, "seller");
+  await expectState(page, "Reviewed");
+  const next = panel(page, "Next step");
+  await expect(next.getByText(`The buyer has agreed to version ${version}.`)).toBeVisible();
+  await next.getByRole("button", { name: "Agree to this card" }).click();
   await expectState(page, "Agreed, card locked");
-  await expect(panel(page, "Item card").getByText(/^Locked, version \d+$/)).toBeVisible();
+  await expect(panel(page, "Item card").getByText(`Locked, version ${version}`)).toBeVisible();
+
+  const agreedLines = panel(page, "Timeline").getByRole("listitem").filter({ hasText: `agreed to card version ${version}.` });
+  await expect(agreedLines).toHaveCount(2);
+  await expect(agreedLines.filter({ hasText: "The buyer agreed" })).toHaveCount(1);
+  await expect(agreedLines.filter({ hasText: "The seller agreed" })).toHaveCount(1);
+}
+
+export interface AgreeHooks {
+  /** Runs while the buyer has agreed and the seller has not, on the buyer's page. */
+  afterBuyerAgreed?: () => Promise<void>;
+}
+
+/** Review as buyer, buyer agrees, seller agrees, back to the buyer's room with the card locked. */
+export async function reviewAndAgree(page: Page, dealId: string, version = 1, hooks: AgreeHooks = {}): Promise<void> {
+  await reviewAsBuyer(page);
+  await agreeAsBuyer(page, version);
+  if (hooks.afterBuyerAgreed) await hooks.afterBuyerAgreed();
+  await agreeAsSeller(page, dealId, version);
+  await openRoomAs(page, dealId, "buyer");
+  await expectState(page, "Agreed, card locked");
 }
 
 /** Buyer pays with the demo buttons: one click creates the order and captures it through the same routes the real buttons use. */
@@ -70,10 +110,10 @@ export async function runArrivalCheck(page: Page, fixture: ScenarioFixture): Pro
   await expect(panel(page, "Arrival check").getByText(/^(matches|does not match)$/)).toBeVisible({ timeout: PAL_TIMEOUT });
 }
 
-/** Review, agree, pay, ship, deliver. Leaves the buyer in a Delivered room with the arrival step open. */
-export async function driveToDelivered(page: Page, dealId: string, fixture: ScenarioFixture): Promise<void> {
+/** Review, both sides agree, pay, ship, deliver. Leaves the buyer in a Delivered room with the arrival step open. */
+export async function driveToDelivered(page: Page, dealId: string, fixture: ScenarioFixture, hooks: AgreeHooks = {}): Promise<void> {
   await expectState(page, "Listed");
-  await reviewAndAgree(page);
+  await reviewAndAgree(page, dealId, 1, hooks);
   await payWithDemoButtons(page, fixture.payment?.method === "venmo" ? "Venmo" : "PayPal");
   await shipAsSeller(page, dealId, fixture);
   await confirmDelivery(page, dealId);
