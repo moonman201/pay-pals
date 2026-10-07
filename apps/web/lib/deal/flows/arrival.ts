@@ -15,7 +15,8 @@ export async function checkArrival(services: Services, dealId: string, photos: P
 
   await say(services, dealId, "deal", "buyer", "Arrival photos.", photos);
   const result = await services.buyerPal.checkArrival(card, photos);
-  const check = await services.store.saveArrivalCheck(result.data);
+  // The check keeps its photos (contract v1.3.0). Fill them in when the pal did not.
+  const check = await services.store.saveArrivalCheck({ ...result.data, photos: result.data.photos?.length ? result.data.photos : photos });
   await say(services, dealId, "buyer_pal", "buyer_pal", result.palMessage);
   const summary = check.matches
     ? `Arrival matches the locked card.${check.observed.serial ? ` Serial ${check.observed.serial} confirmed.` : ""}`

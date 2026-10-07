@@ -53,6 +53,11 @@ async function replay(services: SeedServices, fixture: ScenarioFixture): Promise
         await recordEvent(event);
         break;
       }
+      case "agreed": {
+        // Both agreements are recorded before the lock (contract v1.3.0). The store appends the agreed event itself.
+        if (event.actor === "buyer" || event.actor === "seller") await store.recordAgreement(id, event.actor);
+        break;
+      }
       case "card_locked": {
         const version = fixture.deal.lockedCardVersion ?? savedCards;
         lockedCard = await store.lockCard(id, version);
@@ -83,7 +88,7 @@ async function replay(services: SeedServices, fixture: ScenarioFixture): Promise
         if (lockedCard && fixture.arrivalPhotos.length > 0) {
           await store.addMessage({ dealId: id, channel: "deal", author: "buyer", text: "Arrival photos.", photos: fixture.arrivalPhotos, at: nowIso() });
           const result = await services.buyerPal.checkArrival(lockedCard, fixture.arrivalPhotos);
-          await store.saveArrivalCheck(result.data);
+          await store.saveArrivalCheck({ ...result.data, photos: result.data.photos?.length ? result.data.photos : fixture.arrivalPhotos });
           await store.addMessage({ dealId: id, channel: "buyer_pal", author: "buyer_pal", text: result.palMessage, photos: [], at: nowIso() });
         }
         await recordEvent(event, { photos: fixture.arrivalPhotos });

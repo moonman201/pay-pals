@@ -16,6 +16,7 @@ const NAMED_STATUS: Record<string, number> = {
   CardVersionError: 409,
   CardNotLockedError: 409,
   CardNotFoundError: 404,
+  AgreementNotAllowedError: 409,
   DealNotFoundError: 404,
   PayPalConfigError: 503,
   PayPalApiError: 502,

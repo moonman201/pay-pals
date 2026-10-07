@@ -4,6 +4,7 @@ import { actorLabel, STATE_LABELS } from "@/lib/labels";
 import { Panel } from "../ui/Panel";
 
 const DOT: Partial<Record<DealEvent["kind"], string>> = {
+  agreed: "bg-[var(--accent)]",
   card_locked: "bg-navy",
   payment_captured: "bg-go",
   evidence_built: "bg-stop",
