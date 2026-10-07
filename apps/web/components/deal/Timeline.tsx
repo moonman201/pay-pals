@@ -5,6 +5,8 @@ import { Panel } from "../ui/Panel";
 
 const DOT: Partial<Record<DealEvent["kind"], string>> = {
   agreed: "bg-[var(--accent)]",
+  seller_joined: "bg-gold",
+  invite_declined: "bg-stop",
   card_locked: "bg-navy",
   payment_captured: "bg-go",
   evidence_built: "bg-stop",
@@ -23,6 +25,14 @@ export function Timeline({ deal, events }: { deal: Deal; events: DealEvent[] }) 
             <p className="text-[11px] text-muted">
               {actorLabel(e.actor, deal)}
               {e.kind === "state_changed" && e.fromState && e.toState ? `, ${STATE_LABELS[e.fromState]} to ${STATE_LABELS[e.toState]}` : ""}, {formatTime(e.at)}
+              {e.hash ? (
+                <>
+                  {", "}
+                  <span className="font-mono" title={`Event hash ${e.hash}. Each event's hash covers the previous one, so the history cannot be edited quietly.`}>
+                    #{e.hash.slice(0, 8)}
+                  </span>
+                </>
+              ) : null}
             </p>
           </li>
         ))}

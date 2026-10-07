@@ -1,6 +1,6 @@
 "use client";
 
-import { CONDITION_LABELS, type ItemCard } from "@pay-pals/contracts";
+import { CONDITION_LABELS, type CertCheck, type ItemCard } from "@pay-pals/contracts";
 import { useState } from "react";
 import { boxSerialLabel, boxSerialMatches } from "@/lib/deal/box-serial";
 import { diffCards } from "@/lib/deal/card-diff";
@@ -13,10 +13,24 @@ interface Props {
   cards: ItemCard[];
   currentVersion: number;
   lockedVersion: number | null;
+  /** The Buyer Pal's grader lookup for the card's cert number, when there is one. */
+  certCheck?: CertCheck | null;
+}
+
+/** One plain line for the grader's answer, shown next to the cert number. */
+function certResult(check: CertCheck): { text: string; tone: string } {
+  if (check.matches === true) return { text: `PSA record matches: ${check.record.subject ?? "same card"}, grade ${check.record.grade ?? "as stated"}`, tone: "text-go" };
+  if (check.matches === false) {
+    return {
+      text: check.record.subject ? `PSA record does not match: ${check.record.subject}, grade ${check.record.grade ?? "unknown"}` : "PSA has no record for this cert number",
+      tone: "text-stop",
+    };
+  }
+  return { text: check.explanation, tone: "text-muted" };
 }
 
 /** The item card. Shows every version until the lock, then only the locked one. */
-export function ItemCardView({ cards, currentVersion, lockedVersion }: Props) {
+export function ItemCardView({ cards, currentVersion, lockedVersion, certCheck = null }: Props) {
   const [selected, setSelected] = useState<number>(lockedVersion ?? currentVersion);
   const shown = lockedVersion ?? selected;
   const card = cards.find((c) => c.version === shown) ?? cards[cards.length - 1];
@@ -67,6 +81,21 @@ export function ItemCardView({ cards, currentVersion, lockedVersion }: Props) {
           <dt className="text-xs font-semibold uppercase tracking-wide text-muted">Serial</dt>
           <dd className={card.serial ? "font-mono" : "text-caution"}>{card.serial ?? "Not on the card"}</dd>
         </div>
+        {card.certNumber ? (
+          <div className="sm:col-span-2">
+            <dt className="text-xs font-semibold uppercase tracking-wide text-muted">Cert number</dt>
+            <dd>
+              <span className="font-mono">{card.certNumber}</span>
+              {certCheck ? <span className={`ml-2 text-xs font-semibold ${certResult(certCheck).tone}`}>{certResult(certCheck).text}</span> : null}
+            </dd>
+          </div>
+        ) : null}
+        {card.grade ? (
+          <div>
+            <dt className="text-xs font-semibold uppercase tracking-wide text-muted">Grade</dt>
+            <dd>{card.grade}</dd>
+          </div>
+        ) : null}
         {card.boxSerial ? (
           <div>
             <dt className="text-xs font-semibold uppercase tracking-wide text-muted">Box serial</dt>
