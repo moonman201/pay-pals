@@ -1,5 +1,5 @@
 /** Gather everything the store holds and hand it to the evidence pack builder. */
-import { PhotoSchema, type ArrivalCheck, type Deal, type DealEvent, type EvidencePack, type Photo } from "@pay-pals/contracts";
+import { historyMatchesHead, PhotoSchema, type ArrivalCheck, type Deal, type DealEvent, type EvidencePack, type Photo } from "@pay-pals/contracts";
 import type { Role } from "../../role";
 import { fixtureById } from "../../scenarios";
 import type { Services } from "../../services";
@@ -35,7 +35,10 @@ export async function buildEvidenceFor(services: EvidenceServices, deal: Deal, r
   ]);
   const arrivalPhotos = arrivalCheck ? arrivalPhotosFrom(deal, timeline, arrivalCheck) : [];
   const result = await services.buildEvidencePack({ deal, lockedCard, verdicts, arrivalCheck, messages, payment, shipment, timeline, arrivalPhotos, requestedBy });
-  const pack = await store.saveEvidence(result.data);
+  // Tamper-evident history: the head recorded on the PayPal order, and whether the stored events still reproduce it.
+  const historyHash = result.data.historyHash ?? payment?.historyHash ?? null;
+  const historyVerified = result.data.historyVerified ?? (historyHash ? historyMatchesHead(timeline, historyHash) : null);
+  const pack = await store.saveEvidence({ ...result.data, historyHash, historyVerified });
   await note(services, deal.id, "evidence_built", pack.builtBy, "Evidence pack built for a PayPal dispute.");
   await say(services, deal.id, requestedBy === "buyer" ? "buyer_pal" : "seller_pal", pack.builtBy, result.palMessage);
   return pack;

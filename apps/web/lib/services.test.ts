@@ -18,9 +18,9 @@ describe("createServices with no keys", () => {
   it("seeds the three finished demo deals in their end states", async () => {
     const services = createServices({}, () => {});
     const seeded = await services.seededDeals;
-    expect(Object.keys(seeded).sort()).toEqual(["clean-ps5", "empty-box", "scam-ps5"]);
+    expect(Object.keys(seeded).sort()).toEqual(["clean-ps5", "empty-box", "fake-slab"]);
 
-    const scam = await loadSnapshot(services, seeded["scam-ps5"]!);
+    const scam = await loadSnapshot(services, seeded["fake-slab"]!);
     expect(scam.deal.state).toBe("BLOCKED");
     expect(scam.verdict?.overall).toBe("stop");
 

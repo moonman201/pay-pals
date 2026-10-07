@@ -42,7 +42,10 @@ export async function createOrder(services: Services, dealId: string, method: Pa
   }
 
   const card = await mustLockedCard(services, deal);
-  const order = await services.paypal.createDealOrder(card, dealId);
+  // The head of the event hash chain goes into the PayPal order, so PayPal's record proves the history (Decision 9).
+  const events = await services.store.listEvents(dealId);
+  const historyHash = events[events.length - 1]?.hash ?? null;
+  const order = await services.paypal.createDealOrder(card, dealId, { historyHash });
   const payment = await services.store.savePayment({
     dealId,
     paypalOrderId: order.orderId,
@@ -56,6 +59,7 @@ export async function createOrder(services: Services, dealId: string, method: Pa
     capturedAt: null,
     rawOrder: rawBody(order),
     rawCapture: null,
+    historyHash,
   });
   await note(services, dealId, "payment_created", "paypal", `PayPal checkout order ${order.orderId} created, payee ${card.sellerPaypalEmail}.`, { orderId: order.orderId });
   if (deal.state === "AGREED") {

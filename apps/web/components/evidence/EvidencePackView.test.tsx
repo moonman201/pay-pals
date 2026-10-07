@@ -39,6 +39,23 @@ describe("EvidencePackView", () => {
     expect(screen.getByText("(does not match)")).toBeInTheDocument();
   });
 
+  it("shows the tamper-evident history: the custom_id form, the event count, and the verification", () => {
+    const head = "a".repeat(64);
+    render(<EvidencePackView pack={pack({ historyHash: head, historyVerified: true })} deal={emptyBox.deal} role="buyer" />);
+    expect(screen.getByText("Tamper-evident history")).toBeInTheDocument();
+    expect(screen.getByText(`${emptyBox.deal.id}#${head}`)).toBeInTheDocument();
+    expect(screen.getByText(new RegExp(`${emptyBox.timeline.length} events are stored`))).toBeInTheDocument();
+    expect(screen.getByText(/Verified: the stored events reproduce this hash/)).toBeInTheDocument();
+  });
+
+  it("says plainly when the stored events do not reproduce the recorded hash, and when no order existed", () => {
+    const { unmount } = render(<EvidencePackView pack={pack({ historyHash: "b".repeat(64), historyVerified: false })} deal={emptyBox.deal} role="buyer" />);
+    expect(screen.getByText(/Does not verify/)).toBeInTheDocument();
+    unmount();
+    render(<EvidencePackView pack={pack({ historyHash: null, historyVerified: null })} deal={emptyBox.deal} role="buyer" />);
+    expect(screen.getByText(/No PayPal order was created, so no history hash was recorded/)).toBeInTheDocument();
+  });
+
   it("has no box serial row when the card has none", () => {
     render(<EvidencePackView pack={pack({ lockedCard: { ...lockedCard, boxSerial: null } })} deal={emptyBox.deal} role="buyer" />);
     expect(screen.queryByText("Box serial")).not.toBeInTheDocument();

@@ -4,7 +4,7 @@
  * from @pay-pals/agents running rules only, fixture prices, and the mock
  * PayPal gateway. This is what the deal room does when a judge clicks.
  */
-import { CLEAN_SERIAL, cleanPs5, EMPTY_BOX_LOCKED_SERIAL, emptyBox } from "@pay-pals/contracts";
+import { CLEAN_SERIAL, cleanPs5, EMPTY_BOX_LOCKED_SERIAL, emptyBox, fakeSlab, historyMatchesHead } from "@pay-pals/contracts";
 import { describe, expect, it } from "vitest";
 import { createServices } from "../../services";
 import { loadSnapshot } from "../snapshot";
@@ -12,6 +12,8 @@ import { agree } from "./agree";
 import { checkArrival } from "./arrival";
 import { applyBuyerRequest } from "./card";
 import { completeDeal, reportIssue } from "./close";
+import { postChat } from "./chat";
+import { declineInvite, sellerJoin, startBuyerFirst } from "./invite";
 import { captureOrder, createOrder } from "./pay";
 import { runReview } from "./review";
 import { confirmDelivery, markShipped } from "./ship";
@@ -37,16 +39,17 @@ async function payAndShip(services: Services, dealId: string, method: "paypal" |
   return packing;
 }
 
-describe("scam-ps5", () => {
+describe("fake-slab", () => {
   it("ends BLOCKED at review with payment-method flags and no order", async () => {
     const services = noKeys();
-    const deal = await startDemoDeal(services, "scam-ps5");
+    const deal = await startDemoDeal(services, "fake-slab");
     expect(deal.state).toBe("LISTED");
 
     const verdict = await runReview(services, deal.id);
     expect(verdict.overall).toBe("stop");
     const codes = verdict.flags.map((f) => f.code);
-    expect(codes).toEqual(expect.arrayContaining(["FRIENDS_AND_FAMILY_REQUEST", "PRICE_FAR_BELOW_MARKET", "URGENCY_PRESSURE"]));
+    expect(codes).toEqual(expect.arrayContaining(fakeSlab.expectedVerdict.requiredFlags));
+    expect(verdict.certCheck?.matches).toBe(false);
 
     const snap = await loadSnapshot(services, deal.id);
     expect(snap.deal.state).toBe("BLOCKED");
@@ -192,6 +195,104 @@ describe("issue before delivery", () => {
     expect(pack?.arrivalCheck).toBeNull();
     expect(pack?.shipment?.trackingNumber).toBe(packing.trackingNumber);
     expect(snap.events.at(-2)?.summary).toContain("never arrived");
+  });
+});
+
+describe("buyer-first (PLAN.md Decision 7)", () => {
+  const buyer = { displayName: "Dana M.", email: "dana.m@example.com" };
+
+  it("invites the seller, who joins with photos; the card is built and the deal is LISTED", async () => {
+    const services = noKeys();
+    const deal = await startBuyerFirst(services, { buyer, sellerEmail: "matt.m@example.com", listingUrl: "https://marketplace.example/listings/5120" });
+    expect(deal.state).toBe("INVITED");
+    expect(deal.startedBy).toBe("buyer");
+    expect(deal.seller.displayName).toBe("matt.m");
+    let snap = await loadSnapshot(services, deal.id);
+    expect(snap.events.map((e) => e.kind)).toEqual(["deal_created", "seller_invited", "state_changed"]);
+    expect(snap.currentCard).toBeNull();
+    await expect(runReview(services, deal.id)).rejects.toThrow(/nothing to review/);
+
+    const joined = await sellerJoin(services, deal.id, {
+      displayName: "Matt M.",
+      sellerPaypalEmail: "matt.m@example.com",
+      listingText: cleanPs5.listingText,
+      sellerNotes: cleanPs5.sellerNotes,
+      photos: cleanPs5.listingPhotos,
+    });
+    expect(joined.state).toBe("LISTED");
+    expect(joined.sellerJoinedAt).not.toBeNull();
+    expect(joined.seller.displayName).toBe("Matt M.");
+    snap = await loadSnapshot(services, deal.id);
+    expect(snap.events.map((e) => e.kind)).toContain("seller_joined");
+    expect(snap.currentCard?.serial).toBe(CLEAN_SERIAL);
+    expect(snap.currentCard?.askingPrice).toBe(420);
+
+    const verdict = await runReview(services, deal.id);
+    expect(verdict.overall).toBe("go");
+  });
+
+  it("a seller who declines on the join page is reviewed with no card and the deal ends BLOCKED", async () => {
+    const services = noKeys();
+    const deal = await startBuyerFirst(services, { buyer, sellerEmail: "quickcash.deals.2026@example.com", listingUrl: "https://marketplace.example/listings/8841" });
+    await declineInvite(services, deal.id, { by: "seller", reason: "I only take Friends and Family, no fees. Send it tonight or it goes to the next person." });
+    let snap = await loadSnapshot(services, deal.id);
+    expect(snap.inviteDeclined).toBe(true);
+    expect(snap.deal.state).toBe("INVITED");
+
+    const verdict = await runReview(services, deal.id);
+    expect(verdict.cardVersion).toBe(0);
+    expect(verdict.flags.map((f) => f.code)).toContain("INVITE_REFUSED");
+    expect(verdict.overall).toBe("stop");
+    snap = await loadSnapshot(services, deal.id);
+    expect(snap.deal.state).toBe("BLOCKED");
+    expect(snap.payment).toBeNull();
+    expect(snap.events.map((e) => e.kind)).toEqual(expect.arrayContaining(["invite_declined", "review_posted"]));
+  });
+
+  it("the buyer can paste the seller's reply into the chat and have it reviewed with no card", async () => {
+    const services = noKeys();
+    const deal = await startBuyerFirst(services, { buyer, sellerEmail: "seller@example.com", listingUrl: null });
+    await postChat(services, deal.id, "buyer", "The seller replied: no Pay Pals, Friends and Family only or I sell to someone else.");
+    const verdict = await runReview(services, deal.id);
+    expect(verdict.flags.some((f) => f.code === "FRIENDS_AND_FAMILY_REQUEST" || f.code === "INVITE_REFUSED")).toBe(true);
+    expect((await loadSnapshot(services, deal.id)).deal.state).toBe("BLOCKED");
+  });
+
+  it("the fixture demos start the way their timelines do: buyer-first scenarios carry the invite and the join", async () => {
+    const services = noKeys();
+    const clean = await loadSnapshot(services, (await startDemoDeal(services, "clean-ps5")).id);
+    expect(clean.deal.startedBy).toBe("buyer");
+    expect(clean.deal.listingUrl).toBe(cleanPs5.deal.listingUrl);
+    expect(clean.deal.sellerJoinedAt).not.toBeNull();
+    expect(clean.events.map((e) => e.kind).slice(0, 4)).toEqual(["deal_created", "seller_invited", "state_changed", "seller_joined"]);
+    expect(clean.deal.state).toBe("LISTED");
+    const empty = await loadSnapshot(services, (await startDemoDeal(services, "empty-box")).id);
+    expect(empty.deal.startedBy).toBe("seller");
+    expect(empty.events.map((e) => e.kind)).not.toContain("seller_invited");
+  });
+});
+
+describe("tamper-evident history (PLAN.md Decision 9)", () => {
+  it("writes the chain head into the order and the evidence pack verifies it", async () => {
+    const services = noKeys();
+    const deal = await startDemoDeal(services, "empty-box");
+    await runReview(services, deal.id);
+    await agreeBoth(services, deal.id);
+    const eventsBefore = await services.store.listEvents(deal.id);
+    const payment = await createOrder(services, deal.id, "paypal");
+    expect(payment.historyHash).toBe(eventsBefore[eventsBefore.length - 1]?.hash);
+    expect(payment.historyHash).toHaveLength(64);
+    await captureOrder(services, deal.id, payment.paypalOrderId);
+    const snap = await loadSnapshot(services, deal.id);
+    const packing = snap.demo?.packing;
+    if (!packing) throw new Error("expected packing hints");
+    await markShipped(services, deal.id, { carrier: packing.carrier, trackingNumber: packing.trackingNumber, packingPhotos: packing.photos, doneIds: [] });
+    await reportIssue(services, deal.id, "not_arrived");
+    const pack = await services.store.getEvidence(deal.id);
+    expect(pack?.historyHash).toBe(payment.historyHash);
+    expect(pack?.historyVerified).toBe(true);
+    expect(historyMatchesHead(pack!.timeline, pack!.historyHash!)).toBe(true);
+    for (const e of pack!.timeline) expect(e.hash).toHaveLength(64);
   });
 });
 
