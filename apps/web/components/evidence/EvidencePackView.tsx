@@ -1,5 +1,6 @@
 import { CONDITION_LABELS, type Deal, type EvidencePack } from "@pay-pals/contracts";
 import Link from "next/link";
+import { boxSerialLabel, boxSerialMatches } from "@/lib/deal/box-serial";
 import { formatMoney, formatTime } from "@/lib/format";
 import { actorLabel, OVERALL_LABELS, STATE_LABELS } from "@/lib/labels";
 import type { Role } from "@/lib/role";
@@ -51,6 +52,14 @@ export function EvidencePackView({ pack, deal, role }: { pack: EvidencePack; dea
           <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-2">
             <div><dt className="text-xs uppercase text-muted">Brand and model</dt><dd>{card.brand} {card.model}</dd></div>
             <div><dt className="text-xs uppercase text-muted">Serial</dt><dd className="font-mono">{card.serial ?? "not recorded"}</dd></div>
+            {card.boxSerial ? (
+              <div>
+                <dt className="text-xs uppercase text-muted">Box serial</dt>
+                <dd>
+                  <span className="font-mono">{card.boxSerial}</span> <span className={boxSerialMatches(card) ? "text-go" : "text-stop"}>({boxSerialLabel(card)})</span>
+                </dd>
+              </div>
+            ) : null}
             <div><dt className="text-xs uppercase text-muted">Condition</dt><dd>{CONDITION_LABELS[card.conditionGrade]}. {card.conditionNotes}</dd></div>
             <div><dt className="text-xs uppercase text-muted">Included</dt><dd>{card.included.join(", ")}</dd></div>
             <div><dt className="text-xs uppercase text-muted">Price</dt><dd>{formatMoney(card.askingPrice, card.currency)}</dd></div>
