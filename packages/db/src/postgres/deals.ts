@@ -10,7 +10,7 @@ import { DealNotFoundError } from "../errors";
 import { planTransition } from "../state-machine";
 import type { Db } from "./db";
 import { toDeal, toEventRow } from "./mappers";
-import { isUuid } from "./uuid";
+import { isUuid, uuidv7 } from "./uuid";
 
 export function dealsRepo(db: Db) {
   async function lockRow(tx: Db, dealId: string) {
@@ -63,7 +63,7 @@ export function dealsRepo(db: Db) {
           .set({ state: plan.to, updatedAt: new Date(plan.event.at) })
           .where(eq(deals.id, dealId))
           .returning();
-        await tx.insert(dealEvents).values(toEventRow(plan.event));
+        await tx.insert(dealEvents).values({ id: uuidv7(), ...toEventRow(plan.event) });
         return toDeal(updated!);
       });
     },

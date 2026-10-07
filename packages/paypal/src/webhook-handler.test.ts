@@ -125,20 +125,40 @@ describe("handleWebhookEvent", () => {
     expect((await store.getPayment(deal.id))?.status).toBe("DISPUTED");
   });
 
-  it("ignores events for orders it does not know and still records the receipt", async () => {
+  it("asks for a retry and keeps no receipt when the payment is not saved yet", async () => {
     const e = captured("00000000-0000-4000-8000-000000000000");
     const out = await handleWebhookEvent(e, store);
-    expect(out).toMatchObject({ handled: false, duplicate: false });
+    expect(out).toMatchObject({ handled: false, duplicate: false, retry: true });
+    expect(await store.hasWebhookReceipt(e.id)).toBe(false);
+  });
+
+  it("handles the redelivery once the payment exists", async () => {
+    const { deal } = await dealAt(store, "PAYMENT_PENDING");
+    const e = captured(deal.id);
+    const early: PayPalsStore = { ...store, getPaymentByOrderId: async () => null, getPayment: async () => null };
+    expect((await handleWebhookEvent(e, early)).retry).toBe(true);
+    const later = await handleWebhookEvent(e, store);
+    expect(later).toMatchObject({ handled: true, duplicate: false, retry: false });
+    expect((await store.getDeal(deal.id))?.state).toBe("PAID");
+  });
+
+  it("ignores event types outside the three it handles and keeps the receipt", async () => {
+    const e = event("PAYMENT.CAPTURE.REFUNDED", { id: "x" });
+    const out = await handleWebhookEvent(e, store);
+    expect(out).toMatchObject({ handled: false, retry: false });
+    expect(out.note).toContain("not handled");
     expect(await store.hasWebhookReceipt(e.id)).toBe(true);
   });
 
-  it("ignores event types outside the three it handles", async () => {
-    const out = await handleWebhookEvent(event("PAYMENT.CAPTURE.REFUNDED", { id: "x" }), store);
-    expect(out.handled).toBe(false);
-    expect(out.note).toContain("not handled");
+  it("claims the event id before working, so a concurrent duplicate is rejected", async () => {
+    const { deal } = await dealAt(store, "PAYMENT_PENDING");
+    const e = captured(deal.id);
+    const [a, b] = await Promise.all([handleWebhookEvent(e, store), handleWebhookEvent(e, store)]);
+    expect([a.duplicate, b.duplicate].sort()).toEqual([false, true]);
+    expect((await store.listEvents(deal.id)).filter((x) => x.kind === "payment_captured")).toHaveLength(1);
   });
 
-  it("leaves no receipt when the store fails, so PayPal's retry is processed", async () => {
+  it("releases the claim when the store fails, so PayPal's retry is processed", async () => {
     const { deal } = await dealAt(store, "PAYMENT_PENDING");
     const broken: PayPalsStore = { ...store, savePayment: async () => Promise.reject(new Error("db down")) };
     const e = captured(deal.id);

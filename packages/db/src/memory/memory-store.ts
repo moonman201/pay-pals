@@ -143,6 +143,7 @@ export function createMemoryDealStore(): PayPalsStore {
       if (rec.deal.lockedCardVersion !== null && rec.deal.lockedCardVersion !== version) {
         throw new CardLockedError(dealId, rec.deal.lockedCardVersion);
       }
+      if (version !== rec.deal.currentCardVersion) throw new CardVersionError(dealId, rec.deal.currentCardVersion, version);
       if (card.lockedAt === null) {
         card.lockedAt = now();
         rec.deal.lockedCardVersion = version;
@@ -246,6 +247,10 @@ export function createMemoryDealStore(): PayPalsStore {
       if (receipts.has(eventId)) return false;
       receipts.set(eventId, eventType);
       return true;
+    },
+
+    async releaseWebhookReceipt(eventId: string): Promise<void> {
+      receipts.delete(eventId);
     },
   };
 }

@@ -1,10 +1,14 @@
 /**
  * Idempotency for PayPal webhooks. One receipt per PayPal event id.
- * packages/paypal declares the same two-method shape and accepts any object
- * that satisfies it, so neither package imports the other.
+ * The handler claims the id first (record), does its work, and releases the
+ * claim if the work failed so PayPal's retry is processed.
+ * packages/paypal declares the same shape and accepts any object that
+ * satisfies it, so neither package imports the other.
  */
 export interface WebhookReceiptStore {
   hasWebhookReceipt(eventId: string): Promise<boolean>;
-  /** Returns false when the receipt already existed. */
+  /** Claims the event id. Returns false when it was already claimed. */
   recordWebhookReceipt(eventId: string, eventType: string): Promise<boolean>;
+  /** Drops a claim so the event can be handled again. */
+  releaseWebhookReceipt(eventId: string): Promise<void>;
 }

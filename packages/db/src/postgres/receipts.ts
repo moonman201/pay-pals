@@ -1,5 +1,5 @@
 /**
- * Webhook receipts repository: one row per PayPal event id handled.
+ * Webhook receipts repository: one row per PayPal event id claimed.
  */
 import { eq } from "drizzle-orm";
 import { webhookReceipts } from "../../schema";
@@ -19,6 +19,10 @@ export function receiptsRepo(db: Db) {
         .onConflictDoNothing({ target: webhookReceipts.eventId })
         .returning({ id: webhookReceipts.eventId });
       return inserted.length > 0;
+    },
+
+    async releaseWebhookReceipt(eventId: string): Promise<void> {
+      await db.delete(webhookReceipts).where(eq(webhookReceipts.eventId, eventId));
     },
   };
 }

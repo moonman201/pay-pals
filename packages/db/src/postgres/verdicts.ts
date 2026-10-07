@@ -5,17 +5,18 @@
 import { and, asc, desc, eq } from "drizzle-orm";
 import type { ArrivalCheck, Verdict } from "@pay-pals/contracts";
 import { verdicts } from "../../schema";
-import { DealNotFoundError } from "../errors";
 import type { Db } from "./db";
+import { forDeal } from "./deal-guard";
 import { toArrival, toArrivalRow, toVerdict, toVerdictRow } from "./mappers";
 import { isUuid } from "./uuid";
 
 export function verdictsRepo(db: Db) {
   return {
     async saveVerdict(verdict: Verdict): Promise<Verdict> {
-      if (!isUuid(verdict.dealId)) throw new DealNotFoundError(verdict.dealId);
-      const [row] = await db.insert(verdicts).values(toVerdictRow(verdict)).returning();
-      return toVerdict(row!);
+      return forDeal(verdict.dealId, async () => {
+        const [row] = await db.insert(verdicts).values(toVerdictRow(verdict)).returning();
+        return toVerdict(row!);
+      });
     },
 
     async listVerdicts(dealId: string): Promise<Verdict[]> {
@@ -29,9 +30,10 @@ export function verdictsRepo(db: Db) {
     },
 
     async saveArrivalCheck(check: ArrivalCheck): Promise<ArrivalCheck> {
-      if (!isUuid(check.dealId)) throw new DealNotFoundError(check.dealId);
-      const [row] = await db.insert(verdicts).values(toArrivalRow(check)).returning();
-      return toArrival(row!);
+      return forDeal(check.dealId, async () => {
+        const [row] = await db.insert(verdicts).values(toArrivalRow(check)).returning();
+        return toArrival(row!);
+      });
     },
 
     async getArrivalCheck(dealId: string): Promise<ArrivalCheck | null> {

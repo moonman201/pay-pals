@@ -24,9 +24,16 @@ export interface GatewayDeps {
   now?: () => number;
   /** For scripts that already hold a token provider. */
   tokens?: TokenProvider;
-  /** Fresh ids for the PayPal-Request-Id header. Defaults to crypto.randomUUID. */
-  requestId?: () => string;
 }
+
+/**
+ * PayPal-Request-Id values. Deterministic per deal and card version so a
+ * retried create returns the same order instead of making a second one.
+ */
+export const requestIds = {
+  create: (dealId: string, cardVersion: number) => `pp-create-${dealId}-v${cardVersion}`,
+  capture: (orderId: string) => `pp-capture-${orderId}`,
+};
 
 export interface PayPalsGateway extends PayPalGateway {
   getOrder(orderId: string): Promise<Json>;
@@ -72,7 +79,6 @@ export function createPayPalGateway(config: PayPalConfig, deps: GatewayDeps = {}
   if (config.env !== "sandbox") throw new PayPalConfigError("Only the PayPal sandbox is supported.");
   const tokens = deps.tokens ?? createTokenProvider(config, { fetch: deps.fetch, now: deps.now });
   const http = createPayPalHttp(config, tokens, deps.fetch);
-  const requestId = deps.requestId ?? (() => crypto.randomUUID());
 
   return {
     http,
@@ -80,7 +86,7 @@ export function createPayPalGateway(config: PayPalConfig, deps: GatewayDeps = {}
     async createDealOrder(lockedCard: ItemCard, dealId: string): Promise<CreateOrderResult> {
       const body = buildOrderBody(lockedCard, dealId);
       const order = await http.request("POST", "/v2/checkout/orders", body, {
-        "PayPal-Request-Id": requestId(),
+        "PayPal-Request-Id": requestIds.create(dealId, lockedCard.version),
         Prefer: "return=representation",
       });
       return {
@@ -92,7 +98,7 @@ export function createPayPalGateway(config: PayPalConfig, deps: GatewayDeps = {}
 
     async captureOrder(orderId: string): Promise<CaptureResult> {
       const order = await http.request("POST", `/v2/checkout/orders/${encodeURIComponent(orderId)}/capture`, {}, {
-        "PayPal-Request-Id": requestId(),
+        "PayPal-Request-Id": requestIds.capture(orderId),
         Prefer: "return=representation",
       });
       return readCaptureResult(order);
@@ -104,21 +110,23 @@ export function createPayPalGateway(config: PayPalConfig, deps: GatewayDeps = {}
 
     async verifyWebhook(headers: WebhookHeaders, rawBody: string): Promise<boolean> {
       if (!config.webhookId) throw new PayPalConfigError("PAYPAL_WEBHOOK_ID is required to verify webhooks.");
-      let event: unknown;
       try {
-        event = JSON.parse(rawBody);
+        JSON.parse(rawBody);
       } catch {
         return false;
       }
-      const result = await http.request("POST", "/v1/notifications/verify-webhook-signature", {
+      // The signed bytes must reach PayPal unchanged, so the raw body is
+      // spliced into the request as text rather than parsed and re-serialized.
+      const fields = JSON.stringify({
         auth_algo: headers["paypal-auth-algo"],
         cert_url: headers["paypal-cert-url"],
         transmission_id: headers["paypal-transmission-id"],
         transmission_sig: headers["paypal-transmission-sig"],
         transmission_time: headers["paypal-transmission-time"],
         webhook_id: config.webhookId,
-        webhook_event: event,
       });
+      const raw = `${fields.slice(0, -1)},"webhook_event":${rawBody}}`;
+      const result = await http.requestRaw("POST", "/v1/notifications/verify-webhook-signature", raw);
       return result.verification_status === "SUCCESS";
     },
   };

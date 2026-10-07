@@ -62,6 +62,7 @@ export function cardsRepo(db: Db, lockDeal: LockRow) {
         if (deal.lockedCardVersion !== null && deal.lockedCardVersion !== version) {
           throw new CardLockedError(dealId, deal.lockedCardVersion);
         }
+        if (version !== deal.currentCardVersion) throw new CardVersionError(dealId, deal.currentCardVersion, version);
         if (row.lockedAt) return toCard(row);
         const now = new Date();
         const [locked] = await tx.update(itemCards).set({ lockedAt: now }).where(eq(itemCards.id, row.id)).returning();

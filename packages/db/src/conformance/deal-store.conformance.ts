@@ -50,9 +50,18 @@ export function runDealStoreConformance(name: string, makeStore: () => Promise<P
         expect((await store.getDeal(deal.id))?.buyer).toEqual(buyer);
       });
 
-      it("rejects writes against an unknown deal", async () => {
+      it("rejects every write against an unknown deal with DealNotFoundError", async () => {
         const store = await makeStore();
-        await expect(store.setBuyer("00000000-0000-4000-8000-000000000000", buyer)).rejects.toBeInstanceOf(DealNotFoundError);
+        const ghost = "00000000-0000-4000-8000-000000000000";
+        await expect(store.setBuyer(ghost, buyer)).rejects.toBeInstanceOf(DealNotFoundError);
+        await expect(store.transition(ghost, "LISTED", "system", "x")).rejects.toBeInstanceOf(DealNotFoundError);
+        await expect(store.saveCard(cardFor(ghost, 1))).rejects.toBeInstanceOf(DealNotFoundError);
+        await expect(store.lockCard(ghost, 1)).rejects.toBeInstanceOf(DealNotFoundError);
+        await expect(store.addMessage({ dealId: ghost, channel: "deal", author: "buyer", text: "hi", photos: [], at: "2026-01-01T00:00:00.000Z" })).rejects.toBeInstanceOf(DealNotFoundError);
+        await expect(store.appendEvent({ dealId: ghost, kind: "deal_created", actor: "system", summary: "x", at: "2026-01-01T00:00:00.000Z" })).rejects.toBeInstanceOf(DealNotFoundError);
+        await expect(store.savePayment({ ...fx.payment!, dealId: ghost })).rejects.toBeInstanceOf(DealNotFoundError);
+        await expect(store.saveShipment({ ...fx.shipment!, dealId: ghost })).rejects.toBeInstanceOf(DealNotFoundError);
+        await expect(store.saveVerdict({ dealId: ghost, cardVersion: 1, overall: "go", flags: [], priceCheck: null, questionsForSeller: [], palMessage: "ok", createdAt: "2026-01-01T00:00:00.000Z" })).rejects.toBeInstanceOf(DealNotFoundError);
       });
     });
 
@@ -154,6 +163,16 @@ export function runDealStoreConformance(name: string, makeStore: () => Promise<P
         // Locking the same version again is a no-op, not an error.
         expect((await store.lockCard(deal.id, 2)).lockedAt).toBe(locked.lockedAt);
       });
+
+      it("only locks the current version", async () => {
+        const store = await makeStore();
+        const deal = await store.createDeal({ seller });
+        await store.saveCard(cardFor(deal.id, 1));
+        await store.saveCard(cardFor(deal.id, 2));
+        await expect(store.lockCard(deal.id, 1)).rejects.toBeInstanceOf(CardVersionError);
+        expect((await store.getDeal(deal.id))?.lockedCardVersion).toBeNull();
+        expect((await store.lockCard(deal.id, 2)).version).toBe(2);
+      });
     });
 
     describe("messages and timeline", () => {
@@ -195,6 +214,18 @@ export function runDealStoreConformance(name: string, makeStore: () => Promise<P
         const events = await store.listEvents(deal.id);
         expect(events.map((x) => x.kind)).toEqual(["deal_created", "state_changed"]);
         expect(events[0]?.data).toEqual({ source: "test" });
+      });
+
+      it("keeps insertion order for events and messages written in the same millisecond", async () => {
+        const store = await makeStore();
+        const deal = await store.createDeal({ seller, buyer });
+        const at = "2026-01-01T12:00:00.000Z";
+        for (let i = 0; i < 6; i++) {
+          await store.appendEvent({ dealId: deal.id, kind: "card_updated", actor: "seller_pal", summary: `event ${i}`, at });
+          await store.addMessage({ dealId: deal.id, channel: "deal", author: "seller", text: `message ${i}`, photos: [], at });
+        }
+        expect((await store.listEvents(deal.id)).map((e) => e.summary)).toEqual([0, 1, 2, 3, 4, 5].map((i) => `event ${i}`));
+        expect((await store.listMessages(deal.id)).map((m) => m.text)).toEqual([0, 1, 2, 3, 4, 5].map((i) => `message ${i}`));
       });
     });
 
@@ -276,13 +307,16 @@ export function runDealStoreConformance(name: string, makeStore: () => Promise<P
     });
 
     describe("webhook receipts", () => {
-      it("records an event id once", async () => {
+      it("claims an event id once and can release the claim", async () => {
         const store = await makeStore();
         const id = `WH-${crypto.randomUUID()}`;
         expect(await store.hasWebhookReceipt(id)).toBe(false);
         expect(await store.recordWebhookReceipt(id, "PAYMENT.CAPTURE.COMPLETED")).toBe(true);
         expect(await store.recordWebhookReceipt(id, "PAYMENT.CAPTURE.COMPLETED")).toBe(false);
         expect(await store.hasWebhookReceipt(id)).toBe(true);
+        await store.releaseWebhookReceipt(id);
+        expect(await store.hasWebhookReceipt(id)).toBe(false);
+        expect(await store.recordWebhookReceipt(id, "PAYMENT.CAPTURE.COMPLETED")).toBe(true);
       });
     });
   });

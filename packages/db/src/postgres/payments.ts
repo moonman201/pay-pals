@@ -5,33 +5,34 @@
 import { desc, eq } from "drizzle-orm";
 import type { PaymentRecord } from "@pay-pals/contracts";
 import { payments } from "../../schema";
-import { DealNotFoundError } from "../errors";
 import type { Db } from "./db";
+import { forDeal } from "./deal-guard";
 import { toPayment, toPaymentRow } from "./mappers";
 import { isUuid } from "./uuid";
 
 export function paymentsRepo(db: Db) {
   return {
     async savePayment(payment: PaymentRecord): Promise<PaymentRecord> {
-      if (!isUuid(payment.dealId)) throw new DealNotFoundError(payment.dealId);
-      const row = toPaymentRow(payment);
-      const [saved] = await db
-        .insert(payments)
-        .values(row)
-        .onConflictDoUpdate({
-          target: payments.paypalOrderId,
-          set: {
-            status: row.status,
-            captureId: row.captureId,
-            capturedAt: row.capturedAt,
-            method: row.method,
-            payeeEmail: row.payeeEmail,
-            amountCents: row.amountCents,
-            updatedAt: new Date(),
-          },
-        })
-        .returning();
-      return toPayment(saved!);
+      return forDeal(payment.dealId, async () => {
+        const row = toPaymentRow(payment);
+        const [saved] = await db
+          .insert(payments)
+          .values(row)
+          .onConflictDoUpdate({
+            target: payments.paypalOrderId,
+            set: {
+              status: row.status,
+              captureId: row.captureId,
+              capturedAt: row.capturedAt,
+              method: row.method,
+              payeeEmail: row.payeeEmail,
+              amountCents: row.amountCents,
+              updatedAt: new Date(),
+            },
+          })
+          .returning();
+        return toPayment(saved!);
+      });
     },
 
     async getPayment(dealId: string): Promise<PaymentRecord | null> {

@@ -4,17 +4,18 @@
 import { desc, eq } from "drizzle-orm";
 import type { EvidencePack } from "@pay-pals/contracts";
 import { evidencePacks } from "../../schema";
-import { DealNotFoundError } from "../errors";
 import type { Db } from "./db";
+import { forDeal } from "./deal-guard";
 import { toEvidence, toEvidenceRow } from "./mappers";
 import { isUuid } from "./uuid";
 
 export function evidenceRepo(db: Db) {
   return {
     async saveEvidence(pack: EvidencePack): Promise<EvidencePack> {
-      if (!isUuid(pack.dealId)) throw new DealNotFoundError(pack.dealId);
-      const [row] = await db.insert(evidencePacks).values(toEvidenceRow(pack)).returning();
-      return toEvidence(row!);
+      return forDeal(pack.dealId, async () => {
+        const [row] = await db.insert(evidencePacks).values(toEvidenceRow(pack)).returning();
+        return toEvidence(row!);
+      });
     },
 
     async getEvidence(dealId: string): Promise<EvidencePack | null> {

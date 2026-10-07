@@ -40,9 +40,9 @@ const webhookHeaders: WebhookHeaders = {
 };
 
 describe("createPayPalGateway", () => {
-  it("creates the order with a bearer token, a request id and the card body", async () => {
+  it("creates the order with a bearer token, a deterministic request id and the card body", async () => {
     const f = mockFetch().reply(200, TOKEN_OK).reply(201, createdOrder);
-    const gw = createPayPalGateway(config, { fetch: f.fetch, requestId: () => "req-1" });
+    const gw = createPayPalGateway(config, { fetch: f.fetch });
     const result = await gw.createDealOrder(locked, dealId);
     expect(result).toEqual({
       orderId: "5O190127TN364715T",
@@ -52,7 +52,8 @@ describe("createPayPalGateway", () => {
     const call = f.calls[1]!;
     expect(call.url).toBe(`${SANDBOX_BASE_URL}/v2/checkout/orders`);
     expect(call.headers.authorization).toBe("Bearer test-token");
-    expect(call.headers["paypal-request-id"]).toBe("req-1");
+    // Same deal and card version means the same id, so a retry cannot create a second order.
+    expect(call.headers["paypal-request-id"]).toBe(`pp-create-${dealId}-v${locked.version}`);
     const body = call.body as { purchase_units: Array<Record<string, unknown>> };
     expect(body.purchase_units[0]!.payee).toEqual({ email_address: locked.sellerPaypalEmail });
     expect(body.purchase_units[0]!.custom_id).toBe(dealId);
@@ -99,6 +100,7 @@ describe("createPayPalGateway", () => {
     });
     expect(f.calls[1]!.url).toBe(`${SANDBOX_BASE_URL}/v2/checkout/orders/5O190127TN364715T/capture`);
     expect(f.calls[1]!.method).toBe("POST");
+    expect(f.calls[1]!.headers["paypal-request-id"]).toBe("pp-capture-5O190127TN364715T");
   });
 
   it("throws PayPalApiError with the PayPal body on failure", async () => {
@@ -121,7 +123,8 @@ describe("createPayPalGateway", () => {
   it("verifies a webhook with the raw body and the configured webhook id", async () => {
     const f = mockFetch().reply(200, TOKEN_OK).reply(200, { verification_status: "SUCCESS" }).reply(200, { verification_status: "FAILURE" });
     const gw = createPayPalGateway(config, { fetch: f.fetch });
-    const raw = JSON.stringify({ id: "WH-EVT-1", event_type: "PAYMENT.CAPTURE.COMPLETED", resource: {} });
+    // A float with a trailing zero would change under parse-and-stringify. It must reach PayPal as sent.
+    const raw = '{"id":"WH-EVT-1","event_type":"PAYMENT.CAPTURE.COMPLETED","resource":{"amount":{"value":475.0}}}';
     expect(await gw.verifyWebhook(webhookHeaders, raw)).toBe(true);
     expect(f.calls[1]!.body).toEqual({
       auth_algo: "SHA256withRSA",
@@ -132,6 +135,7 @@ describe("createPayPalGateway", () => {
       webhook_id: "WH-1",
       webhook_event: JSON.parse(raw),
     });
+    expect(f.calls[1]!.rawBody).toContain(`"webhook_event":${raw}}`);
     expect(await gw.verifyWebhook(webhookHeaders, raw)).toBe(false);
     expect(await gw.verifyWebhook(webhookHeaders, "not json")).toBe(false);
   });

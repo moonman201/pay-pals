@@ -8,7 +8,10 @@ export interface RecordedCall {
   url: string;
   method: string;
   headers: Record<string, string>;
+  /** Parsed when the request was JSON. */
   body: unknown;
+  /** The body exactly as sent. */
+  rawBody: string | null;
 }
 
 export interface MockFetch {
@@ -29,9 +32,10 @@ export function mockFetch(): MockFetch {
     },
     fetch: async (url, init) => {
       const headers = Object.fromEntries(Object.entries((init?.headers as Record<string, string>) ?? {}).map(([k, v]) => [k.toLowerCase(), v]));
-      let body: unknown = init?.body ?? null;
-      if (typeof body === "string" && headers["content-type"] === "application/json") body = JSON.parse(body);
-      calls.push({ url, method: init?.method ?? "GET", headers, body });
+      const rawBody = typeof init?.body === "string" ? init.body : null;
+      let body: unknown = rawBody;
+      if (rawBody !== null && headers["content-type"] === "application/json") body = JSON.parse(rawBody);
+      calls.push({ url, method: init?.method ?? "GET", headers, body, rawBody });
       const next = queue.shift();
       if (!next) throw new Error(`mockFetch: no response queued for ${init?.method ?? "GET"} ${url}`);
       return new Response(next.body === undefined ? null : JSON.stringify(next.body), {
