@@ -9,7 +9,11 @@ Deadline Thu Nov 12, 2026, 12:00 PM Pacific. Target: submit Wed Nov 11. Facts fr
 - [x] Claude runs both pals; Channel3 answers the price check live.
 - [x] Postgres on Neon, migrations bundled, state survives restarts.
 - [x] Two-sided agreement; payment-method flags are a hard block; other flags overridable with a warning.
-- [ ] Demo photos in `assets/demo-photos` and the real console serial in the fixtures (Matt).
+- [x] Buyer-first entry with a seller invite; a refusal is the strongest stop.
+- [x] PSA cert check for graded items (live call pending `PSA_API_TOKEN`).
+- [x] Tamper-evident history: hash chain anchored in the PayPal order, verified on the evidence page.
+- [ ] Demo photos in `assets/demo-photos` (PS5 and the slab) and the real console serial in the fixtures (Matt).
+- [ ] `PSA_API_TOKEN` in `.env.local`, then one live PSA call to confirm the response shape (Matt, then Lead).
 - [ ] `ANTHROPIC_API_KEY` rotated after the Oct 7 transcript exposure (Matt).
 - [ ] Hosted on Vercel with every env var from `docs/DEPLOY.md`; `/` opens with no setup (Lead, once Vercel is connected).
 - [ ] Sandbox webhook created and `PAYPAL_WEBHOOK_ID` set; a real capture moves a deal to PAID through the webhook (Lead).

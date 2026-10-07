@@ -25,3 +25,7 @@
 - Buyer Pal price range for a used item is derived from new retail scaled by condition, with cheaper used offers pulling it down; the pal says so.
 - Env loader reads the app and root .env.local files; idempotent finished-deal seed on Postgres; a second wallet button reuses the open order; the sandbox seller account is the demo payee when configured.
 - Real-mode Playwright spec (`npm run test:e2e:real`) completes a sandbox payment through the PayPal SDK buttons headless.
+- Buyer-first deals (contracts v1.5.0-draft): "Use Pay Pals Protection" entry with the seller's PayPal email and listing link, seller invite link and join page, INVITED state, refusal recorded and flagged as INVITE_REFUSED (non-overridable). Seller-started stays as the secondary path.
+- Graded items: cert number and grade on the card, PSA cert lookup (cached), CERT_MISMATCH stop flag, cert result on the card and in the verdict. New fake-slab demo scenario; two demo items.
+- Tamper-evident history: every deal event hash-chained in both stores under a lock; the chain head rides on the PayPal order as custom_id (`dealId#hash`) and the payment record; the evidence pack verifies the stored events against it. Migration 0003 with an in-code hash backfill.
+- Fix: the Postgres store now keeps the box serial (column was missing).
