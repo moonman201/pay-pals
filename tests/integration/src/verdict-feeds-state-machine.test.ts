@@ -8,7 +8,7 @@ import { describe, expect, it } from "vitest";
 import { IllegalTransitionError, PAYMENT_METHOD_FLAGS, canTransition, cleanGarmin, hasStop, isPaymentMethodFlag, scamGarmin } from "@pay-pals/contracts";
 import type { Verdict } from "@pay-pals/contracts";
 import { createBuyerPal, createFixturePriceLookup } from "@pay-pals/agents";
-import { CardLockedError } from "@pay-pals/db";
+import { CardLockedError, CardNotEditableError } from "@pay-pals/db";
 import { seedFixture } from "./seed";
 import type { SeededDeal } from "./seed";
 
@@ -66,14 +66,30 @@ describe("scam-garmin: a payment-method flag blocks the deal", () => {
     expect(changes).toEqual(["DRAFT->LISTED", "LISTED->REVIEWED", "REVIEWED->BLOCKED"]);
   });
 
-  // Skipped until the store checks deal state in saveCard and lockCard. Flip to `it` with the fix.
-  it.skip("refuses to lock the card on a BLOCKED deal (open: REVIEW.md 2026-10-07 [packages/db], builder-paypal)", async () => {
+  it("refuses to lock the card on a BLOCKED deal", async () => {
     const seeded = await seedFixture(scamGarmin);
     await reviewAndSave(seeded);
     await seeded.store.transition(seeded.dealId, "BLOCKED", "buyer_pal", "Blocked.");
 
-    await expect(seeded.store.lockCard(seeded.dealId, 1)).rejects.toThrow();
-    expect((await seeded.store.getDeal(seeded.dealId))!.lockedCardVersion).toBeNull();
+    await expect(seeded.store.lockCard(seeded.dealId, 1)).rejects.toBeInstanceOf(CardNotEditableError);
+    const deal = (await seeded.store.getDeal(seeded.dealId))!;
+    expect(deal.state).toBe("BLOCKED");
+    expect(deal.currentCardVersion).toBe(1);
+    expect(deal.lockedCardVersion).toBeNull();
+    expect((await seeded.store.getCard(seeded.dealId, 1))!.lockedAt).toBeNull();
+  });
+
+  it("refuses a new card version on a BLOCKED deal", async () => {
+    const seeded = await seedFixture(scamGarmin);
+    await reviewAndSave(seeded);
+    await seeded.store.transition(seeded.dealId, "BLOCKED", "buyer_pal", "Blocked.");
+    const current = (await seeded.store.getCurrentCard(seeded.dealId))!;
+
+    await expect(seeded.store.saveCard({ ...current, version: 2, serial: "7LP000000" })).rejects.toBeInstanceOf(CardNotEditableError);
+    const deal = (await seeded.store.getDeal(seeded.dealId))!;
+    expect(deal.currentCardVersion).toBe(1);
+    expect(deal.lockedCardVersion).toBeNull();
+    expect((await seeded.store.listCards(seeded.dealId)).map((c) => c.version)).toEqual([1]);
   });
 });
 
