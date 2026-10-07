@@ -56,3 +56,19 @@ export interface DealStore {
   appendEvent(event: Omit<DealEvent, "id">): Promise<DealEvent>;
   listEvents(dealId: string): Promise<DealEvent[]>;
 }
+
+/**
+ * Idempotency for PayPal webhooks, one receipt per PayPal event id. The
+ * handler claims the id first, does its work, and releases the claim if the
+ * work failed so PayPal's retry is processed.
+ */
+export interface WebhookReceiptStore {
+  hasWebhookReceipt(eventId: string): Promise<boolean>;
+  /** Claims the event id. Returns false when it was already claimed. */
+  recordWebhookReceipt(eventId: string, eventType: string): Promise<boolean>;
+  /** Drops a claim so the event can be handled again. */
+  releaseWebhookReceipt(eventId: string): Promise<void>;
+}
+
+/** What packages/db returns: deals plus webhook receipts. */
+export type PayPalsStore = DealStore & WebhookReceiptStore;

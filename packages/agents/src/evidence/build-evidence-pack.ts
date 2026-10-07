@@ -13,7 +13,7 @@ export interface EvidencePackOptions {
   anthropic: ClaudeClient | null;
 }
 
-/** Every photo attached to the deal, in the order it appeared, without duplicates. */
+/** Every photo attached to the deal, in the order it appeared, without duplicates: card, chat, packing, arrival. */
 export function collectPhotos(input: EvidenceInput): Photo[] {
   const seen = new Set<string>();
   const photos: Photo[] = [];
@@ -25,6 +25,7 @@ export function collectPhotos(input: EvidenceInput): Photo[] {
   for (const photo of input.lockedCard.photos) add(photo);
   for (const message of input.messages) for (const photo of message.photos) add(photo);
   for (const photo of input.shipment?.packingPhotos ?? []) add(photo);
+  for (const photo of input.arrivalPhotos ?? []) add(photo);
   return photos;
 }
 

@@ -2,8 +2,7 @@
  * Public surface of @pay-pals/agents. apps/web wires these up; nothing else
  * in the repo reaches past this file.
  */
-export { createBuyerPal, type BuyerPalOptions, type BuyerPalWithContext } from "./buyer/buyer-pal";
-export type { ReviewContext } from "./buyer/review";
+export { createBuyerPal, type BuyerPalOptions } from "./buyer/buyer-pal";
 export { createSellerPal, type SellerPalOptions } from "./seller/seller-pal";
 export { CardLockedError } from "./seller/apply-request";
 export { MissingPriceError } from "./seller/build-card";

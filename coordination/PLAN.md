@@ -24,13 +24,13 @@ tests/e2e            Playwright runs of the three demo scenarios                
 ```
 Modules talk only through `packages/contracts` interfaces. apps/web is the only place modules are wired together.
 
-## Contracts (v1.1.0-draft in `packages/contracts`, frozen Fri Oct 9)
+## Contracts (v1.2.0-draft in `packages/contracts`, frozen Fri Oct 9)
 
 The TypeScript in `packages/contracts/src` is the contract. This section is the summary. Where they differ, the code wins and the Lead fixes this file.
 
 ### Deal states
 `DRAFT -> LISTED -> REVIEWED -> AGREED -> PAYMENT_PENDING -> PAID -> SHIPPED -> DELIVERED -> COMPLETE`
-Side exits: `BLOCKED` (Buyer Pal hard stop, from REVIEWED), `ISSUE` (from DELIVERED, evidence pack built), `CANCELLED` (either party, before PAID).
+Side exits: `BLOCKED` (Buyer Pal hard stop, from REVIEWED), `ISSUE` (from PAID, SHIPPED or DELIVERED: item never arrived, wrong item, or a PayPal dispute; evidence pack built), `CANCELLED` (either party, before PAID).
 Rule: the item card can change until AGREED. At AGREED the card version is locked and becomes the PayPal order description. Any change after that requires a new deal.
 
 ### ItemCard (versioned)
@@ -121,8 +121,8 @@ Save every working call as a Postman collection in `docs/postman/`.
 | Lane | Status | Last merge |
 |---|---|---|
 | Lead: contracts, schema, fixtures | contracts v1.0.0-draft, schema and three fixtures on main; 24 tests green | 2026-10-06 |
-| Lane 0 gate (builder-paypal) | launched 2026-10-06; sandbox run blocked until `.env.local` has credentials | |
-| builder-agents | merged to main 9e83667. 64 tests, reality-check holds. Real Claude tests ran 3/3; Channel3 live schema unverified until a key lands. | 2026-10-07 |
+| Lane 0 gate (builder-paypal) | PASS personal and PASS business, sandbox, 2026-10-07. Personal payee cannot take direct card funding; wallet flow works. | |
+| builder-agents | merged to main 9e83667, follow-up merged (v1.1.0 fields, model stop cap). 69 tests, reality-check holds. Real Claude tests ran 3/3; Channel3 live schema unverified until a key lands. | 2026-10-07 |
 | builder-paypal | launched 2026-10-06 (state machine, repositories, PayPal client) | |
 | builder-web | launched 2026-10-06 on fixtures | |
 | qa | not started | |

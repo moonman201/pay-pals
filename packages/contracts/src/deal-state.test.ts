@@ -25,7 +25,9 @@ describe("deal state table", () => {
     expect(canTransition("REVIEWED", "BLOCKED")).toBe(true);
     expect(canTransition("LISTED", "BLOCKED")).toBe(false);
     expect(canTransition("DELIVERED", "ISSUE")).toBe(true);
-    expect(canTransition("SHIPPED", "ISSUE")).toBe(false);
+    expect(canTransition("SHIPPED", "ISSUE")).toBe(true);
+    expect(canTransition("PAID", "ISSUE")).toBe(true);
+    expect(canTransition("AGREED", "ISSUE")).toBe(false);
     expect(canTransition("AGREED", "CANCELLED")).toBe(true);
     expect(canTransition("PAID", "CANCELLED")).toBe(false);
   });

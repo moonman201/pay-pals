@@ -23,15 +23,19 @@ export const DEAL_STATES = [
 
 export type DealState = (typeof DEAL_STATES)[number];
 
-/** Legal next states for each state. Terminal states have an empty list. */
+/**
+ * Legal next states for each state. Terminal states have an empty list.
+ * ISSUE is reachable from PAID and SHIPPED as well as DELIVERED: an item that
+ * never arrives, or a PayPal dispute opened before delivery, is an issue too.
+ */
 export const DEAL_TRANSITIONS: Readonly<Record<DealState, readonly DealState[]>> = {
   DRAFT: ["LISTED", "CANCELLED"],
   LISTED: ["REVIEWED", "CANCELLED"],
   REVIEWED: ["AGREED", "BLOCKED", "LISTED", "CANCELLED"],
   AGREED: ["PAYMENT_PENDING", "CANCELLED"],
   PAYMENT_PENDING: ["PAID", "AGREED", "CANCELLED"],
-  PAID: ["SHIPPED"],
-  SHIPPED: ["DELIVERED"],
+  PAID: ["SHIPPED", "ISSUE"],
+  SHIPPED: ["DELIVERED", "ISSUE"],
   DELIVERED: ["COMPLETE", "ISSUE"],
   COMPLETE: [],
   BLOCKED: [],

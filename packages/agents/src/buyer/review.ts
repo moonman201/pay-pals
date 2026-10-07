@@ -2,18 +2,13 @@
  * BuyerPal.review: price check, rules, then one Claude call for judgment and
  * plain words. The rules decide what is a flag; the model explains and adds.
  */
-import type { ItemCard, MarketPriceLookup, Message, PalResult, PriceCheck, RedFlag, Verdict } from "@pay-pals/contracts";
+import type { ItemCard, MarketPriceLookup, Message, PalResult, PriceCheck, RedFlag, ReviewContext, Verdict } from "@pay-pals/contracts";
 import type { ClaudeClient } from "../claude/client";
 import { callTool } from "../claude/tool-call";
 import { plainCopy, sentences } from "../copy";
-import { overallFromFlags, runRules, type SellerIdentity } from "../rules";
+import { overallFromFlags, runRules } from "../rules";
 import { mergeModelReview } from "./merge-flags";
 import { ModelReviewSchema, REVIEW_TOOL } from "./review-tool";
-
-export interface ReviewContext {
-  /** The seller as the deal knows them, so the name-mismatch rule can run. */
-  seller?: SellerIdentity | null;
-}
 
 export interface ReviewDeps {
   client: ClaudeClient | null;

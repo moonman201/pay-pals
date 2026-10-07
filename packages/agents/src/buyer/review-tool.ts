@@ -52,7 +52,7 @@ export const REVIEW_TOOL: Anthropic.Tool = {
       },
       severity_raises: {
         type: "array",
-        description: "Rule flags that deserve a higher severity. Lower severities are ignored.",
+        description: "Rule flags that deserve a higher severity. Lower severities are ignored. Only payment-method and price codes can become stop; other raises are capped at caution.",
         items: {
           type: "object",
           properties: {
