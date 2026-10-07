@@ -13,6 +13,10 @@ export const RED_FLAG_CODES = [
   "STOCK_OR_REUSED_PHOTO",
   "MISSING_SERIAL",
   "SHIP_BEFORE_PAY_TRICK",
+  /** The seller refused the Pay Pals invite and wants Friends and Family or another unprotected method. The strongest sign. */
+  "INVITE_REFUSED",
+  /** The grading certificate on the card does not match the grader's record (or does not exist). */
+  "CERT_MISMATCH",
   "OTHER",
 ] as const;
 export type RedFlagCode = (typeof RED_FLAG_CODES)[number];
@@ -27,6 +31,7 @@ export type RedFlagSeverity = (typeof RED_FLAG_SEVERITIES)[number];
 export const PAYMENT_METHOD_FLAGS: readonly RedFlagCode[] = [
   "FRIENDS_AND_FAMILY_REQUEST",
   "OFF_PLATFORM_PAYMENT",
+  "INVITE_REFUSED",
 ];
 
 export const RedFlagSchema = z.object({

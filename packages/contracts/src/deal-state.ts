@@ -8,6 +8,7 @@
 
 export const DEAL_STATES = [
   "DRAFT",
+  "INVITED",
   "LISTED",
   "REVIEWED",
   "AGREED",
@@ -29,7 +30,9 @@ export type DealState = (typeof DEAL_STATES)[number];
  * never arrives, or a PayPal dispute opened before delivery, is an issue too.
  */
 export const DEAL_TRANSITIONS: Readonly<Record<DealState, readonly DealState[]>> = {
-  DRAFT: ["LISTED", "CANCELLED"],
+  DRAFT: ["INVITED", "LISTED", "CANCELLED"],
+  /** Buyer-started deal waiting for the seller. REVIEWED here means the Buyer Pal reviewed a refusal with no card. */
+  INVITED: ["LISTED", "REVIEWED", "CANCELLED"],
   LISTED: ["REVIEWED", "CANCELLED"],
   REVIEWED: ["AGREED", "BLOCKED", "LISTED", "CANCELLED"],
   AGREED: ["PAYMENT_PENDING", "CANCELLED"],
@@ -46,7 +49,7 @@ export const DEAL_TRANSITIONS: Readonly<Record<DealState, readonly DealState[]>>
 export const TERMINAL_STATES: readonly DealState[] = ["COMPLETE", "BLOCKED", "ISSUE", "CANCELLED"];
 
 /** States in which the item card may still change. From AGREED on it is locked. */
-export const CARD_EDITABLE_STATES: readonly DealState[] = ["DRAFT", "LISTED", "REVIEWED"];
+export const CARD_EDITABLE_STATES: readonly DealState[] = ["DRAFT", "INVITED", "LISTED", "REVIEWED"];
 
 /** States at or after which money has moved. Cancelling is no longer allowed. */
 export const MONEY_MOVED_STATES: readonly DealState[] = ["PAID", "SHIPPED", "DELIVERED", "COMPLETE", "ISSUE"];

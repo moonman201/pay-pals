@@ -29,6 +29,9 @@ export type Message = z.infer<typeof MessageSchema>;
 
 export const DEAL_EVENT_KINDS = [
   "deal_created",
+  "seller_invited",
+  "seller_joined",
+  "invite_declined",
   "card_updated",
   "review_posted",
   "agreed",
@@ -57,5 +60,12 @@ export const DealEventSchema = z.object({
   toState: z.enum(DEAL_STATES).optional(),
   data: z.record(z.unknown()).optional(),
   at: z.string().datetime(),
+  /**
+   * Tamper-evident history. hash = sha256 over the previous hash and this
+   * event's canonical fields (see history.ts). The store computes both on
+   * append. The head of the chain at payment time goes into the PayPal order.
+   */
+  prevHash: z.string().length(64).nullable(),
+  hash: z.string().length(64),
 });
 export type DealEvent = z.infer<typeof DealEventSchema>;
