@@ -13,6 +13,8 @@ import type {
   Shipment,
   Verdict,
 } from "@pay-pals/contracts";
+import { EventNotHashedError } from "../errors";
+import type { NewEvent } from "../event-chain";
 import { fromCents, toCents } from "../money";
 import type { dealEvents, deals, evidencePacks, itemCards, messages, payments, shipments, verdicts } from "../../schema";
 
@@ -35,8 +37,11 @@ export function toDeal(row: DealRow): Deal {
     id: row.id,
     state: row.state,
     scenario: row.scenario,
+    startedBy: row.startedBy,
+    listingUrl: row.listingUrl,
     seller: { role: "seller", displayName: row.sellerName, email: row.sellerEmail },
     buyer: row.buyerEmail ? { role: "buyer", displayName: row.buyerName ?? "", email: row.buyerEmail } : null,
+    sellerJoinedAt: isoOrNull(row.sellerJoinedAt),
     currentCardVersion: row.currentCardVersion,
     lockedCardVersion: row.lockedCardVersion,
     buyerAgreedAt: isoOrNull(row.buyerAgreedAt),
@@ -54,6 +59,9 @@ export function toCard(row: CardRow): ItemCard {
     brand: row.brand,
     model: row.model,
     serial: row.serial,
+    boxSerial: row.boxSerial,
+    certNumber: row.certNumber,
+    grade: row.grade,
     conditionGrade: row.conditionGrade,
     conditionNotes: row.conditionNotes,
     included: row.included,
@@ -73,6 +81,9 @@ export function toCardRow(card: ItemCard): typeof itemCards.$inferInsert {
     brand: card.brand,
     model: card.model,
     serial: card.serial,
+    boxSerial: card.boxSerial ?? null,
+    certNumber: card.certNumber ?? null,
+    grade: card.grade ?? null,
     conditionGrade: card.conditionGrade,
     conditionNotes: card.conditionNotes,
     included: card.included,
@@ -93,14 +104,25 @@ export function toMessageRow(m: Omit<Message, "id">): typeof messages.$inferInse
 }
 
 export function toEvent(row: EventRow): DealEvent {
-  const event: DealEvent = { id: row.id, dealId: row.dealId, kind: row.kind, actor: row.actor, summary: row.summary, at: iso(row.at) };
+  if (row.hash === null) throw new EventNotHashedError(row.id);
+  const event: DealEvent = {
+    id: row.id,
+    dealId: row.dealId,
+    kind: row.kind,
+    actor: row.actor,
+    summary: row.summary,
+    at: iso(row.at),
+    prevHash: row.prevHash,
+    hash: row.hash,
+  };
   if (row.fromState) event.fromState = row.fromState;
   if (row.toState) event.toState = row.toState;
   if (row.data) event.data = row.data;
   return event;
 }
 
-export function toEventRow(e: Omit<DealEvent, "id">): typeof dealEvents.$inferInsert {
+/** Everything but the chain fields; events.ts adds id, prevHash and hash. */
+export function toEventRow(e: NewEvent): Omit<typeof dealEvents.$inferInsert, "hash" | "prevHash"> {
   return {
     dealId: e.dealId,
     kind: e.kind,
@@ -127,6 +149,7 @@ export function toPayment(row: PaymentRow): PaymentRecord {
     capturedAt: isoOrNull(row.capturedAt),
     rawOrder: row.rawOrder ?? null,
     rawCapture: row.rawCapture ?? null,
+    historyHash: row.historyHash ?? null,
   };
 }
 
@@ -144,6 +167,7 @@ export function toPaymentRow(p: PaymentRecord): typeof payments.$inferInsert {
     capturedAt: dateOrNull(p.capturedAt),
     rawOrder: p.rawOrder ?? null,
     rawCapture: p.rawCapture ?? null,
+    historyHash: p.historyHash ?? null,
   };
 }
 

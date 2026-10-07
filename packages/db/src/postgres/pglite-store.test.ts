@@ -39,7 +39,7 @@ describe("postgres store on pglite", () => {
   it("stores prices as integer cents", async () => {
     const { getFixture } = await import("@pay-pals/contracts");
     const fx = getFixture("clean-ps5");
-    const deal = await store.createDeal({ seller: fx.seller });
+    const deal = await store.createDeal({ startedBy: "seller", seller: fx.seller });
     await store.saveCard({ ...fx.cards[0]!, dealId: deal.id, version: 1, askingPrice: 475.5, lockedAt: null });
     const rows = await client.query<{ asking_price_cents: number }>("select asking_price_cents from item_cards where deal_id = $1", [deal.id]);
     expect(rows.rows[0]?.asking_price_cents).toBe(47550);
