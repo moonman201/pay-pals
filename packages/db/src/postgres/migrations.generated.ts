@@ -48,5 +48,16 @@ export const MIGRATIONS: readonly BundledMigration[] = [
     "bps": true,
     "folderMillis": 1791344688584,
     "hash": "74ad9776e68748778560c706c32b87b13b1c539e869a80e149fb1d9252467639"
+  },
+  {
+    "tag": "0001_agreement",
+    "sql": [
+      "ALTER TYPE \"public\".\"deal_event_kind\" ADD VALUE 'agreed' BEFORE 'card_locked';",
+      "\nALTER TABLE \"deals\" ADD COLUMN \"buyer_agreed_at\" timestamp with time zone;",
+      "\nALTER TABLE \"deals\" ADD COLUMN \"seller_agreed_at\" timestamp with time zone;"
+    ],
+    "bps": true,
+    "folderMillis": 1791366004492,
+    "hash": "17d1935a327ab8ba0886615c861f939041cf07d95b3934786b3fe169f8d04ad4"
   }
 ];

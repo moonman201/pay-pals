@@ -12,5 +12,5 @@ export { createMemoryDealStore } from "./memory/memory-store";
 export { createPostgresDealStore, createPostgresDealStoreFromDb } from "./postgres/postgres-store";
 export type { PostgresDealStore } from "./postgres/postgres-store";
 export type { PayPalsStore, WebhookReceiptStore } from "@pay-pals/contracts";
-export { CardLockedError, CardNotEditableError, CardNotFoundError, CardVersionError, DealNotFoundError } from "./errors";
+export { AgreementNotAllowedError, CardLockedError, CardNotEditableError, CardNotFoundError, CardVersionError, DealNotFoundError } from "./errors";
 export { toCents, fromCents } from "./money";

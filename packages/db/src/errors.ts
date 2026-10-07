@@ -22,6 +22,17 @@ export class CardNotEditableError extends Error {
   }
 }
 
+/** A side tried to agree while the deal was not LISTED or REVIEWED. */
+export class AgreementNotAllowedError extends Error {
+  constructor(
+    public readonly dealId: string,
+    public readonly state: string,
+  ) {
+    super(`Cannot record agreement for deal ${dealId} while it is ${state}`);
+    this.name = "AgreementNotAllowedError";
+  }
+}
+
 export class CardLockedError extends Error {
   constructor(
     public readonly dealId: string,

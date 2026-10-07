@@ -39,6 +39,8 @@ export function toDeal(row: DealRow): Deal {
     buyer: row.buyerEmail ? { role: "buyer", displayName: row.buyerName ?? "", email: row.buyerEmail } : null,
     currentCardVersion: row.currentCardVersion,
     lockedCardVersion: row.lockedCardVersion,
+    buyerAgreedAt: isoOrNull(row.buyerAgreedAt),
+    sellerAgreedAt: isoOrNull(row.sellerAgreedAt),
     createdAt: iso(row.createdAt),
     updatedAt: iso(row.updatedAt),
   };
