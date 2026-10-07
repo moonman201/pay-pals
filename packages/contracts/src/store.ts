@@ -20,6 +20,11 @@ export interface CreateDealInput {
 export interface DealStore {
   createDeal(input: CreateDealInput): Promise<Deal>;
   getDeal(dealId: string): Promise<Deal | null>;
+  /**
+   * Deals matching a scenario and, optionally, a set of states, oldest first.
+   * Used by the demo seed to find out what already exists on a durable store.
+   */
+  findDeals(query: { scenario?: ScenarioId | null; states?: readonly DealState[] }): Promise<Deal[]>;
   setBuyer(dealId: string, buyer: Party): Promise<Deal>;
   /**
    * Move the deal to a new state. Rejects with IllegalTransitionError when the

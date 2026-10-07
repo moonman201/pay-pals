@@ -5,16 +5,46 @@
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
-    { "key": "baseUrl", "value": "https://api-m.sandbox.paypal.com" },
-    { "key": "clientId", "value": "" },
-    { "key": "clientSecret", "value": "" },
-    { "key": "accessToken", "value": "" },
-    { "key": "sellerPersonalEmail", "value": "" },
-    { "key": "sellerBusinessEmail", "value": "" },
-    { "key": "webhookId", "value": "" },
-    { "key": "dealId", "value": "" },
-    { "key": "orderId", "value": "" },
-    { "key": "captureId", "value": "" }
+    {
+      "key": "baseUrl",
+      "value": "https://api-m.sandbox.paypal.com"
+    },
+    {
+      "key": "clientId",
+      "value": ""
+    },
+    {
+      "key": "clientSecret",
+      "value": ""
+    },
+    {
+      "key": "accessToken",
+      "value": ""
+    },
+    {
+      "key": "sellerPersonalEmail",
+      "value": ""
+    },
+    {
+      "key": "sellerBusinessEmail",
+      "value": ""
+    },
+    {
+      "key": "webhookId",
+      "value": ""
+    },
+    {
+      "key": "dealId",
+      "value": ""
+    },
+    {
+      "key": "orderId",
+      "value": ""
+    },
+    {
+      "key": "captureId",
+      "value": ""
+    }
   ],
   "item": [
     {
@@ -33,19 +63,47 @@
       ],
       "request": {
         "method": "POST",
-        "header": [{ "key": "Content-Type", "value": "application/x-www-form-urlencoded" }],
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/x-www-form-urlencoded"
+          }
+        ],
         "auth": {
           "type": "basic",
           "basic": [
-            { "key": "username", "value": "{{clientId}}", "type": "string" },
-            { "key": "password", "value": "{{clientSecret}}", "type": "string" }
+            {
+              "key": "username",
+              "value": "{{clientId}}",
+              "type": "string"
+            },
+            {
+              "key": "password",
+              "value": "{{clientSecret}}",
+              "type": "string"
+            }
           ]
         },
         "body": {
           "mode": "urlencoded",
-          "urlencoded": [{ "key": "grant_type", "value": "client_credentials" }]
+          "urlencoded": [
+            {
+              "key": "grant_type",
+              "value": "client_credentials"
+            }
+          ]
         },
-        "url": { "raw": "{{baseUrl}}/v1/oauth2/token", "host": ["{{baseUrl}}"], "path": ["v1", "oauth2", "token"] }
+        "url": {
+          "raw": "{{baseUrl}}/v1/oauth2/token",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "v1",
+            "oauth2",
+            "token"
+          ]
+        }
       }
     },
     {
@@ -53,7 +111,12 @@
       "event": [
         {
           "listen": "prerequest",
-          "script": { "type": "text/javascript", "exec": ["pm.collectionVariables.set('dealId', pm.variables.replaceIn('{{$guid}}'));"] }
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.collectionVariables.set('dealId', pm.variables.replaceIn('{{$guid}}'));"
+            ]
+          }
         },
         {
           "listen": "test",
@@ -72,16 +135,44 @@
       "request": {
         "method": "POST",
         "header": [
-          { "key": "Content-Type", "value": "application/json" },
-          { "key": "PayPal-Request-Id", "value": "{{$guid}}" },
-          { "key": "Prefer", "value": "return=representation" }
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "PayPal-Request-Id",
+            "value": "{{$guid}}"
+          },
+          {
+            "key": "Prefer",
+            "value": "return=representation"
+          }
         ],
-        "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }] },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        },
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"intent\": \"CAPTURE\",\n  \"purchase_units\": [\n    {\n      \"reference_id\": \"deal-{{dealId}}-v2\",\n      \"custom_id\": \"{{dealId}}\",\n      \"invoice_id\": \"{{dealId}}\",\n      \"description\": \"Garmin Fenix 7 Pro Sapphire Solar 47mm\",\n      \"payee\": { \"email_address\": \"{{sellerPersonalEmail}}\" },\n      \"amount\": {\n        \"currency_code\": \"USD\",\n        \"value\": \"475.00\",\n        \"breakdown\": { \"item_total\": { \"currency_code\": \"USD\", \"value\": \"475.00\" } }\n      },\n      \"items\": [\n        {\n          \"name\": \"Garmin Fenix 7 Pro Sapphire Solar 47mm\",\n          \"description\": \"Serial 7LP045912. Condition: Good. Worn daily for about a year. Light scuff on the bezel at 2 o'clock, screen clear, no scra...\",\n          \"sku\": \"7LP045912\",\n          \"unit_amount\": { \"currency_code\": \"USD\", \"value\": \"475.00\" },\n          \"quantity\": \"1\",\n          \"category\": \"PHYSICAL_GOODS\"\n        }\n      ]\n    }\n  ]\n}"
+          "raw": "{\n  \"intent\": \"CAPTURE\",\n  \"purchase_units\": [\n    {\n      \"reference_id\": \"deal-{{dealId}}-v2\",\n      \"custom_id\": \"{{dealId}}\",\n      \"invoice_id\": \"{{dealId}}\",\n      \"description\": \"Sony PlayStation 5 disc edition with original box\",\n      \"payee\": {\n        \"email_address\": \"{{sellerPersonalEmail}}\"\n      },\n      \"amount\": {\n        \"currency_code\": \"USD\",\n        \"value\": \"420.00\",\n        \"breakdown\": {\n          \"item_total\": {\n            \"currency_code\": \"USD\",\n            \"value\": \"420.00\"\n          }\n        }\n      },\n      \"items\": [\n        {\n          \"name\": \"Sony PlayStation 5 disc edition with original box\",\n          \"description\": \"Serial AH912345678. Condition: Good. Owned from new, used in a smoke-free home. Light scuff on the base, no marks on the con...\",\n          \"unit_amount\": {\n            \"currency_code\": \"USD\",\n            \"value\": \"420.00\"\n          },\n          \"quantity\": \"1\",\n          \"category\": \"PHYSICAL_GOODS\",\n          \"sku\": \"AH912345678\"\n        }\n      ]\n    }\n  ]\n}"
         },
-        "url": { "raw": "{{baseUrl}}/v2/checkout/orders", "host": ["{{baseUrl}}"], "path": ["v2", "checkout", "orders"] }
+        "url": {
+          "raw": "{{baseUrl}}/v2/checkout/orders",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "v2",
+            "checkout",
+            "orders"
+          ]
+        }
       }
     },
     {
@@ -89,7 +180,12 @@
       "event": [
         {
           "listen": "prerequest",
-          "script": { "type": "text/javascript", "exec": ["pm.collectionVariables.set('dealId', pm.variables.replaceIn('{{$guid}}'));"] }
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.collectionVariables.set('dealId', pm.variables.replaceIn('{{$guid}}'));"
+            ]
+          }
         },
         {
           "listen": "test",
@@ -108,16 +204,44 @@
       "request": {
         "method": "POST",
         "header": [
-          { "key": "Content-Type", "value": "application/json" },
-          { "key": "PayPal-Request-Id", "value": "{{$guid}}" },
-          { "key": "Prefer", "value": "return=representation" }
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "PayPal-Request-Id",
+            "value": "{{$guid}}"
+          },
+          {
+            "key": "Prefer",
+            "value": "return=representation"
+          }
         ],
-        "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }] },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        },
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"intent\": \"CAPTURE\",\n  \"purchase_units\": [\n    {\n      \"reference_id\": \"deal-{{dealId}}-v2\",\n      \"custom_id\": \"{{dealId}}\",\n      \"invoice_id\": \"{{dealId}}\",\n      \"description\": \"Garmin Fenix 7 Pro Sapphire Solar 47mm\",\n      \"payee\": { \"email_address\": \"{{sellerBusinessEmail}}\" },\n      \"amount\": {\n        \"currency_code\": \"USD\",\n        \"value\": \"475.00\",\n        \"breakdown\": { \"item_total\": { \"currency_code\": \"USD\", \"value\": \"475.00\" } }\n      },\n      \"items\": [\n        {\n          \"name\": \"Garmin Fenix 7 Pro Sapphire Solar 47mm\",\n          \"description\": \"Serial 7LP045912. Condition: Good. Worn daily for about a year. Light scuff on the bezel at 2 o'clock, screen clear, no scra...\",\n          \"sku\": \"7LP045912\",\n          \"unit_amount\": { \"currency_code\": \"USD\", \"value\": \"475.00\" },\n          \"quantity\": \"1\",\n          \"category\": \"PHYSICAL_GOODS\"\n        }\n      ]\n    }\n  ]\n}"
+          "raw": "{\n  \"intent\": \"CAPTURE\",\n  \"purchase_units\": [\n    {\n      \"reference_id\": \"deal-{{dealId}}-v2\",\n      \"custom_id\": \"{{dealId}}\",\n      \"invoice_id\": \"{{dealId}}\",\n      \"description\": \"Sony PlayStation 5 disc edition with original box\",\n      \"payee\": {\n        \"email_address\": \"{{sellerBusinessEmail}}\"\n      },\n      \"amount\": {\n        \"currency_code\": \"USD\",\n        \"value\": \"420.00\",\n        \"breakdown\": {\n          \"item_total\": {\n            \"currency_code\": \"USD\",\n            \"value\": \"420.00\"\n          }\n        }\n      },\n      \"items\": [\n        {\n          \"name\": \"Sony PlayStation 5 disc edition with original box\",\n          \"description\": \"Serial AH912345678. Condition: Good. Owned from new, used in a smoke-free home. Light scuff on the base, no marks on the con...\",\n          \"unit_amount\": {\n            \"currency_code\": \"USD\",\n            \"value\": \"420.00\"\n          },\n          \"quantity\": \"1\",\n          \"category\": \"PHYSICAL_GOODS\",\n          \"sku\": \"AH912345678\"\n        }\n      ]\n    }\n  ]\n}"
         },
-        "url": { "raw": "{{baseUrl}}/v2/checkout/orders", "host": ["{{baseUrl}}"], "path": ["v2", "checkout", "orders"] }
+        "url": {
+          "raw": "{{baseUrl}}/v2/checkout/orders",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "v2",
+            "checkout",
+            "orders"
+          ]
+        }
       }
     },
     {
@@ -139,8 +263,28 @@
       "request": {
         "method": "GET",
         "header": [],
-        "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }] },
-        "url": { "raw": "{{baseUrl}}/v2/checkout/orders/{{orderId}}", "host": ["{{baseUrl}}"], "path": ["v2", "checkout", "orders", "{{orderId}}"] }
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseUrl}}/v2/checkout/orders/{{orderId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "v2",
+            "checkout",
+            "orders",
+            "{{orderId}}"
+          ]
+        }
       }
     },
     {
@@ -148,18 +292,41 @@
       "request": {
         "method": "POST",
         "header": [
-          { "key": "Content-Type", "value": "application/json" },
-          { "key": "PayPal-Request-Id", "value": "{{$guid}}" }
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "PayPal-Request-Id",
+            "value": "{{$guid}}"
+          }
         ],
-        "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }] },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        },
         "body": {
           "mode": "raw",
           "raw": "{\n  \"payment_source\": {\n    \"card\": {\n      \"number\": \"4111111111111111\",\n      \"expiry\": \"2030-12\",\n      \"security_code\": \"123\",\n      \"name\": \"Sandbox Buyer\",\n      \"billing_address\": {\n        \"address_line_1\": \"1 Main St\",\n        \"admin_area_2\": \"San Jose\",\n        \"admin_area_1\": \"CA\",\n        \"postal_code\": \"95131\",\n        \"country_code\": \"US\"\n      }\n    }\n  }\n}"
         },
         "url": {
           "raw": "{{baseUrl}}/v2/checkout/orders/{{orderId}}/confirm-payment-source",
-          "host": ["{{baseUrl}}"],
-          "path": ["v2", "checkout", "orders", "{{orderId}}", "confirm-payment-source"]
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "v2",
+            "checkout",
+            "orders",
+            "{{orderId}}",
+            "confirm-payment-source"
+          ]
         }
       }
     },
@@ -184,16 +351,45 @@
       "request": {
         "method": "POST",
         "header": [
-          { "key": "Content-Type", "value": "application/json" },
-          { "key": "PayPal-Request-Id", "value": "{{$guid}}" },
-          { "key": "Prefer", "value": "return=representation" }
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "PayPal-Request-Id",
+            "value": "{{$guid}}"
+          },
+          {
+            "key": "Prefer",
+            "value": "return=representation"
+          }
         ],
-        "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }] },
-        "body": { "mode": "raw", "raw": "{}" },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{}"
+        },
         "url": {
           "raw": "{{baseUrl}}/v2/checkout/orders/{{orderId}}/capture",
-          "host": ["{{baseUrl}}"],
-          "path": ["v2", "checkout", "orders", "{{orderId}}", "capture"]
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "v2",
+            "checkout",
+            "orders",
+            "{{orderId}}",
+            "capture"
+          ]
         }
       }
     },
@@ -201,16 +397,36 @@
       "name": "6. Verify webhook signature",
       "request": {
         "method": "POST",
-        "header": [{ "key": "Content-Type", "value": "application/json" }],
-        "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }] },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        },
         "body": {
           "mode": "raw",
           "raw": "{\n  \"auth_algo\": \"<paypal-auth-algo header>\",\n  \"cert_url\": \"<paypal-cert-url header>\",\n  \"transmission_id\": \"<paypal-transmission-id header>\",\n  \"transmission_sig\": \"<paypal-transmission-sig header>\",\n  \"transmission_time\": \"<paypal-transmission-time header>\",\n  \"webhook_id\": \"{{webhookId}}\",\n  \"webhook_event\": { \"paste\": \"the raw webhook body here\" }\n}"
         },
         "url": {
           "raw": "{{baseUrl}}/v1/notifications/verify-webhook-signature",
-          "host": ["{{baseUrl}}"],
-          "path": ["v1", "notifications", "verify-webhook-signature"]
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "v1",
+            "notifications",
+            "verify-webhook-signature"
+          ]
         }
       }
     }

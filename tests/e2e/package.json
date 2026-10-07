@@ -2,12 +2,13 @@
   "name": "@pay-pals/e2e",
   "version": "0.1.0",
   "private": true,
-  "description": "Playwright runs of the three demo scenarios against apps/web and the PayPal sandbox. Not wired into the root `npm test` yet: run `npm run e2e -w tests/e2e` by hand.",
+  "description": "Playwright runs of the three demo scenarios against apps/web on fixtures, plus a real-mode run of the PayPal SDK buttons against the sandbox. Not wired into the root `npm test`: run `npm run test:e2e` from the root, and `npm run e2e:real -w tests/e2e` for the sandbox run.",
   "type": "module",
   "scripts": {
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "e2e": "playwright test",
-    "e2e:install": "playwright install chromium"
+    "e2e:install": "playwright install chromium",
+    "e2e:real": "playwright test -c playwright.real.config.ts"
   },
   "dependencies": {
     "@pay-pals/contracts": "*"

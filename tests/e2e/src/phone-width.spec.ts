@@ -4,7 +4,7 @@
  * landing, deal room at several states, and the evidence pack.
  */
 import { expect, test } from "@playwright/test";
-import { cleanGarmin } from "@pay-pals/contracts";
+import { cleanPs5 } from "@pay-pals/contracts";
 import { WEB_PRESENT } from "./env";
 import { driveToDelivered, runArrivalCheck } from "./flows";
 import { expectNoHorizontalScroll, expectState, panel, pressAction, startDemo, waitForHydration } from "./helpers";
@@ -18,11 +18,11 @@ test.describe("phone width", () => {
     await page.goto("/");
     await expectNoHorizontalScroll(page, "landing page");
 
-    const dealId = await startDemo(page, cleanGarmin, "buyer");
+    const dealId = await startDemo(page, cleanPs5, "buyer");
     await expectState(page, "Listed");
     await expectNoHorizontalScroll(page, "deal room, Listed");
 
-    await driveToDelivered(page, dealId, cleanGarmin, {
+    await driveToDelivered(page, dealId, cleanPs5, {
       afterBuyerAgreed: async () => {
         await expect(panel(page, "Next step").getByText("You agreed to version 1, waiting for the other side.")).toBeVisible();
         await expectNoHorizontalScroll(page, "deal room, buyer agreed and waiting");
@@ -30,7 +30,7 @@ test.describe("phone width", () => {
     });
     await expectNoHorizontalScroll(page, "deal room, Delivered");
 
-    await runArrivalCheck(page, cleanGarmin);
+    await runArrivalCheck(page, cleanPs5);
     await pressAction(page, "Complete the deal");
     await expectState(page, "Complete");
     await expectNoHorizontalScroll(page, "deal room, Complete");

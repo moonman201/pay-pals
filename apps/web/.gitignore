@@ -1,3 +1,4 @@
 public/uploads/*
 !public/uploads/.gitkeep
+public/fixtures/
 next-env.d.ts

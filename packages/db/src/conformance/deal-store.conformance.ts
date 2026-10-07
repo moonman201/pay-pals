@@ -9,7 +9,7 @@ import type { ItemCard, Party } from "@pay-pals/contracts";
 import { AgreementNotAllowedError, CardLockedError, CardNotEditableError, CardVersionError, DealNotFoundError } from "../errors";
 import type { PayPalsStore } from "@pay-pals/contracts";
 
-const fx = getFixture("clean-garmin");
+const fx = getFixture("clean-ps5");
 const seller: Party = fx.seller;
 const buyer: Party = fx.buyer;
 
@@ -37,14 +37,14 @@ export function runDealStoreConformance(name: string, makeStore: () => Promise<P
     describe("deals", () => {
       it("creates a DRAFT deal with no card and no buyer", async () => {
         const store = await makeStore();
-        const deal = await store.createDeal({ seller, scenario: "clean-garmin" });
+        const deal = await store.createDeal({ seller, scenario: "clean-ps5" });
         expect(deal.state).toBe("DRAFT");
         expect(deal.currentCardVersion).toBe(0);
         expect(deal.lockedCardVersion).toBeNull();
         expect(deal.buyerAgreedAt).toBeNull();
         expect(deal.sellerAgreedAt).toBeNull();
         expect(deal.buyer).toBeNull();
-        expect(deal.scenario).toBe("clean-garmin");
+        expect(deal.scenario).toBe("clean-ps5");
         expect(await store.getDeal(deal.id)).toEqual(deal);
       });
 
@@ -59,6 +59,42 @@ export function runDealStoreConformance(name: string, makeStore: () => Promise<P
         const updated = await store.setBuyer(deal.id, buyer);
         expect(updated.buyer).toEqual(buyer);
         expect((await store.getDeal(deal.id))?.buyer).toEqual(buyer);
+      });
+
+      it("finds deals by scenario and state, oldest first", async () => {
+        const store = await makeStore();
+        const pause = () => new Promise((r) => setTimeout(r, 3));
+        const a = await store.createDeal({ seller, scenario: "clean-ps5" });
+        await pause();
+        const b = await store.createDeal({ seller, scenario: "clean-ps5" });
+        await pause();
+        const c = await store.createDeal({ seller, scenario: "scam-ps5" });
+        await pause();
+        const none = await store.createDeal({ seller });
+        await toState(store, b.id, "AGREED");
+        await toState(store, c.id, "LISTED");
+        // A durable store is shared across this suite, so look only at the deals made here (order preserved).
+        const mine = new Set([a.id, b.id, c.id, none.id]);
+        const find = async (query: Parameters<typeof store.findDeals>[0]) =>
+          (await store.findDeals(query)).map((d) => d.id).filter((id) => mine.has(id));
+
+        // Scenario only, both states, oldest first.
+        expect(await find({ scenario: "clean-ps5" })).toEqual([a.id, b.id]);
+        // Scenario and states.
+        expect(await find({ scenario: "clean-ps5", states: ["AGREED", "COMPLETE"] })).toEqual([b.id]);
+        expect(await find({ scenario: "clean-ps5", states: ["DRAFT"] })).toEqual([a.id]);
+        // No match.
+        expect(await find({ scenario: "empty-box" })).toEqual([]);
+        expect(await find({ scenario: "scam-ps5", states: ["COMPLETE"] })).toEqual([]);
+        expect(await store.findDeals({ scenario: "clean-ps5", states: [] })).toEqual([]);
+        // scenario: null means deals that have none; states alone spans scenarios.
+        expect(await find({ scenario: null })).toEqual([none.id]);
+        expect(await find({ states: ["LISTED"] })).toEqual([c.id]);
+        // Ordering is by createdAt across the whole result, and rows are full deals.
+        const all = await store.findDeals({ scenario: "clean-ps5" });
+        const times = all.map((d) => Date.parse(d.createdAt));
+        expect([...times].sort((x, y) => x - y)).toEqual(times);
+        expect(all.find((d) => d.id === a.id)).toEqual(await store.getDeal(a.id));
       });
 
       it("rejects every write against an unknown deal with DealNotFoundError", async () => {
@@ -375,9 +411,9 @@ export function runDealStoreConformance(name: string, makeStore: () => Promise<P
           dealId: deal.id,
           cardVersion: 1,
           matches: false,
-          mismatches: [{ field: "serial" as const, expected: "7LP045912", observed: "6XR118204", explanation: "Different serial." }],
-          observed: { brand: "Garmin", model: "Fenix 6", serial: "6XR118204" },
-          palMessage: "This is not the watch on the card.",
+          mismatches: [{ field: "serial" as const, expected: "AH912345678", observed: "AJ204567113", explanation: "The box label shows a different serial and the box is empty." }],
+          observed: { brand: "Sony", model: null, serial: "AJ204567113" },
+          palMessage: "This is not the console on the card. The box arrived empty.",
           createdAt: "2026-10-26T16:00:00.000Z",
         };
         await store.saveArrivalCheck(check);

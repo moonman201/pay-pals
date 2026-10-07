@@ -3,9 +3,9 @@ import Link from "next/link";
 import { buttonClass } from "../ui/Button";
 
 const ENDINGS: Record<ScenarioFixture["id"], string> = {
-  "scam-garmin": "Ends blocked. No money moves.",
-  "clean-garmin": "Ends complete. Paid, shipped, matched.",
-  "wrong-item": "Ends in an issue with an evidence pack.",
+  "scam-ps5": "Ends blocked. No money moves.",
+  "clean-ps5": "Ends complete. Paid, shipped, matched.",
+  "empty-box": "Ends in an issue with an evidence pack.",
 };
 
 /** One demo scenario. Posting the form creates a fresh copy of it and opens the deal room. */

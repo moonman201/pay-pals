@@ -42,7 +42,7 @@ Demo deals live in server memory and are gone after a restart. In dev the servic
 | `app/api/paypal/webhook` | Verifies the PayPal signature on the raw body, then hands the event to the package handler. 400 unverified, 500 retry, 200 otherwise. |
 | `components/deal/` | The deal room: item card, verdict, action bar, pal pane, shared chat, timeline, step forms. |
 | `components/pay/` | PayPal and Venmo wallet buttons on the JS SDK v6 (no card fields: the payee may be a personal account), and the demo placeholder. |
-| `public/fixtures/` | Demo photos go here (not in the repo yet). Missing files render a neutral placeholder. |
+| `scripts/copy-demo-photos.mjs` | Runs before `dev` and `build`: copies `assets/demo-photos/<scenario>/<file>` from the repo root into `public/fixtures/` (gitignored) so the fixture photo URLs resolve. Missing files render a neutral placeholder. |
 
 ## Views
 

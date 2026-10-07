@@ -4,7 +4,7 @@
 import { z } from "zod";
 import { DEAL_STATES } from "./deal-state";
 
-export const SCENARIO_IDS = ["scam-garmin", "clean-garmin", "wrong-item"] as const;
+export const SCENARIO_IDS = ["scam-ps5", "clean-ps5", "empty-box"] as const;
 export type ScenarioId = (typeof SCENARIO_IDS)[number];
 
 export const PartySchema = z.object({

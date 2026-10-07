@@ -1,21 +1,21 @@
 import type { ScenarioId } from "../deal";
-import { scamGarmin } from "./scam-garmin";
-import { cleanGarmin } from "./clean-garmin";
-import { wrongItem } from "./wrong-item";
+import { scamPs5 } from "./scam-ps5";
+import { cleanPs5 } from "./clean-ps5";
+import { emptyBox } from "./empty-box";
 import type { ScenarioFixture } from "./types";
 
 export type { ScenarioFixture, ExpectedVerdict, ExpectedArrival } from "./types";
-export { scamGarmin, cleanGarmin, wrongItem };
-export { CLEAN_SERIAL } from "./clean-garmin";
-export { WRONG_ITEM_LOCKED_SERIAL, WRONG_ITEM_ARRIVED_SERIAL } from "./wrong-item";
+export { scamPs5, cleanPs5, emptyBox };
+export { CLEAN_SERIAL } from "./clean-ps5";
+export { EMPTY_BOX_LOCKED_SERIAL } from "./empty-box";
 
 export const FIXTURES: Readonly<Record<ScenarioId, ScenarioFixture>> = {
-  "scam-garmin": scamGarmin,
-  "clean-garmin": cleanGarmin,
-  "wrong-item": wrongItem,
+  "scam-ps5": scamPs5,
+  "clean-ps5": cleanPs5,
+  "empty-box": emptyBox,
 };
 
-export const ALL_FIXTURES: readonly ScenarioFixture[] = [scamGarmin, cleanGarmin, wrongItem];
+export const ALL_FIXTURES: readonly ScenarioFixture[] = [scamPs5, cleanPs5, emptyBox];
 
 export function getFixture(id: ScenarioId): ScenarioFixture {
   return FIXTURES[id];

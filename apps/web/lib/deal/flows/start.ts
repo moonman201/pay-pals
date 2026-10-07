@@ -2,7 +2,7 @@
  * Starting a deal: from the demo picker (a fresh copy of a scenario) or from
  * the start form (either side pastes a listing). Both end in LISTED.
  */
-import type { Deal, Party, Photo, ScenarioId } from "@pay-pals/contracts";
+import type { Deal, Party, Photo, ScenarioFixture, ScenarioId } from "@pay-pals/contracts";
 import { fixtureById } from "../../scenarios";
 import type { Role } from "../../role";
 import type { Services } from "../../services";
@@ -46,7 +46,13 @@ export async function startDeal(services: Services, input: StartDealInput): Prom
   return deal;
 }
 
-/** A fresh copy of a scenario, in LISTED, with the scenario's chat already in the room. */
+/** The fixture chat up to the first Buyer Pal review. Everything later belongs to steps the demo has not reached. */
+export function preReviewChat(fixture: ScenarioFixture): ScenarioFixture["chat"] {
+  const firstReview = fixture.timeline.find((e) => e.kind === "review_posted")?.at;
+  return firstReview ? fixture.chat.filter((m) => m.at < firstReview) : fixture.chat;
+}
+
+/** A fresh copy of a scenario, in LISTED, with the scenario's pre-review chat already in the room. */
 export async function startDemoDeal(services: Services, scenario: ScenarioId): Promise<Deal> {
   await services.ready;
   const fixture = fixtureById(scenario);
@@ -56,14 +62,20 @@ export async function startDemoDeal(services: Services, scenario: ScenarioId): P
 
   let deal = await store.createDeal({ seller: fixture.seller, buyer: fixture.buyer, scenario });
   await note(services, deal.id, "deal_created", "seller", `${fixture.seller.displayName} started a deal.`);
-  await store.saveCard({ ...cardV1, dealId: deal.id, lockedAt: null });
-  const serialNote = cardV1.serial ? `Serial ${cardV1.serial} read from the caseback photo.` : "No serial found in the photos.";
+  // Fixture payees have no sandbox account behind them; a configured sandbox seller takes their place.
+  const sellerPaypalEmail = services.demoPayee ?? cardV1.sellerPaypalEmail;
+  await store.saveCard({ ...cardV1, dealId: deal.id, sellerPaypalEmail, lockedAt: null });
+  const boxNote = cardV1.boxSerial ? (cardV1.boxSerial === cardV1.serial ? " The box label shows the same serial." : ` The box label shows a different serial, ${cardV1.boxSerial}.`) : "";
+  const serialNote = cardV1.serial ? `Serial ${cardV1.serial} read from the photos.${boxNote}` : "No serial found in the photos.";
   await say(services, deal.id, "seller_pal", "seller_pal", `I built card version 1 from your listing. ${serialNote}`);
   await note(services, deal.id, "card_updated", "seller_pal", `Seller Pal built card version 1. ${serialNote}`);
   deal = await store.transition(deal.id, "LISTED", "system", "Listed.");
+  // Only the chat from before the first review belongs with card v1. Later messages (for example the
+  // seller's reply with the added photo) would put the chat ahead of the card; those steps post them later.
+  const chat = preReviewChat(fixture);
   // The fixture chat happened "before now": restamp it one minute apart, ending a minute ago.
-  const base = Date.now() - (fixture.chat.length + 1) * 60_000;
-  for (const [i, m] of fixture.chat.entries()) {
+  const base = Date.now() - (chat.length + 1) * 60_000;
+  for (const [i, m] of chat.entries()) {
     await store.addMessage({
       dealId: deal.id,
       channel: m.channel,

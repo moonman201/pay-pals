@@ -67,14 +67,14 @@ Save every working call as a Postman collection in `docs/postman/`.
 
 ### Lead: `packages/contracts`, `packages/db/schema.ts`, `coordination/`, `docs/adr/`
 - Must not write feature code.
-- Owes: contracts and schema above as real TypeScript, plus fixtures for all three demo scenarios (`fixtures/scam-garmin`, `fixtures/clean-garmin`, `fixtures/wrong-item`) so every lane can build against mocks on day one.
+- Owes: contracts and schema above as real TypeScript, plus fixtures for all three demo scenarios (`scam-ps5`, `clean-ps5`, `empty-box`) so every lane can build against mocks on day one.
 - Done: `npm run build` passes on contracts; fixtures load. **Lands first, by Fri Oct 9.** Lead also owns merging, deploy (Vercel + Neon), CHANGELOG.md and `docs/SUBMISSION.md`.
 
 ### builder-agents: `packages/agents`
 - Must not touch PayPal, the database or UI.
 - Depends on: contracts. Owes: the agent interfaces above.
 - Builds: Claude tool-use loops for both pals; rule engine for red flags; Channel3 client with caching (save credits); vision reads of serials from photos; evidence pack builder.
-- Done: unit tests where the scam fixture yields `FRIENDS_AND_FAMILY_REQUEST`, `PRICE_FAR_BELOW_MARKET` and `URGENCY_PRESSURE` with overall `stop`; the clean fixture yields `go` or `caution` with no `stop`; the wrong-item fixture yields `matches: false` with the serial mismatch named.
+- Done: unit tests where the scam fixture yields `FRIENDS_AND_FAMILY_REQUEST`, `PRICE_FAR_BELOW_MARKET` and `URGENCY_PRESSURE` with overall `stop`; the clean fixture yields `go` or `caution` with no `stop` and a card whose console serial matches the box serial; the empty-box fixture yields `matches: false` with the missing console serial named.
 - Lands any time after contracts. No dependency on builder-paypal or builder-web.
 
 ### builder-paypal: `packages/paypal`, `packages/db` (repositories and migrations, not schema design)

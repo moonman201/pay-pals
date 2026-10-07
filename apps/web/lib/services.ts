@@ -21,7 +21,7 @@ import {
 import type { BuyerPal, EvidencePackBuilder, PayPalGateway, PayPalsStore, ScenarioId, SellerPal, WebhookEvent } from "@pay-pals/contracts";
 import { createMemoryDealStore, createPostgresDealStore } from "@pay-pals/db";
 import { createPayPalGateway, handleWebhookEvent, loadPayPalConfig, type WebhookOutcome } from "@pay-pals/paypal";
-import { seedFixtureDeals } from "./demo/seed-fixtures";
+import { asDealFinder, seedFixtureDeals, seedFixtureDealsIfMissing } from "./demo/seed-fixtures";
 import { loadRootEnvLocal } from "./env";
 import { createMockPayPalGateway } from "./mocks/paypal-gateway";
 
@@ -41,6 +41,11 @@ export interface Services {
   /** Verified PayPal webhook events go here. */
   handleWebhook: (event: WebhookEvent) => Promise<WebhookOutcome>;
   modes: ServiceModes;
+  /**
+   * Payee used for deals started from demo mode, from SANDBOX_SELLER_PERSONAL_EMAIL.
+   * Fixture payees have no sandbox account, so a capture to them never moves a balance.
+   */
+  demoPayee: string | null;
   /** Resolves once migration (Postgres) or seeding (memory) has finished. */
   ready: Promise<void>;
   /** Finished demo deals seeded into the memory store, scenario id to deal id. Empty on Postgres. */
@@ -86,19 +91,29 @@ export function createServices(env: Env = process.env, log: Log = (line) => cons
   log(`[pay-pals] prices: ${modes.prices === "channel3" ? "Channel3" : "fixture ranges (CHANNEL3_API_KEY not set)"}`);
   log(`[pay-pals] paypal: ${modes.paypal === "sandbox" ? "sandbox gateway" : "mock gateway, no network (PAYPAL_CLIENT_ID not set)"}`);
 
+  const demoPayee = env.SANDBOX_SELLER_PERSONAL_EMAIL?.trim() || null;
+  if (demoPayee) log("[pay-pals] demo payee: sandbox seller account (SANDBOX_SELLER_PERSONAL_EMAIL) replaces the fixture payee on demo deals");
+
   let store: PayPalsStore;
   let ready: Promise<void>;
   let seededDeals: Promise<Partial<Record<ScenarioId, string>>>;
-  const services = { sellerPal, buyerPal, buildEvidencePack, paypal } as Services;
+  const services = { sellerPal, buyerPal, buildEvidencePack, paypal, demoPayee } as Services;
 
   if (modes.store === "postgres") {
     const pg = createPostgresDealStore(env.DATABASE_URL!.trim());
     store = pg;
+    services.store = store;
     log("[pay-pals] store: Postgres (DATABASE_URL set)");
-    ready = pg.migrate().catch((error: unknown) => {
+    const migrated = pg.migrate().catch((error: unknown) => {
       log(`[pay-pals] store: migration did not run (${error instanceof Error ? error.message : String(error)}). Run: npm run migrate -w packages/db`);
     });
-    seededDeals = Promise.resolve({});
+    const finder = asDealFinder(pg);
+    seededDeals = migrated.then(() => {
+      if (finder) return seedFixtureDealsIfMissing(services, finder, log);
+      log("[pay-pals] demo: finished demo deals are off on this store; it has no findDeals(scenario, states) to seed idempotently");
+      return {};
+    });
+    ready = seededDeals.then(() => undefined);
   } else {
     store = createMemoryDealStore();
     log("[pay-pals] store: in memory (DATABASE_URL not set), demo deals live until the process restarts");

@@ -15,6 +15,13 @@
       "when": 1791366004492,
       "tag": "0001_agreement",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791368065910,
+      "tag": "0002_scenario_ps5",
+      "breakpoints": true
     }
   ]
 }

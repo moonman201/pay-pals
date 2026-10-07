@@ -1,4 +1,6 @@
+import { cleanPs5 } from "@pay-pals/contracts";
 import { describe, expect, it } from "vitest";
+import { startDemoDeal } from "./deal/flows/start";
 import { loadSnapshot } from "./deal/snapshot";
 import { createServices } from "./services";
 
@@ -16,13 +18,13 @@ describe("createServices with no keys", () => {
   it("seeds the three finished demo deals in their end states", async () => {
     const services = createServices({}, () => {});
     const seeded = await services.seededDeals;
-    expect(Object.keys(seeded).sort()).toEqual(["clean-garmin", "scam-garmin", "wrong-item"]);
+    expect(Object.keys(seeded).sort()).toEqual(["clean-ps5", "empty-box", "scam-ps5"]);
 
-    const scam = await loadSnapshot(services, seeded["scam-garmin"]!);
+    const scam = await loadSnapshot(services, seeded["scam-ps5"]!);
     expect(scam.deal.state).toBe("BLOCKED");
     expect(scam.verdict?.overall).toBe("stop");
 
-    const clean = await loadSnapshot(services, seeded["clean-garmin"]!);
+    const clean = await loadSnapshot(services, seeded["clean-ps5"]!);
     expect(clean.deal.state).toBe("COMPLETE");
     expect(clean.cards).toHaveLength(2);
     expect(clean.lockedCard?.version).toBe(2);
@@ -30,10 +32,10 @@ describe("createServices with no keys", () => {
     expect(clean.shipment?.deliveredAt).not.toBeNull();
     expect(clean.arrivalCheck?.matches).toBe(true);
 
-    const wrong = await loadSnapshot(services, seeded["wrong-item"]!);
-    expect(wrong.deal.state).toBe("ISSUE");
-    expect(wrong.arrivalCheck?.matches).toBe(false);
-    expect(wrong.hasEvidence).toBe(true);
+    const empty = await loadSnapshot(services, seeded["empty-box"]!);
+    expect(empty.deal.state).toBe("ISSUE");
+    expect(empty.arrivalCheck?.matches).toBe(false);
+    expect(empty.hasEvidence).toBe(true);
   });
 
   it("PAY_PALS_DEMO_ONLY forces demo modes even when every key is present", () => {
@@ -55,6 +57,29 @@ describe("createServices with no keys", () => {
     // "0" does not force demo mode. Only the PayPal keys here: a real Claude client or Postgres pool has no place in a unit test.
     const off = createServices({ PAYPAL_ENV: "sandbox", PAYPAL_CLIENT_ID: "id-secret-value", PAYPAL_CLIENT_SECRET: "shh-secret-value", PAY_PALS_DEMO_ONLY: "0" }, () => {});
     expect(off.modes).toEqual({ store: "memory", claude: false, prices: "fixture", paypal: "sandbox" });
+  });
+
+  it("substitutes the sandbox seller for the fixture payee on demo deals, without logging the address", async () => {
+    const lines: string[] = [];
+    const sandboxSeller = "sb-seller-personal@example.com";
+    const services = createServices({ SANDBOX_SELLER_PERSONAL_EMAIL: sandboxSeller }, (l) => lines.push(l));
+    expect(services.demoPayee).toBe(sandboxSeller);
+    expect(lines.join("\n")).toMatch(/demo payee: sandbox seller account/);
+    expect(lines.join("\n")).not.toContain(sandboxSeller);
+
+    const seeded = await services.seededDeals;
+    const clean = await loadSnapshot(services, seeded["clean-ps5"]!);
+    expect(clean.lockedCard?.sellerPaypalEmail).toBe(sandboxSeller);
+    expect(clean.cards.every((c) => c.sellerPaypalEmail === sandboxSeller)).toBe(true);
+    expect(clean.payment?.payeeEmail).toBe(sandboxSeller);
+
+    const fresh = await startDemoDeal(services, "empty-box");
+    const card = await services.store.getCurrentCard(fresh.id);
+    expect(card?.sellerPaypalEmail).toBe(sandboxSeller);
+
+    // The fixture file itself is untouched.
+    expect(cleanPs5.cards[0]?.sellerPaypalEmail).not.toBe(sandboxSeller);
+    expect(createServices({}, () => {}).demoPayee).toBeNull();
   });
 
   it("keeps secrets out of the startup log when keys are present", () => {

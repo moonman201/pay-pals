@@ -1,6 +1,6 @@
 /**
  * The steps of a deal as a judge clicks them, each asserting the state badge
- * it leaves behind. The clean and wrong-item specs share the path to
+ * it leaves behind. The clean and empty-box specs share the path to
  * Delivered; only the arrival check differs.
  */
 import { expect, type Page } from "@playwright/test";

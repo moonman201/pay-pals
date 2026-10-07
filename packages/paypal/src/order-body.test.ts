@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { CONDITION_LABELS, PAYPAL_LIMITS, getFixture } from "@pay-pals/contracts";
+import { CONDITION_LABELS, PAYPAL_LIMITS, getFixture, toPaypalAmount } from "@pay-pals/contracts";
 import { CardNotLockedError, buildOrderBody, describeCard, trimTo } from "./order-body";
 
-const fx = getFixture("clean-garmin");
+const fx = getFixture("clean-ps5");
 const locked = fx.cards[1]!;
 const dealId = fx.deal.id;
+const PRICE = toPaypalAmount(locked.askingPrice);
 
 describe("buildOrderBody", () => {
   it("refuses a card that is not locked", () => {
@@ -20,8 +21,8 @@ describe("buildOrderBody", () => {
     expect(unit.invoice_id).toBe(dealId);
     expect(unit.amount).toEqual({
       currency_code: "USD",
-      value: "475.00",
-      breakdown: { item_total: { currency_code: "USD", value: "475.00" } },
+      value: PRICE,
+      breakdown: { item_total: { currency_code: "USD", value: PRICE } },
     });
     const item = unit.items[0];
     expect(item.name).toBe(locked.title);
@@ -30,13 +31,13 @@ describe("buildOrderBody", () => {
     expect(item.sku).toBe(locked.serial);
     expect(item.quantity).toBe("1");
     expect(item.category).toBe("PHYSICAL_GOODS");
-    expect(item.unit_amount).toEqual({ currency_code: "USD", value: "475.00" });
+    expect(item.unit_amount).toEqual({ currency_code: "USD", value: PRICE });
   });
 
   it("keeps every text field inside the PayPal limits", () => {
     const long = {
       ...locked,
-      title: "Garmin ".repeat(40).trim(),
+      title: "PlayStation ".repeat(20).trim(),
       serial: "S".repeat(64),
       conditionNotes: "Long notes. ".repeat(80),
     };

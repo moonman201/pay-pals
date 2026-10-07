@@ -46,7 +46,7 @@ const SYSTEM = [
   "A flag needs evidence that exists: quote the seller's words from the chat, or name the card field and its value. A missing answer, an unasked question or something you merely wish you knew is never a flag. It is a question for the seller.",
   "When the rules raised nothing and the price sits in the market range, the verdict is go unless the chat itself contains something the rules missed. Do not add a flag to justify caution.",
   "Questions for the seller: at most three, and prefer things the buyer can act on, such as a photo of a specific part, the serial, or a receipt. If the card already answers it, do not ask.",
-  "For used electronics, battery health and a power-on check are fair things to ask for when the card does not show them.",
+  "For used electronics, proof that it powers on and a system or settings screen that shows the serial are fair things to ask for when the card does not show them (for a wearable, battery health).",
   "Pay Pals only ever pays through a PayPal Goods and Services checkout. Any request to pay another way ends the deal.",
   "Writing rules: plain words, short sentences, no em dashes, no exclamation marks, no marketing voice. Say what to do next.",
 ].join("\n");
@@ -58,9 +58,16 @@ function transcript(chat: Message[]): string {
     .join("\n");
 }
 
+/** The note the Channel3 lookup puts first in sources when a used range was estimated from new retail. */
+function estimateNote(priceCheck: PriceCheck | null): string | null {
+  const first = priceCheck?.sources[0];
+  return first && first.price === undefined && first.url === undefined ? first.name : null;
+}
+
 function priceLine(priceCheck: PriceCheck | null): string {
   if (!priceCheck || priceCheck.marketLow <= 0) return "No market price was available.";
-  return `Market range $${priceCheck.marketLow} to $${priceCheck.marketHigh} (${priceCheck.provider}).`;
+  const note = estimateNote(priceCheck);
+  return `Market range $${priceCheck.marketLow} to $${priceCheck.marketHigh} (${priceCheck.provider}${note ? `; ${note.toLowerCase()}` : ""}).`;
 }
 
 function fallbackQuestions(card: ItemCard, flags: RedFlag[]): string[] {
@@ -90,7 +97,7 @@ function fallbackMessage(card: ItemCard, flags: RedFlag[], priceCheck: PriceChec
   return sentences(
     "This looks fair.",
     priceCheck && priceCheck.marketLow > 0
-      ? `The asking price of $${card.askingPrice} sits within the market range of $${priceCheck.marketLow} to $${priceCheck.marketHigh}.`
+      ? `The asking price of $${card.askingPrice} sits within the market range of $${priceCheck.marketLow} to $${priceCheck.marketHigh}${estimateNote(priceCheck) ? `, ${estimateNote(priceCheck)!.charAt(0).toLowerCase()}${estimateNote(priceCheck)!.slice(1)}` : ""}.`
       : null,
     card.serial ? `The serial ${card.serial} is on the card, so we can check it when the item arrives.` : null,
     "Nothing in the chat worries me.",
