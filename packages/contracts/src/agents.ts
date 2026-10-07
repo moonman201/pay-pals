@@ -6,7 +6,7 @@ import type { ArrivalCheck, PriceCheck, Verdict } from "./verdict";
 import type { CardField, ItemCard, Photo } from "./item-card";
 import type { DealEvent, Message } from "./messages";
 import type { ChecklistItem } from "./shipping";
-import type { Deal } from "./deal";
+import type { Deal, Party } from "./deal";
 import type { EvidencePack } from "./evidence";
 import type { PaymentRecord } from "./payment";
 import type { Shipment } from "./shipping";
@@ -23,6 +23,13 @@ export interface BuildCardInput {
   photos: Photo[];
   sellerNotes: string;
   sellerPaypalEmail: string;
+  /** Price the seller typed, when the listing text does not name one. */
+  askingPrice?: number;
+}
+
+/** Who the seller is, as the deal knows them, so the NAME_MISMATCH rule can compare against the PayPal email. */
+export interface ReviewContext {
+  seller?: Pick<Party, "displayName" | "email"> | null;
 }
 
 export interface BuyerRequest {
@@ -52,7 +59,7 @@ export interface BuyerPal {
    * Deterministic rules run first. The model may add flags and wording but
    * never removes or downgrades a flag a rule raised.
    */
-  review(card: ItemCard, chatTranscript: Message[]): Promise<PalResult<Verdict>>;
+  review(card: ItemCard, chatTranscript: Message[], context?: ReviewContext): Promise<PalResult<Verdict>>;
   /** Compare what arrived against the locked card. */
   checkArrival(lockedCard: ItemCard, arrivalPhotos: Photo[]): Promise<PalResult<ArrivalCheck>>;
 }
@@ -67,6 +74,8 @@ export interface EvidenceInput {
   payment: PaymentRecord | null;
   shipment: Shipment | null;
   timeline: DealEvent[];
+  /** Photos the buyer took on arrival. apps/web passes them; the pack includes them. */
+  arrivalPhotos?: Photo[];
   requestedBy: "buyer" | "seller";
 }
 
