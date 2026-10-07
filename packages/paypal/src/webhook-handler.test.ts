@@ -32,7 +32,7 @@ const disputed = (dealId: string) =>
   });
 
 async function dealAt(store: PayPalsStore, state: Deal["state"]): Promise<{ deal: Deal; payment: PaymentRecord }> {
-  const deal = await store.createDeal({ seller: fx.seller, buyer: fx.buyer });
+  const deal = await store.createDeal({ startedBy: "seller", seller: fx.seller, buyer: fx.buyer });
   const path: Deal["state"][] = ["LISTED", "REVIEWED", "AGREED", "PAYMENT_PENDING", "PAID", "SHIPPED", "DELIVERED", "COMPLETE"];
   for (const s of path) {
     if (deal.state === state) break;
@@ -78,6 +78,23 @@ describe("handleWebhookEvent", () => {
     expect((await store.getDeal(deal.id))?.state).toBe("PAID");
     const kinds = (await store.listEvents(deal.id)).map((e) => e.kind);
     expect(kinds.slice(-2)).toEqual(["payment_captured", "state_changed"]);
+  });
+
+  it("finds the deal through invoice_id first, then through the deal id inside custom_id", async () => {
+    const { deal } = await dealAt(store, "PAYMENT_PENDING");
+    const byInvoice = captured(deal.id);
+    delete byInvoice.resource.supplementary_data;
+    byInvoice.resource.custom_id = `${deal.id}#${"e".repeat(64)}`;
+    expect((await handleWebhookEvent(byInvoice, store)).handled).toBe(true);
+
+    const { deal: other } = await dealAt(store, "PAYMENT_PENDING");
+    const byCustom = captured(other.id);
+    delete byCustom.resource.supplementary_data;
+    delete byCustom.resource.invoice_id;
+    byCustom.resource.id = "CAPTURE-2";
+    byCustom.resource.custom_id = `${other.id}#${"e".repeat(64)}`;
+    expect((await handleWebhookEvent(byCustom, store)).handled).toBe(true);
+    expect((await store.getDeal(other.id))?.state).toBe("PAID");
   });
 
   it("finds the payment by order id when custom_id is missing", async () => {

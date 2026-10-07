@@ -6,11 +6,12 @@
  * approval path needs a person and lives in scripts/lane0-gate.ts.
  */
 import { beforeAll, describe, expect, it } from "vitest";
-import { CONDITION_LABELS, getFixture, toPaypalAmount } from "@pay-pals/contracts";
+import { CONDITION_LABELS, buildCustomId, getFixture, toPaypalAmount } from "@pay-pals/contracts";
 import { hasSandboxCredentials, loadPayPalConfig } from "./config";
 import { createPayPalGateway, type PayPalsGateway } from "./gateway";
 import { PayPalApiError } from "./http-error";
 import { confirmOrderWithTestCard } from "./sandbox/test-card";
+import { buildDemoHistory, type DemoHistory } from "./test-support/demo-history";
 
 const payee = process.env.SANDBOX_SELLER_BUSINESS_EMAIL || process.env.SANDBOX_SELLER_PERSONAL_EMAIL;
 /** SKIP_REAL_TESTS=1 turns this off even when credentials are present. The merge gate runs with it set. */
@@ -18,17 +19,19 @@ const enabled = !process.env.SKIP_REAL_TESTS && hasSandboxCredentials() && Boole
 
 describe.skipIf(!enabled)("PayPal sandbox (real calls)", () => {
   const fx = getFixture("clean-ps5");
-  const card = { ...fx.cards[1]!, sellerPaypalEmail: payee! };
-  const dealId = crypto.randomUUID();
+  let history: DemoHistory;
   let gateway: PayPalsGateway;
   let orderId = "";
 
-  beforeAll(() => {
+  beforeAll(async () => {
     gateway = createPayPalGateway(loadPayPalConfig());
+    // A real chain head from a real (in-memory) history, so the order carries it.
+    history = await buildDemoHistory({ ...fx.cards[1]!, sellerPaypalEmail: payee! }, fx.seller, fx.buyer);
   });
 
-  it("creates an order paid to the seller with the card text on the line item", async () => {
-    const created = await gateway.createDealOrder(card, dealId);
+  it("creates an order paid to the seller with the card text and the history head on it", async () => {
+    const { card, dealId, historyHash } = history;
+    const created = await gateway.createDealOrder(card, dealId, { historyHash });
     orderId = created.orderId;
     expect(created.status).toBe("CREATED");
     expect(created.approveUrl).toMatch(/^https:\/\/www\.sandbox\.paypal\.com\//);
@@ -36,7 +39,8 @@ describe.skipIf(!enabled)("PayPal sandbox (real calls)", () => {
     const order = await gateway.getOrder(orderId);
     const unit = (order.purchase_units as Array<Record<string, unknown>>)[0]!;
     expect((unit.payee as { email_address: string }).email_address).toBe(payee);
-    expect(unit.custom_id).toBe(dealId);
+    expect(unit.custom_id).toBe(buildCustomId(dealId, historyHash));
+    expect(unit.invoice_id).toBe(dealId);
     const item = (unit.items as Array<Record<string, string>>)[0]!;
     expect(item.name).toBe(card.title);
     expect(item.description).toContain(`Serial ${card.serial}`);
@@ -57,7 +61,7 @@ describe.skipIf(!enabled)("PayPal sandbox (real calls)", () => {
     const capture = await gateway.captureOrder(orderId);
     expect(capture.status).toBe("COMPLETED");
     expect(capture.payeeEmail).toBe(payee);
-    expect(capture.amount).toBe(toPaypalAmount(card.askingPrice));
+    expect(capture.amount).toBe(toPaypalAmount(history.card.askingPrice));
     const order = await gateway.getOrder(orderId);
     expect(order.status).toBe("COMPLETED");
   }, 60_000);

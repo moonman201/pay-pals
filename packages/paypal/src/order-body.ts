@@ -3,7 +3,7 @@
  * The payee is the seller's PayPal email, the one line item carries the
  * title, serial and condition, and custom_id and invoice_id are the deal id.
  */
-import { CONDITION_LABELS, PAYPAL_LIMITS, isLocked, toPaypalAmount } from "@pay-pals/contracts";
+import { CONDITION_LABELS, PAYPAL_LIMITS, buildCustomId, isLocked, toPaypalAmount } from "@pay-pals/contracts";
 import type { ItemCard } from "@pay-pals/contracts";
 
 export class CardNotLockedError extends Error {
@@ -55,7 +55,12 @@ export interface OrderBody {
   ];
 }
 
-export function buildOrderBody(card: ItemCard, dealId: string): OrderBody {
+/**
+ * historyHash is the head of the deal's event chain at order time. It rides
+ * in custom_id as "dealId#hash" so PayPal's own record proves the history;
+ * invoice_id stays the bare deal id.
+ */
+export function buildOrderBody(card: ItemCard, dealId: string, historyHash?: string | null): OrderBody {
   if (!isLocked(card)) throw new CardNotLockedError(dealId);
   const value = toPaypalAmount(card.askingPrice);
   const money = { currency_code: card.currency, value };
@@ -72,7 +77,7 @@ export function buildOrderBody(card: ItemCard, dealId: string): OrderBody {
     purchase_units: [
       {
         reference_id: trimTo(`deal-${dealId}-v${card.version}`, PAYPAL_LIMITS.customId),
-        custom_id: trimTo(dealId, PAYPAL_LIMITS.customId),
+        custom_id: trimTo(buildCustomId(dealId, historyHash), PAYPAL_LIMITS.customId),
         invoice_id: trimTo(dealId, PAYPAL_LIMITS.invoiceId),
         description: trimTo(card.title, PAYPAL_LIMITS.purchaseUnitDescription),
         payee: { email_address: card.sellerPaypalEmail },

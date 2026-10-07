@@ -1,8 +1,8 @@
 /**
  * In-memory DealStore. No database. Used by demo mode, unit tests and the
  * conformance suite. Same rules as the Postgres store: the transition table
- * is enforced, state changes append a state_changed event, and a locked card
- * never changes.
+ * is enforced, every appended event joins the deal's hash chain, state
+ * changes append a state_changed event, and a locked card never changes.
  *
  * Every method returns a copy, so callers cannot change stored data by
  * accident.
@@ -23,10 +23,21 @@ import type {
   Shipment,
   Verdict,
 } from "@pay-pals/contracts";
-import { agreedEvent, agreementField, assertAgreementAllowed, assertCardLockable, assertCardSavable } from "../card-rules";
-import { CardLockedError, CardNotFoundError, CardVersionError, DealNotFoundError } from "../errors";
-import { planTransition } from "../state-machine";
 import type { PayPalsStore } from "@pay-pals/contracts";
+import {
+  agreedEvent,
+  agreementField,
+  assertAgreementAllowed,
+  assertCardLockable,
+  assertCardSavable,
+  assertSellerMayJoin,
+  mergeSeller,
+  sellerJoinedEvent,
+} from "../card-rules";
+import { CardLockedError, CardNotFoundError, CardVersionError, DealNotFoundError } from "../errors";
+import { chainNext, type NewEvent } from "../event-chain";
+import { uuidv7 } from "../postgres/uuid";
+import { planTransition } from "../state-machine";
 
 interface DealRecord {
   deal: Deal;
@@ -37,12 +48,13 @@ interface DealRecord {
   payments: PaymentRecord[];
   shipment: Shipment | null;
   evidence: EvidencePack[];
+  /** Kept in chain order: by at, then id, which is also append order. */
   events: DealEvent[];
 }
 
 const copy = <T>(value: T): T => structuredClone(value);
 const now = () => new Date().toISOString();
-const byTime = <T extends { at: string }>(a: T, b: T) => Date.parse(a.at) - Date.parse(b.at);
+const byTimeThenId = <T extends { at: string; id: string }>(a: T, b: T) => Date.parse(a.at) - Date.parse(b.at) || a.id.localeCompare(b.id);
 
 export function createMemoryDealStore(): PayPalsStore {
   const records = new Map<string, DealRecord>();
@@ -54,9 +66,16 @@ export function createMemoryDealStore(): PayPalsStore {
     return rec;
   };
 
-  const pushEvent = (rec: DealRecord, event: Omit<DealEvent, "id">): DealEvent => {
-    const stored: DealEvent = { id: crypto.randomUUID(), ...copy(event) };
+  /**
+   * Appends to the chain. Synchronous on purpose: no await between reading
+   * the head and writing. Ids are time-ordered (same as Postgres) so events
+   * written in one millisecond keep insertion order under the (at, id) sort.
+   */
+  const pushEvent = (rec: DealRecord, event: NewEvent): DealEvent => {
+    const head = rec.events.length > 0 ? rec.events[rec.events.length - 1]!.hash : null;
+    const stored: DealEvent = { id: uuidv7(), ...copy(event), ...chainNext(head, event) };
     rec.events.push(stored);
+    rec.events.sort(byTimeThenId);
     return copy(stored);
   };
 
@@ -67,8 +86,11 @@ export function createMemoryDealStore(): PayPalsStore {
         id: crypto.randomUUID(),
         state: "DRAFT",
         scenario: input.scenario ?? null,
+        startedBy: input.startedBy,
+        listingUrl: input.listingUrl ?? null,
         seller: copy(input.seller),
         buyer: input.buyer ? copy(input.buyer) : null,
+        sellerJoinedAt: null,
         currentCardVersion: 0,
         lockedCardVersion: null,
         buyerAgreedAt: null,
@@ -108,6 +130,19 @@ export function createMemoryDealStore(): PayPalsStore {
       const rec = must(dealId);
       rec.deal.buyer = copy(buyer);
       rec.deal.updatedAt = now();
+      return copy(rec.deal);
+    },
+
+    async markSellerJoined(dealId: string, seller?: Partial<Party>): Promise<Deal> {
+      const rec = must(dealId);
+      assertSellerMayJoin(dealId, rec.deal.state);
+      if (rec.deal.sellerJoinedAt === null) {
+        const at = now();
+        rec.deal.seller = mergeSeller(rec.deal.seller, seller);
+        rec.deal.sellerJoinedAt = at;
+        rec.deal.updatedAt = at;
+        pushEvent(rec, sellerJoinedEvent(rec.deal, at));
+      }
       return copy(rec.deal);
     },
 
@@ -193,7 +228,7 @@ export function createMemoryDealStore(): PayPalsStore {
       const rec = records.get(dealId);
       if (!rec) return [];
       const list = channel ? rec.messages.filter((m) => m.channel === channel) : rec.messages;
-      return copy([...list].sort(byTime));
+      return copy([...list].sort((a, b) => Date.parse(a.at) - Date.parse(b.at)));
     },
 
     async saveVerdict(verdict: Verdict): Promise<Verdict> {
@@ -219,8 +254,13 @@ export function createMemoryDealStore(): PayPalsStore {
 
     async savePayment(payment: PaymentRecord): Promise<PaymentRecord> {
       const rec = must(payment.dealId);
-      // Same shape as the Postgres store: the optional raw bodies are always present, null when unknown.
-      const stored: PaymentRecord = { ...copy(payment), rawOrder: payment.rawOrder ?? null, rawCapture: payment.rawCapture ?? null };
+      // Same shape as the Postgres store: optional fields are always present, null when unknown.
+      const stored: PaymentRecord = {
+        ...copy(payment),
+        rawOrder: payment.rawOrder ?? null,
+        rawCapture: payment.rawCapture ?? null,
+        historyHash: payment.historyHash ?? null,
+      };
       const idx = rec.payments.findIndex((p) => p.paypalOrderId === payment.paypalOrderId);
       if (idx >= 0) rec.payments[idx] = stored;
       else rec.payments.push(stored);
@@ -262,13 +302,13 @@ export function createMemoryDealStore(): PayPalsStore {
       return last ? copy(last) : null;
     },
 
-    async appendEvent(event: Omit<DealEvent, "id">): Promise<DealEvent> {
+    async appendEvent(event: NewEvent): Promise<DealEvent> {
       return pushEvent(must(event.dealId), event);
     },
 
     async listEvents(dealId: string): Promise<DealEvent[]> {
       const rec = records.get(dealId);
-      return rec ? copy([...rec.events].sort(byTime)) : [];
+      return rec ? copy(rec.events) : [];
     },
 
     async hasWebhookReceipt(eventId: string): Promise<boolean> {

@@ -1,17 +1,26 @@
 /**
- * Deals repository: create, read, set buyer, and the state transition.
- * The transition locks the deal row, checks the table and appends the
- * state_changed event in one transaction.
+ * Deals repository: create, read, find, set buyer, seller join, agreement
+ * and the state transition. Every write that adds a timeline event does it
+ * in one transaction with the deal row locked, through insertEvent, so the
+ * hash chain stays linear.
  */
 import { and, asc, eq, inArray, isNull, type SQL } from "drizzle-orm";
 import type { CreateDealInput, Deal, DealEvent, DealState, Party, ScenarioId } from "@pay-pals/contracts";
-import { dealEvents, deals } from "../../schema";
-import { agreedEvent, agreementField, assertAgreementAllowed } from "../card-rules";
+import { deals } from "../../schema";
+import {
+  agreedEvent,
+  agreementField,
+  assertAgreementAllowed,
+  assertSellerMayJoin,
+  mergeSeller,
+  sellerJoinedEvent,
+} from "../card-rules";
 import { DealNotFoundError } from "../errors";
 import { planTransition } from "../state-machine";
 import type { Db } from "./db";
-import { toDeal, toEventRow } from "./mappers";
-import { isUuid, uuidv7 } from "./uuid";
+import { insertEvent } from "./events";
+import { toDeal } from "./mappers";
+import { isUuid } from "./uuid";
 
 export function dealsRepo(db: Db) {
   async function lockRow(tx: Db, dealId: string) {
@@ -29,6 +38,8 @@ export function dealsRepo(db: Db) {
         .insert(deals)
         .values({
           scenario: input.scenario ?? null,
+          startedBy: input.startedBy,
+          listingUrl: input.listingUrl ?? null,
           sellerName: input.seller.displayName,
           sellerEmail: input.seller.email,
           buyerName: input.buyer?.displayName ?? null,
@@ -71,10 +82,27 @@ export function dealsRepo(db: Db) {
       return toDeal(row);
     },
 
+    async markSellerJoined(dealId: string, seller?: Partial<Party>): Promise<Deal> {
+      return db.transaction(async (tx) => {
+        const current = toDeal(await lockRow(tx, dealId));
+        assertSellerMayJoin(dealId, current.state);
+        if (current.sellerJoinedAt !== null) return current;
+        const merged = mergeSeller(current.seller, seller);
+        const when = new Date();
+        const [updated] = await tx
+          .update(deals)
+          .set({ sellerName: merged.displayName, sellerEmail: merged.email, sellerJoinedAt: when, updatedAt: when })
+          .where(eq(deals.id, dealId))
+          .returning();
+        const fresh = toDeal(updated!);
+        await insertEvent(tx, sellerJoinedEvent(fresh, fresh.sellerJoinedAt!));
+        return fresh;
+      });
+    },
+
     async recordAgreement(dealId: string, role: "buyer" | "seller", at: string = new Date().toISOString()): Promise<Deal> {
       return db.transaction(async (tx) => {
-        const row = await lockRow(tx, dealId);
-        const deal = toDeal(row);
+        const deal = toDeal(await lockRow(tx, dealId));
         assertAgreementAllowed(dealId, deal.state);
         const field = agreementField(role);
         if (deal[field] !== null) return deal;
@@ -85,7 +113,7 @@ export function dealsRepo(db: Db) {
           .where(eq(deals.id, dealId))
           .returning();
         const fresh = toDeal(updated!);
-        await tx.insert(dealEvents).values({ id: uuidv7(), ...toEventRow(agreedEvent(fresh, role, fresh[field]!)) });
+        await insertEvent(tx, agreedEvent(fresh, role, fresh[field]!));
         return fresh;
       });
     },
@@ -99,7 +127,7 @@ export function dealsRepo(db: Db) {
           .set({ state: plan.to, updatedAt: new Date(plan.event.at) })
           .where(eq(deals.id, dealId))
           .returning();
-        await tx.insert(dealEvents).values({ id: uuidv7(), ...toEventRow(plan.event) });
+        await insertEvent(tx, plan.event);
         return toDeal(updated!);
       });
     },

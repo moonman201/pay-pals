@@ -23,8 +23,9 @@
  */
 import { createInterface } from "node:readline/promises";
 import { stdin, stdout } from "node:process";
-import { CONDITION_LABELS, getFixture } from "@pay-pals/contracts";
+import { CONDITION_LABELS, buildCustomId, getFixture } from "@pay-pals/contracts";
 import type { ItemCard } from "@pay-pals/contracts";
+import { buildDemoHistory, type DemoHistory } from "../src/test-support/demo-history";
 import { ENV_LOCAL_PATH, loadEnvLocal } from "../src/load-env";
 import { hasSandboxCredentials, loadPayPalConfig } from "../src/config";
 import { createPayPalGateway, type PayPalsGateway } from "../src/gateway";
@@ -89,9 +90,10 @@ async function waitForStatus(gateway: PayPalsGateway, orderId: string, wanted: s
 }
 
 /** Path 1: approve with a sandbox test card and capture. Throws on any failure. */
-async function captureViaTestCard(gateway: PayPalsGateway, card: ItemCard, dealId: string) {
-  const created = await gateway.createDealOrder(card, dealId);
-  console.log(`  [test card] created order ${created.orderId} (${created.status}), custom_id / deal ${dealId}`);
+async function captureViaTestCard(gateway: PayPalsGateway, { card, dealId, historyHash }: DemoHistory) {
+  const created = await gateway.createDealOrder(card, dealId, { historyHash });
+  console.log(`  [test card] created order ${created.orderId} (${created.status}), deal ${dealId}`);
+  console.log(`  [test card] custom_id ${buildCustomId(dealId, historyHash)}`);
   const confirmed = await confirmOrderWithTestCard(gateway.http, created.orderId);
   console.log(`  [test card] confirmed, order status ${String(confirmed.status)}`);
   try {
@@ -106,9 +108,9 @@ async function captureViaTestCard(gateway: PayPalsGateway, card: ItemCard, dealI
 }
 
 /** Path 2 and 3: a fresh order approved through the PayPal wallet, then captured. */
-async function captureViaWallet(gateway: PayPalsGateway, card: ItemCard, dealId: string, noWait: boolean) {
+async function captureViaWallet(gateway: PayPalsGateway, { card, dealId, historyHash }: DemoHistory, noWait: boolean) {
   const body = {
-    ...buildOrderBody(card, dealId),
+    ...buildOrderBody(card, dealId, historyHash),
     application_context: {
       return_url: "https://example.com/pay-pals/return",
       cancel_url: "https://example.com/pay-pals/cancel",
@@ -119,7 +121,8 @@ async function captureViaWallet(gateway: PayPalsGateway, card: ItemCard, dealId:
   const order = await gateway.http.request("POST", "/v2/checkout/orders", body, { "PayPal-Request-Id": crypto.randomUUID() });
   const orderId = String(order.id);
   const approveUrl = ((order.links as Array<{ rel: string; href: string }>) ?? []).find((l) => l.rel === "approve")?.href ?? null;
-  console.log(`  [wallet] created order ${orderId} (${String(order.status)}), custom_id / deal ${dealId}`);
+  console.log(`  [wallet] created order ${orderId} (${String(order.status)}), deal ${dealId}`);
+  console.log(`  [wallet] custom_id ${buildCustomId(dealId, historyHash)}`);
   if (!approveUrl) throw new Error("PayPal returned no approve link");
 
   const creds = buyerCredentialsFromEnv();
@@ -145,7 +148,7 @@ async function captureViaWallet(gateway: PayPalsGateway, card: ItemCard, dealId:
   return { orderId, approveUrl, capture };
 }
 
-async function verify(gateway: PayPalsGateway, orderId: string, card: ItemCard, dealId: string, payee: string, captureId: string): Promise<string[]> {
+async function verify(gateway: PayPalsGateway, orderId: string, { card, dealId, historyHash }: DemoHistory, payee: string, captureId: string): Promise<string[]> {
   const order = await gateway.getOrder(orderId);
   const unit = (order.purchase_units as Array<Record<string, unknown>>)[0] ?? {};
   const item = ((unit.items as Array<Record<string, string>> | undefined) ?? [])[0] ?? {};
@@ -162,7 +165,8 @@ async function verify(gateway: PayPalsGateway, orderId: string, card: ItemCard, 
     ["item name carries the title", item.name === card.title],
     ["item description carries the serial", (item.description ?? "").includes(`Serial ${card.serial}`)],
     ["item description carries the condition", (item.description ?? "").includes(`Condition: ${CONDITION_LABELS[card.conditionGrade]}`)],
-    ["custom_id is the deal id", unit.custom_id === dealId],
+    ["custom_id is the deal id plus the history head", unit.custom_id === buildCustomId(dealId, historyHash)],
+    ["invoice_id is the bare deal id", unit.invoice_id === dealId],
   ];
   for (const [label, ok] of checks) console.log(`  ${ok ? "ok  " : "FAIL"} ${label}`);
   return checks.filter(([, ok]) => !ok).map(([l]) => l);
@@ -174,20 +178,24 @@ async function gateOne(gateway: PayPalsGateway, account: string, payee: string, 
   const base = { account, payee: mask(payee) };
   console.log(`\n== ${account.toUpperCase()} payee ${mask(payee)}`);
 
+  // Each attempt is its own deal with a real (in-memory) history, so the order carries a genuine chain head.
+  let history = await buildDemoHistory(card, fx.seller, fx.buyer);
+  console.log(`  history: ${history.eventCount} events, head ${history.historyHash}`);
+  let dealId = history.dealId;
   let path: Outcome["path"] = "test card";
   let orderId: string | undefined;
-  let dealId = crypto.randomUUID();
   let capture: Awaited<ReturnType<PayPalsGateway["captureOrder"]>> | null = null;
   try {
-    const r = await captureViaTestCard(gateway, card, dealId);
+    const r = await captureViaTestCard(gateway, history);
     orderId = r.orderId;
     capture = r.capture;
   } catch (err) {
     console.log(`  [test card] not available: ${err instanceof PayPalApiError ? (err.details?.[0]?.issue ?? err.paypalName ?? err.status) : describeError(err)}`);
     path = "wallet";
-    dealId = crypto.randomUUID();
+    history = await buildDemoHistory(card, fx.seller, fx.buyer);
+    dealId = history.dealId;
     try {
-      const r = await captureViaWallet(gateway, card, dealId, noWait);
+      const r = await captureViaWallet(gateway, history, noWait);
       orderId = r.orderId;
       if (!r.capture) {
         return { ...base, dealId, result: "PENDING", path, orderId, detail: `Order created but not approved. Approve ${r.approveUrl} as the sandbox buyer, then capture it (Postman request 5).` };
@@ -201,7 +209,7 @@ async function gateOne(gateway: PayPalsGateway, account: string, payee: string, 
   }
 
   console.log(`  captured ${capture.captureId} (${capture.status}) ${capture.amount} ${capture.currency} to ${capture.payeeEmail ? mask(capture.payeeEmail) : "(no payee in response)"}`);
-  const failed = await verify(gateway, orderId!, card, dealId, payee, capture.captureId);
+  const failed = await verify(gateway, orderId!, history, payee, capture.captureId);
   return failed.length === 0
     ? { ...base, dealId, result: "PASS", path, orderId, captureId: capture.captureId, detail: "Order created, approved, captured; payee and card text confirmed on GET." }
     : { ...base, dealId, result: "FAIL", path, orderId, captureId: capture.captureId, detail: `Checks failed: ${failed.join("; ")}` };
