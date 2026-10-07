@@ -10,6 +10,18 @@ export class DealNotFoundError extends Error {
   }
 }
 
+/** The deal is in a state where the card may not change or be locked (anything past REVIEWED, or a side exit). */
+export class CardNotEditableError extends Error {
+  constructor(
+    public readonly dealId: string,
+    public readonly state: string,
+    public readonly action: "save" | "lock",
+  ) {
+    super(`Cannot ${action} the card for deal ${dealId} while it is ${state}`);
+    this.name = "CardNotEditableError";
+  }
+}
+
 export class CardLockedError extends Error {
   constructor(
     public readonly dealId: string,
