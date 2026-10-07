@@ -21,6 +21,8 @@ No keys are needed. The startup log says what each piece is running on:
 | `PAYPAL_CLIENT_ID` + `PAYPAL_CLIENT_SECRET` | Real sandbox orders through `@pay-pals/paypal` | A mock gateway that never leaves the process |
 | `NEXT_PUBLIC_PAYPAL_CLIENT_ID` | PayPal and Venmo buttons on the JS SDK v6 | Clearly labelled demo buttons that run the same routes |
 
+Test knob: `PAY_PALS_DEMO_ONLY=1` (or `true`) forces the right-hand column for every row, whatever keys are present, so an e2e run never calls Claude or the PayPal sandbox. It is read from the process environment before the root `.env.local` is loaded, so a file cannot turn it off. Start the server with it, for example `PAY_PALS_DEMO_ONLY=1 npm run dev -w apps/web`.
+
 Where the keys come from: Next only reads `.env` files inside `apps/web`, so the server also loads `.env.local` from the repo root for server-side keys. `NEXT_PUBLIC_*` values are inlined into the browser bundle at build time and must be in `apps/web/.env.local` or the host's environment. A key in your shell wins over the file; if your shell carries `ANTHROPIC_API_KEY`, the pals will use it.
 
 Demo deals live in server memory and are gone after a restart. In dev the services are kept on `globalThis` across hot reloads, so a change to `lib/services.ts` or the mocks needs a restart.

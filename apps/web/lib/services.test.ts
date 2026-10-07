@@ -36,6 +36,27 @@ describe("createServices with no keys", () => {
     expect(wrong.hasEvidence).toBe(true);
   });
 
+  it("PAY_PALS_DEMO_ONLY forces demo modes even when every key is present", () => {
+    const keys = {
+      DATABASE_URL: "postgres://user:pw@db.example/paypals",
+      ANTHROPIC_API_KEY: "sk-ant-secret-value",
+      CHANNEL3_API_KEY: "c3-secret-value",
+      PAYPAL_ENV: "sandbox",
+      PAYPAL_CLIENT_ID: "id-secret-value",
+      PAYPAL_CLIENT_SECRET: "shh-secret-value",
+    };
+    for (const flag of ["1", "true", "TRUE"]) {
+      const lines: string[] = [];
+      const services = createServices({ ...keys, PAY_PALS_DEMO_ONLY: flag }, (l) => lines.push(l));
+      expect(services.modes).toEqual({ store: "memory", claude: false, prices: "fixture", paypal: "mock" });
+      expect(lines[0]).toMatch(/demo-only mode is on/);
+      expect(lines.join("\n")).not.toMatch(/secret-value/);
+    }
+    // "0" does not force demo mode. Only the PayPal keys here: a real Claude client or Postgres pool has no place in a unit test.
+    const off = createServices({ PAYPAL_ENV: "sandbox", PAYPAL_CLIENT_ID: "id-secret-value", PAYPAL_CLIENT_SECRET: "shh-secret-value", PAY_PALS_DEMO_ONLY: "0" }, () => {});
+    expect(off.modes).toEqual({ store: "memory", claude: false, prices: "fixture", paypal: "sandbox" });
+  });
+
   it("keeps secrets out of the startup log when keys are present", () => {
     const lines: string[] = [];
     createServices({ PAYPAL_CLIENT_ID: "id-secret-value", PAYPAL_CLIENT_SECRET: "shh-secret-value", PAYPAL_ENV: "sandbox", CHANNEL3_API_KEY: "c3-secret-value" }, (l) => lines.push(l));
