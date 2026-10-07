@@ -18,8 +18,15 @@ import { startDemoDeal } from "./start";
 
 const quiet = () => {};
 const noKeys = () => createServices({}, quiet);
+type Services = ReturnType<typeof createServices>;
 
-async function payAndShip(services: ReturnType<typeof createServices>, dealId: string, method: "paypal" | "venmo") {
+/** Both sides agree to the current card. Seller first, then the buyer locks it. */
+async function agreeBoth(services: Services, dealId: string) {
+  await agree(services, dealId, "seller", false);
+  await agree(services, dealId, "buyer", false);
+}
+
+async function payAndShip(services: Services, dealId: string, method: "paypal" | "venmo") {
   const payment = await createOrder(services, dealId, method);
   await captureOrder(services, dealId, payment.paypalOrderId);
   const snap = await loadSnapshot(services, dealId);
@@ -43,12 +50,12 @@ describe("scam-garmin", () => {
     const snap = await loadSnapshot(services, deal.id);
     expect(snap.deal.state).toBe("BLOCKED");
     expect(snap.payment).toBeNull();
-    await expect(agree(services, deal.id, true)).rejects.toThrow();
+    await expect(agree(services, deal.id, "buyer", true)).rejects.toThrow();
   });
 });
 
 describe("clean-garmin", () => {
-  it("runs review, a seller photo update, agree, pay, ship, deliver, arrival match, complete", async () => {
+  it("runs review, a seller photo update, both agreements, pay, ship, deliver, arrival match, complete", async () => {
     const services = noKeys();
     const deal = await startDemoDeal(services, "clean-garmin");
 
@@ -71,11 +78,19 @@ describe("clean-garmin", () => {
     expect(v2.overall).toBe("go");
     expect(v2.cardVersion).toBe(2);
 
-    await agree(services, deal.id, false);
+    await agree(services, deal.id, "buyer", false);
+    snap = await loadSnapshot(services, deal.id);
+    expect(snap.deal.state).toBe("REVIEWED");
+    expect(snap.deal.buyerAgreedAt).not.toBeNull();
+    expect(snap.deal.sellerAgreedAt).toBeNull();
+    expect(snap.lockedCard).toBeNull();
+
+    await agree(services, deal.id, "seller", false);
     snap = await loadSnapshot(services, deal.id);
     expect(snap.deal.state).toBe("AGREED");
     expect(snap.lockedCard?.version).toBe(2);
     expect(snap.lockedCard?.lockedAt).not.toBeNull();
+    expect(snap.events.filter((e) => e.kind === "agreed")).toHaveLength(2);
 
     const payment = await createOrder(services, deal.id, "paypal");
     expect(payment.rawOrder).toMatchObject({ id: payment.paypalOrderId });
@@ -100,11 +115,12 @@ describe("clean-garmin", () => {
     const check = await checkArrival(services, deal.id, snap.demo?.arrivalPhotos ?? []);
     expect(check.matches).toBe(true);
     expect(check.observed.serial).toBe("7LP045912");
+    expect(check.photos?.length).toBe(snap.demo?.arrivalPhotos.length);
 
     await completeDeal(services, deal.id);
     snap = await loadSnapshot(services, deal.id);
     expect(snap.deal.state).toBe("COMPLETE");
-    expect(snap.events.map((e) => e.kind)).toEqual(expect.arrayContaining(["card_locked", "payment_created", "payment_captured", "shipped", "delivered", "arrival_checked"]));
+    expect(snap.events.map((e) => e.kind)).toEqual(expect.arrayContaining(["agreed", "card_locked", "payment_created", "payment_captured", "shipped", "delivered", "arrival_checked"]));
   });
 });
 
@@ -115,7 +131,7 @@ describe("wrong-item", () => {
 
     const v = await runReview(services, deal.id);
     expect(v.overall).toBe("go");
-    await agree(services, deal.id, false);
+    await agreeBoth(services, deal.id);
     await payAndShip(services, deal.id, "venmo");
     await confirmDelivery(services, deal.id);
     let snap = await loadSnapshot(services, deal.id);
@@ -142,7 +158,7 @@ describe("issue before delivery", () => {
     const services = noKeys();
     const deal = await startDemoDeal(services, "clean-garmin");
     await runReview(services, deal.id);
-    await agree(services, deal.id, false);
+    await agreeBoth(services, deal.id);
     const payment = await createOrder(services, deal.id, "paypal");
     await captureOrder(services, deal.id, payment.paypalOrderId);
 
@@ -160,5 +176,49 @@ describe("issue before delivery", () => {
     expect(pack?.arrivalCheck).toBeNull();
     expect(pack?.shipment?.trackingNumber).toBe(packing.trackingNumber);
     expect(snap.events.at(-2)?.summary).toContain("never arrived");
+  });
+});
+
+describe("two-sided agreement", () => {
+  it("clears the buyer's agreement when the seller changes the card, so the buyer agrees again", async () => {
+    const services = noKeys();
+    const deal = await startDemoDeal(services, "clean-garmin");
+    await runReview(services, deal.id);
+    await agree(services, deal.id, "buyer", false);
+    let snap = await loadSnapshot(services, deal.id);
+    expect(snap.deal.buyerAgreedAt).not.toBeNull();
+
+    const photo = snap.demo?.requestPhotos[0];
+    if (!photo) throw new Error("expected a demo photo to add");
+    await applyBuyerRequest(services, deal.id, { request: { field: "photos", request: "Battery page" }, sellerReply: "Added the battery page.", photos: [photo] });
+    snap = await loadSnapshot(services, deal.id);
+    expect(snap.deal.state).toBe("LISTED");
+    expect(snap.deal.buyerAgreedAt).toBeNull();
+    expect(snap.deal.sellerAgreedAt).toBeNull();
+    expect(snap.deal.currentCardVersion).toBe(2);
+
+    await runReview(services, deal.id);
+    await agree(services, deal.id, "seller", false);
+    snap = await loadSnapshot(services, deal.id);
+    expect(snap.deal.state).toBe("REVIEWED");
+    expect(snap.lockedCard).toBeNull();
+
+    await agree(services, deal.id, "buyer", false);
+    snap = await loadSnapshot(services, deal.id);
+    expect(snap.deal.state).toBe("AGREED");
+    expect(snap.lockedCard?.version).toBe(2);
+    const agreedEvents = snap.events.filter((e) => e.kind === "agreed");
+    expect(agreedEvents.map((e) => e.data?.cardVersion)).toEqual([1, 2, 2]);
+  });
+
+  it("agreeing twice from the same side is harmless and the seller's agree ignores the buyer's flags", async () => {
+    const services = noKeys();
+    const deal = await startDemoDeal(services, "wrong-item");
+    await runReview(services, deal.id);
+    await agree(services, deal.id, "seller", false);
+    await agree(services, deal.id, "seller", false);
+    const snap = await loadSnapshot(services, deal.id);
+    expect(snap.events.filter((e) => e.kind === "agreed")).toHaveLength(1);
+    expect(snap.deal.state).toBe("REVIEWED");
   });
 });

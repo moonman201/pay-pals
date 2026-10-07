@@ -2,7 +2,7 @@ import type { RedFlag, Verdict } from "@pay-pals/contracts";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import { BLOCKED_SENTENCE } from "@/lib/deal/override";
+import { BLOCKED_SENTENCE, CAUTION_CHECKBOX, STOP_CHECKBOX } from "@/lib/deal/override";
 import { ActionBar } from "./ActionBar";
 
 type BarProps = Parameters<typeof ActionBar>[0];
@@ -11,17 +11,33 @@ function verdict(overall: Verdict["overall"], flags: RedFlag[] = []): Verdict {
   return { dealId: "d1", cardVersion: 1, overall, flags, priceCheck: null, questionsForSeller: [], palMessage: "m", createdAt: new Date().toISOString() };
 }
 const flag = (code: RedFlag["code"], severity: RedFlag["severity"]): RedFlag => ({ code, severity, evidence: "e", explanation: "x", raisedByRule: true });
+const AT = "2026-10-07T00:00:00.000Z";
+const nobody = { buyerAgreedAt: null, sellerAgreedAt: null };
 
 function renderBar(props: Partial<BarProps>) {
   const onAction = vi.fn();
-  render(<ActionBar state="LISTED" role="buyer" verdict={null} dealId="d1" busy={null} hasLockedCard={false} onAction={onAction} {...props} />);
+  render(
+    <ActionBar
+      state="LISTED"
+      role="buyer"
+      verdict={null}
+      dealId="d1"
+      busy={null}
+      hasLockedCard={false}
+      agreement={nobody}
+      cardVersion={1}
+      cardChangedSinceAgree={false}
+      onAction={onAction}
+      {...props}
+    />,
+  );
   return onAction;
 }
 
 const buttonNames = () => screen.queryAllByRole("button").map((b) => b.textContent);
 
 describe("ActionBar: buttons per state and role", () => {
-  it("LISTED: buyer can review or cancel, seller only cancel and is told to wait", () => {
+  it("LISTED: buyer can review or cancel", () => {
     renderBar({ state: "LISTED", role: "buyer" });
     expect(buttonNames()).toEqual(["Ask my pal to review", "Cancel the deal"]);
   });
@@ -37,7 +53,7 @@ describe("ActionBar: buttons per state and role", () => {
     expect(buttonNames()).toEqual(["Pay", "Cancel the deal"]);
   });
 
-  it("PAID: seller marks shipped, buyer cannot cancel", () => {
+  it("PAID: seller marks shipped", () => {
     renderBar({ state: "PAID", role: "seller" });
     expect(buttonNames()).toEqual(["Mark as shipped"]);
   });
@@ -78,18 +94,72 @@ describe("ActionBar: buttons per state and role", () => {
   });
 });
 
+describe("ActionBar: two-sided agreement", () => {
+  it("REVIEWED seller sees Agree to this card", async () => {
+    const onAction = renderBar({ state: "REVIEWED", role: "seller", verdict: verdict("go") });
+    expect(buttonNames()).toEqual(["Agree to this card", "Cancel the deal"]);
+    await userEvent.click(screen.getByRole("button", { name: "Agree to this card" }));
+    expect(onAction).toHaveBeenCalledWith("agree", { override: false });
+  });
+
+  it("REVIEWED buyer sees Agree, or Agree and lock the card once the seller agreed", () => {
+    renderBar({ state: "REVIEWED", role: "buyer", verdict: verdict("go") });
+    expect(buttonNames()).toEqual(["Agree", "Cancel the deal"]);
+  });
+
+  it("buyer label changes when the seller has already agreed", () => {
+    renderBar({ state: "REVIEWED", role: "buyer", verdict: verdict("go"), agreement: { buyerAgreedAt: null, sellerAgreedAt: AT } });
+    expect(buttonNames()).toEqual(["Agree and lock the card", "Cancel the deal"]);
+    expect(screen.getByText(/The seller has agreed to version 1/)).toBeInTheDocument();
+  });
+
+  it("a side that already agreed sees the waiting line instead of the button", () => {
+    renderBar({ state: "REVIEWED", role: "buyer", verdict: verdict("go"), agreement: { buyerAgreedAt: AT, sellerAgreedAt: null } });
+    expect(buttonNames()).toEqual(["Cancel the deal"]);
+    expect(screen.getByText(/You agreed to version 1, waiting for the other side/)).toBeInTheDocument();
+    expect(screen.getByText(/Waiting for the seller/)).toBeInTheDocument();
+  });
+
+  it("says agree again when the card changed since this side agreed", () => {
+    renderBar({ state: "REVIEWED", role: "seller", verdict: verdict("go"), cardVersion: 2, cardChangedSinceAgree: true });
+    expect(screen.getByText(/Card changed since you agreed. Read version 2 and agree again/)).toBeInTheDocument();
+    expect(buttonNames()).toEqual(["Agree to this card", "Cancel the deal"]);
+  });
+
+  it("the seller's agree is never gated by the buyer's flags", () => {
+    renderBar({ state: "REVIEWED", role: "seller", verdict: verdict("stop", [flag("PRICE_FAR_BELOW_MARKET", "stop")]) });
+    expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Agree to this card" })).toBeEnabled();
+  });
+});
+
 describe("ActionBar: override rules", () => {
   it("go verdict: agree is enabled with no override control", () => {
     renderBar({ state: "REVIEWED", role: "buyer", verdict: verdict("go") });
-    expect(screen.getByRole("button", { name: "Agree and lock the card" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Agree" })).toBeEnabled();
     expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
   });
 
   it("caution flags: agree stays disabled until the buyer says they understand", async () => {
     const onAction = renderBar({ state: "REVIEWED", role: "buyer", verdict: verdict("caution", [flag("PRICE_FAR_BELOW_MARKET", "caution")]) });
-    const agree = screen.getByRole("button", { name: "Agree and lock the card" });
+    const agree = screen.getByRole("button", { name: "Agree" });
     expect(agree).toBeDisabled();
-    await userEvent.click(screen.getByRole("checkbox", { name: /I understand, continue anyway/ }));
+    await userEvent.click(screen.getByRole("checkbox", { name: CAUTION_CHECKBOX }));
+    expect(agree).toBeEnabled();
+    await userEvent.click(agree);
+    expect(onAction).toHaveBeenCalledWith("agree", { override: true });
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("non-payment stop: sterner warning, stricter checkbox label, still overridable", async () => {
+    const onAction = renderBar({ state: "REVIEWED", role: "buyer", verdict: verdict("stop", [flag("PRICE_FAR_BELOW_MARKET", "stop"), flag("URGENCY_PRESSURE", "caution")]) });
+    const warning = screen.getByRole("alert");
+    expect(warning).toHaveTextContent(/Your pal says stop\. It found a price far below market\./);
+    expect(warning).toHaveTextContent(/never ships/);
+    expect(warning).toHaveTextContent(/Goods and Services protection/);
+    const agree = screen.getByRole("button", { name: "Agree" });
+    expect(agree).toBeDisabled();
+    await userEvent.click(screen.getByRole("checkbox", { name: STOP_CHECKBOX }));
     expect(agree).toBeEnabled();
     await userEvent.click(agree);
     expect(onAction).toHaveBeenCalledWith("agree", { override: true });
@@ -98,7 +168,7 @@ describe("ActionBar: override rules", () => {
   it("payment-method flag: no override, no agree button, the plain sentence instead", () => {
     renderBar({ state: "REVIEWED", role: "buyer", verdict: verdict("stop", [flag("FRIENDS_AND_FAMILY_REQUEST", "stop"), flag("URGENCY_PRESSURE", "caution")]) });
     expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Agree and lock the card" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Agree/ })).not.toBeInTheDocument();
     expect(screen.getByText(BLOCKED_SENTENCE)).toBeInTheDocument();
   });
 });

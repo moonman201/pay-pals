@@ -19,7 +19,7 @@ export const CardBody = z.object({
   photos: z.array(PhotoSchema).default([]),
 });
 
-export const AgreeBody = z.object({ override: z.boolean().default(false) });
+export const AgreeBody = z.object({ by: RoleSchema, override: z.boolean().default(false) });
 
 export const OrderBody = z.object({ method: z.enum(PAYMENT_METHODS) });
 

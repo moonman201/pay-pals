@@ -1,9 +1,10 @@
 /**
  * The moves a person can make from the action bar. Each one maps to a state
  * in DEAL_TRANSITIONS; whether it shows is decided by the contract's table,
- * never here. The only thing this file adds is which side makes the move.
+ * never here. The only things this file adds are which side makes the move
+ * and what the button says.
  */
-import { canTransition, isTerminal, type DealState } from "@pay-pals/contracts";
+import { canTransition, isTerminal, type Deal, type DealState } from "@pay-pals/contracts";
 import type { Role } from "../role";
 
 export type ActionId = "review" | "agree" | "pay" | "ship" | "confirm_delivery" | "complete" | "report_issue" | "cancel";
@@ -19,7 +20,7 @@ export interface DealAction {
 
 export const DEAL_ACTIONS: readonly DealAction[] = [
   { id: "review", label: "Ask my pal to review", role: "buyer", to: "REVIEWED" },
-  { id: "agree", label: "Agree and lock the card", role: "buyer", to: "AGREED" },
+  { id: "agree", label: "Agree", role: "either", to: "AGREED" },
   { id: "pay", label: "Pay", role: "buyer", to: "PAYMENT_PENDING" },
   { id: "ship", label: "Mark as shipped", role: "seller", to: "SHIPPED" },
   { id: "confirm_delivery", label: "Confirm delivery", role: "buyer", to: "DELIVERED" },
@@ -45,4 +46,16 @@ export function isWaitingOnOther(state: DealState, role: Role): boolean {
 /** Paying keeps the deal in PAYMENT_PENDING while PayPal captures, so the pay step also shows there. */
 export function canStillPay(state: DealState): boolean {
   return state === "AGREED" || state === "PAYMENT_PENDING";
+}
+
+export type Agreement = Pick<Deal, "buyerAgreedAt" | "sellerAgreedAt">;
+
+export function hasAgreed(agreement: Agreement, role: Role): boolean {
+  return role === "buyer" ? agreement.buyerAgreedAt !== null : agreement.sellerAgreedAt !== null;
+}
+
+/** The seller agrees to the card; the buyer's agree locks it when the seller already has. */
+export function agreeLabel(role: Role, agreement: Agreement): string {
+  if (role === "seller") return "Agree to this card";
+  return agreement.sellerAgreedAt !== null ? "Agree and lock the card" : "Agree";
 }
