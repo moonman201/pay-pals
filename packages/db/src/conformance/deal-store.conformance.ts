@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
 import { IllegalTransitionError, getFixture } from "@pay-pals/contracts";
 import type { ItemCard, Party } from "@pay-pals/contracts";
 import { CardLockedError, CardVersionError, DealNotFoundError } from "../errors";
-import type { PayPalsStore } from "../store-types";
+import type { PayPalsStore } from "@pay-pals/contracts";
 
 const fx = getFixture("clean-garmin");
 const seller: Party = fx.seller;
@@ -262,10 +262,13 @@ export function runDealStoreConformance(name: string, makeStore: () => Promise<P
       it("upserts the payment by order id and finds it by deal or order", async () => {
         const store = await makeStore();
         const deal = await store.createDeal({ seller, buyer });
-        const created = { ...fx.payment!, dealId: deal.id, paypalOrderId: `ORDER-${deal.id}`, captureId: null, status: "CREATED" as const, capturedAt: null, method: null };
+        const rawOrder = { id: `ORDER-${deal.id}`, status: "CREATED", purchase_units: [{ custom_id: deal.id }] };
+        const created = { ...fx.payment!, dealId: deal.id, paypalOrderId: `ORDER-${deal.id}`, captureId: null, status: "CREATED" as const, capturedAt: null, method: null, rawOrder };
         await store.savePayment(created);
-        expect(await store.getPayment(deal.id)).toEqual(created);
-        const captured = { ...created, status: "CAPTURED" as const, captureId: "CAP-1", capturedAt: "2026-10-21T17:05:00.000Z", method: "paypal" as const };
+        // Raw bodies are optional on the way in and always present (null when unknown) on the way out.
+        expect(await store.getPayment(deal.id)).toEqual({ ...created, rawCapture: null });
+        const rawCapture = { id: "CAP-1", status: "COMPLETED", amount: { value: "475.00" } };
+        const captured = { ...created, status: "CAPTURED" as const, captureId: "CAP-1", capturedAt: "2026-10-21T17:05:00.000Z", method: "paypal" as const, rawCapture };
         await store.savePayment(captured);
         expect(await store.getPayment(deal.id)).toEqual(captured);
         expect(await store.getPaymentByOrderId(created.paypalOrderId)).toEqual(captured);

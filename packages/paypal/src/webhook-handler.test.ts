@@ -117,12 +117,30 @@ describe("handleWebhookEvent", () => {
     expect(events.some((e) => e.kind === "dispute_opened" && e.summary.includes("PP-D-12345"))).toBe(true);
   });
 
-  it("records a dispute on a SHIPPED deal without an illegal transition", async () => {
-    const { deal } = await dealAt(store, "SHIPPED");
+  for (const state of ["PAID", "SHIPPED"] as const) {
+    it(`moves a ${state} deal to ISSUE on CUSTOMER.DISPUTE.CREATED`, async () => {
+      const { deal } = await dealAt(store, state);
+      const out = await handleWebhookEvent(disputed(deal.id), store);
+      expect(out.handled).toBe(true);
+      expect((await store.getDeal(deal.id))?.state).toBe("ISSUE");
+      expect((await store.getPayment(deal.id))?.status).toBe("DISPUTED");
+    });
+  }
+
+  it("records a dispute on a COMPLETE deal without a transition (COMPLETE is terminal)", async () => {
+    const { deal } = await dealAt(store, "COMPLETE");
     const out = await handleWebhookEvent(disputed(deal.id), store);
     expect(out.handled).toBe(true);
-    expect((await store.getDeal(deal.id))?.state).toBe("SHIPPED");
+    expect(out.note).toContain("cannot move to ISSUE");
+    expect((await store.getDeal(deal.id))?.state).toBe("COMPLETE");
     expect((await store.getPayment(deal.id))?.status).toBe("DISPUTED");
+    expect((await store.listEvents(deal.id)).some((e) => e.kind === "dispute_opened")).toBe(true);
+  });
+
+  it("keeps the webhook's capture resource as rawCapture when capture() did not run on our side", async () => {
+    const { deal } = await dealAt(store, "PAYMENT_PENDING");
+    await handleWebhookEvent(captured(deal.id), store);
+    expect((await store.getPayment(deal.id))?.rawCapture).toMatchObject({ id: CAPTURE_ID, status: "COMPLETED" });
   });
 
   it("asks for a retry and keeps no receipt when the payment is not saved yet", async () => {

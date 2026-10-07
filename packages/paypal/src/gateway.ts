@@ -35,7 +35,13 @@ export const requestIds = {
   capture: (orderId: string) => `pp-capture-${orderId}`,
 };
 
+/** Contract results plus PayPal's own response body, kept on the payment record for the evidence pack. */
+export type CreateOrderWithRaw = CreateOrderResult & { raw: Json };
+export type CaptureWithRaw = CaptureResult & { raw: Json };
+
 export interface PayPalsGateway extends PayPalGateway {
+  createDealOrder(lockedCard: ItemCard, dealId: string): Promise<CreateOrderWithRaw>;
+  captureOrder(orderId: string): Promise<CaptureWithRaw>;
   getOrder(orderId: string): Promise<Json>;
   /** Low-level access for the gate script and sandbox tests. */
   http: PayPalHttp;
@@ -83,7 +89,7 @@ export function createPayPalGateway(config: PayPalConfig, deps: GatewayDeps = {}
   return {
     http,
 
-    async createDealOrder(lockedCard: ItemCard, dealId: string): Promise<CreateOrderResult> {
+    async createDealOrder(lockedCard: ItemCard, dealId: string): Promise<CreateOrderWithRaw> {
       const body = buildOrderBody(lockedCard, dealId);
       const order = await http.request("POST", "/v2/checkout/orders", body, {
         "PayPal-Request-Id": requestIds.create(dealId, lockedCard.version),
@@ -93,15 +99,16 @@ export function createPayPalGateway(config: PayPalConfig, deps: GatewayDeps = {}
         orderId: String(order.id),
         status: order.status as PayPalOrderStatus,
         approveUrl: findLink(order, ["approve", "payer-action"]),
+        raw: order,
       };
     },
 
-    async captureOrder(orderId: string): Promise<CaptureResult> {
+    async captureOrder(orderId: string): Promise<CaptureWithRaw> {
       const order = await http.request("POST", `/v2/checkout/orders/${encodeURIComponent(orderId)}/capture`, {}, {
         "PayPal-Request-Id": requestIds.capture(orderId),
         Prefer: "return=representation",
       });
-      return readCaptureResult(order);
+      return { ...readCaptureResult(order), raw: order };
     },
 
     async getOrder(orderId: string): Promise<Json> {

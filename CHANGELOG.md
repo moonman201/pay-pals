@@ -13,3 +13,4 @@
 - `packages/paypal`: sandbox-only gateway (OAuth with caching, create order with payee, capture, webhook verify), idempotent webhook handler, Lane 0 gate script with headless buyer approval, Postman collection. 35 tests.
 - `packages/db`: in-memory and Postgres deal stores sharing one conformance suite (memory and PGlite), state machine on the contract table, initial migration. 47 tests.
 - Contracts v1.2.0-draft: ISSUE reachable from PAID and SHIPPED, webhook receipt store, raw payment records, optional review context, seller price hint, arrival photos in the evidence input.
+- `apps/web`: demo landing, start a deal, deal room with buyer and seller views, pal panes, shared chat and timeline, pay step (PayPal and Venmo wallet buttons, placeholder without a client id), ship, arrival check, issue step with reasons, evidence page and GET route. Fixture mocks behind one service seam. 36 tests.

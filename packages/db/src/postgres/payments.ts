@@ -27,6 +27,8 @@ export function paymentsRepo(db: Db) {
               method: row.method,
               payeeEmail: row.payeeEmail,
               amountCents: row.amountCents,
+              rawOrder: row.rawOrder,
+              rawCapture: row.rawCapture,
               updatedAt: new Date(),
             },
           })

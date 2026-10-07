@@ -13,7 +13,8 @@ import { PayPalApiError } from "./http-error";
 import { confirmOrderWithTestCard } from "./sandbox/test-card";
 
 const payee = process.env.SANDBOX_SELLER_BUSINESS_EMAIL || process.env.SANDBOX_SELLER_PERSONAL_EMAIL;
-const enabled = hasSandboxCredentials() && Boolean(payee);
+/** SKIP_REAL_TESTS=1 turns this off even when credentials are present. The merge gate runs with it set. */
+const enabled = !process.env.SKIP_REAL_TESTS && hasSandboxCredentials() && Boolean(payee);
 
 describe.skipIf(!enabled)("PayPal sandbox (real calls)", () => {
   const fx = getFixture("clean-garmin");

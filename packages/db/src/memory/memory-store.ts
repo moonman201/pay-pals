@@ -24,7 +24,7 @@ import type {
 } from "@pay-pals/contracts";
 import { CardLockedError, CardNotFoundError, CardVersionError, DealNotFoundError } from "../errors";
 import { planTransition } from "../state-machine";
-import type { PayPalsStore } from "../store-types";
+import type { PayPalsStore } from "@pay-pals/contracts";
 
 interface DealRecord {
   deal: Deal;
@@ -189,10 +189,12 @@ export function createMemoryDealStore(): PayPalsStore {
 
     async savePayment(payment: PaymentRecord): Promise<PaymentRecord> {
       const rec = must(payment.dealId);
+      // Same shape as the Postgres store: the optional raw bodies are always present, null when unknown.
+      const stored: PaymentRecord = { ...copy(payment), rawOrder: payment.rawOrder ?? null, rawCapture: payment.rawCapture ?? null };
       const idx = rec.payments.findIndex((p) => p.paypalOrderId === payment.paypalOrderId);
-      if (idx >= 0) rec.payments[idx] = copy(payment);
-      else rec.payments.push(copy(payment));
-      return copy(payment);
+      if (idx >= 0) rec.payments[idx] = stored;
+      else rec.payments.push(stored);
+      return copy(stored);
     },
 
     async getPayment(dealId: string): Promise<PaymentRecord | null> {
