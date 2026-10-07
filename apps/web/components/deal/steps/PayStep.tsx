@@ -7,10 +7,18 @@ import { formatMoney } from "@/lib/format";
 import { PayPalButtons } from "../../pay/PayPalButtons";
 import { StepError, StepPanel } from "./StepPanel";
 
+interface Props {
+  dealId: string;
+  card: ItemCard;
+  /** From the server. When the gateway is a mock, the demo buttons show even if a public client id is built in. */
+  payMode: "sandbox" | "mock";
+  onDone: () => void;
+}
+
 /** Pay the locked card. Creates the PayPal order server side, captures it after approval. */
-export function PayStep({ dealId, card, onDone }: { dealId: string; card: ItemCard; onDone: () => void }) {
+export function PayStep({ dealId, card, payMode, onDone }: Props) {
   const [error, setError] = useState<string | null>(null);
-  const clientId = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID ?? null;
+  const clientId = payMode === "sandbox" ? (process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID ?? null) : null;
 
   async function createOrder(method: PaymentMethod): Promise<string> {
     const payment = await postJson<PaymentRecord>(dealApi(dealId, "order"), { method });

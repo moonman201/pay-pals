@@ -32,6 +32,8 @@ export interface DealSnapshot {
   checklist: ChecklistItem[] | null;
   checklistMessage: string | null;
   demo: DemoHints | null;
+  /** Which gateway the server is running. The pay step shows demo buttons whenever this is mock, whatever the public client id says. */
+  payMode: "sandbox" | "mock";
 }
 
 function demoHints(deal: Deal, currentCard: ItemCard | null): DemoHints | null {
@@ -99,6 +101,7 @@ export async function loadSnapshot(services: Services, dealId: string): Promise<
     checklist,
     checklistMessage,
     demo: demoHints(deal, currentCard),
+    payMode: services.modes.paypal,
   };
 }
 
