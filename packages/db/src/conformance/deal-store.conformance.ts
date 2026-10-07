@@ -6,7 +6,7 @@
 import { describe, expect, it } from "vitest";
 import { IllegalTransitionError, getFixture } from "@pay-pals/contracts";
 import type { ItemCard, Party } from "@pay-pals/contracts";
-import { CardLockedError, CardVersionError, DealNotFoundError } from "../errors";
+import { CardLockedError, CardNotEditableError, CardVersionError, DealNotFoundError } from "../errors";
 import type { PayPalsStore } from "@pay-pals/contracts";
 
 const fx = getFixture("clean-garmin");
@@ -14,6 +14,15 @@ const seller: Party = fx.seller;
 const buyer: Party = fx.buyer;
 
 const HAPPY_PATH = ["LISTED", "REVIEWED", "AGREED", "PAYMENT_PENDING", "PAID", "SHIPPED", "DELIVERED", "COMPLETE"] as const;
+
+/** Walks the happy path up to and including `target`, starting from wherever the deal is. */
+async function toState(store: PayPalsStore, dealId: string, target: (typeof HAPPY_PATH)[number]): Promise<void> {
+  const current = (await store.getDeal(dealId))!.state;
+  const from = current === "DRAFT" ? 0 : HAPPY_PATH.indexOf(current as (typeof HAPPY_PATH)[number]) + 1;
+  for (const next of HAPPY_PATH.slice(from, HAPPY_PATH.indexOf(target) + 1)) {
+    await store.transition(dealId, next, "system", `${next}.`);
+  }
+}
 
 export function runDealStoreConformance(name: string, makeStore: () => Promise<PayPalsStore>) {
   const cardFor = (dealId: string, version: number, overrides: Partial<ItemCard> = {}): ItemCard => ({
@@ -149,11 +158,12 @@ export function runDealStoreConformance(name: string, makeStore: () => Promise<P
         await expect(store.saveCard(cardFor(deal.id, 1))).rejects.toBeInstanceOf(CardVersionError);
       });
 
-      it("locks the current version and then refuses new versions", async () => {
+      it("locks the current version at REVIEWED and then refuses new versions", async () => {
         const store = await makeStore();
         const deal = await store.createDeal({ seller });
         await store.saveCard(cardFor(deal.id, 1));
         await store.saveCard(cardFor(deal.id, 2));
+        await toState(store, deal.id, "REVIEWED");
         const locked = await store.lockCard(deal.id, 2);
         expect(locked.lockedAt).not.toBeNull();
         expect((await store.getDeal(deal.id))?.lockedCardVersion).toBe(2);
@@ -169,9 +179,49 @@ export function runDealStoreConformance(name: string, makeStore: () => Promise<P
         const deal = await store.createDeal({ seller });
         await store.saveCard(cardFor(deal.id, 1));
         await store.saveCard(cardFor(deal.id, 2));
+        await toState(store, deal.id, "REVIEWED");
         await expect(store.lockCard(deal.id, 1)).rejects.toBeInstanceOf(CardVersionError);
         expect((await store.getDeal(deal.id))?.lockedCardVersion).toBeNull();
         expect((await store.lockCard(deal.id, 2)).version).toBe(2);
+      });
+
+      it("saves while the deal is DRAFT, LISTED or REVIEWED, and refuses after a side exit", async () => {
+        const store = await makeStore();
+        const deal = await store.createDeal({ seller });
+        await store.saveCard(cardFor(deal.id, 1));
+        await toState(store, deal.id, "LISTED");
+        await store.saveCard(cardFor(deal.id, 2));
+        await toState(store, deal.id, "REVIEWED");
+        await store.saveCard(cardFor(deal.id, 3));
+        await store.transition(deal.id, "BLOCKED", "buyer_pal", "Buyer Pal stopped the deal.");
+        await expect(store.saveCard(cardFor(deal.id, 4))).rejects.toBeInstanceOf(CardNotEditableError);
+        await expect(store.lockCard(deal.id, 3)).rejects.toBeInstanceOf(CardNotEditableError);
+        expect((await store.getDeal(deal.id))?.currentCardVersion).toBe(3);
+        expect((await store.getDeal(deal.id))?.lockedCardVersion).toBeNull();
+        expect((await store.getCard(deal.id, 3))?.lockedAt).toBeNull();
+      });
+
+      it("refuses to lock before the review and after AGREED, but allows it at REVIEWED and AGREED", async () => {
+        const store = await makeStore();
+        const deal = await store.createDeal({ seller });
+        await store.saveCard(cardFor(deal.id, 1));
+        await expect(store.lockCard(deal.id, 1)).rejects.toBeInstanceOf(CardNotEditableError);
+        await toState(store, deal.id, "LISTED");
+        await expect(store.lockCard(deal.id, 1)).rejects.toBeInstanceOf(CardNotEditableError);
+        await toState(store, deal.id, "REVIEWED");
+        expect((await store.lockCard(deal.id, 1)).lockedAt).not.toBeNull();
+
+        // A caller that transitions to AGREED first may still lock there.
+        const other = await store.createDeal({ seller });
+        await store.saveCard(cardFor(other.id, 1));
+        await toState(store, other.id, "AGREED");
+        expect((await store.lockCard(other.id, 1)).lockedAt).not.toBeNull();
+        await expect(store.saveCard(cardFor(other.id, 2))).rejects.toBeInstanceOf(CardLockedError);
+
+        const paying = await store.createDeal({ seller });
+        await store.saveCard(cardFor(paying.id, 1));
+        await toState(store, paying.id, "PAYMENT_PENDING");
+        await expect(store.lockCard(paying.id, 1)).rejects.toBeInstanceOf(CardNotEditableError);
       });
     });
 

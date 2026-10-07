@@ -22,6 +22,7 @@ import type {
   Shipment,
   Verdict,
 } from "@pay-pals/contracts";
+import { assertCardLockable, assertCardSavable } from "../card-rules";
 import { CardLockedError, CardNotFoundError, CardVersionError, DealNotFoundError } from "../errors";
 import { planTransition } from "../state-machine";
 import type { PayPalsStore } from "@pay-pals/contracts";
@@ -110,6 +111,7 @@ export function createMemoryDealStore(): PayPalsStore {
     async saveCard(card: ItemCard): Promise<ItemCard> {
       const rec = must(card.dealId);
       if (rec.deal.lockedCardVersion !== null) throw new CardLockedError(card.dealId, rec.deal.lockedCardVersion);
+      assertCardSavable(card.dealId, rec.deal.state);
       const expected = rec.deal.currentCardVersion + 1;
       if (card.version !== expected) throw new CardVersionError(card.dealId, expected, card.version);
       const stored = { ...copy(card), lockedAt: null };
@@ -143,6 +145,7 @@ export function createMemoryDealStore(): PayPalsStore {
       if (rec.deal.lockedCardVersion !== null && rec.deal.lockedCardVersion !== version) {
         throw new CardLockedError(dealId, rec.deal.lockedCardVersion);
       }
+      assertCardLockable(dealId, rec.deal.state);
       if (version !== rec.deal.currentCardVersion) throw new CardVersionError(dealId, rec.deal.currentCardVersion, version);
       if (card.lockedAt === null) {
         card.lockedAt = now();

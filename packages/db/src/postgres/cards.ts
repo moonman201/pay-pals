@@ -4,6 +4,7 @@
 import { and, asc, eq } from "drizzle-orm";
 import type { ItemCard } from "@pay-pals/contracts";
 import { deals, itemCards } from "../../schema";
+import { assertCardLockable, assertCardSavable } from "../card-rules";
 import { CardLockedError, CardNotFoundError, CardVersionError } from "../errors";
 import type { Db } from "./db";
 import { toCard, toCardRow } from "./mappers";
@@ -17,6 +18,7 @@ export function cardsRepo(db: Db, lockDeal: LockRow) {
       return db.transaction(async (tx) => {
         const deal = await lockDeal(tx, card.dealId);
         if (deal.lockedCardVersion !== null) throw new CardLockedError(card.dealId, deal.lockedCardVersion);
+        assertCardSavable(card.dealId, deal.state);
         const expected = deal.currentCardVersion + 1;
         if (card.version !== expected) throw new CardVersionError(card.dealId, expected, card.version);
         const [row] = await tx.insert(itemCards).values(toCardRow(card)).returning();
@@ -62,6 +64,7 @@ export function cardsRepo(db: Db, lockDeal: LockRow) {
         if (deal.lockedCardVersion !== null && deal.lockedCardVersion !== version) {
           throw new CardLockedError(dealId, deal.lockedCardVersion);
         }
+        assertCardLockable(dealId, deal.state);
         if (version !== deal.currentCardVersion) throw new CardVersionError(dealId, deal.currentCardVersion, version);
         if (row.lockedAt) return toCard(row);
         const now = new Date();
