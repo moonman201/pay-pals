@@ -11,6 +11,7 @@
  */
 import type { MigrationConfig, MigrationMeta } from "drizzle-orm/migrator";
 import type { PgDialect, PgSession } from "drizzle-orm/pg-core";
+import { backfillEventHashes } from "./backfill-hashes";
 import type { Db } from "./db";
 import { MIGRATIONS } from "./migrations.generated";
 
@@ -32,4 +33,7 @@ export async function runMigrations(db: Db, options: RunMigrationsOptions = {}):
   if (stopAt < 0) throw new Error(`Unknown migration tag ${options.through}`);
   const metas: MigrationMeta[] = MIGRATIONS.slice(0, stopAt + 1).map(({ sql, bps, folderMillis, hash }) => ({ sql: [...sql], bps, folderMillis, hash }));
   await dialect.migrate(metas, session, CONFIG);
+  // Events written before 0003 have no hash. The chain is computed in code
+  // (same hashEvent as contracts), not in SQL, so it runs here after the DDL.
+  if (stopAt >= MIGRATIONS.findIndex((m) => m.tag.startsWith("0003"))) await backfillEventHashes(db);
 }

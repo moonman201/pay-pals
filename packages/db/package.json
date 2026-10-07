@@ -20,7 +20,8 @@
     "test": "vitest run",
     "migrate": "tsx scripts/migrate.ts",
     "db:generate": "drizzle-kit generate --config drizzle.config.ts && tsx scripts/generate-migrations.ts",
-    "db:bundle": "tsx scripts/generate-migrations.ts"
+    "db:bundle": "tsx scripts/generate-migrations.ts",
+    "db:backfill-hashes": "tsx scripts/backfill-hashes.ts"
   },
   "dependencies": {
     "@pay-pals/contracts": "*",
