@@ -11,7 +11,7 @@ function normalize(serial: string): string {
 }
 
 export const boxSerialMismatchRule: Rule = ({ card }) => {
-  if (!card.serial || !card.boxSerial) return [];
+  if (!card || !card.serial || !card.boxSerial) return [];
   if (normalize(card.serial) === normalize(card.boxSerial)) return [];
   return [
     flag(

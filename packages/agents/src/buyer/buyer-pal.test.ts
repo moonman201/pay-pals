@@ -1,24 +1,31 @@
 import { describe, expect, it } from "vitest";
-import { ArrivalCheckSchema, CLEAN_SERIAL, EMPTY_BOX_LOCKED_SERIAL, VerdictSchema, cleanPs5, emptyBox, hasStop, scamPs5 } from "@pay-pals/contracts";
+import { ArrivalCheckSchema, CLEAN_SERIAL, EMPTY_BOX_LOCKED_SERIAL, FAKE_SLAB_CERT, VerdictSchema, cleanPs5, emptyBox, fakeSlab, hasStop } from "@pay-pals/contracts";
+import { createFixtureCertLookup } from "../cert/fixture-lookup";
 import { createFixturePriceLookup } from "../price/fixture-lookup";
 import { fakeClaude, promptText } from "../testing/fake-claude";
+import { says } from "../testing/builders";
 import { createBuyerPal } from "./buyer-pal";
 
 const priceLookup = createFixturePriceLookup();
+const certLookup = createFixtureCertLookup();
 const quietModel = () => ({ additional_flags: [], severity_raises: [], explanations: [], questions_for_seller: [], pal_message: "Looks fine to me." });
 
-describe("BuyerPal.review on scam-ps5", () => {
-  const card = scamPs5.cards.at(-1)!;
+describe("BuyerPal.review on fake-slab", () => {
+  const card = fakeSlab.cards.at(-1)!;
 
-  it("stops with the required flags even when the model returns no flags", async () => {
-    const pal = createBuyerPal({ anthropic: fakeClaude(quietModel), priceLookup });
-    const { data: verdict, palMessage } = await pal.review(card, scamPs5.chat, { seller: scamPs5.seller });
+  it("stops with the required flags, including CERT_MISMATCH, even when the model returns no flags", async () => {
+    const pal = createBuyerPal({ anthropic: fakeClaude(quietModel), priceLookup, certLookup });
+    const { data: verdict, palMessage } = await pal.review(card, fakeSlab.chat, { seller: fakeSlab.seller });
     expect(VerdictSchema.safeParse(verdict).success).toBe(true);
     const codes = verdict.flags.map((f) => f.code);
-    for (const code of scamPs5.expectedVerdict.requiredFlags) expect(codes).toContain(code);
+    for (const code of fakeSlab.expectedVerdict.requiredFlags) expect(codes).toContain(code);
     expect(codes).toContain("STOCK_OR_REUSED_PHOTO");
+    expect(codes).not.toContain("MISSING_SERIAL");
     expect(verdict.overall).toBe("stop");
-    expect(verdict.priceCheck?.marketLow).toBe(380);
+    expect(verdict.priceCheck?.marketLow).toBe(3000);
+    expect(verdict.certCheck?.matches).toBe(false);
+    expect(verdict.certCheck?.record.certNumber).toBe(FAKE_SLAB_CERT);
+    expect(verdict.certCheck?.explanation).toContain("2016 Pokemon XY Evolutions Charizard Holo #11");
     expect(palMessage).toBe(verdict.palMessage);
     expect(palMessage).not.toMatch(/[—!]/);
   });
@@ -30,33 +37,100 @@ describe("BuyerPal.review on scam-ps5", () => {
         { code: "FRIENDS_AND_FAMILY_REQUEST", severity: "info" },
         { code: "PRICE_FAR_BELOW_MARKET", severity: "info" },
         { code: "URGENCY_PRESSURE", severity: "info" },
+        { code: "CERT_MISMATCH", severity: "info" },
       ],
       explanations: [],
       questions_for_seller: ["Can you ship today?"],
       pal_message: "Great deal, pay now!",
     }));
-    const pal = createBuyerPal({ anthropic: model, priceLookup });
-    const { data: verdict } = await pal.review(card, scamPs5.chat);
+    const pal = createBuyerPal({ anthropic: model, priceLookup, certLookup });
+    const { data: verdict } = await pal.review(card, fakeSlab.chat);
     expect(verdict.overall).toBe("stop");
     expect(verdict.flags.find((f) => f.code === "FRIENDS_AND_FAMILY_REQUEST")!.severity).toBe("stop");
     expect(verdict.flags.find((f) => f.code === "PRICE_FAR_BELOW_MARKET")!.severity).toBe("stop");
+    expect(verdict.flags.find((f) => f.code === "CERT_MISMATCH")!.severity).toBe("stop");
     expect(verdict.flags.find((f) => f.code === "URGENCY_PRESSURE")!.severity).toBe("caution");
     expect(verdict.palMessage).toBe("Great deal, pay now.");
   });
 
-  it("stops with no model at all and shows the model the rule flags as fixed facts", async () => {
-    const offline = createBuyerPal({ anthropic: null, priceLookup });
-    const { data: verdict } = await offline.review(card, scamPs5.chat);
+  it("stops with no model at all and shows the model the rule flags and the cert check as fixed facts", async () => {
+    const offline = createBuyerPal({ anthropic: null, priceLookup, certLookup });
+    const { data: verdict } = await offline.review(card, fakeSlab.chat);
     expect(verdict.overall).toBe("stop");
     expect(verdict.questionsForSeller).toEqual([]);
+    expect(verdict.palMessage).toContain("a grading cert that does not match the card");
 
     const model = fakeClaude(quietModel);
-    await createBuyerPal({ anthropic: model, priceLookup }).review(card, scamPs5.chat);
+    await createBuyerPal({ anthropic: model, priceLookup, certLookup }).review(card, fakeSlab.chat);
     expect(model.calls).toHaveLength(1);
     const shown = promptText(model.calls[0]!);
     expect(shown).toContain("Fixed facts");
-    expect(shown).toContain("FRIENDS_AND_FAMILY_REQUEST");
+    expect(shown).toContain("CERT_MISMATCH");
+    expect(shown).toContain("Cert check (fixed fact)");
     expect(model.calls[0]!.tools?.[0]?.name).toBe("submit_review");
+  });
+
+  it("without a cert lookup the cert is not checked and no CERT_MISMATCH is raised", async () => {
+    const { data: verdict } = await createBuyerPal({ anthropic: null, priceLookup }).review(card, fakeSlab.chat);
+    expect(verdict.certCheck).toBeUndefined();
+    expect(verdict.flags.map((f) => f.code)).not.toContain("CERT_MISMATCH");
+    expect(verdict.overall).toBe("stop");
+  });
+
+  it("a matching PSA record adds no flag and the pal message says PSA confirms the cert", async () => {
+    const matching = {
+      async lookup(certNumber: string) {
+        return { provider: "psa" as const, certNumber, subject: "1999 POKEMON GAME CHARIZARD-HOLO #4", grade: "GEM MT 10", year: "1999", brand: "POKEMON GAME", raw: null, checkedAt: new Date().toISOString() };
+      },
+    };
+    const honest = { ...card, askingPrice: 3400, photos: [{ ...card.photos[0]!, whatItShows: "Front of the slab in the seller's hand, label and cert legible." }] };
+    const chat = [says("buyer", "Hi, I sent the invite."), says("seller", "Joined. Photos are up.")];
+    const { data: verdict, palMessage } = await createBuyerPal({ anthropic: null, priceLookup, certLookup: matching }).review(honest, chat);
+    expect(verdict.overall).toBe("go");
+    expect(verdict.flags).toEqual([]);
+    expect(verdict.certCheck?.matches).toBe(true);
+    expect(palMessage).toContain(`PSA confirms cert ${FAKE_SLAB_CERT}: 1999 POKEMON GAME CHARIZARD-HOLO #4, grade GEM MT 10.`);
+
+    const model = fakeClaude(quietModel);
+    await createBuyerPal({ anthropic: model, priceLookup, certLookup: matching }).review(honest, chat);
+    expect(promptText(model.calls[0]!)).toContain("Include that sentence in your message");
+  });
+});
+
+describe("BuyerPal.review with no card", () => {
+  it("a refusal in the chat gives stop with INVITE_REFUSED, cardVersion 0 and no price check", async () => {
+    const chat = [says("buyer", "I sent you a Pay Pals invite for the slab."), says("seller", "Not doing that app. Friends & Family only or I sell it to the next guy.")];
+    const { data: verdict, palMessage } = await createBuyerPal({ anthropic: null, priceLookup, certLookup }).review(null, chat);
+    expect(VerdictSchema.safeParse(verdict).success).toBe(true);
+    expect(verdict.cardVersion).toBe(0);
+    expect(verdict.priceCheck).toBeNull();
+    expect(verdict.certCheck).toBeUndefined();
+    expect(verdict.dealId).toBe(cleanPs5.deal.id);
+    expect(verdict.overall).toBe("stop");
+    const codes = verdict.flags.map((f) => f.code);
+    expect(codes).toContain("INVITE_REFUSED");
+    expect(codes).toContain("FRIENDS_AND_FAMILY_REQUEST");
+    expect(codes).not.toContain("MISSING_SERIAL");
+    expect(verdict.flags.find((f) => f.code === "INVITE_REFUSED")!.evidence).toContain("Friends & Family only or I sell it to the next guy");
+    expect(palMessage).toContain("no item card yet");
+    expect(palMessage).toContain("the seller refusing Pay Pals protection");
+  });
+
+  it("inviteDeclined in the context is enough on its own", async () => {
+    const { data: verdict } = await createBuyerPal({ anthropic: null, priceLookup }).review(null, [], { inviteDeclined: true });
+    expect(verdict.overall).toBe("stop");
+    expect(verdict.flags.map((f) => f.code)).toEqual(["INVITE_REFUSED"]);
+    expect(verdict.dealId).toBe("unknown");
+  });
+
+  it("a friendly chat with no card is go and says what it could not check, with the model told there is no card", async () => {
+    const chat = [says("buyer", "Sent you the invite."), says("seller", "I joined, uploading photos now.")];
+    const model = fakeClaude(quietModel);
+    const { data: verdict } = await createBuyerPal({ anthropic: model, priceLookup }).review(null, chat);
+    expect(verdict.overall).toBe("go");
+    expect(promptText(model.calls[0]!)).toContain("There is no item card yet");
+    const offline = await createBuyerPal({ anthropic: null, priceLookup }).review(null, chat);
+    expect(offline.palMessage).toContain("could not check the price, the serial, the photos or a grading cert");
   });
 });
 
@@ -64,10 +138,11 @@ describe("BuyerPal.review on clean-ps5", () => {
   it("says go or caution with no stop flag, with and without a model", async () => {
     const card = cleanPs5.cards.at(-1)!;
     for (const anthropic of [null, fakeClaude(quietModel)]) {
-      const pal = createBuyerPal({ anthropic, priceLookup });
+      const pal = createBuyerPal({ anthropic, priceLookup, certLookup });
       const { data: verdict } = await pal.review(card, cleanPs5.chat, { seller: cleanPs5.seller });
       expect(["go", "caution"]).toContain(verdict.overall);
       expect(hasStop(verdict.flags)).toBe(false);
+      expect(verdict.certCheck).toBeUndefined();
       expect(VerdictSchema.safeParse(verdict).success).toBe(true);
     }
   });
