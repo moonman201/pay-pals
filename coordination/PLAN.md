@@ -24,7 +24,7 @@ tests/e2e            Playwright runs of the three demo scenarios                
 ```
 Modules talk only through `packages/contracts` interfaces. apps/web is the only place modules are wired together.
 
-## Contracts (v1.0.0-draft in `packages/contracts`, frozen Fri Oct 9)
+## Contracts (v1.1.0-draft in `packages/contracts`, frozen Fri Oct 9)
 
 The TypeScript in `packages/contracts/src` is the contract. This section is the summary. Where they differ, the code wins and the Lead fixes this file.
 
@@ -41,12 +41,12 @@ code: `FRIENDS_AND_FAMILY_REQUEST | OFF_PLATFORM_PAYMENT | PRICE_FAR_BELOW_MARKE
 severity: `info | caution | stop`. evidence (quote or field), explanation (one plain sentence).
 
 ### Agent interfaces (packages/agents)
-- `SellerPal.buildCard(listingText, photos, sellerNotes) -> ItemCard` (draft)
+- `SellerPal.buildCard({ dealId, listingText, photos, sellerNotes, sellerPaypalEmail, askingPrice? }) -> ItemCard` (draft)
 - `SellerPal.applyRequest(card, buyerRequest, sellerReply, newPhotos?) -> ItemCard` (new version)
 - `SellerPal.shipmentChecklist(deal) -> ChecklistItem[]`
-- `BuyerPal.review(card, chatTranscript) -> Verdict { overall: go | caution | stop, flags: RedFlag[], priceCheck: { marketLow, marketHigh, sources[] }, questionsForSeller[] }`
+- `BuyerPal.review(card, chatTranscript, context?: { seller }) -> Verdict { overall: go | caution | stop, flags: RedFlag[], priceCheck: { marketLow, marketHigh, sources[] }, questionsForSeller[] }`
 - `BuyerPal.checkArrival(lockedCard, arrivalPhotos) -> ArrivalCheck { matches: boolean, mismatches[] }`
-- `buildEvidencePack(deal) -> EvidencePack` (locked card, verdicts, chat, photos, tracking, timeline, plain summary)
+- `buildEvidencePack(EvidenceInput) -> EvidencePack` (deal, locked card, verdicts, arrival check, chat, payment, shipment, arrival photos, timeline, plain summary)
 Each returns typed data plus a short `pal message` string for the UI. Deterministic rules run before the model; the model never removes a `stop` flag that a rule raised.
 
 ### PayPal interface (packages/paypal)
@@ -122,7 +122,7 @@ Save every working call as a Postman collection in `docs/postman/`.
 |---|---|---|
 | Lead: contracts, schema, fixtures | contracts v1.0.0-draft, schema and three fixtures on main; 24 tests green | 2026-10-06 |
 | Lane 0 gate (builder-paypal) | launched 2026-10-06; sandbox run blocked until `.env.local` has credentials | |
-| builder-agents | launched 2026-10-06 against contracts v1.0.0-draft | |
+| builder-agents | merged to main 9e83667. 64 tests, reality-check holds. Real Claude tests ran 3/3; Channel3 live schema unverified until a key lands. | 2026-10-07 |
 | builder-paypal | launched 2026-10-06 (state machine, repositories, PayPal client) | |
 | builder-web | launched 2026-10-06 on fixtures | |
 | qa | not started | |
