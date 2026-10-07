@@ -1,0 +1,17 @@
+{
+  "name": "@pay-pals/integration-tests",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Cross-module tests driven by the three scenario fixtures: agents into the deal store, the locked card into the PayPal order body, PayPal webhooks into deal state. No network, no database.",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@pay-pals/agents": "*",
+    "@pay-pals/contracts": "*",
+    "@pay-pals/db": "*",
+    "@pay-pals/paypal": "*"
+  }
+}
