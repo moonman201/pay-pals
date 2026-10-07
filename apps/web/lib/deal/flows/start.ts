@@ -17,6 +17,8 @@ export interface StartDealInput {
   sellerNotes: string;
   photos: Photo[];
   sellerPaypalEmail: string;
+  /** Typed by the seller when the listing text names no price. */
+  askingPrice?: number;
 }
 
 export async function startDeal(services: Services, input: StartDealInput): Promise<Deal> {
@@ -32,6 +34,7 @@ export async function startDeal(services: Services, input: StartDealInput): Prom
     photos: input.photos,
     sellerNotes: input.sellerNotes,
     sellerPaypalEmail: input.sellerPaypalEmail,
+    askingPrice: input.askingPrice,
   });
   await store.saveCard(built.data);
   await say(services, deal.id, "seller_pal", "seller_pal", built.palMessage);

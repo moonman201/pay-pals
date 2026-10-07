@@ -18,6 +18,8 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 /** The evidence pack, laid out plainly so it reads the same on screen and on paper. */
 export function EvidencePackView({ pack, deal, role }: { pack: EvidencePack; deal: Deal; role: Role }) {
   const card = pack.lockedCard;
+  const sellerPhotos = pack.photos.filter((p) => p.addedBy === "seller");
+  const buyerPhotos = pack.photos.filter((p) => p.addedBy === "buyer");
   return (
     <main className="mx-auto max-w-3xl px-4 py-8 print:max-w-none print:px-0">
       <header className="flex flex-wrap items-start justify-between gap-3">
@@ -119,8 +121,14 @@ export function EvidencePackView({ pack, deal, role }: { pack: EvidencePack; dea
           )}
         </Section>
 
-        <Section title={`Photos (${pack.photos.length})`}>
-          <PhotoGrid photos={pack.photos} />
+        <Section title={`Seller's photos (${sellerPhotos.length})`}>
+          <p className="mb-2 text-xs text-muted">From the locked card and the packing step.</p>
+          <PhotoGrid photos={sellerPhotos} empty="None." />
+        </Section>
+
+        <Section title={`Buyer's arrival photos (${buyerPhotos.length})`}>
+          <p className="mb-2 text-xs text-muted">What the buyer photographed when the box arrived.</p>
+          <PhotoGrid photos={buyerPhotos} empty="None." />
         </Section>
 
         <Section title="Shared chat">

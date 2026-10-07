@@ -65,7 +65,7 @@ export const buildMockEvidencePack: EvidencePackBuilder = async (input: Evidence
     verdicts: input.verdicts,
     arrivalCheck: input.arrivalCheck,
     messages: input.messages.filter((m) => m.channel === "deal"),
-    photos: uniquePhotos([input.lockedCard.photos, input.shipment?.packingPhotos ?? [], input.messages.flatMap((m) => m.photos)]),
+    photos: uniquePhotos([input.lockedCard.photos, input.shipment?.packingPhotos ?? [], input.messages.flatMap((m) => m.photos), input.arrivalPhotos ?? []]),
     payment: input.payment,
     shipment: input.shipment,
     timeline: input.timeline,

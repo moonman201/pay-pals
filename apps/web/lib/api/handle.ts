@@ -24,6 +24,9 @@ export async function handle(fn: () => Promise<unknown>): Promise<NextResponse> 
     if (e instanceof IllegalTransitionError) return NextResponse.json({ error: e.message }, { status: 409 });
     if (e instanceof ZodError) return NextResponse.json({ error: e.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ") }, { status: 400 });
     if (e instanceof SyntaxError) return NextResponse.json({ error: "Body is not valid JSON." }, { status: 400 });
+    // Errors the pals raise on purpose, matched by name so the mock and the real package map the same way.
+    if (e instanceof Error && e.name === "MissingPriceError") return NextResponse.json({ error: e.message }, { status: 400 });
+    if (e instanceof Error && e.name === "CardLockedError") return NextResponse.json({ error: e.message }, { status: 409 });
     console.error(e);
     return NextResponse.json({ error: "Something went wrong on the server." }, { status: 500 });
   }

@@ -15,6 +15,7 @@ export async function POST(req: Request) {
       sellerNotes: body.sellerNotes,
       photos: body.photos,
       sellerPaypalEmail: body.sellerPaypalEmail,
+      askingPrice: body.askingPrice,
     });
     return { dealId: deal.id };
   });

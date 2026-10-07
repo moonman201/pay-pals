@@ -43,4 +43,6 @@ export const StartDealBody = z.object({
   sellerNotes: z.string().max(1000).default(""),
   photos: z.array(PhotoSchema).default([]),
   sellerPaypalEmail: z.string().trim().email(),
+  /** Only needed when the listing text names no price. */
+  askingPrice: z.number().positive().multipleOf(0.01).optional(),
 });

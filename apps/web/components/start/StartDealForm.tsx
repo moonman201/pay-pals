@@ -20,7 +20,9 @@ export function StartDealForm() {
   const [otherEmail, setOtherEmail] = useState("");
   const [paypalEmail, setPaypalEmail] = useState("");
   const [listing, setListing] = useState("");
+  const [price, setPrice] = useState("");
   const [notes, setNotes] = useState("");
+  const listingHasPrice = /\$\s?\d/.test(listing);
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -55,6 +57,7 @@ export function StartDealForm() {
         sellerNotes: notes,
         photos,
         sellerPaypalEmail: side === "seller" ? paypalEmail || myEmail : otherEmail,
+        askingPrice: price.trim() ? Number(price) : undefined,
       });
       router.push(`/deals/${dealId}?as=${side}`);
     } catch (err) {
@@ -120,6 +123,19 @@ export function StartDealForm() {
       <label className="block text-sm">
         <span className="font-semibold">Listing text</span>
         <textarea required minLength={10} rows={5} value={listing} onChange={(e) => setListing(e.target.value)} placeholder="Paste the listing from the online marketplace." className={field} />
+      </label>
+      <label className="block text-sm">
+        <span className="font-semibold">Asking price in USD{listingHasPrice ? " (optional, the listing names one)" : ""}</span>
+        <input
+          type="number"
+          min="0.01"
+          step="0.01"
+          required={!listingHasPrice}
+          value={price}
+          onChange={(e) => setPrice(e.target.value)}
+          placeholder={listingHasPrice ? "Leave blank to use the price in the listing" : "The listing has no price. Enter one."}
+          className={field}
+        />
       </label>
       <label className="block text-sm">
         <span className="font-semibold">{side === "seller" ? "Notes for your pal" : "Notes"}</span>

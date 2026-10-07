@@ -23,11 +23,25 @@ function includedFromText(text: string): string[] {
   return items;
 }
 
+/** Same name as the real Seller Pal's error, so the API maps both the same way. */
+export class MissingPriceError extends Error {
+  constructor() {
+    super("The listing names no price. Enter the asking price.");
+    this.name = "MissingPriceError";
+  }
+}
+
+export function readPrice(text: string): number | null {
+  const match = /\$\s?(\d+(?:\.\d{1,2})?)/.exec(text);
+  return match?.[1] ? Number(match[1]) : null;
+}
+
 function genericCard(input: BuildCardInput): ItemCard {
   const text = input.listingText.trim();
   const firstSentence = text.split(/[.\n]/)[0]?.trim() || "Item for sale";
   const title = firstSentence.slice(0, 120);
-  const price = /\$\s?(\d+(?:\.\d{1,2})?)/.exec(text);
+  const askingPrice = input.askingPrice ?? readPrice(text);
+  if (!askingPrice) throw new MissingPriceError();
   const photoText = input.photos.map((p) => p.whatItShows).join(" ");
   return {
     dealId: input.dealId,
@@ -40,7 +54,7 @@ function genericCard(input: BuildCardInput): ItemCard {
     conditionNotes: text.slice(0, 600),
     included: includedFromText(text + " " + input.sellerNotes),
     photos: input.photos,
-    askingPrice: price ? Number(price[1]) : 1,
+    askingPrice,
     currency: "USD",
     sellerPaypalEmail: input.sellerPaypalEmail,
     lockedAt: null,

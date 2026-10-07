@@ -14,7 +14,7 @@ export async function runReview(services: Services, dealId: string): Promise<Ver
   const card = await mustCurrentCard(services, dealId);
   const chat = await services.store.listMessages(dealId, "deal");
 
-  const result = await services.buyerPal.review(card, chat);
+  const result = await services.buyerPal.review(card, chat, { seller: deal.seller });
   const verdict = await services.store.saveVerdict(result.data);
   await say(services, dealId, "buyer_pal", "buyer_pal", result.palMessage);
   await note(services, dealId, "review_posted", "buyer_pal", `Buyer Pal reviewed card version ${card.version}: ${verdict.overall}.`);
