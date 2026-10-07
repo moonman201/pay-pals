@@ -12,10 +12,10 @@ import { hasKey } from "../testing/env";
 const enabled = hasKey("CHANNEL3_API_KEY");
 
 describe.skipIf(!enabled)("real Channel3 (needs CHANNEL3_API_KEY)", () => {
-  it("returns a USD range with sources for the Garmin Fenix 7 Pro Sapphire Solar", async () => {
+  it("returns a USD range with sources for the Sony PlayStation 5 disc edition", async () => {
     const before = channel3CallCount();
     const lookup = createChannel3PriceLookup(process.env.CHANNEL3_API_KEY!);
-    const check = await lookup.priceRange({ brand: "Garmin", model: "Fenix 7 Pro Sapphire Solar", condition: "good" });
+    const check = await lookup.priceRange({ brand: "Sony", model: "PlayStation 5 disc edition CFI-1215A", condition: "good" });
     const liveCalls = channel3CallCount() - before;
     console.log(
       `Channel3 range: $${check.marketLow} to $${check.marketHigh} from ${check.sources.length} sources, ${liveCalls} live call${liveCalls === 1 ? "" : "s"} (0 means the disk cache answered)`,

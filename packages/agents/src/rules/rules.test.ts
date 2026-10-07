@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cleanGarmin, scamGarmin, wrongItem } from "@pay-pals/contracts";
+import { cleanPs5, emptyBox, scamPs5 } from "@pay-pals/contracts";
 import { friendsAndFamilyRule } from "./friends-and-family";
 import { offPlatformRule } from "./off-platform";
 import { priceBelowMarketRule } from "./price-below-market";
@@ -8,10 +8,11 @@ import { missingSerialRule } from "./missing-serial";
 import { shipBeforePayRule } from "./ship-before-pay";
 import { nameMismatchRule } from "./name-mismatch";
 import { stockPhotoRule } from "./stock-photo";
+import { boxSerialMismatchRule } from "./box-serial-mismatch";
 import { overallFromFlags, runRules } from "./index";
 import { card, says } from "../testing/builders";
 
-const price = cleanGarmin.marketPrice;
+const price = cleanPs5.marketPrice;
 
 describe("friendsAndFamilyRule", () => {
   it("flags a seller asking for Friends and Family", () => {
@@ -51,18 +52,19 @@ describe("offPlatformRule", () => {
 
 describe("priceBelowMarketRule", () => {
   it("stops when the ask is under 60% of the market low", () => {
-    const flags = priceBelowMarketRule({ card: card({ askingPrice: 180 }), chat: [], priceCheck: price });
+    const flags = priceBelowMarketRule({ card: card({ askingPrice: 220 }), chat: [], priceCheck: price });
     expect(flags[0]).toMatchObject({ code: "PRICE_FAR_BELOW_MARKET", severity: "stop" });
-    expect(flags[0]!.evidence).toContain("$180");
-    expect(flags[0]!.evidence).toContain("$420");
+    expect(flags[0]!.evidence).toContain("$220");
+    expect(flags[0]!.evidence).toContain("$380");
   });
   it("cautions between 60% and 75% of the market low", () => {
-    expect(priceBelowMarketRule({ card: card({ askingPrice: 300 }), chat: [], priceCheck: price })[0]!.severity).toBe("caution");
+    expect(priceBelowMarketRule({ card: card({ askingPrice: 260 }), chat: [], priceCheck: price })[0]!.severity).toBe("caution");
   });
   it("raises nothing at a fair price, with no price check, or with an unknown market", () => {
-    expect(priceBelowMarketRule({ card: card({ askingPrice: 475 }), chat: [], priceCheck: price })).toHaveLength(0);
-    expect(priceBelowMarketRule({ card: card({ askingPrice: 180 }), chat: [], priceCheck: null })).toHaveLength(0);
-    expect(priceBelowMarketRule({ card: card({ askingPrice: 180 }), chat: [], priceCheck: { ...price, marketLow: 0, marketHigh: 0 } })).toHaveLength(0);
+    expect(priceBelowMarketRule({ card: card({ askingPrice: 420 }), chat: [], priceCheck: price })).toHaveLength(0);
+    expect(priceBelowMarketRule({ card: card({ askingPrice: 410 }), chat: [], priceCheck: price })).toHaveLength(0);
+    expect(priceBelowMarketRule({ card: card({ askingPrice: 220 }), chat: [], priceCheck: null })).toHaveLength(0);
+    expect(priceBelowMarketRule({ card: card({ askingPrice: 220 }), chat: [], priceCheck: { ...price, marketLow: 0, marketHigh: 0 } })).toHaveLength(0);
   });
 });
 
@@ -99,6 +101,18 @@ describe("missingSerialRule", () => {
   });
 });
 
+describe("boxSerialMismatchRule", () => {
+  it("cautions with both serials when the box label differs from the item", () => {
+    const flags = boxSerialMismatchRule({ card: card({ serial: "AH912345678", boxSerial: "AH900000001" }), chat: [], priceCheck: price });
+    expect(flags[0]).toMatchObject({ code: "OTHER", severity: "caution", evidence: "serial: AH912345678, boxSerial: AH900000001" });
+  });
+  it("is quiet when they match, ignoring case and dashes, or when either is missing", () => {
+    expect(boxSerialMismatchRule({ card: card({ serial: "AH912345678", boxSerial: "ah9-1234-5678" }), chat: [], priceCheck: price })).toHaveLength(0);
+    expect(boxSerialMismatchRule({ card: card({ serial: "AH912345678", boxSerial: null }), chat: [], priceCheck: price })).toHaveLength(0);
+    expect(boxSerialMismatchRule({ card: card({ serial: null, boxSerial: "AH912345678" }), chat: [], priceCheck: price })).toHaveLength(0);
+  });
+});
+
 describe("shipBeforePayRule", () => {
   it("flags mark as received, deposits and separate shipping fees", () => {
     for (const text of [
@@ -128,8 +142,8 @@ describe("nameMismatchRule", () => {
     expect(flags[0]).toMatchObject({ code: "NAME_MISMATCH", severity: "caution" });
   });
   it("accepts a PayPal email carrying the seller's name or matching their contact email", () => {
-    expect(nameMismatchRule({ card: card({ sellerPaypalEmail: "luis.o@example.com" }), chat: [], priceCheck: price, seller: { displayName: "Luis O.", email: "luis.o@example.com" } })).toHaveLength(0);
-    expect(nameMismatchRule({ card: card({ sellerPaypalEmail: "lo.watches@example.com" }), chat: [], priceCheck: price, seller: { displayName: "Luis O.", email: "lo.watches@example.com" } })).toHaveLength(0);
+    expect(nameMismatchRule({ card: card({ sellerPaypalEmail: "matt.m@example.com" }), chat: [], priceCheck: price, seller: { displayName: "Matt M.", email: "matt.m@example.com" } })).toHaveLength(0);
+    expect(nameMismatchRule({ card: card({ sellerPaypalEmail: "mm.consoles@example.com" }), chat: [], priceCheck: price, seller: { displayName: "Matt M.", email: "mm.consoles@example.com" } })).toHaveLength(0);
   });
   it("stays quiet when the seller identity is not supplied", () => {
     expect(nameMismatchRule({ card: card({ sellerPaypalEmail: "quickcash@example.com" }), chat: [], priceCheck: price })).toHaveLength(0);
@@ -137,8 +151,10 @@ describe("nameMismatchRule", () => {
 });
 
 describe("stockPhotoRule", () => {
-  it("cautions when every photo is catalog style", () => {
-    expect(stockPhotoRule({ card: scamGarmin.cards[0]!, chat: [], priceCheck: price })[0]).toMatchObject({ code: "STOCK_OR_REUSED_PHOTO", severity: "caution" });
+  it("cautions when every photo is catalog style or reused from another listing", () => {
+    expect(stockPhotoRule({ card: scamPs5.cards[0]!, chat: [], priceCheck: price })[0]).toMatchObject({ code: "STOCK_OR_REUSED_PHOTO", severity: "caution" });
+    const stock = card({ photos: [{ url: "/x.jpg", whatItShows: "Console on a plain white background", addedBy: "seller" }] });
+    expect(stockPhotoRule({ card: stock, chat: [], priceCheck: price })).toHaveLength(1);
   });
   it("is quiet when a photo shows the actual unit", () => {
     expect(stockPhotoRule({ card: card(), chat: [], priceCheck: price })).toHaveLength(0);
@@ -146,19 +162,20 @@ describe("stockPhotoRule", () => {
 });
 
 describe("runRules on the fixtures", () => {
-  it("scam-garmin raises the required flags and stops", () => {
-    const flags = runRules({ card: scamGarmin.cards.at(-1)!, chat: scamGarmin.chat, priceCheck: scamGarmin.marketPrice, seller: scamGarmin.seller });
+  it("scam-ps5 raises the required flags and stops", () => {
+    const flags = runRules({ card: scamPs5.cards.at(-1)!, chat: scamPs5.chat, priceCheck: scamPs5.marketPrice, seller: scamPs5.seller });
     const codes = flags.map((f) => f.code);
-    for (const required of scamGarmin.expectedVerdict.requiredFlags) expect(codes).toContain(required);
+    for (const required of scamPs5.expectedVerdict.requiredFlags) expect(codes).toContain(required);
     expect(codes).toContain("OFF_PLATFORM_PAYMENT");
     expect(codes).toContain("NAME_MISMATCH");
-    const allowed = new Set([...scamGarmin.expectedVerdict.requiredFlags, ...scamGarmin.expectedVerdict.optionalFlags]);
+    expect(codes).toContain("STOCK_OR_REUSED_PHOTO");
+    const allowed = new Set([...scamPs5.expectedVerdict.requiredFlags, ...scamPs5.expectedVerdict.optionalFlags]);
     for (const code of codes) expect(allowed.has(code), code).toBe(true);
     expect(overallFromFlags(flags)).toBe("stop");
     expect(flags.every((f) => f.raisedByRule)).toBe(true);
   });
-  it("clean-garmin and wrong-item raise nothing", () => {
-    for (const fixture of [cleanGarmin, wrongItem]) {
+  it("clean-ps5 and empty-box raise nothing", () => {
+    for (const fixture of [cleanPs5, emptyBox]) {
       const flags = runRules({ card: fixture.cards.at(-1)!, chat: fixture.chat, priceCheck: fixture.marketPrice, seller: fixture.seller });
       expect(flags, fixture.id).toHaveLength(0);
       expect(overallFromFlags(flags)).toBe("go");

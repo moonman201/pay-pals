@@ -42,6 +42,7 @@ function cardStrings(card: ItemCard): string[] {
     card.brand,
     card.model,
     card.serial ?? "",
+    card.boxSerial ?? "",
     card.conditionGrade,
     card.conditionNotes,
     card.sellerPaypalEmail,

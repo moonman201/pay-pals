@@ -3,10 +3,10 @@
  * Start from the clean fixture so every field is contract-valid.
  */
 import type { ItemCard, Message } from "@pay-pals/contracts";
-import { cleanGarmin } from "@pay-pals/contracts";
+import { cleanPs5 } from "@pay-pals/contracts";
 
 export function card(overrides: Partial<ItemCard> = {}): ItemCard {
-  return { ...cleanGarmin.cards[0]!, lockedAt: null, ...overrides };
+  return { ...cleanPs5.cards[0]!, lockedAt: null, ...overrides };
 }
 
 let counter = 0;
@@ -15,7 +15,7 @@ export function says(author: "seller" | "buyer", text: string, channel: Message[
   counter += 1;
   return {
     id: `t${counter}`,
-    dealId: cleanGarmin.deal.id,
+    dealId: cleanPs5.deal.id,
     channel,
     author,
     text,
