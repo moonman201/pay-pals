@@ -125,4 +125,4 @@ Save every working call as a Postman collection in `docs/postman/`.
 | builder-agents | merged to main 9e83667, follow-up merged (v1.1.0 fields, model stop cap). 69 tests, reality-check holds. Real Claude tests ran 3/3; Channel3 live schema unverified until a key lands. | 2026-10-07 |
 | builder-paypal | merged 61c7ca0, follow-up merged (v1.2.0 types, raw bodies, dispute via table, skip flag, gate prints deal id). 83 tests, reality-check holds. | 2026-10-07 |
 | builder-web | merged 29c211b: all three scenarios on fixtures, reality-check over HTTP holds. In progress: real packages through the seam. | 2026-10-07 |
-| qa | merged f1ec27e: 26 integration tests across agents, db, paypal; Playwright running against apps/web, 2 specs. Root `npm run test:e2e`. | 2026-10-07 |
+| qa | merged 095bce8: 28 integration tests; Playwright for all three scenarios plus phone width, 5 specs green. Milestone "scenario 2 end to end on fixtures" (due Oct 17) met Oct 7 for all three. | 2026-10-07 |
