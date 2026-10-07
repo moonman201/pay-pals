@@ -78,7 +78,7 @@ export const REVIEW_TOOL: Anthropic.Tool = {
       },
       questions_for_seller: {
         type: "array",
-        description: "Up to five specific things the buyer should get from the seller before paying. Empty if the deal is already a stop.",
+        description: "Up to five specific things the buyer should get from the seller before paying. Empty when the deal is a stop or when nothing is missing.",
         items: { type: "string" },
       },
       pal_message: {

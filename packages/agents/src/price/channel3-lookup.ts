@@ -47,10 +47,12 @@ export function relevantProducts(products: Channel3Product[], brand: string, mod
   return scored.length > 0 ? scored : products;
 }
 
-function percentile(sorted: number[], p: number): number {
+/** Low end rounds down, high end rounds up, so a small sample gives a wider range rather than a narrower one. */
+function percentile(sorted: number[], p: number, edge: "low" | "high"): number {
   if (sorted.length === 0) return 0;
-  const index = Math.min(sorted.length - 1, Math.max(0, Math.round((sorted.length - 1) * p)));
-  return sorted[index]!;
+  const position = (sorted.length - 1) * p;
+  const index = edge === "low" ? Math.floor(position) : Math.ceil(position);
+  return sorted[Math.min(sorted.length - 1, Math.max(0, index))]!;
 }
 
 function round(value: number): number {
@@ -83,8 +85,8 @@ export function deriveRange(
   }));
 
   return {
-    marketLow: round(percentile(prices, 0.2) * factor),
-    marketHigh: round(percentile(prices, 0.8) * factor),
+    marketLow: round(percentile(prices, 0.2, "low") * factor),
+    marketHigh: round(percentile(prices, 0.8, "high") * factor),
     currency: "USD",
     sources,
     provider: "channel3",
