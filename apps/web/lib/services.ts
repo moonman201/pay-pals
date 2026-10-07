@@ -21,7 +21,7 @@ import {
 import type { BuyerPal, EvidencePackBuilder, PayPalGateway, PayPalsStore, ScenarioId, SellerPal, WebhookEvent } from "@pay-pals/contracts";
 import { createMemoryDealStore, createPostgresDealStore } from "@pay-pals/db";
 import { createPayPalGateway, handleWebhookEvent, loadPayPalConfig, type WebhookOutcome } from "@pay-pals/paypal";
-import { seedFixtureDeals } from "./demo/seed-fixtures";
+import { asDealFinder, seedFixtureDeals, seedFixtureDealsIfMissing } from "./demo/seed-fixtures";
 import { loadRootEnvLocal } from "./env";
 import { createMockPayPalGateway } from "./mocks/paypal-gateway";
 
@@ -94,11 +94,18 @@ export function createServices(env: Env = process.env, log: Log = (line) => cons
   if (modes.store === "postgres") {
     const pg = createPostgresDealStore(env.DATABASE_URL!.trim());
     store = pg;
+    services.store = store;
     log("[pay-pals] store: Postgres (DATABASE_URL set)");
-    ready = pg.migrate().catch((error: unknown) => {
+    const migrated = pg.migrate().catch((error: unknown) => {
       log(`[pay-pals] store: migration did not run (${error instanceof Error ? error.message : String(error)}). Run: npm run migrate -w packages/db`);
     });
-    seededDeals = Promise.resolve({});
+    const finder = asDealFinder(pg);
+    seededDeals = migrated.then(() => {
+      if (finder) return seedFixtureDealsIfMissing(services, finder, log);
+      log("[pay-pals] demo: finished demo deals are off on this store; it has no findDeals(scenario, states) to seed idempotently");
+      return {};
+    });
+    ready = seededDeals.then(() => undefined);
   } else {
     store = createMemoryDealStore();
     log("[pay-pals] store: in memory (DATABASE_URL not set), demo deals live until the process restarts");
