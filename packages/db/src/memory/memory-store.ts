@@ -19,6 +19,7 @@ import type {
   MessageChannel,
   Party,
   PaymentRecord,
+  ScenarioId,
   Shipment,
   Verdict,
 } from "@pay-pals/contracts";
@@ -92,6 +93,15 @@ export function createMemoryDealStore(): PayPalsStore {
     async getDeal(dealId: string): Promise<Deal | null> {
       const rec = records.get(dealId);
       return rec ? copy(rec.deal) : null;
+    },
+
+    async findDeals(query: { scenario?: ScenarioId | null; states?: readonly DealState[] }): Promise<Deal[]> {
+      const matches = [...records.values()]
+        .map((rec) => rec.deal)
+        .filter((deal) => query.scenario === undefined || deal.scenario === query.scenario)
+        .filter((deal) => query.states === undefined || query.states.includes(deal.state))
+        .sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt) || a.id.localeCompare(b.id));
+      return copy(matches);
     },
 
     async setBuyer(dealId: string, buyer: Party): Promise<Deal> {

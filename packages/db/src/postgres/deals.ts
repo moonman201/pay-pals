@@ -3,8 +3,8 @@
  * The transition locks the deal row, checks the table and appends the
  * state_changed event in one transaction.
  */
-import { eq } from "drizzle-orm";
-import type { CreateDealInput, Deal, DealEvent, DealState, Party } from "@pay-pals/contracts";
+import { and, asc, eq, inArray, isNull, type SQL } from "drizzle-orm";
+import type { CreateDealInput, Deal, DealEvent, DealState, Party, ScenarioId } from "@pay-pals/contracts";
 import { dealEvents, deals } from "../../schema";
 import { agreedEvent, agreementField, assertAgreementAllowed } from "../card-rules";
 import { DealNotFoundError } from "../errors";
@@ -42,6 +42,22 @@ export function dealsRepo(db: Db) {
       if (!isUuid(dealId)) return null;
       const [row] = await db.select().from(deals).where(eq(deals.id, dealId));
       return row ? toDeal(row) : null;
+    },
+
+    async findDeals(query: { scenario?: ScenarioId | null; states?: readonly DealState[] }): Promise<Deal[]> {
+      const where: SQL[] = [];
+      if (query.scenario === null) where.push(isNull(deals.scenario));
+      else if (query.scenario !== undefined) where.push(eq(deals.scenario, query.scenario));
+      if (query.states !== undefined) {
+        if (query.states.length === 0) return [];
+        where.push(inArray(deals.state, [...query.states]));
+      }
+      const rows = await db
+        .select()
+        .from(deals)
+        .where(where.length > 0 ? and(...where) : undefined)
+        .orderBy(asc(deals.createdAt), asc(deals.id));
+      return rows.map(toDeal);
     },
 
     async setBuyer(dealId: string, buyer: Party): Promise<Deal> {
