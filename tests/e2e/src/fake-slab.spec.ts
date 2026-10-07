@@ -39,9 +39,10 @@ test.describe("fake slab stopped", () => {
     await expect(flags.filter({ hasText: /friends and family/i }).filter({ hasText: "payment method, no override" })).toHaveCount(1);
     await expect(flags.filter({ hasText: /below market/i })).toHaveCount(1);
     await expect(flags.filter({ hasText: /pressure|urgen/i }).first()).toBeVisible();
-    const cert = flags.filter({ hasText: /cert/i }).filter({ hasText: FAKE_SLAB_CERT });
+    // The reused-photo flag quotes the slab label too, so the cert flag is the one that says the record does not match.
+    const cert = flags.filter({ hasText: FAKE_SLAB_CERT }).filter({ hasText: "does not match the card" });
     await expect(cert).toHaveCount(1);
-    await expect(cert).toContainText("does not match the card");
+    await expect(cert).toContainText(/cert/i);
     await expect(cert).toContainText(fakeSlab.certRecord!.subject!);
     await expect(review.getByText("does not match the card").first()).toBeVisible();
     await expect(card.getByText("does not match", { exact: false }).first()).toBeVisible();
