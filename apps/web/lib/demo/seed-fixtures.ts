@@ -14,7 +14,7 @@ import { buildEvidenceFor } from "../deal/flows/evidence";
 import type { Services } from "../services";
 import { nowIso } from "../time";
 
-type SeedServices = Pick<Services, "store" | "buyerPal" | "buildEvidencePack">;
+type SeedServices = Pick<Services, "store" | "buyerPal" | "buildEvidencePack" | "demoPayee">;
 
 async function replay(services: SeedServices, fixture: ScenarioFixture): Promise<string> {
   const { store } = services;
@@ -40,7 +40,7 @@ async function replay(services: SeedServices, fixture: ScenarioFixture): Promise
       case "card_updated": {
         const card = fixture.cards[savedCards];
         if (card) {
-          await store.saveCard({ ...card, dealId: id, lockedAt: null });
+          await store.saveCard({ ...card, dealId: id, sellerPaypalEmail: services.demoPayee ?? card.sellerPaypalEmail, lockedAt: null });
           savedCards += 1;
         }
         await recordEvent(event);
@@ -69,12 +69,14 @@ async function replay(services: SeedServices, fixture: ScenarioFixture): Promise
         break;
       }
       case "payment_created": {
-        if (fixture.payment) await store.savePayment({ ...fixture.payment, dealId: id, status: "CREATED", captureId: null, capturedAt: null });
+        if (fixture.payment) {
+          await store.savePayment({ ...fixture.payment, dealId: id, payeeEmail: services.demoPayee ?? fixture.payment.payeeEmail, status: "CREATED", captureId: null, capturedAt: null });
+        }
         await recordEvent(event);
         break;
       }
       case "payment_captured": {
-        if (fixture.payment) await store.savePayment({ ...fixture.payment, dealId: id });
+        if (fixture.payment) await store.savePayment({ ...fixture.payment, dealId: id, payeeEmail: services.demoPayee ?? fixture.payment.payeeEmail });
         await recordEvent(event);
         break;
       }

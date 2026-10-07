@@ -29,7 +29,7 @@ function withFinder(store: ReturnType<typeof createMemoryDealStore>) {
 
 function servicesOn(store: ReturnType<typeof withFinder>) {
   const base = createServices({}, () => {});
-  return { store, buyerPal: base.buyerPal, buildEvidencePack: base.buildEvidencePack };
+  return { store, buyerPal: base.buyerPal, buildEvidencePack: base.buildEvidencePack, demoPayee: null };
 }
 
 describe("seedFixtureDealsIfMissing", () => {
