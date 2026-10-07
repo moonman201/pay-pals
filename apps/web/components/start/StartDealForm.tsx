@@ -4,39 +4,31 @@ import { ALL_FIXTURES, type Photo, type ScenarioFixture } from "@pay-pals/contra
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { postJson } from "@/lib/client/api";
-import type { Role } from "@/lib/role";
 import { PhotoInput } from "../photos/PhotoInput";
 import { Button } from "../ui/Button";
 
 const field = "mt-1 block w-full rounded-lg border border-line px-3 py-2 text-sm";
 
-/** Either side starts a deal. The seller gives a PayPal email; the buyer invites the seller by email. */
+/** The seller lists first and shares the link. Buyers usually start from the landing page instead. */
 export function StartDealForm() {
   const router = useRouter();
-  const [side, setSide] = useState<Role>("seller");
   const [myName, setMyName] = useState("");
   const [myEmail, setMyEmail] = useState("");
-  const [otherName, setOtherName] = useState("");
-  const [otherEmail, setOtherEmail] = useState("");
   const [paypalEmail, setPaypalEmail] = useState("");
   const [listing, setListing] = useState("");
   const [price, setPrice] = useState("");
   const [notes, setNotes] = useState("");
-  const listingHasPrice = /\$\s?\d/.test(listing);
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const listingHasPrice = /\$\s?\d/.test(listing);
 
   function fillFrom(f: ScenarioFixture) {
     setListing(f.listingText);
     setNotes(f.sellerNotes);
     setPhotos(f.listingPhotos);
-    const me = side === "seller" ? f.seller : f.buyer;
-    const other = side === "seller" ? f.buyer : f.seller;
-    setMyName(me.displayName);
-    setMyEmail(me.email);
-    setOtherName(other.displayName);
-    setOtherEmail(other.email);
+    setMyName(f.seller.displayName);
+    setMyEmail(f.seller.email);
     setPaypalEmail(f.cards[0]?.sellerPaypalEmail ?? f.seller.email);
   }
 
@@ -44,22 +36,16 @@ export function StartDealForm() {
     e.preventDefault();
     setBusy(true);
     setError(null);
-    const me = { displayName: myName, email: myEmail };
-    const other = { displayName: otherName, email: otherEmail };
-    const seller = side === "seller" ? me : other;
-    const buyer = side === "buyer" ? me : null;
     try {
       const { dealId } = await postJson<{ dealId: string }>("/api/deals", {
-        startedBy: side,
-        seller,
-        buyer,
+        seller: { displayName: myName, email: myEmail },
         listingText: listing,
         sellerNotes: notes,
         photos,
-        sellerPaypalEmail: side === "seller" ? paypalEmail || myEmail : otherEmail,
+        sellerPaypalEmail: paypalEmail || myEmail,
         askingPrice: price.trim() ? Number(price) : undefined,
       });
-      router.push(`/deals/${dealId}?as=${side}`);
+      router.push(`/deals/${dealId}?as=seller`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not start the deal.");
       setBusy(false);
@@ -67,22 +53,7 @@ export function StartDealForm() {
   }
 
   return (
-    <form onSubmit={submit} className={`theme-${side} space-y-5 rounded-2xl border border-[var(--accent-line)] bg-white p-5 shadow-sm`}>
-      <div role="radiogroup" aria-label="I am the" className="grid grid-cols-2 gap-2">
-        {(["seller", "buyer"] as const).map((r) => (
-          <button
-            key={r}
-            type="button"
-            role="radio"
-            aria-checked={side === r}
-            onClick={() => setSide(r)}
-            className={`theme-${r} rounded-lg border px-3 py-2 text-sm font-semibold ${side === r ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent-ink)]" : "border-line text-muted"}`}
-          >
-            I am the {r}
-          </button>
-        ))}
-      </div>
-
+    <form onSubmit={submit} className="theme-seller space-y-5 rounded-2xl border border-[var(--accent-line)] bg-white p-5 shadow-sm">
       <div className="rounded-lg bg-wash p-3 text-xs text-muted">
         <span className="font-semibold">Demo listings:</span>{" "}
         {ALL_FIXTURES.map((f) => (
@@ -101,23 +72,10 @@ export function StartDealForm() {
           <span className="font-semibold">Your email</span>
           <input required type="email" value={myEmail} onChange={(e) => setMyEmail(e.target.value)} className={field} />
         </label>
-        {side === "seller" ? (
-          <label className="text-sm sm:col-span-2">
-            <span className="font-semibold">PayPal email that gets paid</span>
-            <input type="email" value={paypalEmail} onChange={(e) => setPaypalEmail(e.target.value)} placeholder="Same as your email if blank" className={field} />
-          </label>
-        ) : (
-          <>
-            <label className="text-sm">
-              <span className="font-semibold">Seller&apos;s name</span>
-              <input required value={otherName} onChange={(e) => setOtherName(e.target.value)} className={field} />
-            </label>
-            <label className="text-sm">
-              <span className="font-semibold">Seller&apos;s email</span>
-              <input required type="email" value={otherEmail} onChange={(e) => setOtherEmail(e.target.value)} className={field} />
-            </label>
-          </>
-        )}
+        <label className="text-sm sm:col-span-2">
+          <span className="font-semibold">PayPal email that gets paid</span>
+          <input type="email" value={paypalEmail} onChange={(e) => setPaypalEmail(e.target.value)} placeholder="Same as your email if blank" className={field} />
+        </label>
       </div>
 
       <label className="block text-sm">
@@ -138,10 +96,10 @@ export function StartDealForm() {
         />
       </label>
       <label className="block text-sm">
-        <span className="font-semibold">{side === "seller" ? "Notes for your pal" : "Notes"}</span>
+        <span className="font-semibold">Notes for your pal</span>
         <input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Anything the card should say." className={field} />
       </label>
-      <PhotoInput value={photos} onChange={setPhotos} addedBy={side} label="Listing photos" />
+      <PhotoInput value={photos} onChange={setPhotos} addedBy="seller" label="Listing photos" />
 
       <Button type="submit" disabled={busy} className="w-full sm:w-auto">
         {busy ? "Building the card" : "Build the card and start"}
