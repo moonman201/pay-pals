@@ -9,7 +9,7 @@ import type { ItemCard, Party } from "@pay-pals/contracts";
 import { AgreementNotAllowedError, CardLockedError, CardNotEditableError, CardVersionError, DealNotFoundError } from "../errors";
 import type { PayPalsStore } from "@pay-pals/contracts";
 
-const fx = getFixture("clean-garmin");
+const fx = getFixture("clean-ps5");
 const seller: Party = fx.seller;
 const buyer: Party = fx.buyer;
 
@@ -37,14 +37,14 @@ export function runDealStoreConformance(name: string, makeStore: () => Promise<P
     describe("deals", () => {
       it("creates a DRAFT deal with no card and no buyer", async () => {
         const store = await makeStore();
-        const deal = await store.createDeal({ seller, scenario: "clean-garmin" });
+        const deal = await store.createDeal({ seller, scenario: "clean-ps5" });
         expect(deal.state).toBe("DRAFT");
         expect(deal.currentCardVersion).toBe(0);
         expect(deal.lockedCardVersion).toBeNull();
         expect(deal.buyerAgreedAt).toBeNull();
         expect(deal.sellerAgreedAt).toBeNull();
         expect(deal.buyer).toBeNull();
-        expect(deal.scenario).toBe("clean-garmin");
+        expect(deal.scenario).toBe("clean-ps5");
         expect(await store.getDeal(deal.id)).toEqual(deal);
       });
 
@@ -375,9 +375,9 @@ export function runDealStoreConformance(name: string, makeStore: () => Promise<P
           dealId: deal.id,
           cardVersion: 1,
           matches: false,
-          mismatches: [{ field: "serial" as const, expected: "7LP045912", observed: "6XR118204", explanation: "Different serial." }],
-          observed: { brand: "Garmin", model: "Fenix 6", serial: "6XR118204" },
-          palMessage: "This is not the watch on the card.",
+          mismatches: [{ field: "serial" as const, expected: "AH912345678", observed: "AJ204567113", explanation: "The box label shows a different serial and the box is empty." }],
+          observed: { brand: "Sony", model: null, serial: "AJ204567113" },
+          palMessage: "This is not the console on the card. The box arrived empty.",
           createdAt: "2026-10-26T16:00:00.000Z",
         };
         await store.saveArrivalCheck(check);
