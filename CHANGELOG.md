@@ -18,3 +18,6 @@
 - `tests/integration`: 28 cross-module tests on the memory store. `tests/e2e`: Playwright for all three scenarios and a phone-width pass, demo-only server.
 - Buyer Pal: model-added flags must be grounded in the chat or card, model raises cannot create a stop on their own, three questions at most, battery-health ask for used electronics.
 - `packages/db`: card writes follow the deal state; migrations bundled into a generated module.
+- Two-sided agreement: both sides agree to a card version, the second agreement locks it, a card change clears both and needs a fresh review (contracts v1.3.0-draft, migration 0001, UI, e2e).
+- Non-payment stops stay overridable behind a sterner warning. Payment-method flags remain a hard block.
+- Channel3 client aligned with the official API reference, day-long disk cache in dev, one call per review.

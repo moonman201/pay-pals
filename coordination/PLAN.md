@@ -116,7 +116,7 @@ Save every working call as a Postman collection in `docs/postman/`.
 2. **Who starts a deal.** Either side. The seller usually does; a buyer can paste a listing and invite the seller.
 3. **Accounts.** None in v1. A deal link plus the party's email is enough.
 4. **Brand names.** Real brand and product names are fine in demo data, UI and video. No copied logos or artwork.
-5. **Two-sided agreement (Oct 7).** Both the buyer and the seller agree to a specific card version. The card locks and the deal moves to AGREED when the second agreement lands. A new card version clears both. Lands in the Fri Oct 9 freeze as contracts v1.3.0.
+5. **Two-sided agreement (Oct 7).** Both the buyer and the seller agree to a specific card version. The card locks and the deal moves to AGREED when the second agreement lands. A new card version clears both. Shipped Oct 7 as contracts v1.3.0-draft (3b71ad6).
 6. **Non-payment stops (Oct 7).** A stop that is not about payment method (price far below market, ship-before-pay) stays overridable with the acknowledgment checkbox and stronger warning wording. Only payment-method flags end the deal.
 
 ## Status (Lead keeps this current)
@@ -127,4 +127,4 @@ Save every working call as a Postman collection in `docs/postman/`.
 | builder-agents | merged 9e83667 plus follow-ups (v1.1.0 fields, model stop cap, grounded model flags, battery-health ask). 80 tests, reality-check holds; real Claude runs: scam stop, clean go. Real Claude tests ran 3/3; Channel3 live schema unverified until a key lands. | 2026-10-07 |
 | builder-paypal | merged 61c7ca0, follow-up merged (v1.2.0 types, raw bodies, dispute via table, skip flag, gate prints deal id). 83 tests, reality-check holds. | 2026-10-07 |
 | builder-web | merged 77114c6: real agents, db and paypal behind lib/services.ts, demo mode with no keys, webhook route, PAY_PALS_DEMO_ONLY switch. Reality-check holds incl. a real sandbox order. Milestone "all three on real modules" (due Oct 23) met Oct 7 except the SDK buttons (no public client id yet) and Postgres (no DATABASE_URL yet). | 2026-10-07 |
-| qa | merged 095bce8: 28 integration tests; Playwright for all three scenarios plus phone width, 5 specs green. Milestone "scenario 2 end to end on fixtures" (due Oct 17) met Oct 7 for all three. | 2026-10-07 |
+| qa | merged 3b71ad6: 30 integration tests; Playwright for all three scenarios, re-agree path and phone width, 6 specs green. Fixture milestone (due Oct 17) met Oct 7. | 2026-10-07 |
