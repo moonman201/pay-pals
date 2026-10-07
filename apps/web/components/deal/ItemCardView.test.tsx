@@ -1,4 +1,4 @@
-import { cleanPs5 } from "@pay-pals/contracts";
+import { cleanPs5, FAKE_SLAB_CERT, fakeSlab, type CertCheck } from "@pay-pals/contracts";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
@@ -46,6 +46,24 @@ describe("ItemCardView", () => {
     render(<ItemCardView cards={[{ ...v1, boxSerial: "ZZ000000000" }]} currentVersion={1} lockedVersion={null} />);
     expect(screen.getByText("ZZ000000000")).toBeInTheDocument();
     expect(screen.getByText("does not match")).toBeInTheDocument();
+  });
+
+  it("shows the cert number and grade with the Buyer Pal's PSA result", () => {
+    const slab = fakeSlab.cards[0]!;
+    const certCheck: CertCheck = { record: fakeSlab.certRecord!, matches: false, explanation: "PSA's record for this cert is a different card and grade." };
+    render(<ItemCardView cards={[slab]} currentVersion={1} lockedVersion={null} certCheck={certCheck} />);
+    expect(screen.getByText("Cert number")).toBeInTheDocument();
+    expect(screen.getByText(FAKE_SLAB_CERT)).toBeInTheDocument();
+    expect(screen.getByText("Grade")).toBeInTheDocument();
+    expect(screen.getByText("PSA 10")).toBeInTheDocument();
+    expect(screen.getByText(/PSA record does not match: 2016 Pokemon XY Evolutions Charizard Holo #11, grade 7/)).toBeInTheDocument();
+  });
+
+  it("says when the PSA record matches", () => {
+    const slab = fakeSlab.cards[0]!;
+    const certCheck: CertCheck = { record: { ...fakeSlab.certRecord!, subject: slab.title, grade: "10" }, matches: true, explanation: "Matches." };
+    render(<ItemCardView cards={[slab]} currentVersion={1} lockedVersion={null} certCheck={certCheck} />);
+    expect(screen.getByText(/PSA record matches/)).toBeInTheDocument();
   });
 
   it("shows no box serial row when the card has none", () => {

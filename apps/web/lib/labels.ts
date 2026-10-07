@@ -3,6 +3,7 @@ import type { Actor, Deal, DealState, VerdictOverall } from "@pay-pals/contracts
 
 export const STATE_LABELS: Readonly<Record<DealState, string>> = {
   DRAFT: "Draft",
+  INVITED: "Waiting for the seller",
   LISTED: "Listed",
   REVIEWED: "Reviewed",
   AGREED: "Agreed, card locked",

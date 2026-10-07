@@ -52,6 +52,7 @@ export function EvidencePackView({ pack, deal, role }: { pack: EvidencePack; dea
           <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-2">
             <div><dt className="text-xs uppercase text-muted">Brand and model</dt><dd>{card.brand} {card.model}</dd></div>
             <div><dt className="text-xs uppercase text-muted">Serial</dt><dd className="font-mono">{card.serial ?? "not recorded"}</dd></div>
+            {card.certNumber ? <div><dt className="text-xs uppercase text-muted">Cert number</dt><dd className="font-mono">{card.certNumber}{card.grade ? ` (${card.grade})` : ""}</dd></div> : null}
             {card.boxSerial ? (
               <div>
                 <dt className="text-xs uppercase text-muted">Box serial</dt>
@@ -66,6 +67,31 @@ export function EvidencePackView({ pack, deal, role }: { pack: EvidencePack; dea
             <div><dt className="text-xs uppercase text-muted">Payee</dt><dd>{card.sellerPaypalEmail}</dd></div>
             <div><dt className="text-xs uppercase text-muted">Locked</dt><dd>{card.lockedAt ? formatTime(card.lockedAt) : "not recorded"}</dd></div>
           </dl>
+        </Section>
+
+        <Section title="Tamper-evident history">
+          {pack.historyHash ? (
+            <>
+              <p>
+                When the PayPal order was created, the head of this deal&apos;s event chain was written into the order&apos;s custom_id, so PayPal&apos;s own record holds it:
+              </p>
+              <p className="mt-1 break-all font-mono text-xs">
+                {pack.dealId}#{pack.historyHash}
+              </p>
+              <p className="mt-2">
+                {pack.timeline.length} events are stored.{" "}
+                {pack.historyVerified === true ? (
+                  <span className="font-semibold text-go">Verified: the stored events reproduce this hash.</span>
+                ) : pack.historyVerified === false ? (
+                  <span className="font-semibold text-stop">Does not verify: the stored events do not reproduce this hash.</span>
+                ) : (
+                  <span className="text-muted">Not checked.</span>
+                )}
+              </p>
+            </>
+          ) : (
+            <p>No PayPal order was created, so no history hash was recorded with PayPal. Each stored event still carries the hash of the one before it.</p>
+          )}
         </Section>
 
         <Section title="Payment">

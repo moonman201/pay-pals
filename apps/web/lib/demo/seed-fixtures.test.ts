@@ -38,7 +38,7 @@ describe("seedFixtureDealsIfMissing", () => {
     const services = servicesOn(store);
     const lines: string[] = [];
     const first = await seedFixtureDealsIfMissing(services, store, (l) => lines.push(l));
-    expect(Object.keys(first).sort()).toEqual(["clean-ps5", "empty-box", "scam-ps5"]);
+    expect(Object.keys(first).sort()).toEqual(["clean-ps5", "empty-box", "fake-slab"]);
     expect(lines.at(-1)).toMatch(/3 seeded now/);
     for (const [scenario, id] of Object.entries(first)) {
       const deal = await store.getDeal(id!);
@@ -60,8 +60,8 @@ describe("seedFixtureDealsIfMissing", () => {
     const racing: DealFinder = {
       async findDeals(query) {
         const mine = await store.findDeals(query);
-        if (query.scenario === "scam-ps5" && mine.length > 0 && !rivalId) {
-          const rival = await store.createDeal({ seller: mine[0]!.seller, buyer: mine[0]!.buyer, scenario: "scam-ps5" });
+        if (query.scenario === "fake-slab" && mine.length > 0 && !rivalId) {
+          const rival = await store.createDeal({ startedBy: "buyer", seller: mine[0]!.seller, buyer: mine[0]!.buyer, listingUrl: null, scenario: "fake-slab" });
           await store.transition(rival.id, "LISTED", "system", "Listed.");
           await store.transition(rival.id, "REVIEWED", "system", "Reviewed.");
           await store.transition(rival.id, "BLOCKED", "system", "Blocked.");
@@ -75,7 +75,7 @@ describe("seedFixtureDealsIfMissing", () => {
       },
     };
     const ids = await seedFixtureDealsIfMissing(services, racing, () => {});
-    expect(ids["scam-ps5"]).toBe(rivalId);
+    expect(ids["fake-slab"]).toBe(rivalId);
     expect(ids["clean-ps5"]).toBeDefined();
   });
 });
