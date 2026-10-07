@@ -31,6 +31,7 @@ export const DEAL_EVENT_KINDS = [
   "deal_created",
   "card_updated",
   "review_posted",
+  "agreed",
   "card_locked",
   "state_changed",
   "payment_created",

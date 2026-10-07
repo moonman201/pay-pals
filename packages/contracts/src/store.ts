@@ -27,8 +27,17 @@ export interface DealStore {
    */
   transition(dealId: string, to: DealState, actor: DealEvent["actor"], summary: string): Promise<Deal>;
 
-  /** Save a new card version. Rejects if the deal's card is locked. */
+  /**
+   * Save a new card version. Rejects if the deal's card is locked or the deal
+   * is past REVIEWED. Clears buyerAgreedAt and sellerAgreedAt.
+   */
   saveCard(card: ItemCard): Promise<ItemCard>;
+  /**
+   * Record one side's agreement to the current card version. Allowed in
+   * LISTED and REVIEWED. Idempotent for the same side. Does not lock or
+   * transition; apps/web locks and moves to AGREED when both sides have agreed.
+   */
+  recordAgreement(dealId: string, role: "buyer" | "seller", at?: string): Promise<Deal>;
   getCard(dealId: string, version: number): Promise<ItemCard | null>;
   getCurrentCard(dealId: string): Promise<ItemCard | null>;
   listCards(dealId: string): Promise<ItemCard[]>;

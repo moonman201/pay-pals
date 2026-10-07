@@ -1,5 +1,6 @@
 /**
  * Pay Pals database schema. Owned by the Lead. Frozen Fri Oct 9, 2026.
+ * v1.3.0 (Oct 7): deals.buyer_agreed_at and seller_agreed_at, deal_event_kind gains "agreed".
  *
  * One table per thing a deal produces. Card, verdict, payment, shipment and
  * evidence rows are never updated in place once written, except the fields
@@ -69,6 +70,9 @@ export const deals = pgTable(
     buyerEmail: text("buyer_email"),
     currentCardVersion: integer("current_card_version").notNull().default(0),
     lockedCardVersion: integer("locked_card_version"),
+    /** Two-sided agreement to the current card version. Cleared when a new version is saved. */
+    buyerAgreedAt: timestamp("buyer_agreed_at", { withTimezone: true }),
+    sellerAgreedAt: timestamp("seller_agreed_at", { withTimezone: true }),
     ...timestamps,
   },
   (t) => [index("deals_state_idx").on(t.state)],

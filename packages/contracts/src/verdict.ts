@@ -4,6 +4,7 @@
  */
 import { z } from "zod";
 import { RedFlagSchema } from "./red-flag";
+import { PhotoSchema } from "./item-card";
 
 export const VERDICT_OVERALLS = ["go", "caution", "stop"] as const;
 export type VerdictOverall = (typeof VERDICT_OVERALLS)[number];
@@ -64,6 +65,8 @@ export const ArrivalCheckSchema = z.object({
     model: z.string().nullable(),
     serial: z.string().nullable(),
   }),
+  /** The arrival photos the check was made from, kept with the result for the evidence pack. */
+  photos: z.array(PhotoSchema).optional(),
   palMessage: z.string().min(1),
   createdAt: z.string().datetime(),
 });

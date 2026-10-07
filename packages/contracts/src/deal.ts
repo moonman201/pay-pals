@@ -24,6 +24,13 @@ export const DealSchema = z.object({
   buyer: PartySchema.nullable(),
   currentCardVersion: z.number().int().nonnegative(),
   lockedCardVersion: z.number().int().positive().nullable(),
+  /**
+   * Two-sided agreement (PLAN.md Decision 5). Each side agrees to the current
+   * card version. Saving a new version clears both. When the second one lands
+   * the card locks and the deal moves to AGREED.
+   */
+  buyerAgreedAt: z.string().datetime().nullable(),
+  sellerAgreedAt: z.string().datetime().nullable(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
 });

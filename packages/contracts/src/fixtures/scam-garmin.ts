@@ -24,6 +24,8 @@ export const scamGarmin: ScenarioFixture = {
     buyer: { role: "buyer", displayName: "Dana M.", email: "dana.m@example.com" },
     currentCardVersion: 1,
     lockedCardVersion: null,
+    buyerAgreedAt: null,
+    sellerAgreedAt: null,
     createdAt: at(0),
     updatedAt: at(25),
   },

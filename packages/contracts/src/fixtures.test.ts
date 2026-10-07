@@ -48,6 +48,15 @@ describe("scenario fixtures", () => {
         expect(state).toBe(fx.deal.state);
       });
 
+      it("locks the card only after both sides agreed", () => {
+        const bothAgreed = fx.deal.buyerAgreedAt !== null && fx.deal.sellerAgreedAt !== null;
+        expect(fx.deal.lockedCardVersion !== null).toBe(bothAgreed);
+        if (bothAgreed) {
+          const agreed = fx.timeline.filter((e) => e.kind === "agreed").map((e) => e.actor).sort();
+          expect(agreed).toEqual(["buyer", "seller"]);
+        }
+      });
+
       it("is in time order", () => {
         const times = fx.timeline.map((e) => Date.parse(e.at));
         expect([...times].sort((a, b) => a - b)).toEqual(times);
