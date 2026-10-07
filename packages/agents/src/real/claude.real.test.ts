@@ -6,7 +6,7 @@
 import { describe, expect, it } from "vitest";
 import Anthropic from "@anthropic-ai/sdk";
 import type { Verdict } from "@pay-pals/contracts";
-import { CLEAN_SERIAL, cleanGarmin, hasStop, scamGarmin } from "@pay-pals/contracts";
+import { CLEAN_SERIAL, cleanPs5, hasStop, scamPs5 } from "@pay-pals/contracts";
 import { createBuyerPal } from "../buyer/buyer-pal";
 import { createSellerPal } from "../seller/seller-pal";
 import { createFixturePriceLookup } from "../price/fixture-lookup";
@@ -24,46 +24,48 @@ describe.skipIf(!enabled)("real Claude (needs ANTHROPIC_API_KEY)", () => {
   const anthropic = new Anthropic();
   const priceLookup = createFixturePriceLookup();
 
-  it("scam-garmin still stops with the required flags after the model weighs in", async () => {
+  it("scam-ps5 still stops with the required flags after the model weighs in", async () => {
     const pal = createBuyerPal({ anthropic, priceLookup });
-    const { data: verdict } = await pal.review(scamGarmin.cards.at(-1)!, scamGarmin.chat, { seller: scamGarmin.seller });
-    print("scam-garmin v1", verdict);
+    const { data: verdict } = await pal.review(scamPs5.cards.at(-1)!, scamPs5.chat, { seller: scamPs5.seller });
+    print("scam-ps5 v1", verdict);
     const codes = verdict.flags.map((f) => f.code);
-    for (const code of scamGarmin.expectedVerdict.requiredFlags) expect(codes).toContain(code);
+    for (const code of scamPs5.expectedVerdict.requiredFlags) expect(codes).toContain(code);
     expect(verdict.overall).toBe("stop");
     expect(verdict.palMessage.length).toBeGreaterThan(20);
     expect(verdict.palMessage).not.toMatch(/[—!]/);
   }, 60_000);
 
-  it("clean-garmin v1 (before the battery photo) is go, with at most three questions", async () => {
+  it("clean-ps5 v1 (before the Console Information photo) is go, with at most three questions", async () => {
     const pal = createBuyerPal({ anthropic, priceLookup });
-    const { data: verdict } = await pal.review(cleanGarmin.cards[0]!, cleanGarmin.chat.slice(0, 2), { seller: cleanGarmin.seller });
-    print("clean-garmin v1", verdict);
+    const { data: verdict } = await pal.review(cleanPs5.cards[0]!, cleanPs5.chat.slice(0, 2), { seller: cleanPs5.seller });
+    print("clean-ps5 v1", verdict);
     expect(hasStop(verdict.flags)).toBe(false);
     expect(verdict.overall).toBe("go");
     expect(verdict.questionsForSeller.length).toBeLessThanOrEqual(3);
   }, 60_000);
 
-  it("clean-garmin v2 (battery photo added) is go", async () => {
+  it("clean-ps5 v2 (Console Information photo added) is go", async () => {
     const pal = createBuyerPal({ anthropic, priceLookup });
-    const { data: verdict } = await pal.review(cleanGarmin.cards[1]!, cleanGarmin.chat, { seller: cleanGarmin.seller });
-    print("clean-garmin v2", verdict);
+    const { data: verdict } = await pal.review(cleanPs5.cards[1]!, cleanPs5.chat, { seller: cleanPs5.seller });
+    print("clean-ps5 v2", verdict);
     expect(hasStop(verdict.flags)).toBe(false);
     expect(verdict.overall).toBe("go");
   }, 60_000);
 
-  it("Seller Pal drafts the clean card and keeps the serial from the photo description", async () => {
+  it("Seller Pal drafts the clean card and keeps both serials from the photo descriptions", async () => {
     const pal = createSellerPal({ anthropic });
-    const { data: card } = await pal.buildCard({
-      dealId: cleanGarmin.deal.id,
-      listingText: cleanGarmin.listingText,
-      photos: cleanGarmin.listingPhotos,
-      sellerNotes: cleanGarmin.sellerNotes,
-      sellerPaypalEmail: cleanGarmin.seller.email,
+    const { data: card, palMessage } = await pal.buildCard({
+      dealId: cleanPs5.deal.id,
+      listingText: cleanPs5.listingText,
+      photos: cleanPs5.listingPhotos,
+      sellerNotes: cleanPs5.sellerNotes,
+      sellerPaypalEmail: cleanPs5.seller.email,
     });
-    expect(card.brand.toLowerCase()).toBe("garmin");
-    expect(card.model.toLowerCase()).toContain("fenix 7");
+    console.log(`clean-ps5 card: ${card.brand} / ${card.model} / serial ${card.serial} / box ${card.boxSerial} / $${card.askingPrice}\n  pal: ${palMessage}`);
+    expect(card.brand.toLowerCase()).toBe("sony");
+    expect(card.model.toLowerCase()).toContain("playstation 5");
     expect(card.serial).toBe(CLEAN_SERIAL);
-    expect(card.askingPrice).toBe(475);
+    expect(card.boxSerial).toBe(CLEAN_SERIAL);
+    expect(card.askingPrice).toBe(420);
   }, 60_000);
 });

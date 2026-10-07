@@ -12,6 +12,7 @@ import { missingSerialRule } from "./missing-serial";
 import { shipBeforePayRule } from "./ship-before-pay";
 import { nameMismatchRule } from "./name-mismatch";
 import { stockPhotoRule } from "./stock-photo";
+import { boxSerialMismatchRule } from "./box-serial-mismatch";
 
 export type { Rule, RuleInput, SellerIdentity } from "./types";
 
@@ -24,6 +25,7 @@ export const RULES: readonly Rule[] = [
   nameMismatchRule,
   stockPhotoRule,
   missingSerialRule,
+  boxSerialMismatchRule,
 ];
 
 export function runRules(input: RuleInput): RedFlag[] {

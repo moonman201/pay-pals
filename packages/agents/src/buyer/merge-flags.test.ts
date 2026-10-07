@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { RedFlag } from "@pay-pals/contracts";
-import { cleanGarmin } from "@pay-pals/contracts";
+import { cleanPs5 } from "@pay-pals/contracts";
 import { buildGroundingCorpus } from "./grounding";
 import { capModelSeverity, mergeModelReview } from "./merge-flags";
 
@@ -83,13 +83,13 @@ describe("mergeModelReview", () => {
 });
 
 describe("mergeModelReview grounding", () => {
-  const corpus = buildGroundingCorpus(cleanGarmin.cards[1]!, cleanGarmin.chat);
+  const corpus = buildGroundingCorpus(cleanPs5.cards[1]!, cleanPs5.chat);
 
   it("drops a model-added flag whose evidence is not in the chat or on the card", () => {
     const flags = mergeModelReview([], {
       ...empty,
       additional_flags: [
-        { code: "OTHER", severity: "caution", evidence: "the seller only answered the battery question and skipped the ownership, lost-or-stolen and firmware questions your pal asked", explanation: "The seller skipped questions." },
+        { code: "OTHER", severity: "caution", evidence: "the seller only answered the screen question and skipped the ownership, lost-or-stolen and firmware questions your pal asked", explanation: "The seller skipped questions." },
       ],
     }, corpus);
     expect(flags).toEqual([]);

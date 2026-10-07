@@ -13,7 +13,7 @@ import { callTool } from "../claude/tool-call";
 import { plainCopy, sentences } from "../copy";
 import { serialFromText } from "../vision/description";
 import type { ImageFetcher } from "../vision/fetch-image";
-import { firstSerial, readPhotos } from "../vision/read-photo";
+import { itemSerial, readPhotos } from "../vision/read-photo";
 import { parseConditionGrade, parseIncluded, parsePrice } from "./listing-parse";
 
 export interface ApplyRequestDeps {
@@ -96,7 +96,7 @@ export async function applyBuyerRequest(
     }
     case "serial": {
       const readings = await readPhotos(photos, { client: deps.client, fetchImage: deps.fetchImage, hints: { brand: card.brand, model: card.model } });
-      const serial = firstSerial(readings)?.serial ?? serialFromText(sellerReply);
+      const serial = itemSerial(readings)?.serial ?? serialFromText(sellerReply);
       if (serial && serial !== card.serial) {
         next.serial = serial;
         changes.push(`serial ${serial} added`);
