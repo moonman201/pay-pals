@@ -16,7 +16,7 @@ import { mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test, type Page } from "@playwright/test";
-import { cleanGarmin } from "@pay-pals/contracts";
+import { cleanPs5 } from "@pay-pals/contracts";
 import { WEB_PRESENT } from "./env";
 import { reviewAndAgree } from "./flows";
 import { expectState, panel, startDemo } from "./helpers";
@@ -72,7 +72,7 @@ test.describe("PayPal and Venmo buttons, sandbox", () => {
       if (msg.type() === "error") consoleErrors.push(msg.text());
     });
 
-    const dealId = await startDemo(page, cleanGarmin, "buyer");
+    const dealId = await startDemo(page, cleanPs5, "buyer");
     log(`deal ${dealId}`);
     await expectState(page, "Listed");
 
