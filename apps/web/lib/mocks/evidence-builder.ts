@@ -3,6 +3,7 @@
  * writes a plain summary a dispute reviewer can read in one minute.
  */
 import { CONDITION_LABELS, type EvidenceInput, type EvidencePack, type EvidencePackBuilder, type PalResult, type Photo } from "@pay-pals/contracts";
+import { formatTime } from "../format";
 import { nowIso } from "./ids";
 
 function uniquePhotos(lists: Photo[][]): Photo[] {
@@ -25,7 +26,7 @@ function summarize(input: EvidenceInput): string {
   const lines: string[] = [];
   const buyer = deal.buyer?.displayName ?? "The buyer";
   lines.push(
-    `${deal.seller.displayName} sold ${buyer} a ${lockedCard.title} (${lockedCard.brand} ${lockedCard.model}, serial ${lockedCard.serial ?? "not recorded"}, condition ${CONDITION_LABELS[lockedCard.conditionGrade]}) for ${money(lockedCard.askingPrice)}. Both sides agreed to card version ${lockedCard.version}, locked on ${lockedCard.lockedAt ?? "an unrecorded date"}. The card lists: ${lockedCard.included.join(", ")}.`,
+    `${deal.seller.displayName} sold ${buyer} a ${lockedCard.title} (${lockedCard.brand} ${lockedCard.model}, serial ${lockedCard.serial ?? "not recorded"}, condition ${CONDITION_LABELS[lockedCard.conditionGrade]}) for ${money(lockedCard.askingPrice)}. Both sides agreed to card version ${lockedCard.version}, locked ${lockedCard.lockedAt ? formatTime(lockedCard.lockedAt) : "at an unrecorded time"}. The card lists: ${lockedCard.included.join(", ")}.`,
   );
   const review = verdicts[verdicts.length - 1];
   if (review) {
@@ -40,7 +41,7 @@ function summarize(input: EvidenceInput): string {
   }
   if (shipment) {
     lines.push(
-      `The seller shipped with ${shipment.carrier}, tracking ${shipment.trackingNumber}, on ${shipment.shippedAt}, with ${shipment.packingPhotos.length} packing photos. ${shipment.deliveredAt ? `Delivery was confirmed on ${shipment.deliveredAt}.` : "Delivery has not been confirmed."}`,
+      `The seller shipped with ${shipment.carrier}, tracking ${shipment.trackingNumber}, on ${formatTime(shipment.shippedAt)}, with ${shipment.packingPhotos.length} packing photos. ${shipment.deliveredAt ? `Delivery was confirmed on ${formatTime(shipment.deliveredAt)}.` : "Delivery has not been confirmed."}`,
     );
   }
   if (arrivalCheck) {

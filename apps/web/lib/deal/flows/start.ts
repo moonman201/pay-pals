@@ -58,8 +58,17 @@ export async function startDemoDeal(services: Services, scenario: ScenarioId): P
   await say(services, deal.id, "seller_pal", "seller_pal", `I built card version 1 from your listing. ${serialNote}`);
   await note(services, deal.id, "card_updated", "seller_pal", `Seller Pal built card version 1. ${serialNote}`);
   deal = await store.transition(deal.id, "LISTED", "system", "Listed.");
-  for (const m of fixture.chat) {
-    await store.addMessage({ dealId: deal.id, channel: m.channel, author: m.author, text: m.text, photos: m.photos.filter((p) => cardV1.photos.some((c) => c.url === p.url)), at: m.at });
+  // The fixture chat happened "before now": restamp it one minute apart, ending a minute ago.
+  const base = Date.now() - (fixture.chat.length + 1) * 60_000;
+  for (const [i, m] of fixture.chat.entries()) {
+    await store.addMessage({
+      dealId: deal.id,
+      channel: m.channel,
+      author: m.author,
+      text: m.text,
+      photos: m.photos.filter((p) => cardV1.photos.some((c) => c.url === p.url)),
+      at: new Date(base + i * 60_000).toISOString(),
+    });
   }
   await say(services, deal.id, "buyer_pal", "buyer_pal", "I have the card and the chat. Ask me to review before you agree to anything.");
   return deal;

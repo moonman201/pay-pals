@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import path from "node:path";
 
 /**
  * Workspace packages export TypeScript source (ADR 0001), so Next must
@@ -8,6 +9,8 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   transpilePackages: ["@pay-pals/contracts"],
   reactStrictMode: true,
+  // The monorepo root holds the only lockfile.
+  outputFileTracingRoot: path.resolve(__dirname, "../.."),
 };
 
 export default nextConfig;
