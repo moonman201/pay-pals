@@ -83,7 +83,7 @@ export function RequestStep({ dealId, questions, suggestions, onDone }: Props) {
         </label>
         <label className="block text-sm">
           <span className="font-semibold">Your reply</span>
-          <textarea value={reply} onChange={(e) => setReply(e.target.value)} rows={2} placeholder="For example: Added. About 11 days in smartwatch mode." className="mt-1 block w-full rounded-lg border border-line px-3 py-2 text-sm" />
+          <textarea value={reply} onChange={(e) => setReply(e.target.value)} rows={2} placeholder="For example: Added. Same serial on the Console Information screen." className="mt-1 block w-full rounded-lg border border-line px-3 py-2 text-sm" />
         </label>
         <PhotoInput value={photos} onChange={setPhotos} addedBy="seller" suggestions={suggestions} label="New photos" />
         <div className="flex gap-2">

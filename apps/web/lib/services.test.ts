@@ -16,13 +16,13 @@ describe("createServices with no keys", () => {
   it("seeds the three finished demo deals in their end states", async () => {
     const services = createServices({}, () => {});
     const seeded = await services.seededDeals;
-    expect(Object.keys(seeded).sort()).toEqual(["clean-garmin", "scam-garmin", "wrong-item"]);
+    expect(Object.keys(seeded).sort()).toEqual(["clean-ps5", "empty-box", "scam-ps5"]);
 
-    const scam = await loadSnapshot(services, seeded["scam-garmin"]!);
+    const scam = await loadSnapshot(services, seeded["scam-ps5"]!);
     expect(scam.deal.state).toBe("BLOCKED");
     expect(scam.verdict?.overall).toBe("stop");
 
-    const clean = await loadSnapshot(services, seeded["clean-garmin"]!);
+    const clean = await loadSnapshot(services, seeded["clean-ps5"]!);
     expect(clean.deal.state).toBe("COMPLETE");
     expect(clean.cards).toHaveLength(2);
     expect(clean.lockedCard?.version).toBe(2);
@@ -30,10 +30,10 @@ describe("createServices with no keys", () => {
     expect(clean.shipment?.deliveredAt).not.toBeNull();
     expect(clean.arrivalCheck?.matches).toBe(true);
 
-    const wrong = await loadSnapshot(services, seeded["wrong-item"]!);
-    expect(wrong.deal.state).toBe("ISSUE");
-    expect(wrong.arrivalCheck?.matches).toBe(false);
-    expect(wrong.hasEvidence).toBe(true);
+    const empty = await loadSnapshot(services, seeded["empty-box"]!);
+    expect(empty.deal.state).toBe("ISSUE");
+    expect(empty.arrivalCheck?.matches).toBe(false);
+    expect(empty.hasEvidence).toBe(true);
   });
 
   it("PAY_PALS_DEMO_ONLY forces demo modes even when every key is present", () => {
