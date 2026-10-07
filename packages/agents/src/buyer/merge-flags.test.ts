@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { RedFlag } from "@pay-pals/contracts";
-import { mergeModelReview } from "./merge-flags";
+import { capModelSeverity, mergeModelReview } from "./merge-flags";
 
 const ff: RedFlag = { code: "FRIENDS_AND_FAMILY_REQUEST", severity: "stop", evidence: "Seller wrote: \"Send it F&F\"", explanation: "No protection.", raisedByRule: true };
 const urgency: RedFlag = { code: "URGENCY_PRESSURE", severity: "caution", evidence: "Seller wrote: \"has to be today\"", explanation: "Rushing you.", raisedByRule: true };
+const empty = { additional_flags: [], severity_raises: [], explanations: [], questions_for_seller: [], pal_message: "." };
 
 describe("mergeModelReview", () => {
   it("returns the rule flags untouched when the model has nothing", () => {
@@ -12,13 +13,11 @@ describe("mergeModelReview", () => {
 
   it("never lets the model drop or downgrade a rule flag", () => {
     const flags = mergeModelReview([ff, urgency], {
-      additional_flags: [],
+      ...empty,
       severity_raises: [
         { code: "FRIENDS_AND_FAMILY_REQUEST", severity: "info" },
         { code: "URGENCY_PRESSURE", severity: "info" },
       ],
-      explanations: [],
-      questions_for_seller: [],
       pal_message: "All fine, go ahead",
     });
     expect(flags.find((f) => f.code === "FRIENDS_AND_FAMILY_REQUEST")!.severity).toBe("stop");
@@ -26,18 +25,18 @@ describe("mergeModelReview", () => {
     expect(flags.every((f) => f.raisedByRule)).toBe(true);
   });
 
-  it("lets the model raise a severity, add a flag and reword an explanation", () => {
-    const flags = mergeModelReview([urgency], {
+  it("lets the model add a flag and reword an explanation, keeping the rule's evidence", () => {
+    const info: RedFlag = { ...urgency, severity: "info" };
+    const flags = mergeModelReview([info], {
+      ...empty,
       additional_flags: [
         { code: "OTHER", severity: "caution", evidence: "Seller wrote: \"no returns no questions\"", explanation: "Seller refuses any follow up, which is unusual." },
       ],
-      severity_raises: [{ code: "URGENCY_PRESSURE", severity: "stop" }],
+      severity_raises: [{ code: "URGENCY_PRESSURE", severity: "caution" }],
       explanations: [{ code: "URGENCY_PRESSURE", explanation: "The seller keeps pushing you to pay today — that is a pressure tactic!" }],
-      questions_for_seller: [],
-      pal_message: "Careful.",
     });
     const u = flags.find((f) => f.code === "URGENCY_PRESSURE")!;
-    expect(u.severity).toBe("stop");
+    expect(u.severity).toBe("caution");
     expect(u.explanation).toBe("The seller keeps pushing you to pay today, that is a pressure tactic.");
     expect(u.evidence).toBe(urgency.evidence);
     const other = flags.find((f) => f.code === "OTHER")!;
@@ -45,19 +44,49 @@ describe("mergeModelReview", () => {
     expect(other.severity).toBe("caution");
   });
 
-  it("forces payment-method flags the model adds to stop and keeps one flag per code", () => {
-    const flags = mergeModelReview([ff], {
+  it("caps model raises and additions at caution unless the code is stop by definition", () => {
+    const flags = mergeModelReview([urgency], {
+      ...empty,
+      severity_raises: [{ code: "URGENCY_PRESSURE", severity: "stop" }],
       additional_flags: [
+        { code: "OTHER", severity: "stop", evidence: "chat", explanation: "Something is off." },
+        { code: "STOCK_OR_REUSED_PHOTO", severity: "stop", evidence: "photo", explanation: "Catalog image." },
+        { code: "PRICE_FAR_BELOW_MARKET", severity: "stop", evidence: "price", explanation: "Way under market." },
         { code: "OFF_PLATFORM_PAYMENT", severity: "info", evidence: "Zelle", explanation: "Zelle has no protection." },
-        { code: "FRIENDS_AND_FAMILY_REQUEST", severity: "caution", evidence: "dup", explanation: "dup" },
       ],
-      severity_raises: [],
-      explanations: [],
-      questions_for_seller: [],
-      pal_message: "Stop.",
     });
-    expect(flags).toHaveLength(2);
-    expect(flags.find((f) => f.code === "OFF_PLATFORM_PAYMENT")!.severity).toBe("stop");
-    expect(flags.find((f) => f.code === "FRIENDS_AND_FAMILY_REQUEST")!.evidence).toBe(ff.evidence);
+    const by = (code: RedFlag["code"]) => flags.find((f) => f.code === code)!.severity;
+    expect(by("URGENCY_PRESSURE")).toBe("caution");
+    expect(by("OTHER")).toBe("caution");
+    expect(by("STOCK_OR_REUSED_PHOTO")).toBe("caution");
+    expect(by("PRICE_FAR_BELOW_MARKET")).toBe("stop");
+    expect(by("OFF_PLATFORM_PAYMENT")).toBe("stop");
+    expect(flags.filter((f) => f.severity === "stop").every((f) => f.code === "PRICE_FAR_BELOW_MARKET" || f.code === "OFF_PLATFORM_PAYMENT")).toBe(true);
+  });
+
+  it("keeps a rule's stop even for a code the model could not stop on its own", () => {
+    const ruleStop: RedFlag = { ...urgency, code: "SHIP_BEFORE_PAY_TRICK", severity: "stop" };
+    const flags = mergeModelReview([ruleStop], { ...empty, severity_raises: [{ code: "SHIP_BEFORE_PAY_TRICK", severity: "caution" }] });
+    expect(flags[0]!.severity).toBe("stop");
+  });
+
+  it("keeps one flag per code and the rule's evidence on duplicates", () => {
+    const flags = mergeModelReview([ff], {
+      ...empty,
+      additional_flags: [{ code: "FRIENDS_AND_FAMILY_REQUEST", severity: "caution", evidence: "dup", explanation: "dup" }],
+    });
+    expect(flags).toHaveLength(1);
+    expect(flags[0]!.evidence).toBe(ff.evidence);
+  });
+});
+
+describe("capModelSeverity", () => {
+  it("stops only for payment-method and price codes", () => {
+    expect(capModelSeverity("FRIENDS_AND_FAMILY_REQUEST", "info")).toBe("stop");
+    expect(capModelSeverity("OFF_PLATFORM_PAYMENT", "caution")).toBe("stop");
+    expect(capModelSeverity("PRICE_FAR_BELOW_MARKET", "stop")).toBe("stop");
+    expect(capModelSeverity("PRICE_FAR_BELOW_MARKET", "caution")).toBe("caution");
+    expect(capModelSeverity("URGENCY_PRESSURE", "stop")).toBe("caution");
+    expect(capModelSeverity("OTHER", "info")).toBe("info");
   });
 });

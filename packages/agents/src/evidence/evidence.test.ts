@@ -17,25 +17,28 @@ async function wrongItemInput(): Promise<EvidenceInput> {
     lockedCard: card,
     verdicts: [verdict],
     arrivalCheck: arrival,
-    messages: [...wrongItem.chat, { id: "m9", dealId: card.dealId, channel: "deal", author: "buyer", text: "This is a Fenix 6.", photos: wrongItem.arrivalPhotos, at: arrival.createdAt }],
+    messages: wrongItem.chat,
     payment: wrongItem.payment,
     shipment: wrongItem.shipment,
     timeline: wrongItem.timeline,
+    arrivalPhotos: wrongItem.arrivalPhotos,
     requestedBy: "buyer",
   };
 }
 
 describe("buildEvidencePack", () => {
-  it("assembles a valid pack for the wrong-item scenario with a factual summary", async () => {
+  it("assembles a valid pack for the wrong-item scenario with the arrival photos and a factual summary", async () => {
     const input = await wrongItemInput();
     const { data: pack, palMessage } = await buildEvidencePack(input, { anthropic: null });
     expect(EvidencePackSchema.safeParse(pack).success).toBe(true);
     expect(pack.builtBy).toBe("buyer_pal");
     expect(pack.photos.map((p) => p.url)).toEqual([
       ...wrongItem.cards[0]!.photos.map((p) => p.url),
-      ...wrongItem.arrivalPhotos.map((p) => p.url),
       ...wrongItem.shipment!.packingPhotos.map((p) => p.url),
+      ...wrongItem.arrivalPhotos.map((p) => p.url),
     ]);
+    expect(pack.summary).toContain("2 arrival photos taken by the buyer");
+    expect(pack.summary).toContain(wrongItem.arrivalPhotos[0]!.whatItShows);
     expect(pack.summary).toContain(WRONG_ITEM_LOCKED_SERIAL);
     expect(pack.summary).toContain(WRONG_ITEM_ARRIVED_SERIAL);
     expect(pack.summary).toContain(wrongItem.payment!.paypalOrderId);
@@ -45,13 +48,28 @@ describe("buildEvidencePack", () => {
     expect(palMessage).toContain("dispute");
   });
 
-  it("uses the model's prose when a client is given and falls back when it is not", async () => {
+  it("does not list an arrival photo twice when it also appears in the chat", async () => {
+    const input = await wrongItemInput();
+    const withChatPhoto: EvidenceInput = {
+      ...input,
+      messages: [...input.messages, { id: "m9", dealId: input.deal.id, channel: "deal", author: "buyer", text: "This is a Fenix 6.", photos: [wrongItem.arrivalPhotos[0]!], at: input.arrivalCheck!.createdAt }],
+    };
+    const { data: pack } = await buildEvidencePack(withChatPhoto, { anthropic: null });
+    expect(pack.photos.filter((p) => p.url === wrongItem.arrivalPhotos[0]!.url)).toHaveLength(1);
+    expect(pack.photos).toHaveLength(5);
+  });
+
+  it("uses the model's prose when a client is given and tells it about the arrival photos", async () => {
     const input = await wrongItemInput();
     const model = fakeClaude(() => null);
-    model.messages.create = async () =>
-      ({ content: [{ type: "text", text: "The buyer paid for a Fenix 7 Pro, serial 7LP091337 — a Fenix 6 arrived!" }], stop_reason: "end_turn" }) as never;
+    let prompt = "";
+    model.messages.create = async (params) => {
+      prompt = typeof params.messages[0]!.content === "string" ? params.messages[0]!.content : "";
+      return { content: [{ type: "text", text: "The buyer paid for a Fenix 7 Pro, serial 7LP091337 — a Fenix 6 arrived!" }], stop_reason: "end_turn" } as never;
+    };
     const withModel = await createEvidencePackBuilder({ anthropic: model })(input);
     expect(withModel.data.summary).toBe("The buyer paid for a Fenix 7 Pro, serial 7LP091337, a Fenix 6 arrived.");
+    expect(prompt).toContain("arrival photo");
     expect(deterministicSummary(input)).toContain("did not match");
   });
 
