@@ -116,6 +116,8 @@ Save every working call as a Postman collection in `docs/postman/`.
 2. **Who starts a deal.** Either side. The seller usually does; a buyer can paste a listing and invite the seller.
 3. **Accounts.** None in v1. A deal link plus the party's email is enough.
 4. **Brand names.** Real brand and product names are fine in demo data, UI and video. No copied logos or artwork.
+5. **Two-sided agreement (Oct 7).** Both the buyer and the seller agree to a specific card version. The card locks and the deal moves to AGREED when the second agreement lands. A new card version clears both. Lands in the Fri Oct 9 freeze as contracts v1.3.0.
+6. **Non-payment stops (Oct 7).** A stop that is not about payment method (price far below market, ship-before-pay) stays overridable with the acknowledgment checkbox and stronger warning wording. Only payment-method flags end the deal.
 
 ## Status (Lead keeps this current)
 | Lane | Status | Last merge |
