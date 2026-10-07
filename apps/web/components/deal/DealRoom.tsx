@@ -23,6 +23,7 @@ import { Panel } from "../ui/Panel";
 import { ArrivalStep } from "./steps/ArrivalStep";
 import { InvitePanel } from "./steps/InvitePanel";
 import { IssueStep } from "./steps/IssueStep";
+import { RefusalStep } from "./steps/RefusalStep";
 import { JoinForm } from "./steps/JoinForm";
 import { PayStep } from "./steps/PayStep";
 import { RequestStep } from "./steps/RequestStep";
@@ -97,6 +98,7 @@ export function DealRoom({ snapshot, role }: { snapshot: DealSnapshot; role: Rol
             <ItemCardView cards={snapshot.cards} currentVersion={deal.currentCardVersion} lockedVersion={deal.lockedCardVersion} certCheck={snapshot.verdict?.certCheck ?? null} />
           ) : null}
           {role === "buyer" && state === "INVITED" ? <InvitePanel deal={deal} /> : null}
+          {role === "buyer" && state === "INVITED" && !snapshot.inviteDeclined ? <RefusalStep dealId={deal.id} onDone={refresh} /> : null}
           {role === "seller" && state === "INVITED" ? (
             <Panel title="You have not joined yet" accent>
               <p className="text-sm">

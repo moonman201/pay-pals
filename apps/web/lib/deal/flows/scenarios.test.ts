@@ -249,13 +249,28 @@ describe("buyer-first (PLAN.md Decision 7)", () => {
     expect(snap.events.map((e) => e.kind)).toEqual(expect.arrayContaining(["invite_declined", "review_posted"]));
   });
 
-  it("the buyer can paste the seller's reply into the chat and have it reviewed with no card", async () => {
+  it("the buyer can record what the seller said outside Pay Pals; the refusal is reviewed with no card and blocks", async () => {
     const services = noKeys();
     const deal = await startBuyerFirst(services, { buyer, sellerEmail: "seller@example.com", listingUrl: null });
-    await postChat(services, deal.id, "buyer", "The seller replied: no Pay Pals, Friends and Family only or I sell to someone else.");
+    await declineInvite(services, deal.id, { by: "buyer", reason: "No Pay Pals, Friends and Family only or I sell to someone else." });
+    const snap0 = await loadSnapshot(services, deal.id);
+    expect(snap0.events.find((e) => e.kind === "invite_declined")?.summary).toMatch(/says the seller declined/);
     const verdict = await runReview(services, deal.id);
-    expect(verdict.flags.some((f) => f.code === "FRIENDS_AND_FAMILY_REQUEST" || f.code === "INVITE_REFUSED")).toBe(true);
+    expect(verdict.cardVersion).toBe(0);
+    expect(verdict.flags.map((f) => f.code)).toContain("INVITE_REFUSED");
     expect((await loadSnapshot(services, deal.id)).deal.state).toBe("BLOCKED");
+  });
+
+  it("a plain chat line from the buyer is enough to review, but the pal's rules read only the seller's own words", async () => {
+    const services = noKeys();
+    const deal = await startBuyerFirst(services, { buyer, sellerEmail: "seller@example.com", listingUrl: null });
+    await postChat(services, deal.id, "buyer", "The seller replied: Friends and Family only.");
+    const verdict = await runReview(services, deal.id);
+    expect(verdict.cardVersion).toBe(0);
+    expect(verdict.flags.map((f) => f.code)).not.toContain("INVITE_REFUSED");
+    const snap = await loadSnapshot(services, deal.id);
+    expect(snap.deal.state).toBe("REVIEWED");
+    expect(snap.currentCard).toBeNull();
   });
 
   it("the fixture demos start the way their timelines do: buyer-first scenarios carry the invite and the join", async () => {

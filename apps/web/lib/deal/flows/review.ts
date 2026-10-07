@@ -20,6 +20,7 @@ export function wasInviteDeclined(events: readonly DealEvent[]): boolean {
 /** Everything the Buyer Pal should know beyond the card and the chat. Built the same way for every review. */
 export function reviewContext(deal: Deal, events: readonly DealEvent[]): ReviewContext {
   return {
+    dealId: deal.id,
     seller: deal.seller,
     listingUrl: deal.listingUrl,
     sellerJoined: deal.sellerJoinedAt !== null,

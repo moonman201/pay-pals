@@ -8,7 +8,8 @@ describe("createServices with no keys", () => {
   it("picks the memory store, rules-only pals, fixture prices and the mock gateway, and says so without values", () => {
     const lines: string[] = [];
     const services = createServices({}, (l) => lines.push(l));
-    expect(services.modes).toEqual({ store: "memory", claude: false, prices: "fixture", paypal: "mock" });
+    expect(services.modes).toEqual({ store: "memory", claude: false, prices: "fixture", certs: "fixture", paypal: "mock" });
+    expect(lines.join("\n")).toMatch(/fixture cert records/);
     expect(lines.join("\n")).toMatch(/rules only/);
     expect(lines.join("\n")).toMatch(/fixture ranges/);
     expect(lines.join("\n")).toMatch(/mock gateway/);
@@ -43,6 +44,7 @@ describe("createServices with no keys", () => {
       DATABASE_URL: "postgres://user:pw@db.example/paypals",
       ANTHROPIC_API_KEY: "sk-ant-secret-value",
       CHANNEL3_API_KEY: "c3-secret-value",
+      PSA_API_TOKEN: "psa-secret-value",
       PAYPAL_ENV: "sandbox",
       PAYPAL_CLIENT_ID: "id-secret-value",
       PAYPAL_CLIENT_SECRET: "shh-secret-value",
@@ -50,13 +52,13 @@ describe("createServices with no keys", () => {
     for (const flag of ["1", "true", "TRUE"]) {
       const lines: string[] = [];
       const services = createServices({ ...keys, PAY_PALS_DEMO_ONLY: flag }, (l) => lines.push(l));
-      expect(services.modes).toEqual({ store: "memory", claude: false, prices: "fixture", paypal: "mock" });
+      expect(services.modes).toEqual({ store: "memory", claude: false, prices: "fixture", certs: "fixture", paypal: "mock" });
       expect(lines[0]).toMatch(/demo-only mode is on/);
       expect(lines.join("\n")).not.toMatch(/secret-value/);
     }
     // "0" does not force demo mode. Only the PayPal keys here: a real Claude client or Postgres pool has no place in a unit test.
     const off = createServices({ PAYPAL_ENV: "sandbox", PAYPAL_CLIENT_ID: "id-secret-value", PAYPAL_CLIENT_SECRET: "shh-secret-value", PAY_PALS_DEMO_ONLY: "0" }, () => {});
-    expect(off.modes).toEqual({ store: "memory", claude: false, prices: "fixture", paypal: "sandbox" });
+    expect(off.modes).toEqual({ store: "memory", claude: false, prices: "fixture", certs: "fixture", paypal: "sandbox" });
   });
 
   it("substitutes the sandbox seller for the fixture payee on demo deals, without logging the address", async () => {

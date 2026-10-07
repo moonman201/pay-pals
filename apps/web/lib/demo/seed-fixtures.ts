@@ -58,6 +58,7 @@ async function replay(services: SeedServices, fixture: ScenarioFixture): Promise
           const chat = await store.listMessages(id, "deal");
           const current = await store.getDeal(id);
           const result = await services.buyerPal.review(card, chat, {
+            dealId: id,
             seller: fixture.seller,
             listingUrl: fixture.deal.listingUrl,
             sellerJoined: (current?.sellerJoinedAt ?? null) !== null,
