@@ -9,7 +9,7 @@ The first full build day put every lane on main. Several rules that PLAN.md left
 
 1. **Payment-method flags end the deal.** A Friends and Family request or any off-platform payment ask is always severity stop, the buyer gets no override, and the deal moves to BLOCKED from the review itself. Pay Pals only ever creates a Goods and Services checkout order. (`PAYMENT_METHOD_FLAGS` in contracts; `review.ts` in apps/web.)
 
-2. **A caution can be overridden, with an explicit acknowledgment.** Non-payment stops (price far below market, ship-before-pay) are shown with sterner wording and the same checkbox until Matt rules otherwise. See BLOCKERS.md.
+2. **A caution can be overridden, with an explicit acknowledgment.** Non-payment stops (price far below market, ship-before-pay) stay overridable behind a sterner three-sentence warning and the label "I read the warning and I still want to continue." Decided by Matt, Oct 7.
 
 3. **The model never manufactures a stop.** Rules decide what is a flag. The model may add flags only with evidence that appears in the chat or on the card, may raise a severity, and may reword. A model raise is capped at caution except for payment-method and price codes. Missing answers are questions for the seller, not flags. Three questions at most. (`merge-flags.ts`, `grounding.ts` in packages/agents.)
 
@@ -26,4 +26,4 @@ The first full build day put every lane on main. Several rules that PLAN.md left
 ## Consequences
 - The three demo scenarios are driven end to end by Playwright on every merge, with no keys.
 - Turning on a key changes one log line, never a code path outside `apps/web/lib/services.ts`.
-- Two product calls remain Matt's: two-sided agreement, and whether a non-payment stop is overridable.
+- **Agreement is two-sided** (decided by Matt, Oct 7). Each side agrees to a card version; the second agreement locks the card and moves the deal to AGREED; a new card version clears both and needs a fresh review. `Deal.buyerAgreedAt`, `Deal.sellerAgreedAt`, `DealStore.recordAgreement`, migration 0001.
