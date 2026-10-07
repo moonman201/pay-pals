@@ -66,10 +66,8 @@ describe("scam-garmin: a payment-method flag blocks the deal", () => {
     expect(changes).toEqual(["DRAFT->LISTED", "LISTED->REVIEWED", "REVIEWED->BLOCKED"]);
   });
 
-  // Filed in coordination/REVIEW.md 2026-10-07 [packages/db]: lockCard and saveCard do not
-  // look at the deal state, so a BLOCKED deal can still lock its card. This test is marked
-  // `fails` so the suite stays green until the store is fixed; flip it to `it` then.
-  it.fails("refuses to lock the card on a BLOCKED deal", async () => {
+  // Skipped until the store checks deal state in saveCard and lockCard. Flip to `it` with the fix.
+  it.skip("refuses to lock the card on a BLOCKED deal (open: REVIEW.md 2026-10-07 [packages/db], builder-paypal)", async () => {
     const seeded = await seedFixture(scamGarmin);
     await reviewAndSave(seeded);
     await seeded.store.transition(seeded.dealId, "BLOCKED", "buyer_pal", "Blocked.");

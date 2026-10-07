@@ -4,7 +4,7 @@
  * id. A dispute on a DELIVERED deal opens an ISSUE.
  */
 import { describe, expect, it } from "vitest";
-import { cleanGarmin, wrongItem } from "@pay-pals/contracts";
+import { canTransition, cleanGarmin, wrongItem } from "@pay-pals/contracts";
 import type { DealState, PaymentRecord, ScenarioFixture, WebhookEvent } from "@pay-pals/contracts";
 import { handleWebhookEvent } from "@pay-pals/paypal";
 import { driveTo, seedFixture } from "./seed";
@@ -160,15 +160,18 @@ describe("CUSTOMER.DISPUTE.CREATED", () => {
     expect((await store.listEvents(dealId)).filter((e) => e.kind === "dispute_opened")).toHaveLength(1);
   });
 
-  // Open in coordination/REVIEW.md 2026-10-07 [packages/paypal]: the dispute handler checks
-  // for DELIVERED instead of canTransition, so a dispute before delivery leaves the deal in
-  // PAID or SHIPPED. Contracts v1.2.0 allow PAID -> ISSUE and SHIPPED -> ISSUE. Marked
-  // `fails` so the suite stays green until builder-paypal lands the fix; flip to `it` then.
-  it.fails("moves a SHIPPED deal to ISSUE (contracts v1.2.0)", async () => {
-    const { seeded } = await dealWithPayment(wrongItem, "SHIPPED");
-    const { store, dealId } = seeded;
-    const outcome = await handleWebhookEvent(disputeCreated(dealId), store);
-    expect(outcome.handled).toBe(true);
-    expect((await store.getDeal(dealId))!.state).toBe("ISSUE");
-  });
+  // Contracts v1.2.0: a dispute before delivery (item never arrived) is an issue too.
+  for (const from of ["PAID", "SHIPPED"] as const) {
+    it(`moves a ${from} deal to ISSUE`, async () => {
+      const { seeded } = await dealWithPayment(wrongItem, from);
+      const { store, dealId } = seeded;
+      expect(canTransition(from, "ISSUE")).toBe(true);
+
+      const outcome = await handleWebhookEvent(disputeCreated(dealId), store);
+      expect(outcome).toMatchObject({ handled: true, duplicate: false, retry: false, dealId });
+      expect((await store.getDeal(dealId))!.state).toBe("ISSUE");
+      expect((await store.getPayment(dealId))!.status).toBe("DISPUTED");
+      expect((await store.listEvents(dealId)).at(-1)).toMatchObject({ kind: "state_changed", fromState: from, toState: "ISSUE" });
+    });
+  }
 });
