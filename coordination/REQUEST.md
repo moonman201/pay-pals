@@ -5,9 +5,9 @@ Written 2026-10-06. Owner: Matt.
 Build Pay Pals as described in `PRODUCT.md`, as a hosted web app judges can use, running entirely on the PayPal sandbox.
 
 ## Must have (the three demo scenarios)
-Demo item (changed Oct 7): Matt's PlayStation 5 with its original box. Photos in `assets/demo-photos`.
+Demo item (changed Oct 7): Matt's PlayStation 5 with its original box. Photos in `assets/demo-photos`. No military references anywhere in demo data.
 
-1. **Scam stopped.** A "seller" offers a PlayStation 5 with box for $220, wants Friends & Family, reuses the photo from Matt's real listing, and says he is deploying Friday so it has to be today. Buyer Pal flags the price (far under market via Channel3), the Friends & Family ask, the pressure and the reused photo. Pay Pals will not move money outside Goods & Services. The deal dies before the buyer loses anything.
+1. **Scam stopped.** A "seller" offers a PlayStation 5 with box for $220, reuses the photo from Matt's real listing, and says "I'm moving out of state tomorrow and have three other people interested, first to send Friends & Family gets it." Buyer Pal flags the price (far under market via Channel3), the Friends & Family ask, the pressure and the reused photo. Pay Pals will not move money outside Goods & Services. The deal dies before the buyer loses anything.
 2. **Clean deal.** Matt sells the PS5 with its box. Seller Pal reads the serial on the back of the console and the serial on the box label and confirms they match, builds the card. Buyer Pal confirms the price is fair and asks for a photo of the Console Information screen. Seller adds it. Both agree. Buyer pays with PayPal (or Venmo). Seller Pal collects packing photos and tracking. Delivered. Both confirm. Done.
 3. **Empty box arrives.** The box arrives with the foam insert and no console. Buyer Pal finds no console serial in the arrival photos, names the mismatch against the locked card, and builds the evidence pack for a PayPal dispute.
 

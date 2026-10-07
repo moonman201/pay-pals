@@ -1,8 +1,8 @@
 /**
  * Scenario 1: scam stopped. A seller offers a PlayStation 5 with its box for
- * 220 dollars, wants Friends and Family, reuses a photo from someone else's
- * real listing, and says he deploys Friday so it has to be today. The Buyer
- * Pal says stop. No order is ever created.
+ * 220 dollars, reuses the photo from Matt's real listing, and says he is moving
+ * out of state tomorrow and the first to send Friends and Family gets it. The
+ * Buyer Pal says stop. No order is ever created.
  */
 import type { ScenarioFixture } from "./types";
 
@@ -24,7 +24,7 @@ export const scamPs5: ScenarioFixture = {
   id: "scam-ps5",
   name: "Scam stopped",
   summary:
-    "A seller offers a PlayStation 5 with its box for $220, wants Friends and Family, reuses someone else's listing photo and says it has to be today. The Buyer Pal stops it before any money moves.",
+    "A seller offers a PlayStation 5 with its box for $220, reuses someone else's listing photo, says he is moving out of state tomorrow and that the first to send Friends and Family gets it. The Buyer Pal stops it before any money moves.",
   seller,
   buyer,
   deal: {
@@ -41,7 +41,7 @@ export const scamPs5: ScenarioFixture = {
     updatedAt: at(25),
   },
   listingText:
-    "PS5 disc edition with original box, controller and all cables. Like new. $220 FIRM. Need it gone TODAY, I deploy Friday. Serious buyers only. No lowballs.",
+    "PS5 disc edition with original box, controller and all cables. Like new. $220 FIRM. Moving out of state tomorrow so it needs to go today. Serious buyers only. No lowballs.",
   sellerNotes: "Just pay and I ship. Everything in the photo is included.",
   listingPhotos: [listingPhoto],
   cards: [
@@ -65,12 +65,12 @@ export const scamPs5: ScenarioFixture = {
   ],
   chat: [
     { id: "m1", dealId, channel: "deal", author: "buyer", text: "Hi, is the PS5 still available?", photos: [], at: at(2) },
-    { id: "m2", dealId, channel: "deal", author: "seller", text: "Yes but it has to be today. I deploy Friday and I am clearing everything out.", photos: [], at: at(3) },
+    { id: "m2", dealId, channel: "deal", author: "seller", text: "Yes but it has to be today. I am moving out of state tomorrow and clearing everything out.", photos: [], at: at(3) },
     { id: "m3", dealId, channel: "deal", author: "buyer", text: "Can you send a photo of the serial on the back of the console and the box label?", photos: [], at: at(5) },
     { id: "m4", dealId, channel: "deal", author: "seller", text: "It is packed already, I am not unboxing it again. The photo in the listing is what you get.", photos: [], at: at(6) },
-    { id: "m5", dealId, channel: "deal", author: "seller", text: "Send $220 as Friends and Family so I do not lose fees and I will ship tonight. Zelle works too.", photos: [], at: at(8) },
+    { id: "m5", dealId, channel: "deal", author: "seller", text: "I'm moving out of state tomorrow and have three other people interested, first to send Friends & Family gets it.", photos: [], at: at(8) },
     { id: "m6", dealId, channel: "deal", author: "buyer", text: "Let me check with my pal first.", photos: [], at: at(9) },
-    { id: "m7", dealId, channel: "deal", author: "seller", text: "I have three other people asking. First to pay gets it.", photos: [], at: at(10) },
+    { id: "m7", dealId, channel: "deal", author: "seller", text: "No time for that. Send it as Friends & Family or Zelle in the next hour or it goes to the next person.", photos: [], at: at(10) },
   ],
   marketPrice: {
     marketLow: 380,
