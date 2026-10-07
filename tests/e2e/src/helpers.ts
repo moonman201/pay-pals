@@ -42,11 +42,11 @@ export async function openRoomAs(page: Page, dealId: string, side: Side): Promis
 /**
  * How long a step that calls a pal may take. Demo mode answers in
  * milliseconds; a real Buyer Pal review or arrival check (Claude plus a
- * price lookup) can take most of a minute. Used only after review and
+ * price lookup) can take over a minute. Used only after review and
  * arrival check, so the same specs run against a real-mode server through
  * E2E_BASE_URL without rewriting.
  */
-export const PAL_TIMEOUT = 60_000;
+export const PAL_TIMEOUT = 90_000;
 
 /** The state badge in the deal room header. */
 export async function expectState(page: Page, label: string): Promise<void> {
