@@ -4,7 +4,7 @@
  * and the timeline says why. Fixtures only, no keys.
  */
 import { expect, test } from "@playwright/test";
-import { scamGarmin } from "@pay-pals/contracts";
+import { scamPs5 } from "@pay-pals/contracts";
 import { WEB_PRESENT } from "./env";
 import { expectState, expectStateAfterPal, panel, pressAction, snapshot, startDemo } from "./helpers";
 
@@ -12,7 +12,7 @@ test.describe("scam stopped", () => {
   test.skip(!WEB_PRESENT, "apps/web is not on this branch yet, nothing to load");
 
   test("the review blocks the deal before any money moves", async ({ page }) => {
-    const dealId = await startDemo(page, scamGarmin, "buyer");
+    const dealId = await startDemo(page, scamPs5, "buyer");
     await expectState(page, "Listed");
 
     await pressAction(page, "Ask my pal to review");
