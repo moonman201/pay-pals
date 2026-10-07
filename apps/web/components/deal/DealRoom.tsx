@@ -18,8 +18,12 @@ import { SharedChat } from "./SharedChat";
 import { ShipmentSummary } from "./ShipmentSummary";
 import { Timeline } from "./Timeline";
 import { VerdictPanel } from "./VerdictPanel";
+import Link from "next/link";
+import { Panel } from "../ui/Panel";
 import { ArrivalStep } from "./steps/ArrivalStep";
+import { InvitePanel } from "./steps/InvitePanel";
 import { IssueStep } from "./steps/IssueStep";
+import { RefusalStep } from "./steps/RefusalStep";
 import { JoinForm } from "./steps/JoinForm";
 import { PayStep } from "./steps/PayStep";
 import { RequestStep } from "./steps/RequestStep";
@@ -78,8 +82,8 @@ export function DealRoom({ snapshot, role }: { snapshot: DealSnapshot; role: Rol
 
   const refresh = () => router.refresh();
   const myPal = snapshot.messages.filter((m) => m.channel === palChannel(role));
-  const shared = snapshot.messages.filter((m) => m.channel === "deal");
   const needsBuyer = role === "buyer" && deal.buyer === null;
+  const shared = snapshot.messages.filter((m) => m.channel === "deal");
   const openQuestions = snapshot.verdict && currentCard && snapshot.verdict.cardVersion === currentCard.version ? snapshot.verdict.questionsForSeller : [];
   // This side agreed to an earlier version and the store cleared it when the card changed.
   const agreedEarlier = snapshot.events.some((e) => e.kind === "agreed" && e.actor === role);
@@ -90,8 +94,31 @@ export function DealRoom({ snapshot, role }: { snapshot: DealSnapshot; role: Rol
       <DealHeader snapshot={snapshot} role={role} />
       <main className="mx-auto grid max-w-6xl gap-4 px-4 py-4 md:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] md:py-6">
         <div className="min-w-0 space-y-4">
-          {currentCard ? <ItemCardView cards={snapshot.cards} currentVersion={deal.currentCardVersion} lockedVersion={deal.lockedCardVersion} /> : null}
-          {snapshot.verdict ? <VerdictPanel verdict={snapshot.verdict} currentVersion={deal.currentCardVersion} locked={deal.lockedCardVersion !== null} /> : null}
+          {currentCard ? (
+            <ItemCardView cards={snapshot.cards} currentVersion={deal.currentCardVersion} lockedVersion={deal.lockedCardVersion} certCheck={snapshot.verdict?.certCheck ?? null} />
+          ) : null}
+          {role === "buyer" && state === "INVITED" ? <InvitePanel deal={deal} /> : null}
+          {role === "buyer" && state === "INVITED" && !snapshot.inviteDeclined ? <RefusalStep dealId={deal.id} onDone={refresh} /> : null}
+          {role === "seller" && state === "INVITED" ? (
+            <Panel title="You have not joined yet" accent>
+              <p className="text-sm">
+                The buyer invited you. Open the{" "}
+                <Link href={`/deals/${deal.id}/join?as=seller`} className="font-semibold text-[var(--accent-ink)] underline-offset-2 hover:underline">
+                  join page
+                </Link>{" "}
+                to add your photos, or to say you will not use Pay Pals.
+              </p>
+            </Panel>
+          ) : null}
+          {snapshot.verdict ? (
+            <VerdictPanel
+              verdict={snapshot.verdict}
+              currentVersion={deal.currentCardVersion}
+              locked={deal.lockedCardVersion !== null}
+              cardTitle={currentCard?.title ?? null}
+              cardGrade={currentCard?.grade ?? null}
+            />
+          ) : null}
           {snapshot.payment ? <PaymentSummary payment={snapshot.payment} /> : null}
           {snapshot.shipment ? <ShipmentSummary shipment={snapshot.shipment} /> : null}
           {snapshot.arrivalCheck ? <ArrivalResult check={snapshot.arrivalCheck} /> : null}
@@ -110,6 +137,7 @@ export function DealRoom({ snapshot, role }: { snapshot: DealSnapshot; role: Rol
                 agreement={{ buyerAgreedAt: deal.buyerAgreedAt, sellerAgreedAt: deal.sellerAgreedAt }}
                 cardVersion={deal.currentCardVersion}
                 cardChangedSinceAgree={cardChangedSinceAgree}
+                refusalToReview={snapshot.inviteDeclined || shared.length > 0}
                 onAction={onAction}
               />
               {error ? (

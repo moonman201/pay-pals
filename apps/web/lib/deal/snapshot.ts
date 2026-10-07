@@ -34,6 +34,8 @@ export interface DealSnapshot {
   demo: DemoHints | null;
   /** Which gateway the server is running. The pay step shows demo buttons whenever this is mock, whatever the public client id says. */
   payMode: "sandbox" | "mock";
+  /** The seller declined the invite (recorded on the join page or relayed by the buyer). */
+  inviteDeclined: boolean;
 }
 
 function demoHints(deal: Deal, currentCard: ItemCard | null): DemoHints | null {
@@ -102,6 +104,7 @@ export async function loadSnapshot(services: Services, dealId: string): Promise<
     checklistMessage,
     demo: demoHints(deal, currentCard),
     payMode: services.modes.paypal,
+    inviteDeclined: events.some((e) => e.kind === "invite_declined"),
   };
 }
 

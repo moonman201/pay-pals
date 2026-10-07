@@ -38,10 +38,9 @@ export const ByBody = z.object({ by: RoleSchema });
 
 export const IssueBody = z.object({ reason: z.enum(ISSUE_REASONS), details: z.string().trim().max(300).default("") });
 
+/** Seller-started deal from /deals/new. */
 export const StartDealBody = z.object({
-  startedBy: RoleSchema,
   seller: PartyInput,
-  buyer: PartyInput.nullable().default(null),
   listingText: z.string().trim().min(10).max(5000),
   sellerNotes: z.string().max(1000).default(""),
   photos: z.array(PhotoSchema).default([]),
@@ -49,3 +48,21 @@ export const StartDealBody = z.object({
   /** Only needed when the listing text names no price. */
   askingPrice: z.number().positive().multipleOf(0.01).optional(),
 });
+
+/** Buyer-first: "Use Pay Pals Protection" on the landing page. */
+export const InviteBody = z.object({
+  buyer: PartyInput,
+  sellerEmail: z.string().trim().email(),
+  listingUrl: z.string().trim().url().nullable().default(null),
+});
+
+export const SellerJoinBody = z.object({
+  displayName: z.string().trim().max(80).default(""),
+  sellerPaypalEmail: z.string().trim().email(),
+  listingText: z.string().trim().min(10).max(5000),
+  sellerNotes: z.string().max(1000).default(""),
+  photos: z.array(PhotoSchema).default([]),
+  askingPrice: z.number().positive().multipleOf(0.01).optional(),
+});
+
+export const DeclineBody = z.object({ by: RoleSchema, reason: z.string().trim().max(500).default("") });
