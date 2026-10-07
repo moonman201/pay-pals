@@ -4,8 +4,8 @@ import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 import { PriceCheckSchema } from "@pay-pals/contracts";
 import { Channel3Error, channel3CallCount, type Channel3SearchResponse } from "./channel3-api";
-import { ESTIMATE_NOTE_PREFIX, buildSearchRequest, createChannel3PriceLookup, deriveRange, relevantProducts } from "./channel3-lookup";
-import { createDiskCache, type DiskCache } from "./disk-cache";
+import { ESTIMATE_NOTE_PREFIX, NO_GRADED_LISTINGS_NOTE, buildSearchRequest, createChannel3PriceLookup, deriveRange, isGradedQuery, relevantProducts } from "./channel3-lookup";
+import { createDiskCache, type DiskCache } from "../cache/disk-cache";
 import { createFixturePriceLookup } from "./fixture-lookup";
 import { priceBelowMarketRule } from "../rules/price-below-market";
 import { card } from "../testing/builders";
@@ -127,6 +127,27 @@ describe("deriveRange", () => {
     expect(range.marketLow).toBe(380);
     expect(range.marketHigh).toBe(420);
     expect(range.sources[0]!.name).toBe(`${ESTIMATE_NOTE_PREFIX} from used offers only`);
+  });
+
+  it("returns the unknown range with a note for a graded card when Channel3 has no graded listings", () => {
+    const retailNoise: Channel3SearchResponse = {
+      products: [
+        { id: "p", title: "Charizard Figure", offers: [offer("toys.example", 21.49)] },
+        { id: "q", title: "Pokemon Charizard Plush - 12 inch Soft Plush", offers: [offer("retail.example", 24.97)] },
+      ],
+      next_page_token: null,
+    };
+    expect(isGradedQuery("Base Set Charizard Holo #4 PSA 10")).toBe(true);
+    expect(isGradedQuery("PlayStation 5 disc edition, CFI-1215A")).toBe(false);
+    const range = deriveRange(retailNoise, { brand: "Pokemon", model: "Base Set Charizard Holo #4 PSA 10", condition: "like_new" });
+    expect(range).toMatchObject({ marketLow: 0, marketHigh: 0, sources: [{ name: NO_GRADED_LISTINGS_NOTE }] });
+    expect(priceBelowMarketRule({ card: card({ askingPrice: 750 }), chat: [], priceCheck: { ...range, checkedAt: new Date().toISOString() } })).toHaveLength(0);
+
+    const graded: Channel3SearchResponse = {
+      products: [{ id: "g", title: "1999 Pokemon Base Set Charizard Holo #4 PSA 10", offers: [offer("cards.example", 4200, "used")] }, ...retailNoise.products],
+      next_page_token: null,
+    };
+    expect(deriveRange(graded, { brand: "Pokemon", model: "Base Set Charizard Holo #4 PSA 10", condition: "like_new" }).marketLow).toBe(4200);
   });
 
   it("returns an unknown range when nothing comes back", () => {

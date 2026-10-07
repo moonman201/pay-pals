@@ -10,6 +10,10 @@ export { buildEvidencePack, createEvidencePackBuilder, type EvidencePackOptions 
 export { createChannel3PriceLookup, type Channel3Options } from "./price/channel3-lookup";
 export { Channel3Error, channel3CallCount } from "./price/channel3-api";
 export { createFixturePriceLookup } from "./price/fixture-lookup";
+export { createPsaCertLookup, type PsaOptions } from "./cert/psa-lookup";
+export { createFixtureCertLookup } from "./cert/fixture-lookup";
+export { PsaError, psaCallCount } from "./cert/psa-api";
+export { compareCertRecord } from "./cert/compare";
 export { runRules, overallFromFlags, type RuleInput, type SellerIdentity } from "./rules";
 export { createAnthropicClientFromEnv, modelId, DEFAULT_MODEL, type ClaudeClient } from "./claude/client";
 export { fetchImage, isFetchableUrl, type ImageFetcher } from "./vision/fetch-image";

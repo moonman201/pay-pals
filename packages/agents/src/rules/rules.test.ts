@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cleanPs5, emptyBox, scamPs5 } from "@pay-pals/contracts";
+import { FAKE_SLAB_CERT, cleanPs5, emptyBox, fakeSlab } from "@pay-pals/contracts";
 import { friendsAndFamilyRule } from "./friends-and-family";
 import { offPlatformRule } from "./off-platform";
 import { priceBelowMarketRule } from "./price-below-market";
@@ -9,7 +9,9 @@ import { shipBeforePayRule } from "./ship-before-pay";
 import { nameMismatchRule } from "./name-mismatch";
 import { stockPhotoRule } from "./stock-photo";
 import { boxSerialMismatchRule } from "./box-serial-mismatch";
-import { overallFromFlags, runRules } from "./index";
+import { inviteRefusedRule } from "./invite-refused";
+import { certMismatchRule } from "./cert-mismatch";
+import { CARD_RULES, overallFromFlags, runRules } from "./index";
 import { card, says } from "../testing/builders";
 
 const price = cleanPs5.marketPrice;
@@ -37,6 +39,35 @@ describe("friendsAndFamilyRule", () => {
   });
   it("ignores a seller describing a family gift", () => {
     expect(friendsAndFamilyRule({ card: card(), chat: [says("seller", "My family gave it to me last year.")], priceCheck: price })).toHaveLength(0);
+  });
+});
+
+describe("inviteRefusedRule", () => {
+  it("fires on the record of a declined invite", () => {
+    const flags = inviteRefusedRule({ card: null, chat: [], priceCheck: null, inviteDeclined: true });
+    expect(flags[0]).toMatchObject({ code: "INVITE_REFUSED", severity: "stop", evidence: "inviteDeclined: true (the seller declined the Pay Pals invite)" });
+  });
+  it("fires on a seller refusing the invite or insisting on an unprotected method", () => {
+    for (const text of [
+      "Friends & Family only.",
+      "F&F only, take it or leave it.",
+      "Not doing that app, just send the money.",
+      "I only take F&F or Zelle.",
+      "I only accept Cash App.",
+      "Don't need protection, I have sold plenty.",
+      "No thanks, I am not clicking any link.",
+      "Zelle only.",
+    ]) {
+      const flags = inviteRefusedRule({ card: null, chat: [says("seller", text)], priceCheck: null });
+      expect(flags, text).toHaveLength(1);
+      expect(flags[0]!.evidence).toContain(text.replace(/\.$/, "").slice(0, 20));
+    }
+  });
+  it("does not fire on a seller who joined, or on the buyer", () => {
+    expect(inviteRefusedRule({ card: null, chat: [says("seller", "I joined, uploading photos now.")], priceCheck: null })).toHaveLength(0);
+    expect(inviteRefusedRule({ card: null, chat: [says("seller", "Sure, the app looks fine. Give me a minute.")], priceCheck: null })).toHaveLength(0);
+    expect(inviteRefusedRule({ card: null, chat: [says("buyer", "I only take F&F from friends, not here.")], priceCheck: null })).toHaveLength(0);
+    expect(inviteRefusedRule({ card: fakeSlab.cards[0]!, chat: fakeSlab.chat, priceCheck: null })).toHaveLength(0);
   });
 });
 
@@ -118,8 +149,26 @@ describe("missingSerialRule", () => {
   it("cautions when the card has no serial", () => {
     expect(missingSerialRule({ card: card({ serial: null }), chat: [], priceCheck: price })[0]).toMatchObject({ code: "MISSING_SERIAL", severity: "caution" });
   });
-  it("is quiet when the serial is present", () => {
+  it("is quiet when the serial is present or the item is a graded slab with a cert", () => {
     expect(missingSerialRule({ card: card(), chat: [], priceCheck: price })).toHaveLength(0);
+    expect(missingSerialRule({ card: fakeSlab.cards[0]!, chat: [], priceCheck: price })).toHaveLength(0);
+  });
+});
+
+describe("certMismatchRule", () => {
+  it("stops when the grader's record is a different card, or when there is no record", () => {
+    const flags = certMismatchRule({ card: fakeSlab.cards[0]!, chat: [], priceCheck: null, certRecord: fakeSlab.certRecord });
+    expect(flags[0]).toMatchObject({ code: "CERT_MISMATCH", severity: "stop", raisedByRule: true });
+    expect(flags[0]!.evidence).toContain(FAKE_SLAB_CERT);
+    expect(flags[0]!.evidence).toContain("2016 Pokemon XY Evolutions Charizard Holo #11");
+    const none = certMismatchRule({ card: fakeSlab.cards[0]!, chat: [], priceCheck: null, certRecord: { ...fakeSlab.certRecord!, subject: null, grade: null, year: null, brand: null } });
+    expect(none[0]!.explanation).toContain(`PSA has no record for cert ${FAKE_SLAB_CERT}`);
+  });
+  it("is quiet on a match, without a record, or without a cert on the card", () => {
+    const match = { ...fakeSlab.certRecord!, subject: "1999 Pokemon Game Charizard Holo #4", grade: "GEM MT 10", year: "1999" };
+    expect(certMismatchRule({ card: fakeSlab.cards[0]!, chat: [], priceCheck: null, certRecord: match })).toHaveLength(0);
+    expect(certMismatchRule({ card: fakeSlab.cards[0]!, chat: [], priceCheck: null, certRecord: null })).toHaveLength(0);
+    expect(certMismatchRule({ card: card(), chat: [], priceCheck: null, certRecord: fakeSlab.certRecord })).toHaveLength(0);
   });
 });
 
@@ -174,7 +223,7 @@ describe("nameMismatchRule", () => {
 
 describe("stockPhotoRule", () => {
   it("cautions when every photo is catalog style or reused from another listing", () => {
-    expect(stockPhotoRule({ card: scamPs5.cards[0]!, chat: [], priceCheck: price })[0]).toMatchObject({ code: "STOCK_OR_REUSED_PHOTO", severity: "caution" });
+    expect(stockPhotoRule({ card: fakeSlab.cards[0]!, chat: [], priceCheck: price })[0]).toMatchObject({ code: "STOCK_OR_REUSED_PHOTO", severity: "caution" });
     const stock = card({ photos: [{ url: "/x.jpg", whatItShows: "Console on a plain white background", addedBy: "seller" }] });
     expect(stockPhotoRule({ card: stock, chat: [], priceCheck: price })).toHaveLength(1);
   });
@@ -183,22 +232,27 @@ describe("stockPhotoRule", () => {
   });
 });
 
+describe("card rules with no card", () => {
+  it("every card rule returns nothing", () => {
+    for (const rule of CARD_RULES) expect(rule({ card: null, chat: fakeSlab.chat, priceCheck: price, seller: fakeSlab.seller, certRecord: fakeSlab.certRecord })).toEqual([]);
+  });
+});
+
 describe("runRules on the fixtures", () => {
-  it("scam-ps5 raises the required flags and stops", () => {
-    const flags = runRules({ card: scamPs5.cards.at(-1)!, chat: scamPs5.chat, priceCheck: scamPs5.marketPrice, seller: scamPs5.seller });
+  it("fake-slab raises the required flags and stops", () => {
+    const flags = runRules({ card: fakeSlab.cards.at(-1)!, chat: fakeSlab.chat, priceCheck: fakeSlab.marketPrice, seller: fakeSlab.seller, certRecord: fakeSlab.certRecord });
     const codes = flags.map((f) => f.code);
-    for (const required of scamPs5.expectedVerdict.requiredFlags) expect(codes).toContain(required);
+    for (const required of fakeSlab.expectedVerdict.requiredFlags) expect(codes).toContain(required);
     expect(codes).toContain("OFF_PLATFORM_PAYMENT");
-    expect(codes).toContain("NAME_MISMATCH");
     expect(codes).toContain("STOCK_OR_REUSED_PHOTO");
-    const allowed = new Set([...scamPs5.expectedVerdict.requiredFlags, ...scamPs5.expectedVerdict.optionalFlags]);
+    const allowed = new Set([...fakeSlab.expectedVerdict.requiredFlags, ...fakeSlab.expectedVerdict.optionalFlags]);
     for (const code of codes) expect(allowed.has(code), code).toBe(true);
     expect(overallFromFlags(flags)).toBe("stop");
     expect(flags.every((f) => f.raisedByRule)).toBe(true);
   });
   it("clean-ps5 and empty-box raise nothing", () => {
     for (const fixture of [cleanPs5, emptyBox]) {
-      const flags = runRules({ card: fixture.cards.at(-1)!, chat: fixture.chat, priceCheck: fixture.marketPrice, seller: fixture.seller });
+      const flags = runRules({ card: fixture.cards.at(-1)!, chat: fixture.chat, priceCheck: fixture.marketPrice, seller: fixture.seller, certRecord: fixture.certRecord });
       expect(flags, fixture.id).toHaveLength(0);
       expect(overallFromFlags(flags)).toBe("go");
     }

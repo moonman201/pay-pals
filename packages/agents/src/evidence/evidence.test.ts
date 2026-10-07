@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { EvidenceInput } from "@pay-pals/contracts";
-import { EMPTY_BOX_LOCKED_SERIAL, EvidencePackSchema, cleanPs5, emptyBox } from "@pay-pals/contracts";
+import { EMPTY_BOX_LOCKED_SERIAL, EvidencePackSchema, FAKE_SLAB_CERT, cleanPs5, emptyBox, fakeSlab } from "@pay-pals/contracts";
 import { createBuyerPal } from "../buyer/buyer-pal";
+import { createFixtureCertLookup } from "../cert/fixture-lookup";
 import { createFixturePriceLookup } from "../price/fixture-lookup";
 import { fakeClaude } from "../testing/fake-claude";
 import { buildEvidencePack, createEvidencePackBuilder } from "./build-evidence-pack";
@@ -71,6 +72,47 @@ describe("buildEvidencePack", () => {
     expect(withModel.data.summary).toBe(`The buyer paid for a PlayStation 5, serial ${EMPTY_BOX_LOCKED_SERIAL}, an empty box arrived.`);
     expect(prompt).toContain("arrival photo");
     expect(deterministicSummary(input)).toContain("did not match");
+  });
+
+  it("records the history hash from the payment and whether the stored events reproduce it", async () => {
+    const input = await emptyBoxInput();
+    const paidEvent = input.timeline.find((e) => e.kind === "payment_created")!;
+    const verified = await buildEvidencePack({ ...input, payment: { ...input.payment!, historyHash: paidEvent.hash } }, { anthropic: null });
+    expect(verified.data.historyHash).toBe(paidEvent.hash);
+    expect(verified.data.historyVerified).toBe(true);
+    expect(verified.data.summary).toContain(`recorded on the PayPal order at payment time is ${paidEvent.hash}`);
+    expect(verified.data.summary).toContain("reproduce that hash");
+    expect(verified.palMessage).toContain("history hash on the PayPal order matches");
+    expect(EvidencePackSchema.safeParse(verified.data).success).toBe(true);
+
+    const tampered = await buildEvidencePack({ ...input, payment: { ...input.payment!, historyHash: "a".repeat(64) } }, { anthropic: null });
+    expect(tampered.data.historyVerified).toBe(false);
+    expect(tampered.data.summary).toContain("do not reproduce that hash");
+
+    const none = await buildEvidencePack({ ...input, payment: { ...input.payment!, historyHash: null } }, { anthropic: null });
+    expect(none.data.historyHash).toBeUndefined();
+    expect(none.data.historyVerified).toBeUndefined();
+  });
+
+  it("mentions the grading cert check for a slab", async () => {
+    const pal = createBuyerPal({ anthropic: null, priceLookup: createFixturePriceLookup(), certLookup: createFixtureCertLookup() });
+    const card = fakeSlab.cards[0]!;
+    const verdict = (await pal.review(card, fakeSlab.chat)).data;
+    const input: EvidenceInput = {
+      deal: fakeSlab.deal,
+      lockedCard: card,
+      verdicts: [verdict],
+      arrivalCheck: null,
+      messages: fakeSlab.chat,
+      payment: null,
+      shipment: null,
+      timeline: fakeSlab.timeline,
+      requestedBy: "buyer",
+    };
+    const { data: pack } = await buildEvidencePack(input, { anthropic: null });
+    expect(pack.summary).toContain(`The card carries grading cert ${FAKE_SLAB_CERT}, grade PSA 10.`);
+    expect(pack.summary).toContain("Grading cert check: PSA cert");
+    expect(pack.summary).toContain("2016 Pokemon XY Evolutions Charizard Holo #11");
   });
 
   it("handles a clean deal with no arrival problems", async () => {

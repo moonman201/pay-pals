@@ -43,6 +43,8 @@ function cardStrings(card: ItemCard): string[] {
     card.model,
     card.serial ?? "",
     card.boxSerial ?? "",
+    card.certNumber ?? "",
+    card.grade ?? "",
     card.conditionGrade,
     card.conditionNotes,
     card.sellerPaypalEmail,
@@ -51,16 +53,18 @@ function cardStrings(card: ItemCard): string[] {
   ].filter((s) => s.length > 0);
 }
 
-export function buildGroundingCorpus(card: ItemCard, chat: Message[]): GroundingCorpus {
+export function buildGroundingCorpus(card: ItemCard | null, chat: Message[]): GroundingCorpus {
   const chatLines = chat.filter((m) => m.channel === "deal").flatMap((m) => [m.text, ...m.photos.map((p) => p.whatItShows)]);
-  const strings = cardStrings(card);
+  const strings = card ? cardStrings(card) : [];
   return {
     text: " " + words([...chatLines, ...strings].join(" \n ")).join(" ") + " ",
     values: strings.map(fold).filter((s) => s.length >= MIN_VALUE_CHARS),
-    numbers: [
-      { name: "askingprice", value: String(card.askingPrice) },
-      { name: "version", value: String(card.version) },
-    ],
+    numbers: card
+      ? [
+          { name: "askingprice", value: String(card.askingPrice) },
+          { name: "version", value: String(card.version) },
+        ]
+      : [],
   };
 }
 
