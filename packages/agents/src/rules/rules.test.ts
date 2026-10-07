@@ -21,9 +21,16 @@ describe("friendsAndFamilyRule", () => {
     expect(flags[0]).toMatchObject({ code: "FRIENDS_AND_FAMILY_REQUEST", severity: "stop", raisedByRule: true });
     expect(flags[0]!.evidence).toContain("friends and family");
   });
-  it("flags F&F shorthand and asking to skip Goods and Services", () => {
-    expect(friendsAndFamilyRule({ card: card(), chat: [says("seller", "F&F only please")], priceCheck: price })).toHaveLength(1);
-    expect(friendsAndFamilyRule({ card: card(), chat: [says("seller", "please do not use goods and services, it costs me")], priceCheck: price })).toHaveLength(1);
+  it("flags F&F shorthand, the ampersand and slash forms, and asking to skip Goods and Services", () => {
+    for (const text of [
+      "F&F only please",
+      "first to send Friends & Family gets it.",
+      "Send it as Friends & Family or Zelle in the next hour or it goes to the next person.",
+      "friends/family only",
+      "please do not use goods and services, it costs me",
+    ]) {
+      expect(friendsAndFamilyRule({ card: card(), chat: [says("seller", text)], priceCheck: price }), text).toHaveLength(1);
+    }
   });
   it("ignores a buyer saying they will only pay Goods and Services", () => {
     expect(friendsAndFamilyRule({ card: card(), chat: [says("buyer", "I only pay goods and services, never friends and family.")], priceCheck: price })).toHaveLength(0);
@@ -80,10 +87,25 @@ describe("urgencyRule", () => {
     expect(flags[0]!.evidence).toContain("has to be today");
     expect(flags[0]!.evidence).toContain("First to pay");
   });
-  it("does not flag a seller explaining a move or deployment", () => {
+  it("flags each line of the scam script on its own", () => {
+    for (const text of [
+      "I'm moving out of state tomorrow and have three other people interested, first to send Friends & Family gets it.",
+      "first to send Friends & Family gets it",
+      "I have three other people interested.",
+      "Send it in the next hour.",
+      "Pay now or it goes to the next person.",
+      "No time for that.",
+    ]) {
+      const flags = urgencyRule({ card: card(), chat: [says("seller", text)], priceCheck: price });
+      expect(flags, text).toHaveLength(1);
+      expect(flags[0]!.severity).toBe("caution");
+    }
+  });
+  it("does not flag a seller talking about their own move", () => {
     const chat = [
-      says("seller", "PCS orders came through and I am moving next month so it needs a new home."),
-      says("seller", "I deploy Friday, happy to answer questions before then."),
+      says("seller", "I'm moving out of state tomorrow."),
+      says("seller", "New job came through and I am moving next month so it needs a new home."),
+      says("seller", "I leave Friday, happy to answer questions before then."),
     ];
     expect(urgencyRule({ card: card(), chat, priceCheck: price })).toHaveLength(0);
   });
