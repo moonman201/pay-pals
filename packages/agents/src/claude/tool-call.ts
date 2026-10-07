@@ -4,7 +4,7 @@
  * crashing a deal. Every pal uses this; none of them loop.
  */
 import Anthropic from "@anthropic-ai/sdk";
-import type { ZodType } from "zod";
+import type { ZodType, ZodTypeDef } from "zod";
 import type { ClaudeClient } from "./client";
 import { modelId } from "./client";
 
@@ -13,7 +13,8 @@ export interface ToolCallRequest<T> {
   system: string;
   content: Anthropic.ContentBlockParam[];
   tool: Anthropic.Tool;
-  schema: ZodType<T>;
+  /** Output type T; the input side is unknown because defaults and transforms apply on the way in. */
+  schema: ZodType<T, ZodTypeDef, unknown>;
   maxTokens?: number;
 }
 
