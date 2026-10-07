@@ -6,7 +6,7 @@
 import { describe, expect, it } from "vitest";
 import { IllegalTransitionError, getFixture } from "@pay-pals/contracts";
 import type { ItemCard, Party } from "@pay-pals/contracts";
-import { CardLockedError, CardNotEditableError, CardVersionError, DealNotFoundError } from "../errors";
+import { AgreementNotAllowedError, CardLockedError, CardNotEditableError, CardVersionError, DealNotFoundError } from "../errors";
 import type { PayPalsStore } from "@pay-pals/contracts";
 
 const fx = getFixture("clean-garmin");
@@ -41,6 +41,8 @@ export function runDealStoreConformance(name: string, makeStore: () => Promise<P
         expect(deal.state).toBe("DRAFT");
         expect(deal.currentCardVersion).toBe(0);
         expect(deal.lockedCardVersion).toBeNull();
+        expect(deal.buyerAgreedAt).toBeNull();
+        expect(deal.sellerAgreedAt).toBeNull();
         expect(deal.buyer).toBeNull();
         expect(deal.scenario).toBe("clean-garmin");
         expect(await store.getDeal(deal.id)).toEqual(deal);
@@ -222,6 +224,79 @@ export function runDealStoreConformance(name: string, makeStore: () => Promise<P
         await store.saveCard(cardFor(paying.id, 1));
         await toState(store, paying.id, "PAYMENT_PENDING");
         await expect(store.lockCard(paying.id, 1)).rejects.toBeInstanceOf(CardNotEditableError);
+      });
+    });
+
+    describe("two-sided agreement", () => {
+      it("records buyer then seller in REVIEWED, one agreed event each, no lock and no transition", async () => {
+        const store = await makeStore();
+        const deal = await store.createDeal({ seller, buyer });
+        await store.saveCard(cardFor(deal.id, 1));
+        await toState(store, deal.id, "REVIEWED");
+        const afterBuyer = await store.recordAgreement(deal.id, "buyer", "2026-01-02T09:00:00.000Z");
+        expect(afterBuyer.buyerAgreedAt).toBe("2026-01-02T09:00:00.000Z");
+        expect(afterBuyer.sellerAgreedAt).toBeNull();
+        const afterSeller = await store.recordAgreement(deal.id, "seller", "2026-01-02T10:00:00.000Z");
+        expect(afterSeller.buyerAgreedAt).toBe("2026-01-02T09:00:00.000Z");
+        expect(afterSeller.sellerAgreedAt).toBe("2026-01-02T10:00:00.000Z");
+        expect(afterSeller.state).toBe("REVIEWED");
+        expect(afterSeller.lockedCardVersion).toBeNull();
+        expect(await store.getDeal(deal.id)).toEqual(afterSeller);
+        const agreed = (await store.listEvents(deal.id)).filter((e) => e.kind === "agreed");
+        expect(agreed.map((e) => e.actor)).toEqual(["buyer", "seller"]);
+        expect(agreed[0]?.summary).toBe("The buyer agreed to card version 1.");
+      });
+
+      it("allows the seller to agree while LISTED", async () => {
+        const store = await makeStore();
+        const deal = await store.createDeal({ seller });
+        await store.saveCard(cardFor(deal.id, 1));
+        await toState(store, deal.id, "LISTED");
+        expect((await store.recordAgreement(deal.id, "seller")).sellerAgreedAt).not.toBeNull();
+      });
+
+      it("refuses agreement in DRAFT and in AGREED", async () => {
+        const store = await makeStore();
+        const deal = await store.createDeal({ seller, buyer });
+        await store.saveCard(cardFor(deal.id, 1));
+        await expect(store.recordAgreement(deal.id, "buyer")).rejects.toBeInstanceOf(AgreementNotAllowedError);
+        await toState(store, deal.id, "AGREED");
+        await expect(store.recordAgreement(deal.id, "seller")).rejects.toBeInstanceOf(AgreementNotAllowedError);
+        expect((await store.listEvents(deal.id)).filter((e) => e.kind === "agreed")).toHaveLength(0);
+      });
+
+      it("is idempotent for the same side: first timestamp kept, one event", async () => {
+        const store = await makeStore();
+        const deal = await store.createDeal({ seller, buyer });
+        await store.saveCard(cardFor(deal.id, 1));
+        await toState(store, deal.id, "REVIEWED");
+        const first = await store.recordAgreement(deal.id, "buyer", "2026-01-02T10:00:00.000Z");
+        const second = await store.recordAgreement(deal.id, "buyer", "2026-01-02T11:00:00.000Z");
+        expect(second.buyerAgreedAt).toBe(first.buyerAgreedAt);
+        expect((await store.listEvents(deal.id)).filter((e) => e.kind === "agreed")).toHaveLength(1);
+      });
+
+      it("clears both agreements when a new card version is saved", async () => {
+        const store = await makeStore();
+        const deal = await store.createDeal({ seller, buyer });
+        await store.saveCard(cardFor(deal.id, 1));
+        await toState(store, deal.id, "REVIEWED");
+        await store.recordAgreement(deal.id, "buyer");
+        await store.recordAgreement(deal.id, "seller");
+        await store.saveCard(cardFor(deal.id, 2));
+        const after = (await store.getDeal(deal.id))!;
+        expect(after.buyerAgreedAt).toBeNull();
+        expect(after.sellerAgreedAt).toBeNull();
+        expect(after.currentCardVersion).toBe(2);
+        // Fresh agreement to the new version is then recorded against version 2.
+        await store.recordAgreement(deal.id, "buyer");
+        const agreed = (await store.listEvents(deal.id)).filter((e) => e.kind === "agreed");
+        expect(agreed[agreed.length - 1]?.summary).toBe("The buyer agreed to card version 2.");
+      });
+
+      it("rejects agreement on an unknown deal", async () => {
+        const store = await makeStore();
+        await expect(store.recordAgreement("00000000-0000-4000-8000-000000000000", "buyer")).rejects.toBeInstanceOf(DealNotFoundError);
       });
     });
 
