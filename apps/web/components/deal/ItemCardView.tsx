@@ -2,6 +2,7 @@
 
 import { CONDITION_LABELS, type ItemCard } from "@pay-pals/contracts";
 import { useState } from "react";
+import { boxSerialLabel, boxSerialMatches } from "@/lib/deal/box-serial";
 import { diffCards } from "@/lib/deal/card-diff";
 import { formatMoney, formatTime } from "@/lib/format";
 import { PhotoGrid } from "../photos/PhotoGrid";
@@ -12,12 +13,6 @@ interface Props {
   cards: ItemCard[];
   currentVersion: number;
   lockedVersion: number | null;
-}
-
-/** True when the serial on the box label is the serial on the item, ignoring case and spaces. */
-function boxMatches(card: ItemCard): boolean {
-  const norm = (s: string | null | undefined) => (s ?? "").replace(/\s+/g, "").toUpperCase();
-  return norm(card.boxSerial) !== "" && norm(card.boxSerial) === norm(card.serial);
 }
 
 /** The item card. Shows every version until the lock, then only the locked one. */
@@ -77,7 +72,7 @@ export function ItemCardView({ cards, currentVersion, lockedVersion }: Props) {
             <dt className="text-xs font-semibold uppercase tracking-wide text-muted">Box serial</dt>
             <dd>
               <span className="font-mono">{card.boxSerial}</span>{" "}
-              <span className={`text-xs font-semibold ${boxMatches(card) ? "text-go" : "text-stop"}`}>{boxMatches(card) ? "matches the console" : "does not match"}</span>
+              <span className={`text-xs font-semibold ${boxSerialMatches(card) ? "text-go" : "text-stop"}`}>{boxSerialLabel(card)}</span>
             </dd>
           </div>
         ) : null}

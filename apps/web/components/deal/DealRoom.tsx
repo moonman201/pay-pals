@@ -63,10 +63,7 @@ export function DealRoom({ snapshot, role }: { snapshot: DealSnapshot; role: Rol
       case "complete":
         return run(id, api("complete"));
       case "report_issue":
-        // A failed arrival check already says what is wrong; otherwise ask.
-        if (state === "DELIVERED" && snapshot.arrivalCheck && !snapshot.arrivalCheck.matches) {
-          return run(id, api("issue", { reason: "arrival_mismatch" }));
-        }
+        // Always ask. After a failed arrival check the mismatch choice is preselected and one click confirms.
         setIssueOpen(true);
         return;
       case "cancel":
@@ -130,7 +127,13 @@ export function DealRoom({ snapshot, role }: { snapshot: DealSnapshot; role: Rol
                 <ShipStep dealId={deal.id} checklist={snapshot.checklist} palMessage={snapshot.checklistMessage} demo={snapshot.demo?.packing ?? null} onDone={refresh} />
               ) : null}
               {role === "buyer" && issueOpen && canTransition(state, "ISSUE") ? (
-                <IssueStep dealId={deal.id} state={state} onDone={() => { setIssueOpen(false); refresh(); }} onClose={() => setIssueOpen(false)} />
+                <IssueStep
+                  dealId={deal.id}
+                  state={state}
+                  preselect={snapshot.arrivalCheck && !snapshot.arrivalCheck.matches ? "arrival_mismatch" : undefined}
+                  onDone={() => { setIssueOpen(false); refresh(); }}
+                  onClose={() => setIssueOpen(false)}
+                />
               ) : null}
               {role === "buyer" && state === "DELIVERED" && !snapshot.arrivalCheck ? (
                 <ArrivalStep dealId={deal.id} suggestions={snapshot.demo?.arrivalPhotos ?? []} onDone={refresh} />

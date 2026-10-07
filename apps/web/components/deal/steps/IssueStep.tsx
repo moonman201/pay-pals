@@ -10,14 +10,16 @@ import { StepError, StepPanel } from "./StepPanel";
 interface Props {
   dealId: string;
   state: DealState;
+  /** Choice id to start on, for example "arrival_mismatch" after a failed arrival check. */
+  preselect?: string;
   onDone: () => void;
   onClose: () => void;
 }
 
-/** The buyer says why they are opening an issue. The evidence pack is built either way. */
-export function IssueStep({ dealId, state, onDone, onClose }: Props) {
+/** The buyer says why they are opening an issue. The confirm button is live at once; the evidence pack is built either way. */
+export function IssueStep({ dealId, state, preselect, onDone, onClose }: Props) {
   const choices = issueChoicesFor(state);
-  const [choiceId, setChoiceId] = useState<string>(choices[0]?.id ?? "other");
+  const [choiceId, setChoiceId] = useState<string>(choices.find((c) => c.id === preselect)?.id ?? choices[0]?.id ?? "other");
   const [details, setDetails] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
