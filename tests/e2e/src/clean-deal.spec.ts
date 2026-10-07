@@ -21,7 +21,8 @@ test.describe("clean deal", () => {
     await runArrivalCheck(page, cleanGarmin);
     const result = panel(page, "Arrival check");
     await expect(result.getByText("matches", { exact: true })).toBeVisible();
-    await expect(result.getByText(cleanGarmin.cards[0]!.serial!)).toBeVisible();
+    // The serial shows in the "Read: serial" field and, with a real pal, in its message too.
+    await expect(result.getByText(cleanGarmin.cards[0]!.serial!).first()).toBeVisible();
 
     await pressAction(page, "Complete the deal");
     await expectState(page, "Complete");

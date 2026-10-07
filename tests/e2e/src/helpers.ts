@@ -39,9 +39,23 @@ export async function openRoomAs(page: Page, dealId: string, side: Side): Promis
   await waitForHydration(page);
 }
 
+/**
+ * How long a step that calls a pal may take. Demo mode answers in
+ * milliseconds; a real Buyer Pal review or arrival check (Claude plus a
+ * price lookup) can take most of a minute. Used only after review and
+ * arrival check, so the same specs run against a real-mode server through
+ * E2E_BASE_URL without rewriting.
+ */
+export const PAL_TIMEOUT = 60_000;
+
 /** The state badge in the deal room header. */
 export async function expectState(page: Page, label: string): Promise<void> {
   await expect(page.getByRole("banner").getByText(label, { exact: true })).toBeVisible();
+}
+
+/** The state badge after a move that waited on a pal. */
+export async function expectStateAfterPal(page: Page, label: string): Promise<void> {
+  await expect(page.getByRole("banner").getByText(label, { exact: true })).toBeVisible({ timeout: PAL_TIMEOUT });
 }
 
 /** A deal room panel, found by its title. */

@@ -6,7 +6,7 @@
 import { expect, test } from "@playwright/test";
 import { scamGarmin } from "@pay-pals/contracts";
 import { WEB_PRESENT } from "./env";
-import { expectState, panel, pressAction, snapshot, startDemo } from "./helpers";
+import { expectState, expectStateAfterPal, panel, pressAction, snapshot, startDemo } from "./helpers";
 
 test.describe("scam stopped", () => {
   test.skip(!WEB_PRESENT, "apps/web is not on this branch yet, nothing to load");
@@ -16,7 +16,7 @@ test.describe("scam stopped", () => {
     await expectState(page, "Listed");
 
     await pressAction(page, "Ask my pal to review");
-    await expectState(page, "Blocked");
+    await expectStateAfterPal(page, "Blocked");
 
     const flags = panel(page, "Buyer Pal review").getByRole("list", { name: "Red flags" });
     await expect(flags.getByText("friends and family request", { exact: true })).toBeVisible();
