@@ -4,7 +4,7 @@
  * production). createPostgresDealStoreFromDb(db) takes any Drizzle Postgres
  * handle, which is how the conformance suite runs on PGlite.
  */
-import type { PayPalsStore } from "../store-types";
+import type { PayPalsStore } from "@pay-pals/contracts";
 import { cardsRepo } from "./cards";
 import { connectPostgres, type Db } from "./db";
 import { dealsRepo } from "./deals";
