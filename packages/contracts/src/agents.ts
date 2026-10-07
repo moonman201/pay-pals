@@ -2,7 +2,7 @@
  * Interfaces packages/agents implements. apps/web calls only these.
  * Every result carries a short pal message for the chat pane.
  */
-import type { ArrivalCheck, PriceCheck, Verdict } from "./verdict";
+import type { ArrivalCheck, CertRecord, PriceCheck, Verdict } from "./verdict";
 import type { CardField, ItemCard, Photo } from "./item-card";
 import type { DealEvent, Message } from "./messages";
 import type { ChecklistItem } from "./shipping";
@@ -27,9 +27,16 @@ export interface BuildCardInput {
   askingPrice?: number;
 }
 
-/** Who the seller is, as the deal knows them, so the NAME_MISMATCH rule can compare against the PayPal email. */
+/** What the Buyer Pal knows about the deal beyond the card and the chat. */
 export interface ReviewContext {
+  /** The seller as the deal knows them, so the NAME_MISMATCH rule can compare against the PayPal email. */
   seller?: Pick<Party, "displayName" | "email"> | null;
+  /** The listing the buyer pasted, when the deal was buyer-started. */
+  listingUrl?: string | null;
+  /** True once the seller opened the invite. False with a buyer-started deal means the seller has not joined. */
+  sellerJoined?: boolean;
+  /** True when the seller declined the invite (recorded by the buyer or the seller). Raises INVITE_REFUSED. */
+  inviteDeclined?: boolean;
 }
 
 export interface BuyerRequest {
@@ -59,7 +66,7 @@ export interface BuyerPal {
    * Deterministic rules run first. The model may add flags and wording but
    * never removes or downgrades a flag a rule raised.
    */
-  review(card: ItemCard, chatTranscript: Message[], context?: ReviewContext): Promise<PalResult<Verdict>>;
+  review(card: ItemCard | null, chatTranscript: Message[], context?: ReviewContext): Promise<PalResult<Verdict>>;
   /** Compare what arrived against the locked card. */
   checkArrival(lockedCard: ItemCard, arrivalPhotos: Photo[]): Promise<PalResult<ArrivalCheck>>;
 }
@@ -80,6 +87,11 @@ export interface EvidenceInput {
 }
 
 export type EvidencePackBuilder = (input: EvidenceInput) => Promise<PalResult<EvidencePack>>;
+
+/** Grading certificate lookup. PSA's public API in production, fixture data in demos and tests. */
+export interface CertLookup {
+  lookup(certNumber: string): Promise<CertRecord>;
+}
 
 /** Market price lookup. Channel3 in production, fixture data in demos and tests. */
 export interface MarketPriceLookup {

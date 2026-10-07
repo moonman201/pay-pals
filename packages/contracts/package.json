@@ -1,6 +1,6 @@
 {
   "name": "@pay-pals/contracts",
-  "version": "1.4.0-draft",
+  "version": "1.5.0-draft",
   "private": true,
   "description": "Shared types, deal state table, agent and PayPal interfaces, and demo fixtures. Every other package builds against this one.",
   "type": "module",
@@ -14,13 +14,16 @@
       "default": "./src/fixtures/index.ts"
     }
   },
-  "files": ["src"],
+  "files": [
+    "src"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run"
   },
   "dependencies": {
+    "@noble/hashes": "^1.8.0",
     "zod": "^3.25.0"
   }
 }

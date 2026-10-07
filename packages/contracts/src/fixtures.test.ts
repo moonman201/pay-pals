@@ -7,11 +7,12 @@ import { PriceCheckSchema } from "./verdict";
 import { PaymentRecordSchema } from "./payment";
 import { ShipmentSchema } from "./shipping";
 import { canTransition } from "./deal-state";
+import { verifyChain } from "./history";
 
 describe("scenario fixtures", () => {
   it("ships all three scenarios", () => {
-    expect(Object.keys(FIXTURES).sort()).toEqual(["clean-ps5", "empty-box", "scam-ps5"]);
-    expect(getFixture("scam-ps5").id).toBe("scam-ps5");
+    expect(Object.keys(FIXTURES).sort()).toEqual(["clean-ps5", "empty-box", "fake-slab"]);
+    expect(getFixture("fake-slab").id).toBe("fake-slab");
   });
 
   for (const fx of ALL_FIXTURES) {
@@ -57,6 +58,22 @@ describe("scenario fixtures", () => {
         }
       });
 
+      it("has a valid hash chain", () => {
+        const check = verifyChain(fx.timeline);
+        expect(check.ok).toBe(true);
+        expect(check.head).toBe(fx.timeline[fx.timeline.length - 1]!.hash);
+        expect(fx.timeline[0]!.prevHash).toBeNull();
+      });
+
+      it("buyer-started deals pass through INVITED and record the seller joining", () => {
+        const invited = fx.timeline.some((e) => e.kind === "state_changed" && e.toState === "INVITED");
+        expect(invited).toBe(fx.deal.startedBy === "buyer");
+        if (fx.deal.startedBy === "buyer") {
+          expect(fx.deal.listingUrl).not.toBeNull();
+          expect(fx.timeline.some((e) => e.kind === "seller_joined")).toBe(true);
+        }
+      });
+
       it("is in time order", () => {
         const times = fx.timeline.map((e) => Date.parse(e.at));
         expect([...times].sort((a, b) => a - b)).toEqual(times);
@@ -65,11 +82,15 @@ describe("scenario fixtures", () => {
   }
 
   it("scam scenario expects the three required flags and a stop", () => {
-    const v = FIXTURES["scam-ps5"].expectedVerdict;
+    const v = FIXTURES["fake-slab"].expectedVerdict;
     expect(v.overall).toBe("stop");
     expect(v.requiredFlags).toEqual(
-      expect.arrayContaining(["FRIENDS_AND_FAMILY_REQUEST", "PRICE_FAR_BELOW_MARKET", "URGENCY_PRESSURE"]),
+      expect.arrayContaining(["FRIENDS_AND_FAMILY_REQUEST", "PRICE_FAR_BELOW_MARKET", "URGENCY_PRESSURE", "CERT_MISMATCH"]),
     );
+    const fx = FIXTURES["fake-slab"];
+    expect(fx.deal.startedBy).toBe("buyer");
+    expect(fx.cards[0]!.certNumber).toBe(fx.certRecord!.certNumber);
+    expect(fx.certRecord!.grade).not.toBe("10");
   });
 
   it("clean scenario card carries matching console and box serials", () => {

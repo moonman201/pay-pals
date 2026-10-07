@@ -7,6 +7,7 @@ export * from "./shipping";
 export * from "./payment";
 export * from "./deal";
 export * from "./evidence";
+export * from "./history";
 export * from "./agents";
 export * from "./paypal";
 export * from "./store";

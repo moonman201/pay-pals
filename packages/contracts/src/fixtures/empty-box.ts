@@ -1,9 +1,11 @@
 /**
- * Scenario 3: an empty box arrives. The same clean deal up to delivery, but the
+ * Scenario 3: an empty box arrives. Seller-started (the secondary path). The
+ * same clean deal up to delivery, but the
  * buyer opens the box and finds the foam insert and no console. Buyer Pal sees
  * no console serial in the arrival photos, names the mismatch, and the evidence
  * pack is built for a PayPal dispute.
  */
+import { chainEvents } from "../history";
 import type { ScenarioFixture } from "./types";
 import type { ItemCard } from "../item-card";
 
@@ -58,6 +60,9 @@ export const emptyBox: ScenarioFixture = {
   deal: {
     id: dealId,
     state: "ISSUE",
+    startedBy: "seller",
+    listingUrl: null,
+    sellerJoinedAt: at(0),
     scenario: "empty-box",
     seller,
     buyer,
@@ -90,6 +95,7 @@ export const emptyBox: ScenarioFixture = {
       { name: "Retailer, new", price: 499, condition: "new" },
     ],
   },
+  certRecord: null,
   expectedVerdict: {
     overall: "go",
     requiredFlags: [],
@@ -139,7 +145,7 @@ export const emptyBox: ScenarioFixture = {
     },
   ],
   expectedArrival: { matches: false, mismatchFields: ["serial"] },
-  timeline: [
+  timeline: chainEvents([
     { id: "e1", dealId, kind: "deal_created", actor: "seller", summary: "Marcus B. started a deal.", at: at(0) },
     { id: "e2", dealId, kind: "card_updated", actor: "seller_pal", summary: `Seller Pal built card version 1. Console serial ${EMPTY_BOX_LOCKED_SERIAL} matches the box label.`, at: at(1) },
     { id: "e3", dealId, kind: "state_changed", actor: "system", summary: "Listed.", fromState: "DRAFT", toState: "LISTED", at: at(1) },
@@ -160,5 +166,5 @@ export const emptyBox: ScenarioFixture = {
     { id: "e16", dealId, kind: "arrival_checked", actor: "buyer_pal", summary: `Arrival does not match. Card says console serial ${EMPTY_BOX_LOCKED_SERIAL}. The box arrived with no console inside.`, at: at(5 * 24 * 60 + 20) },
     { id: "e17", dealId, kind: "state_changed", actor: "buyer_pal", summary: "Issue opened.", fromState: "DELIVERED", toState: "ISSUE", at: at(5 * 24 * 60 + 20) },
     { id: "e18", dealId, kind: "evidence_built", actor: "buyer_pal", summary: "Evidence pack built for a PayPal dispute.", at: at(5 * 24 * 60 + 22) },
-  ],
+  ]),
 };
