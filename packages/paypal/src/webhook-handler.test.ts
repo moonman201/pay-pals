@@ -5,7 +5,7 @@ import { createMemoryDealStore } from "@pay-pals/db";
 import type { PayPalsStore } from "@pay-pals/db";
 import { handleWebhookEvent } from "./webhook-handler";
 
-const fx = getFixture("clean-garmin");
+const fx = getFixture("clean-ps5");
 const ORDER_ID = "5O190127TN364715T";
 const CAPTURE_ID = "3C679366HH908993F";
 

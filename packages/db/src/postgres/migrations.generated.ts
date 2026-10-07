@@ -59,5 +59,17 @@ export const MIGRATIONS: readonly BundledMigration[] = [
     "bps": true,
     "folderMillis": 1791366004492,
     "hash": "17d1935a327ab8ba0886615c861f939041cf07d95b3934786b3fe169f8d04ad4"
+  },
+  {
+    "tag": "0002_scenario_ps5",
+    "sql": [
+      "CREATE TYPE \"public\".\"scenario_new\" AS ENUM('scam-ps5', 'clean-ps5', 'empty-box');",
+      "\nALTER TABLE \"deals\" ALTER COLUMN \"scenario\" SET DATA TYPE \"public\".\"scenario_new\" USING (\n  CASE \"scenario\"::text\n    WHEN 'scam-garmin' THEN 'scam-ps5'\n    WHEN 'clean-garmin' THEN 'clean-ps5'\n    WHEN 'wrong-item' THEN 'empty-box'\n    ELSE \"scenario\"::text\n  END\n)::\"public\".\"scenario_new\";",
+      "\nDROP TYPE \"public\".\"scenario\";",
+      "\nALTER TYPE \"public\".\"scenario_new\" RENAME TO \"scenario\";\n"
+    ],
+    "bps": true,
+    "folderMillis": 1791368065910,
+    "hash": "27ac8e6693a314505c3dccb3533d1df6bf2e40b30863763fb28ba2a2ba4dde11"
   }
 ];

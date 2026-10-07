@@ -6,7 +6,7 @@ import { createPayPalGateway } from "./gateway";
 import { PayPalApiError } from "./http-error";
 import { TOKEN_OK, mockFetch } from "./test-support/mock-fetch";
 
-const fx = getFixture("clean-garmin");
+const fx = getFixture("clean-ps5");
 const locked = fx.cards[1]!;
 const dealId = fx.deal.id;
 const config = loadPayPalConfig({ PAYPAL_CLIENT_ID: "id", PAYPAL_CLIENT_SECRET: "secret", PAYPAL_WEBHOOK_ID: "WH-1" });

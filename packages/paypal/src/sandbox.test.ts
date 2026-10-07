@@ -6,7 +6,7 @@
  * approval path needs a person and lives in scripts/lane0-gate.ts.
  */
 import { beforeAll, describe, expect, it } from "vitest";
-import { CONDITION_LABELS, getFixture } from "@pay-pals/contracts";
+import { CONDITION_LABELS, getFixture, toPaypalAmount } from "@pay-pals/contracts";
 import { hasSandboxCredentials, loadPayPalConfig } from "./config";
 import { createPayPalGateway, type PayPalsGateway } from "./gateway";
 import { PayPalApiError } from "./http-error";
@@ -17,7 +17,7 @@ const payee = process.env.SANDBOX_SELLER_BUSINESS_EMAIL || process.env.SANDBOX_S
 const enabled = !process.env.SKIP_REAL_TESTS && hasSandboxCredentials() && Boolean(payee);
 
 describe.skipIf(!enabled)("PayPal sandbox (real calls)", () => {
-  const fx = getFixture("clean-garmin");
+  const fx = getFixture("clean-ps5");
   const card = { ...fx.cards[1]!, sellerPaypalEmail: payee! };
   const dealId = crypto.randomUUID();
   let gateway: PayPalsGateway;
@@ -57,7 +57,7 @@ describe.skipIf(!enabled)("PayPal sandbox (real calls)", () => {
     const capture = await gateway.captureOrder(orderId);
     expect(capture.status).toBe("COMPLETED");
     expect(capture.payeeEmail).toBe(payee);
-    expect(capture.amount).toBe("475.00");
+    expect(capture.amount).toBe(toPaypalAmount(card.askingPrice));
     const order = await gateway.getOrder(orderId);
     expect(order.status).toBe("COMPLETED");
   }, 60_000);
