@@ -122,7 +122,7 @@ Save every working call as a Postman collection in `docs/postman/`.
 |---|---|---|
 | Lead: contracts, schema, fixtures | contracts v1.0.0-draft, schema and three fixtures on main; 24 tests green | 2026-10-06 |
 | Lane 0 gate (builder-paypal) | launched 2026-10-06; sandbox run blocked until `.env.local` has credentials | |
-| builder-agents | merged to main 9e83667. 64 tests, reality-check holds. Real Claude tests ran 3/3; Channel3 live schema unverified until a key lands. | 2026-10-07 |
+| builder-agents | merged to main 9e83667, follow-up merged (v1.1.0 fields, model stop cap). 69 tests, reality-check holds. Real Claude tests ran 3/3; Channel3 live schema unverified until a key lands. | 2026-10-07 |
 | builder-paypal | launched 2026-10-06 (state machine, repositories, PayPal client) | |
 | builder-web | launched 2026-10-06 on fixtures | |
 | qa | not started | |
