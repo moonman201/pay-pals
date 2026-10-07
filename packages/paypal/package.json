@@ -20,6 +20,7 @@
     "@pay-pals/contracts": "*"
   },
   "devDependencies": {
-    "@pay-pals/db": "*"
+    "@pay-pals/db": "*",
+    "playwright": "^1.63.0"
   }
 }
