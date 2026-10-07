@@ -61,6 +61,42 @@ export function runDealStoreConformance(name: string, makeStore: () => Promise<P
         expect((await store.getDeal(deal.id))?.buyer).toEqual(buyer);
       });
 
+      it("finds deals by scenario and state, oldest first", async () => {
+        const store = await makeStore();
+        const pause = () => new Promise((r) => setTimeout(r, 3));
+        const a = await store.createDeal({ seller, scenario: "clean-ps5" });
+        await pause();
+        const b = await store.createDeal({ seller, scenario: "clean-ps5" });
+        await pause();
+        const c = await store.createDeal({ seller, scenario: "scam-ps5" });
+        await pause();
+        const none = await store.createDeal({ seller });
+        await toState(store, b.id, "AGREED");
+        await toState(store, c.id, "LISTED");
+        // A durable store is shared across this suite, so look only at the deals made here (order preserved).
+        const mine = new Set([a.id, b.id, c.id, none.id]);
+        const find = async (query: Parameters<typeof store.findDeals>[0]) =>
+          (await store.findDeals(query)).map((d) => d.id).filter((id) => mine.has(id));
+
+        // Scenario only, both states, oldest first.
+        expect(await find({ scenario: "clean-ps5" })).toEqual([a.id, b.id]);
+        // Scenario and states.
+        expect(await find({ scenario: "clean-ps5", states: ["AGREED", "COMPLETE"] })).toEqual([b.id]);
+        expect(await find({ scenario: "clean-ps5", states: ["DRAFT"] })).toEqual([a.id]);
+        // No match.
+        expect(await find({ scenario: "empty-box" })).toEqual([]);
+        expect(await find({ scenario: "scam-ps5", states: ["COMPLETE"] })).toEqual([]);
+        expect(await store.findDeals({ scenario: "clean-ps5", states: [] })).toEqual([]);
+        // scenario: null means deals that have none; states alone spans scenarios.
+        expect(await find({ scenario: null })).toEqual([none.id]);
+        expect(await find({ states: ["LISTED"] })).toEqual([c.id]);
+        // Ordering is by createdAt across the whole result, and rows are full deals.
+        const all = await store.findDeals({ scenario: "clean-ps5" });
+        const times = all.map((d) => Date.parse(d.createdAt));
+        expect([...times].sort((x, y) => x - y)).toEqual(times);
+        expect(all.find((d) => d.id === a.id)).toEqual(await store.getDeal(a.id));
+      });
+
       it("rejects every write against an unknown deal with DealNotFoundError", async () => {
         const store = await makeStore();
         const ghost = "00000000-0000-4000-8000-000000000000";
