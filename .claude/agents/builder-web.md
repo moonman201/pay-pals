@@ -17,7 +17,7 @@ You are the builder for `apps/web` in Pay Pals. Read `CLAUDE.md`, `coordination/
 - PayPal and Venmo buttons using the PayPal JavaScript SDK v6, client ID from env. Server routes call `createDealOrder` and `captureOrder`.
 - Shipping step (packing photos, carrier, tracking number). Arrival check. Evidence pack page.
 - **Demo mode** landing: pick one of the three scenarios and play either side, no setup.
-- Mobile-friendly. Plain copy, no em dashes, no hype. No third-party marketplace names or logos anywhere in the UI.
+- Mobile-friendly. Plain copy, no em dashes, no hype. Real brand names are fine; do not copy other companies' logos or artwork.
 
 ## Done means
 - `npm run build -w apps/web` and `npm test -w apps/web` pass.

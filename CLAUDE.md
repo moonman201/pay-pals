@@ -14,7 +14,7 @@
 **Hard rules for this repo:**
 - PayPal sandbox only. Never put live credentials anywhere. Secrets live in `.env.local` at the main checkout root, never committed.
 - The repo goes public at submission. Write every commit, comment and doc as if a PayPal judge is reading it.
-- No third-party trademarks in UI, demo data or video (no Facebook, Meta, Reddit, eBay names or logos). Say "online marketplace." PayPal and Venmo branding is fine; PayPal is the sponsor.
+- Real brand and product names are fine in demo data, UI and video (Matt's call, Oct 7: e.g. Garmin Fenix 7 stays). Do not copy other companies' logos or artwork. PayPal and Venmo branding is fine; PayPal is the sponsor.
 - Matt's writing rules for all user-facing copy and docs: plain words, no em dashes, no marketing voice.
 
 ---
