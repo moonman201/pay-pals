@@ -5,7 +5,7 @@ import { declineInvite } from "@/lib/deal/flows/invite";
 import { getServices } from "@/lib/services";
 
 export async function POST(req: Request, { params }: Params) {
-  return handle(async () => {
+  return handle(req, async () => {
     const body = await readBody(req, DeclineBody);
     return declineInvite(getServices(), (await params).id, body);
   });

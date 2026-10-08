@@ -6,6 +6,7 @@ import { IllegalTransitionError } from "@pay-pals/contracts";
 import { NextResponse } from "next/server";
 import { ZodError, type ZodTypeAny, type output } from "zod";
 import { FlowError } from "../deal/errors";
+import { withRequestOrigin } from "../deal/photo-urls";
 
 export type Params = { params: Promise<{ id: string }> };
 
@@ -28,9 +29,10 @@ export async function readBody<S extends ZodTypeAny>(req: Request, schema: S): P
   return schema.parse(json) as output<S>;
 }
 
-export async function handle(fn: () => Promise<unknown>): Promise<NextResponse> {
+/** Runs the route's work with the request origin available, so pal calls get absolute photo URLs. */
+export async function handle(req: Request, fn: () => Promise<unknown>): Promise<NextResponse> {
   try {
-    const data = await fn();
+    const data = await withRequestOrigin(req, fn);
     return NextResponse.json(data ?? { ok: true });
   } catch (e) {
     if (e instanceof FlowError) return NextResponse.json({ error: e.message }, { status: e.status });

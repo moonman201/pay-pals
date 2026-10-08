@@ -1,6 +1,16 @@
-import { CONDITION_LABELS, type Deal, type EvidencePack } from "@pay-pals/contracts";
+import { CONDITION_LABELS, type Deal, type EvidencePack, type Message } from "@pay-pals/contracts";
 import Link from "next/link";
 import { boxSerialLabel, boxSerialMatches } from "@/lib/deal/box-serial";
+import { historyStatus } from "@/lib/deal/history-status";
+import { HistoryBadge } from "../deal/HistoryBadge";
+
+/** "4 shared chat messages, 2 pal messages": counted per channel, never one lump. */
+export function messageCounts(messages: readonly Message[]): string {
+  const shared = messages.filter((m) => m.channel === "deal").length;
+  const pal = messages.length - shared;
+  const word = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+  return `${word(shared, "shared chat message", "shared chat messages")}, ${word(pal, "pal message", "pal messages")}`;
+}
 import { formatMoney, formatTime } from "@/lib/format";
 import { actorLabel, OVERALL_LABELS, STATE_LABELS } from "@/lib/labels";
 import type { Role } from "@/lib/role";
@@ -30,6 +40,9 @@ export function EvidencePackView({ pack, deal, role }: { pack: EvidencePack; dea
           <p className="mt-1 text-sm text-muted">
             Deal {pack.dealId}. Built {formatTime(pack.builtAt)} by {actorLabel(pack.builtBy, deal)}. Deal state: {STATE_LABELS[deal.state]}.
           </p>
+        </div>
+        <div className="w-full">
+          <HistoryBadge events={pack.timeline} historyHash={pack.historyHash ?? null} />
         </div>
         <div className="no-print flex gap-2">
           <Link href={`/deals/${deal.id}?as=${role}`} className="text-sm font-semibold text-navy underline-offset-2 hover:underline">
@@ -70,6 +83,9 @@ export function EvidencePackView({ pack, deal, role }: { pack: EvidencePack; dea
         </Section>
 
         <Section title="Tamper-evident history">
+          <div className="mb-3">
+            <HistoryBadge events={pack.timeline} historyHash={pack.historyHash ?? null} />
+          </div>
           {pack.historyHash ? (
             <>
               <p>
@@ -80,13 +96,14 @@ export function EvidencePackView({ pack, deal, role }: { pack: EvidencePack; dea
               </p>
               <p className="mt-2">
                 {pack.timeline.length} events are stored.{" "}
-                {pack.historyVerified === true ? (
+                {historyStatus(pack.timeline, pack.historyHash).kind === "verified" ? (
                   <span className="font-semibold text-go">Verified: the stored events reproduce this hash.</span>
-                ) : pack.historyVerified === false ? (
-                  <span className="font-semibold text-stop">Does not verify: the stored events do not reproduce this hash.</span>
                 ) : (
-                  <span className="text-muted">Not checked.</span>
+                  <span className="font-semibold text-stop">Does not verify: the stored events do not reproduce this hash.</span>
                 )}
+                {pack.historyVerified !== null && pack.historyVerified !== undefined ? (
+                  <span className="text-muted"> (Checked again now; the builder recorded {pack.historyVerified ? "verified" : "not verified"} when the pack was built.)</span>
+                ) : null}
               </p>
             </>
           ) : (
@@ -166,9 +183,10 @@ export function EvidencePackView({ pack, deal, role }: { pack: EvidencePack; dea
           <PhotoGrid photos={buyerPhotos} empty="None." />
         </Section>
 
-        <Section title="Shared chat">
+        <Section title="Chat">
+          <p className="mb-2 text-xs text-muted">{messageCounts(pack.messages)}</p>
           <ol className="space-y-1">
-            {pack.messages.map((m) => (
+            {pack.messages.filter((m) => m.channel === "deal").map((m) => (
               <li key={m.id}>
                 <span className="text-muted">{formatTime(m.at)}</span> <span className="font-semibold">{actorLabel(m.author, deal)}:</span> {m.text}
                 {m.photos.length > 0 ? <span className="text-muted"> [{m.photos.length} photo{m.photos.length === 1 ? "" : "s"}]</span> : null}
@@ -177,11 +195,25 @@ export function EvidencePackView({ pack, deal, role }: { pack: EvidencePack; dea
           </ol>
         </Section>
 
+        {pack.messages.some((m) => m.channel !== "deal") ? (
+          <Section title="Pal messages">
+            <p className="mb-2 text-xs text-muted">Private to each side at the time. Included so a reviewer sees what each pal said.</p>
+            <ol className="space-y-1">
+              {pack.messages.filter((m) => m.channel !== "deal").map((m) => (
+                <li key={m.id}>
+                  <span className="text-muted">{formatTime(m.at)}</span> <span className="font-semibold">{actorLabel(m.author, deal)}:</span> {m.text}
+                </li>
+              ))}
+            </ol>
+          </Section>
+        ) : null}
+
         <Section title="Timeline">
           <ol className="space-y-1">
             {pack.timeline.map((e) => (
               <li key={e.id}>
                 <span className="text-muted">{formatTime(e.at)}</span> {e.summary} <span className="text-muted">({actorLabel(e.actor, deal)})</span>
+                {e.hash ? <span className="ml-1 font-mono text-[10px] text-muted">#{e.hash.slice(0, 8)}</span> : null}
               </li>
             ))}
           </ol>

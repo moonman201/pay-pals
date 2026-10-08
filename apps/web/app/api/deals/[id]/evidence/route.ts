@@ -5,8 +5,8 @@ import { notFound } from "@/lib/deal/errors";
 import { buildEvidence } from "@/lib/deal/flows/evidence";
 import { getServices } from "@/lib/services";
 
-export async function GET(_req: Request, { params }: Params) {
-  return handle(async () => {
+export async function GET(req: Request, { params }: Params) {
+  return handle(req, async () => {
     const services = getServices();
     await services.ready;
     const { id } = await params;
@@ -18,7 +18,7 @@ export async function GET(_req: Request, { params }: Params) {
 }
 
 export async function POST(req: Request, { params }: Params) {
-  return handle(async () => {
+  return handle(req, async () => {
     const body = await readBody(req, ByBody);
     return buildEvidence(getServices(), (await params).id, body.by);
   });
