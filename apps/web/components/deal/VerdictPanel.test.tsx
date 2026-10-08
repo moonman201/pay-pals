@@ -20,8 +20,15 @@ describe("VerdictPanel", () => {
     expect(block).toHaveTextContent(/Cert 81234567/);
     expect(block).toHaveTextContent(/does not match the card/);
     expect(block).toHaveTextContent("Card says PSA 10. PSA (demo record) record says 2016 Pokemon XY Evolutions Charizard Holo #11, grade 7.");
-    expect(block.textContent?.match(/PSA 10/g)?.length).toBe(2); // once in the sentence, once inside the card title line
+    // Once in the sentence, once in the card title cell, once in the card grade cell of the comparison.
+    expect(block.textContent?.match(/PSA 10/g)?.length).toBe(3);
     expect(block).not.toHaveTextContent("PSA 10, PSA 10");
+    const rows = within(block).getAllByRole("row").slice(1);
+    // Item, grade and year (1999 on the card, 2016 in the record) differ; the cert number itself is the one thing both sides share.
+    expect(rows.map((r) => r.getAttribute("data-status"))).toEqual(["mismatch", "mismatch", "mismatch", "match"]);
+    expect(within(rows[0]!).getByRole("rowheader")).toHaveTextContent("Item");
+    expect(rows[1]).toHaveTextContent("7");
+    expect(rows[2]).toHaveTextContent("2016");
     expect(screen.getByText("a grading cert that does not match PSA's record")).toBeInTheDocument();
   });
 
