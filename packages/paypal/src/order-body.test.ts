@@ -54,6 +54,50 @@ describe("buildOrderBody", () => {
     expect(item.description.endsWith("...")).toBe(true);
   });
 
+  describe("description trimming", () => {
+    const limit = PAYPAL_LIMITS.itemDescription;
+
+    it("cuts a long note at a word boundary and ends with an ellipsis, keeping serial and condition whole", () => {
+      const notes = "Owned from new, used in a smoke-free home. Light scuff on the base, no marks on the console. Console serial matches the box label.";
+      const d = describeCard({ ...locked, conditionNotes: notes });
+      expect(d.length).toBeLessThanOrEqual(limit);
+      expect(d.startsWith(`Serial ${locked.serial}. Condition: Good. `)).toBe(true);
+      expect(d.endsWith("...")).toBe(true);
+      // The text before the ellipsis is a whole-word prefix of the note.
+      const kept = d.slice(`Serial ${locked.serial}. Condition: Good. `.length, -3);
+      expect(notes.startsWith(kept)).toBe(true);
+      expect(notes.charAt(kept.length)).toMatch(/[\s,.]/);
+      expect(kept).not.toMatch(/\s$/);
+    });
+
+    it("never cuts inside Serial or Condition even when the serial is at its longest", () => {
+      const d = describeCard({ ...locked, serial: "S".repeat(64), conditionGrade: "like_new", conditionNotes: "Averylongsinglewordnote".repeat(8) });
+      expect(d.length).toBeLessThanOrEqual(limit);
+      expect(d).toContain(`Serial ${"S".repeat(64)}.`);
+      expect(d).toContain("Condition: Like new.");
+    });
+
+    it("leaves a short note untouched", () => {
+      const d = describeCard({ ...locked, conditionNotes: "Light scuff on the base." });
+      expect(d).toBe(`Serial ${locked.serial}. Condition: Good. Light scuff on the base.`);
+    });
+
+    it("drops the note rather than the proof when there is no room for words", () => {
+      const d = describeCard({ ...locked, serial: "S".repeat(64), conditionNotes: "x".repeat(300) });
+      expect(d.length).toBeLessThanOrEqual(limit);
+      expect(d.startsWith(`Serial ${"S".repeat(64)}. Condition: Good.`)).toBe(true);
+    });
+
+    it("never exceeds the limit for any note length", () => {
+      const word = "scuff ";
+      for (let n = 0; n < 60; n++) {
+        const d = describeCard({ ...locked, conditionNotes: word.repeat(n).trim() });
+        expect(d.length).toBeLessThanOrEqual(limit);
+        expect(d).toContain(`Serial ${locked.serial}. Condition: Good.`);
+      }
+    });
+  });
+
   it("writes the history head into custom_id and keeps invoice_id as the bare deal id", () => {
     const head = "f".repeat(64);
     const unit = buildOrderBody(locked, dealId, head).purchase_units[0];
@@ -74,9 +118,17 @@ describe("buildOrderBody", () => {
 });
 
 describe("trimTo", () => {
-  it("leaves short text alone and marks a cut", () => {
+  it("leaves short text alone and cuts a single long word hard", () => {
     expect(trimTo("short", 10)).toBe("short");
     expect(trimTo("a".repeat(20), 10)).toBe("aaaaaaa...");
     expect(trimTo("a".repeat(20), 10)).toHaveLength(10);
+  });
+
+  it("cuts at the last word boundary that fits and strips trailing punctuation before the ellipsis", () => {
+    expect(trimTo("no marks on the console at all", 20)).toBe("no marks on the...");
+    expect(trimTo("no marks on the console at all", 20).length).toBeLessThanOrEqual(20);
+    expect(trimTo("one, two, three, four", 13)).toBe("one, two...");
+    // A boundary exactly at the budget keeps the whole word.
+    expect(trimTo("abc def ghij", 10)).toBe("abc def...");
   });
 });
