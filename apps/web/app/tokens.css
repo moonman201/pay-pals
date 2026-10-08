@@ -1,0 +1,191 @@
+/*
+ * Pay Pals colour tokens. The only file that holds a colour value, apart
+ * from the demo stand-ins for the PayPal and Venmo buttons, which keep
+ * those buttons' own colours.
+ *
+ * Buyer side is PayPal navy and blue, seller side is gold, and three
+ * verdict colours: stop red, caution amber, go green. Each hue has an
+ * ink (text on a light surface), a soft fill and a line. The side in
+ * play sets --accent and friends through .theme-buyer / .theme-seller.
+ *
+ * Dark follows prefers-color-scheme unless <html data-theme="light">;
+ * <html data-theme="dark"> forces it.
+ *
+ * WCAG contrast, computed from these values (AA is 4.5:1 for body text,
+ * 3:1 for large text and UI parts):
+ *
+ *   pair                          light   dark
+ *   ink on surface                16.15   14.15
+ *   ink on wash                   14.90   12.35
+ *   muted on surface               6.48    7.77
+ *   muted on wash                  5.98    6.78
+ *   buyer ink (navy) on surface   11.85   10.01
+ *   buyer ink on buyer soft       10.31    7.95
+ *   buyer contrast on buyer fill   4.78    6.89   (primary button)
+ *   buyer fill on surface          4.78    5.96   (large text, icons)
+ *   seller ink on surface          8.06   10.61
+ *   seller ink on seller soft      7.28    8.76
+ *   seller contrast on seller fill 6.74    8.74   (primary button)
+ *   go on surface                  5.38    8.81
+ *   go on go soft                  4.75    6.79
+ *   caution on surface             5.67    9.08
+ *   caution on caution soft        5.03    7.34
+ *   stop on surface                5.90    6.81
+ *   stop on stop soft              5.13    6.49
+ *   ink on go, caution, stop soft 14.04+  10.91+
+ *   go contrast on go (seal)       5.38    8.81
+ *   stop contrast on stop (seal)   5.90    6.81
+ */
+
+:root {
+  color-scheme: light;
+
+  --bg: #ffffff;
+  --surface: #ffffff;
+  --wash: #f3f6fb;
+  --ink: #10213a;
+  --muted: #4f5f78;
+  --line: #d9e1ec;
+  --shadow: 0 1px 2px rgb(16 33 58 / 0.06), 0 6px 18px -8px rgb(16 33 58 / 0.18);
+  /* The hero photo is painted on white; its frame stays white in both themes. */
+  --hero-bg: #ffffff;
+
+  --buyer: #0070e0;
+  --buyer-ink: #003087;
+  --buyer-soft: #e7f0fc;
+  --buyer-line: #b5d0f3;
+  --buyer-contrast: #ffffff;
+  --buyer-glow: #7ec4ff;
+
+  --seller: #c9960c;
+  --seller-ink: #6b4a00;
+  --seller-soft: #fbf3dc;
+  --seller-line: #e8d28f;
+  --seller-contrast: #1f1500;
+  --seller-glow: #ffd36a;
+
+  --go: #157a45;
+  --go-soft: #e4f5ea;
+  --go-line: #a7dbbd;
+  --go-contrast: #ffffff;
+
+  --caution: #9a5600;
+  --caution-soft: #fdf0d9;
+  --caution-line: #efcc84;
+  --caution-contrast: #ffffff;
+
+  --stop: #c0262d;
+  --stop-soft: #fdebeb;
+  --stop-line: #f2b3b6;
+  --stop-contrast: #ffffff;
+
+  /* The viewer's side. Buyer by default. */
+  --accent: var(--buyer);
+  --accent-ink: var(--buyer-ink);
+  --accent-soft: var(--buyer-soft);
+  --accent-line: var(--buyer-line);
+  --accent-contrast: var(--buyer-contrast);
+  --accent-glow: var(--buyer-glow);
+}
+
+.theme-buyer {
+  --accent: var(--buyer);
+  --accent-ink: var(--buyer-ink);
+  --accent-soft: var(--buyer-soft);
+  --accent-line: var(--buyer-line);
+  --accent-contrast: var(--buyer-contrast);
+  --accent-glow: var(--buyer-glow);
+}
+
+.theme-seller {
+  --accent: var(--seller);
+  --accent-ink: var(--seller-ink);
+  --accent-soft: var(--seller-soft);
+  --accent-line: var(--seller-line);
+  --accent-contrast: var(--seller-contrast);
+  --accent-glow: var(--seller-glow);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+
+    --bg: #0b1322;
+    --surface: #131f35;
+    --wash: #1a2a45;
+    --ink: #e9eef7;
+    --muted: #a6b3c8;
+    --line: #2c3c58;
+    --shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 8px 20px -8px rgb(0 0 0 / 0.5);
+
+    --buyer: #4d9ff5;
+    --buyer-ink: #a9ccff;
+    --buyer-soft: #17305a;
+    --buyer-line: #2d5290;
+    --buyer-contrast: #06101f;
+    --buyer-glow: #7ec4ff;
+
+    --seller: #e0ad2e;
+    --seller-ink: #f3cb63;
+    --seller-soft: #3a2c0b;
+    --seller-line: #6e5416;
+    --seller-contrast: #1f1500;
+    --seller-glow: #ffd36a;
+
+    --go: #5fd394;
+    --go-soft: #0f3a26;
+    --go-line: #1f6a44;
+    --go-contrast: #0b1322;
+
+    --caution: #f2b64d;
+    --caution-soft: #3f2c0a;
+    --caution-line: #7c5a17;
+    --caution-contrast: #0b1322;
+
+    --stop: #ff8085;
+    --stop-soft: #421317;
+    --stop-line: #86303a;
+    --stop-contrast: #0b1322;
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg: #0b1322;
+  --surface: #131f35;
+  --wash: #1a2a45;
+  --ink: #e9eef7;
+  --muted: #a6b3c8;
+  --line: #2c3c58;
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 8px 20px -8px rgb(0 0 0 / 0.5);
+
+  --buyer: #4d9ff5;
+  --buyer-ink: #a9ccff;
+  --buyer-soft: #17305a;
+  --buyer-line: #2d5290;
+  --buyer-contrast: #06101f;
+  --buyer-glow: #7ec4ff;
+
+  --seller: #e0ad2e;
+  --seller-ink: #f3cb63;
+  --seller-soft: #3a2c0b;
+  --seller-line: #6e5416;
+  --seller-contrast: #1f1500;
+  --seller-glow: #ffd36a;
+
+  --go: #5fd394;
+  --go-soft: #0f3a26;
+  --go-line: #1f6a44;
+  --go-contrast: #0b1322;
+
+  --caution: #f2b64d;
+  --caution-soft: #3f2c0a;
+  --caution-line: #7c5a17;
+  --caution-contrast: #0b1322;
+
+  --stop: #ff8085;
+  --stop-soft: #421317;
+  --stop-line: #86303a;
+  --stop-contrast: #0b1322;
+}

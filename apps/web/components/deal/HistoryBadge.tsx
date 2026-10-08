@@ -19,9 +19,9 @@ export function HistoryBadge({ events, historyHash, example = false, className =
   const line = example && status.kind === "unanchored" && status.chainOk ? `${historyLine(status)} (example deal, no PayPal order)` : historyLine(status);
   const tone =
     status.kind === "verified"
-      ? "border-emerald-200 bg-emerald-50 text-go"
+      ? "border-go-line bg-go-soft text-go"
       : status.kind === "mismatch" || (status.kind === "unanchored" && !status.chainOk)
-        ? "border-red-300 bg-red-50 text-stop font-bold"
+        ? "border-stop-line bg-stop-soft text-stop font-bold"
         : "border-line bg-wash text-muted";
   return (
     <span

@@ -7,9 +7,9 @@ const BASE =
 
 const VARIANTS: Record<ButtonVariant, string> = {
   primary: "bg-[var(--accent)] text-[var(--accent-contrast)] hover:brightness-95",
-  secondary: "border border-[var(--accent-line)] bg-white text-[var(--accent-ink)] hover:bg-[var(--accent-soft)]",
+  secondary: "border border-[var(--accent-line)] bg-surface text-[var(--accent-ink)] hover:bg-[var(--accent-soft)]",
   quiet: "text-[var(--accent-ink)] hover:bg-[var(--accent-soft)]",
-  danger: "border border-red-200 bg-white text-stop hover:bg-red-50",
+  danger: "border border-stop-line bg-surface text-stop hover:bg-stop-soft",
 };
 
 export function buttonClass(variant: ButtonVariant = "primary", extra = ""): string {

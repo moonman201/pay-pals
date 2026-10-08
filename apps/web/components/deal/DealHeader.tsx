@@ -26,7 +26,7 @@ export function DealHeader({ snapshot, role }: { snapshot: DealSnapshot; role: R
   const origin = typeof window === "undefined" ? "" : window.location.origin;
 
   return (
-    <header className="border-b border-[var(--accent-line)] bg-white">
+    <header className="border-b border-[var(--accent-line)] bg-surface">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
         <Link href="/" className="text-sm font-black tracking-tight text-navy">
           Pay Pals

@@ -5,9 +5,9 @@ export type Tone = "accent" | "neutral" | "go" | "caution" | "stop";
 const TONES: Record<Tone, string> = {
   accent: "bg-[var(--accent-soft)] text-[var(--accent-ink)] border-[var(--accent-line)]",
   neutral: "bg-wash text-muted border-line",
-  go: "bg-emerald-50 text-go border-emerald-200",
-  caution: "bg-amber-50 text-caution border-amber-200",
-  stop: "bg-red-50 text-stop border-red-200",
+  go: "bg-go-soft text-go border-go-line",
+  caution: "bg-caution-soft text-caution border-caution-line",
+  stop: "bg-stop-soft text-stop border-stop-line",
 };
 
 export function Badge({ tone = "neutral", children, className = "", ...rest }: { tone?: Tone; children: ReactNode; className?: string; "data-testid"?: string }) {

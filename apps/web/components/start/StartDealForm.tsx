@@ -53,7 +53,7 @@ export function StartDealForm({ uploadsEnabled = false }: { uploadsEnabled?: boo
   }
 
   return (
-    <form onSubmit={submit} className="theme-seller space-y-5 rounded-2xl border border-[var(--accent-line)] bg-white p-5 shadow-sm">
+    <form onSubmit={submit} className="theme-seller space-y-5 rounded-2xl border border-[var(--accent-line)] bg-surface p-5 shadow-sm">
       <div className="rounded-lg bg-wash p-3 text-xs text-muted">
         <span className="font-semibold">Demo listings:</span>{" "}
         {ALL_FIXTURES.map((f) => (

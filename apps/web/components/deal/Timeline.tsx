@@ -11,7 +11,7 @@ const DOT: Partial<Record<DealEvent["kind"], string>> = {
   card_locked: "bg-navy",
   payment_captured: "bg-go",
   evidence_built: "bg-stop",
-  arrival_checked: "bg-sky",
+  arrival_checked: "bg-blue",
 };
 
 /** Every event on the deal, oldest first. Both sides see the same list. */

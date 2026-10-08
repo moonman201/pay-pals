@@ -11,7 +11,7 @@ const ENDINGS: Record<ScenarioFixture["id"], string> = {
 /** One demo scenario. Posting the form creates a fresh copy of it and opens the deal room. */
 export function ScenarioCard({ fixture, index, finishedDealId }: { fixture: ScenarioFixture; index: number; finishedDealId: string | null }) {
   return (
-    <article className="flex flex-col rounded-2xl border border-line bg-white p-5 shadow-sm">
+    <article className="flex flex-col rounded-2xl border border-line bg-surface p-5 shadow-sm">
       <p className="text-xs font-semibold uppercase tracking-wide text-muted">Scenario {index}</p>
       <h3 className="mt-1 text-xl font-bold text-navy">{fixture.name}</h3>
       <p className="mt-2 flex-1 text-sm leading-relaxed text-ink">{fixture.summary}</p>

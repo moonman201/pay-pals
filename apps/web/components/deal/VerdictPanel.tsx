@@ -24,7 +24,7 @@ export function VerdictPanel({ verdict, currentVersion, locked, cardTitle = null
   return (
     <Panel title="Buyer Pal review" aside={<Badge tone={TONE[verdict.overall]}>{OVERALL_LABELS[verdict.overall]}</Badge>}>
       {stale ? (
-        <p className="mb-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-caution">
+        <p className="mb-3 rounded-lg bg-caution-soft px-3 py-2 text-xs text-caution">
           This review was for card version {verdict.cardVersion}. The card is now version {currentVersion}, so it needs another look.
         </p>
       ) : null}

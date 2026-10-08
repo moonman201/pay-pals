@@ -75,7 +75,7 @@ export function ActionBar({ state, role, verdict, dealId, busy, hasLockedCard, a
     <Panel title="Next step" accent>
       {gate === "blocked" ? <p className="mb-3 text-sm font-semibold text-stop">{BLOCKED_SENTENCE}</p> : null}
       {gate === "stop_override" && verdict ? (
-        <div role="alert" className="mb-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-ink">
+        <div role="alert" className="mb-3 rounded-lg border border-stop-line bg-stop-soft p-3 text-sm text-ink">
           {stopWarning(verdict).map((line) => (
             <p key={line} className="mb-1 last:mb-0">
               {line}
