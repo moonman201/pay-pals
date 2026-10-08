@@ -173,6 +173,12 @@ async function replay(services: SeedServices, fixture: ScenarioFixture, time: Re
         await recordEvent(event);
         break;
       }
+      case "shipment_checked": {
+        // The fixture's ship-time flags are already on the saved shipment; the pal's line goes to the buyer's pane.
+        await store.addMessage({ dealId: id, channel: "buyer_pal", author: "buyer_pal", text: event.summary, photos: [], at: when(event.at) });
+        await recordEvent(event, { flags: (fixture.shipment?.flags ?? []).map((f) => f.code) });
+        break;
+      }
       case "delivered": {
         if (fixture.shipment) await store.saveShipment({ ...shiftedShipment(fixture, when), dealId: id });
         await recordEvent(event);
