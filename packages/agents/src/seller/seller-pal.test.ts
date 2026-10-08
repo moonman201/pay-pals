@@ -99,6 +99,16 @@ describe("SellerPal.buildCard", () => {
     expect(promptText(model.calls[0]!)).toContain(cleanPs5.listingText);
   });
 
+  it("corrects a model draft that names the product family as the brand", async () => {
+    const model = fakeClaude((params) => {
+      if (params.tools?.[0]?.name !== "draft_item_card") return null;
+      return { title: "PlayStation 5 Disc Edition CFI-1215A", brand: "PlayStation", model: "PS5 Disc Edition CFI-1215A", condition_grade: "good", condition_notes: "Light scuff.", included: ["Console"], asking_price: 420 };
+    });
+    const { data: card } = await createSellerPal({ anthropic: model }).buildCard(buildInput(cleanPs5));
+    expect(card.brand).toBe("Sony");
+    expect(card.model).toBe("PS5 Disc Edition CFI-1215A");
+  });
+
   it("reads the cert number and grade from the slab label and leaves both serials null", async () => {
     const pal = createSellerPal({ anthropic: null });
     const { data: card, palMessage } = await pal.buildCard(buildInput(fakeSlab));
