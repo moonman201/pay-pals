@@ -15,7 +15,17 @@ export interface ClaimContext {
   psaContacted: boolean;
   /** The cert check, or null when there was none. matches null means the cert was not checked. */
   certCheck: CertCheck | null;
+  /** Presentation only: in public mode the message may not talk about photo files loading. */
+  publicMode?: boolean;
 }
+
+const LOADING_TALK: RegExp[] = [
+  /\b(?:could|can|did|would)\s*(?:not|n't)?\s+be\s+(?:loaded|opened|viewed|fetched|displayed)\b/i,
+  /\b(?:photo|picture|image|file)s?\b[^.]{0,40}\b(?:were|was|been|get|got)\s+(?:not\s+)?(?:loaded|opened|viewed|fetched|displayed)\b/i,
+  /\b(?:could|can|did)\s*(?:not|n't)\s+(?:load|open|view|fetch|access)\b[^.]{0,40}\b(?:photo|picture|image|file)s?\b/i,
+  /\b(?:photo|picture|image|file)s?\b[^.]{0,40}\b(?:failed to load|would not load|won'?t load|did not load|404)\b/i,
+  /\b(?:loaded|opened) (?:and|or) (?:viewed|checked|reviewed)\b/i,
+];
 
 const PHOTO_CLAIMS: RegExp[] = [
   /\bstock (?:photo|image|picture)s?\b/i,
@@ -56,6 +66,7 @@ export function unfoundedClaims(text: string, context: ClaimContext): string[] {
   if (!context.imagesRead) scan(PHOTO_CLAIMS);
   if (!context.psaContacted) scan(PSA_CONTACT_CLAIMS);
   if (context.certCheck && context.certCheck.matches === null) scan(PSA_RESULT_CLAIMS);
+  if (context.publicMode) scan(LOADING_TALK);
   return [...new Set(found)];
 }
 
@@ -65,5 +76,6 @@ export function reaskInstruction(claims: string[], context: ClaimContext): strin
   if (!context.imagesRead) reasons.push("no photo was looked at, so nothing may be said about what the photos show; the captions are the seller's words");
   if (!context.psaContacted) reasons.push("PSA was not contacted, so do not mention PSA's database or say PSA was checked");
   if (context.certCheck && context.certCheck.matches === null) reasons.push(`the cert was not checked; say exactly: ${context.certCheck.explanation}`);
+  if (context.publicMode) reasons.push("do not mention whether photo files loaded, opened or could be viewed; say only what you checked from the card and the chat");
   return `Your draft message contained claims that cannot be supported: ${claims.map((c) => `"${c}"`).join(", ")}. Reasons: ${reasons.join("; ")}. Rewrite the message without any such claim. State only what was actually examined.`;
 }

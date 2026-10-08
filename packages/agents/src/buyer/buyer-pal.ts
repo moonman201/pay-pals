@@ -4,6 +4,7 @@
  */
 import type { BuyerPal, CertLookup, MarketPriceLookup } from "@pay-pals/contracts";
 import type { ClaudeClient } from "../claude/client";
+import { isPublicMode } from "../presentation";
 import type { ImageFetcher } from "../vision/fetch-image";
 import { checkArrivalAgainstCard } from "./arrival";
 import type { KnownPhoto } from "./photo-match";
@@ -21,11 +22,14 @@ export interface BuyerPalOptions {
   photoBaseUrl?: string | null;
   /** Override how photos are fetched for vision. Tests pass a fake. */
   fetchImage?: ImageFetcher;
+  /** Presentation only (see presentation.ts). Defaults to PAY_PALS_PUBLIC_MODE=1. */
+  publicMode?: boolean;
 }
 
 export function createBuyerPal(options: BuyerPalOptions): BuyerPal {
   const client = options.anthropic;
   const photos = { fetchImage: options.fetchImage, photoBaseUrl: options.photoBaseUrl ?? null };
+  const publicMode = isPublicMode(options.publicMode);
   const hashCache = new Map<string, string | null>();
   return {
     review: (card, chat, context) =>
@@ -34,9 +38,10 @@ export function createBuyerPal(options: BuyerPalOptions): BuyerPal {
         priceLookup: options.priceLookup,
         certLookup: options.certLookup ?? null,
         photoMatch: { knownPhotos: options.knownPhotos ?? [], hashCache, ...photos },
+        publicMode,
         ...photos,
       }),
-    checkArrival: (card, arrivalPhotos) => checkArrivalAgainstCard(card, arrivalPhotos, { client, ...photos }),
+    checkArrival: (card, arrivalPhotos) => checkArrivalAgainstCard(card, arrivalPhotos, { client, publicMode, ...photos }),
     checkShipment: async (card, shipment) => checkShipmentAgainstCard(card, shipment),
   };
 }

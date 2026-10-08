@@ -20,6 +20,8 @@ export interface BuildCardDeps {
   client: ClaudeClient | null;
   fetchImage?: ImageFetcher;
   photoBaseUrl?: string | null;
+  /** Presentation only: drop the sentences about photo files that could not be loaded. */
+  publicMode?: boolean;
 }
 
 export class MissingPriceError extends Error {
@@ -145,7 +147,7 @@ export async function buildCardFromListing(input: BuildCardInput, deps: BuildCar
 
   const palMessage = sentences(
     `I built card version 1 for the ${card.title} at $${card.askingPrice}.`,
-    describeLooking(readings, "photo"),
+    describeLooking(readings, "photo", deps.publicMode === true),
     fromPhoto ? `Serial ${serial} read from the item (${fromPhoto.reading.photo.whatItShows}).` : null,
     !fromPhoto && typedSerial ? `Serial ${serial} taken from your notes. A photo of it on the item would make the card stronger.` : null,
     serialsMatch === true ? `The box label shows the same serial. They match.` : null,

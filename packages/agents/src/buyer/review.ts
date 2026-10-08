@@ -53,6 +53,8 @@ export interface ReviewDeps {
   photoMatch?: PhotoMatchDeps | null;
   fetchImage?: ImageFetcher;
   photoBaseUrl?: string | null;
+  /** Presentation only (see presentation.ts): no sentences about photo files loading. Decisions are unchanged. */
+  publicMode?: boolean;
 }
 
 /** The sentence added whenever the range came from the fixtures rather than a live source. */
@@ -227,7 +229,8 @@ export async function reviewCard(card: ItemCard | null, chat: Message[], context
     if (card) {
       readings = await readPhotos(card.photos, { client: deps.client, fetchImage: deps.fetchImage, photoBaseUrl: deps.photoBaseUrl, hints: { brand: card.brand, model: card.model } });
     }
-    const claims: ClaimContext = { imagesRead: readings.some((r) => r.imageStatus === "read"), psaContacted: certRecord?.provider === "psa", certCheck };
+    const publicMode = deps.publicMode === true;
+    const claims: ClaimContext = { imagesRead: readings.some((r) => r.imageStatus === "read"), psaContacted: certRecord?.provider === "psa", certCheck, publicMode };
     const facts = ruleFlags.length === 0 ? "The rules raised no flags." : JSON.stringify(ruleFlags, null, 2);
     const cert = certLine(card, certCheck, certLookupFailed);
     pass = await askModel(
@@ -239,7 +242,7 @@ export async function reviewCard(card: ItemCard | null, chat: Message[], context
             ? `Item card (version ${card.version}):\n${JSON.stringify(card, null, 2)}`
             : "There is no item card yet. The seller has not joined or has not uploaded anything. Review the chat only; price, serial, photos and cert cannot be checked.",
         },
-        ...(card ? [{ type: "text" as const, text: photoFactsBlock(readings) }] : []),
+        ...(card ? [{ type: "text" as const, text: photoFactsBlock(readings, publicMode) }] : []),
         { type: "text", text: `Shared chat, in order:\n${transcript(chat) || "(no messages yet)"}` },
         { type: "text", text: card ? priceLine(priceCheck) : "No price check without a card." },
         ...(cert ? [{ type: "text" as const, text: cert }] : []),
@@ -258,7 +261,7 @@ export async function reviewCard(card: ItemCard | null, chat: Message[], context
   const modelQuestions = review?.questions_for_seller ?? [];
   const questionsForSeller = pickQuestions(withProofQuestion(proof, modelQuestions.length > 0 ? modelQuestions : fallbackQuestions(card, flags)));
   const body = pass.message ? plainCopy(pass.message) : fallbackMessage(card, flags, priceCheck, certCheck, certLookupFailed);
-  const palMessage = sentences(describeLooking(readings, "card photo"), body);
+  const palMessage = sentences(describeLooking(readings, "card photo", deps.publicMode === true), body);
 
   const verdict: Verdict = {
     dealId: card?.dealId ?? chat.find((m) => m.dealId.length > 0)?.dealId ?? "unknown",

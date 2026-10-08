@@ -7,11 +7,14 @@ import type { EvidenceInput, EvidencePack, EvidencePackBuilder, PalResult, Photo
 import type { ClaudeClient } from "../claude/client";
 import { createAnthropicClientFromEnv } from "../claude/client";
 import { sentences } from "../copy";
+import { isPublicMode } from "../presentation";
 import { historyStatus, messageCounts, writeSummary } from "./summary";
 import { unansweredQuestions } from "./unanswered";
 
 export interface EvidencePackOptions {
   anthropic: ClaudeClient | null;
+  /** Presentation only (see presentation.ts): the model is told not to talk about photo files loading. Defaults to PAY_PALS_PUBLIC_MODE=1. */
+  publicMode?: boolean;
 }
 
 /** Every photo attached to the deal, in the order it appeared, without duplicates: card, chat, packing, arrival. */
@@ -33,7 +36,7 @@ export function collectPhotos(input: EvidenceInput): Photo[] {
 export async function buildEvidencePack(input: EvidenceInput, options?: EvidencePackOptions): Promise<PalResult<EvidencePack>> {
   const client = options ? options.anthropic : createAnthropicClientFromEnv();
   const photos = collectPhotos(input);
-  const summary = await writeSummary(input, client);
+  const summary = await writeSummary(input, client, isPublicMode(options?.publicMode));
   const history = historyStatus(input);
   const unanswered = unansweredQuestions(input);
   const shipmentFlags = input.shipment?.flags ?? [];
