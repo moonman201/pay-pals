@@ -43,6 +43,49 @@ export async function reviewAsBuyer(page: Page): Promise<void> {
   await expect(panel(page, "Buyer Pal review")).toBeVisible();
 }
 
+/** The Buyer Pal always asks a used console's seller for this before it will say go. */
+export const CONSOLE_PROOF_QUESTION = /Console Information screen showing the serial/;
+
+/** The verdict panel lists what the pal asked of the seller, or lists nothing when `question` is null. */
+export async function expectAskedQuestion(page: Page, question: RegExp | null): Promise<void> {
+  const review = panel(page, "Buyer Pal review");
+  const asked = review.getByText("Asked of the seller", { exact: true });
+  if (question === null) {
+    await expect(asked).toHaveCount(0);
+    return;
+  }
+  await expect(asked).toBeVisible();
+  await expect(review.locator("ul").filter({ has: page.getByRole("listitem").filter({ hasText: question }) }).getByRole("listitem").filter({ hasText: question })).toHaveCount(1);
+}
+
+/**
+ * The seller answers the buyer's pal with the demo hint photo: opens the
+ * step, adds the one suggested photo (found by its Add button, since the
+ * intro repeats the question text), writes a reply, saves card version 2.
+ * The deal goes back to Listed for a fresh review.
+ */
+export async function answerPalWithDemoPhoto(page: Page, dealId: string, reply: string, question: RegExp): Promise<void> {
+  await openRoomAs(page, dealId, "seller");
+  await expectState(page, "Reviewed");
+  const step = panel(page, /^(Update the card|Answer the buyer's pal)$/);
+  await expect(step).toBeVisible();
+  const open = step.getByRole("button", { name: "Add a photo or note" });
+  if ((await open.count()) > 0) await open.click();
+  await expect(step.getByText(/The buyer's pal asked:/)).toContainText(question);
+
+  const hintRow = step.locator("li").filter({ has: page.getByRole("button", { name: "Add", exact: true }) });
+  await expect(hintRow).toHaveCount(1);
+  await expect(hintRow).toContainText(question);
+  expect(await addAllDemoPhotos(step)).toBe(1);
+  await step.getByLabel("Your reply").fill(reply);
+  await step.getByRole("button", { name: "Save a new card version" }).click();
+
+  // The Seller Pal builds the new version before the room refreshes.
+  await expectStateAfterPal(page, "Listed");
+  await expect(panel(page, "Item card").getByRole("tab", { name: "Version 2" })).toBeVisible();
+  await expect(panel(page, "Timeline").getByRole("listitem").filter({ hasText: "Card changed. It needs a fresh review." })).toBeVisible();
+}
+
 /**
  * Buyer agrees to the current version. Caution flags get the override box
  * ticked; a payment-method flag would block, which these scenarios never
