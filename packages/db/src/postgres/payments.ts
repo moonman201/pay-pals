@@ -5,12 +5,13 @@
 import { desc, eq } from "drizzle-orm";
 import type { PaymentRecord } from "@pay-pals/contracts";
 import { payments } from "../../schema";
+import type { Clock } from "../clock";
 import type { Db } from "./db";
 import { forDeal } from "./deal-guard";
 import { toPayment, toPaymentRow } from "./mappers";
 import { isUuid } from "./uuid";
 
-export function paymentsRepo(db: Db) {
+export function paymentsRepo(db: Db, clock: Clock) {
   return {
     async savePayment(payment: PaymentRecord): Promise<PaymentRecord> {
       return forDeal(payment.dealId, async () => {
@@ -30,7 +31,7 @@ export function paymentsRepo(db: Db) {
               rawOrder: row.rawOrder,
               rawCapture: row.rawCapture,
               historyHash: row.historyHash,
-              updatedAt: new Date(),
+              updatedAt: clock(),
             },
           })
           .returning();

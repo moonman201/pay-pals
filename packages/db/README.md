@@ -12,6 +12,26 @@ Both enforce the deal transition table from contracts, append a
 and refuse to change a locked card. Dollars in contracts, integer cents in
 the database.
 
+## Clock and replay
+
+Both factories take `{ clock?: () => Date }`. Every timestamp the store
+generates comes from it: event `at`, `createdAt` and `updatedAt`,
+`lockedAt`, agreement times, `sellerJoinedAt`. The default is the wall
+clock. To seed a timeline with fixture dates:
+
+```ts
+import { createMemoryDealStore, createPostgresDealStore, createReplayClock } from "@pay-pals/db";
+
+const replay = createReplayClock("2026-10-21T16:00:00.000Z");
+const store = createPostgresDealStore(process.env.DATABASE_URL!, { clock: replay.clock });
+replay.set("2026-10-21T16:01:00.000Z");
+await store.transition(dealId, "LISTED", "system", "Listed.");
+```
+
+The hash chain is read back in `(at, id)` order, so within one deal the
+clock must only move forward. An append that would land before the deal's
+latest event is refused with `EventOutOfOrderError`; equal times are fine.
+
 ## Schema and migrations
 
 `schema.ts` is owned by the Lead. Migrations live in `drizzle/` (the source

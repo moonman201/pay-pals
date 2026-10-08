@@ -3,7 +3,7 @@ import { runDealStoreConformance } from "../conformance/deal-store.conformance";
 import { createMemoryDealStore } from "./memory-store";
 import { getFixture } from "@pay-pals/contracts";
 
-runDealStoreConformance("memory", async () => createMemoryDealStore());
+runDealStoreConformance("memory", async (options) => createMemoryDealStore(options));
 
 describe("memory store", () => {
   it("hands out copies, not references", async () => {

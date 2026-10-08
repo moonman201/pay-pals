@@ -3,6 +3,7 @@
  * conformance suite. Same rules as the Postgres store: the transition table
  * is enforced, every appended event joins the deal's hash chain, state
  * changes append a state_changed event, and a locked card never changes.
+ * Every timestamp the store generates comes from the clock it was given.
  *
  * Every method returns a copy, so callers cannot change stored data by
  * accident.
@@ -34,7 +35,8 @@ import {
   mergeSeller,
   sellerJoinedEvent,
 } from "../card-rules";
-import { CardLockedError, CardNotFoundError, CardVersionError, DealNotFoundError } from "../errors";
+import { systemClock, type StoreOptions } from "../clock";
+import { CardLockedError, CardNotFoundError, CardVersionError, DealNotFoundError, EventOutOfOrderError } from "../errors";
 import { chainNext, type NewEvent } from "../event-chain";
 import { uuidv7 } from "../postgres/uuid";
 import { planTransition } from "../state-machine";
@@ -53,10 +55,11 @@ interface DealRecord {
 }
 
 const copy = <T>(value: T): T => structuredClone(value);
-const now = () => new Date().toISOString();
 const byTimeThenId = <T extends { at: string; id: string }>(a: T, b: T) => Date.parse(a.at) - Date.parse(b.at) || a.id.localeCompare(b.id);
 
-export function createMemoryDealStore(): PayPalsStore {
+export function createMemoryDealStore(options: StoreOptions = {}): PayPalsStore {
+  const clock = options.clock ?? systemClock;
+  const now = () => clock().toISOString();
   const records = new Map<string, DealRecord>();
   const receipts = new Map<string, string>();
 
@@ -70,10 +73,12 @@ export function createMemoryDealStore(): PayPalsStore {
    * Appends to the chain. Synchronous on purpose: no await between reading
    * the head and writing. Ids are time-ordered (same as Postgres) so events
    * written in one millisecond keep insertion order under the (at, id) sort.
+   * An event earlier than the current head is refused: it would fork the chain.
    */
   const pushEvent = (rec: DealRecord, event: NewEvent): DealEvent => {
-    const head = rec.events.length > 0 ? rec.events[rec.events.length - 1]!.hash : null;
-    const stored: DealEvent = { id: uuidv7(), ...copy(event), ...chainNext(head, event) };
+    const latest = rec.events[rec.events.length - 1];
+    if (latest && Date.parse(event.at) < Date.parse(latest.at)) throw new EventOutOfOrderError(rec.deal.id, event.at, latest.at);
+    const stored: DealEvent = { id: uuidv7(), ...copy(event), ...chainNext(latest?.hash ?? null, event) };
     rec.events.push(stored);
     rec.events.sort(byTimeThenId);
     return copy(stored);
@@ -160,10 +165,10 @@ export function createMemoryDealStore(): PayPalsStore {
 
     async transition(dealId: string, to: DealState, actor: DealEvent["actor"], summary: string): Promise<Deal> {
       const rec = must(dealId);
-      const plan = planTransition(rec.deal, to, actor, summary);
+      const plan = planTransition(rec.deal, to, actor, summary, now());
+      pushEvent(rec, plan.event);
       rec.deal.state = plan.to;
       rec.deal.updatedAt = plan.event.at;
-      pushEvent(rec, plan.event);
       return copy(rec.deal);
     },
 
