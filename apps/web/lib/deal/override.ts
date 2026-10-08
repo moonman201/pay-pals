@@ -32,6 +32,7 @@ const FLAG_WORDS: Readonly<Record<RedFlagCode, string>> = {
   SHIP_BEFORE_PAY_TRICK: "a trick to get money before shipping",
   INVITE_REFUSED: "the seller refused Pay Pals protection",
   CERT_MISMATCH: "a grading cert that does not match PSA's record",
+  MISSING_PACKING_PHOTO: "a packing photo the seller skipped",
   OTHER: "another concern",
 };
 

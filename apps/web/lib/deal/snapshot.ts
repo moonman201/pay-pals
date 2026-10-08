@@ -42,6 +42,13 @@ export interface DealSnapshot {
   example: boolean;
   /** Photo uploads work on this host (a writable public/uploads). */
   uploadsEnabled: boolean;
+  /** The sandbox test buyer to approve with: demo deals on the sandbox gateway only, never real deals, never the mock. */
+  sandboxBuyer: { email: string; password: string } | null;
+}
+
+export function sandboxBuyerFor(deal: Deal, services: Pick<Services, "modes" | "sandboxBuyer">): { email: string; password: string } | null {
+  if (deal.scenario === null || services.modes.paypal !== "sandbox") return null;
+  return services.sandboxBuyer;
 }
 
 export function isExampleDeal(events: readonly DealEvent[], payment: PaymentRecord | null): boolean {
@@ -118,6 +125,7 @@ export async function loadSnapshot(services: Services, dealId: string): Promise<
     inviteDeclined: events.some((e) => e.kind === "invite_declined"),
     example: isExampleDeal(events, payment),
     uploadsEnabled: services.uploadsEnabled,
+    sandboxBuyer: sandboxBuyerFor(deal, services),
   };
 }
 

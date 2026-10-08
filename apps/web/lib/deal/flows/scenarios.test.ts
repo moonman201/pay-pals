@@ -200,6 +200,53 @@ describe("issue before delivery", () => {
   });
 });
 
+describe("ship-time check (contracts v1.6.0)", () => {
+  it("saves the Buyer Pal's shipment flags, records shipment_checked, tells the buyer, and still moves to SHIPPED", async () => {
+    const services = noKeys();
+    const deal = await startDemoDeal(services, "empty-box");
+    await runReview(services, deal.id);
+    await agreeBoth(services, deal.id);
+    const payment = await createOrder(services, deal.id, "venmo");
+    await captureOrder(services, deal.id, payment.paypalOrderId);
+    let snap = await loadSnapshot(services, deal.id);
+    const packing = snap.demo?.packing;
+    if (!packing) throw new Error("expected packing hints");
+    // The seller skips the required "item going into the box" photo and ticks nothing.
+    const shipment = await markShipped(services, deal.id, { carrier: packing.carrier, trackingNumber: packing.trackingNumber, packingPhotos: packing.photos, doneIds: [] });
+    snap = await loadSnapshot(services, deal.id);
+    expect(snap.deal.state).toBe("SHIPPED");
+    expect(shipment.flags?.map((f) => f.code)).toContain("MISSING_PACKING_PHOTO");
+    expect(snap.shipment?.flags?.map((f) => f.code)).toContain("MISSING_PACKING_PHOTO");
+    const checked = snap.events.find((e) => e.kind === "shipment_checked");
+    expect(checked?.actor).toBe("buyer_pal");
+    expect(checked?.data?.flags).toContain("MISSING_PACKING_PHOTO");
+    // The event summary is the pal message capped at 300 characters; the buyer's pane carries the full line.
+    const palLine = snap.messages.find((m) => m.channel === "buyer_pal" && m.text.startsWith(checked!.summary.slice(0, 80)));
+    expect(palLine).toBeDefined();
+    expect(checked!.summary.length).toBeLessThanOrEqual(300);
+    // A deal that ships with every required step done raises nothing.
+    const clean = await startDemoDeal(services, "clean-ps5");
+    await runReview(services, clean.id);
+    await agreeBoth(services, clean.id);
+    const cleanPacking = await payAndShip(services, clean.id, "paypal");
+    const cleanSnap = await loadSnapshot(services, clean.id);
+    expect(cleanPacking).toBeDefined();
+    expect(cleanSnap.shipment?.flags ?? []).toEqual([]);
+    expect(cleanSnap.events.some((e) => e.kind === "shipment_checked")).toBe(false);
+  });
+
+  it("the seeded empty-box deal carries the fixture's ship-time flag and event", async () => {
+    const services = noKeys();
+    const id = (await services.seededDeals)["empty-box"]!;
+    const snap = await loadSnapshot(services, id);
+    expect(snap.shipment?.flags?.map((f) => f.code)).toEqual(["MISSING_PACKING_PHOTO"]);
+    const checked = snap.events.find((e) => e.kind === "shipment_checked");
+    expect(checked?.actor).toBe("buyer_pal");
+    expect(checked?.data?.flags).toEqual(["MISSING_PACKING_PHOTO"]);
+    expect(snap.messages.some((m) => m.channel === "buyer_pal" && m.text === checked?.summary)).toBe(true);
+  });
+});
+
 describe("buyer-first (PLAN.md Decision 7)", () => {
   const buyer = { displayName: "Dana M.", email: "dana.m@example.com" };
 

@@ -30,6 +30,29 @@ describe("PayStep", () => {
     expect(screen.getByText("Loading PayPal.")).toBeInTheDocument();
   });
 
+  it("shows the sandbox test buyer with copy buttons when the server passes one, and never otherwise", () => {
+    const { unmount } = render(<PayStep dealId="d1" card={lockedCard} payMode="sandbox" sandboxBuyer={{ email: "sb-buyer@personal.example.com", password: "sandbox-pass-123" }} onDone={() => {}} />);
+    const note = screen.getByTestId("sandbox-buyer");
+    expect(note).toHaveTextContent("PayPal sandbox test buyer, no real money");
+    expect(note).toHaveTextContent("sb-buyer@personal.example.com");
+    expect(note).toHaveTextContent("sandbox-pass-123");
+    expect(note).toHaveTextContent("Press the PayPal button, sign in with this test account, and approve. Nothing is charged.");
+    expect(screen.getByRole("button", { name: "Copy email" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Copy password" })).toBeInTheDocument();
+    unmount();
+    render(<PayStep dealId="d1" card={lockedCard} payMode="sandbox" sandboxBuyer={null} onDone={() => {}} />);
+    expect(screen.queryByTestId("sandbox-buyer")).not.toBeInTheDocument();
+  });
+
+  it("offers to capture an order the buyer approved elsewhere, labelled so the order of steps is clear", () => {
+    const open = { ...cleanPs5.payment!, paypalOrderId: "2NW245573K1279237", status: "CREATED" as const, captureId: null, capturedAt: null };
+    render(<PayStep dealId="d1" card={lockedCard} payMode="mock" payment={open} onDone={() => {}} />);
+    expect(screen.getByTestId("capture-open")).toHaveTextContent("Order 2NW245573K1279237 is waiting for your approval in PayPal");
+    expect(screen.getByRole("button", { name: "I approved in PayPal, capture now" })).toBeEnabled();
+    render(<PayStep dealId="d2" card={lockedCard} payMode="mock" payment={{ ...open, status: "CAPTURED" }} onDone={() => {}} />);
+    expect(screen.getAllByTestId("capture-open")).toHaveLength(1);
+  });
+
   it("names the payee and the locked card in the intro", () => {
     render(<PayStep dealId="d1" card={lockedCard} payMode="mock" onDone={() => {}} />);
     expect(screen.getByText(new RegExp(lockedCard.sellerPaypalEmail.replace(".", "\\.")))).toBeInTheDocument();

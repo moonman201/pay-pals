@@ -3,6 +3,7 @@ import { formatTime } from "@/lib/format";
 import { PhotoGrid } from "../photos/PhotoGrid";
 import { Badge } from "../ui/Badge";
 import { Panel } from "../ui/Panel";
+import { ShipmentFlags } from "./ShipmentFlags";
 
 /** Carrier, tracking, packing photos and the checklist as the seller left it. */
 export function ShipmentSummary({ shipment }: { shipment: Shipment }) {
@@ -25,6 +26,7 @@ export function ShipmentSummary({ shipment }: { shipment: Shipment }) {
         ))}
       </ul>
       {undone.length > 0 ? <p className="mt-2 text-xs text-caution">{undone.length} required step{undone.length === 1 ? "" : "s"} left undone. This is on the timeline.</p> : null}
+      {shipment.flags && shipment.flags.length > 0 ? <ShipmentFlags flags={shipment.flags} /> : null}
     </Panel>
   );
 }
