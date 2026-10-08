@@ -7,8 +7,10 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import { RED_FLAG_CODES, RED_FLAG_SEVERITIES } from "@pay-pals/contracts";
 import { z } from "zod";
+import { plainCopy } from "../copy";
 
-const clip = (max: number) => z.string().transform((s) => s.trim().slice(0, max));
+/** House style and a cut at the last full sentence, never mid-word. */
+const clip = (max: number) => z.string().transform((s) => plainCopy(s, max));
 
 export const ModelReviewSchema = z.object({
   additional_flags: z
@@ -24,7 +26,7 @@ export const ModelReviewSchema = z.object({
   severity_raises: z.array(z.object({ code: z.enum(RED_FLAG_CODES), severity: z.enum(RED_FLAG_SEVERITIES) })).default([]),
   explanations: z.array(z.object({ code: z.enum(RED_FLAG_CODES), explanation: clip(300) })).default([]),
   questions_for_seller: z.array(clip(300)).default([]),
-  pal_message: clip(600),
+  pal_message: clip(800),
 });
 export type ModelReview = z.infer<typeof ModelReviewSchema>;
 
