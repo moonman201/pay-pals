@@ -28,6 +28,7 @@ import { photoBase } from "./deal/photo-urls";
 import { buildKnownPhotos } from "./demo/known-photos";
 import { asDealFinder, seedFixtureDeals, seedFixtureDealsIfMissing } from "./demo/seed-fixtures";
 import { loadRootEnvLocal } from "./env";
+import { isPublicMode, publicModeLine } from "./public-mode";
 import { detectUploadsEnabled } from "./uploads";
 import { createMockPayPalGateway } from "./mocks/paypal-gateway";
 
@@ -103,11 +104,14 @@ export function createServices(env: Env = process.env, log: Log = (line) => cons
   const certLookup = modes.certs === "psa" ? createPsaCertLookup(env.PSA_API_TOKEN!.trim()) : createFixtureCertLookup();
   // Photo URLs for the pals: absolute against the public URL when it is known; the pals also get it as a second safety net.
   const photoBaseUrl = photoBase(env);
-  const knownPhotos = buildKnownPhotos(photoBaseUrl, path.resolve(process.cwd(), "public"));
-  const sellerPal = createSellerPal({ anthropic, photoBaseUrl });
-  const buyerPal = createBuyerPal({ anthropic, priceLookup, certLookup, knownPhotos, photoBaseUrl });
+  const publicDir = path.resolve(process.cwd(), "public");
+  const knownPhotos = buildKnownPhotos(photoBaseUrl, publicDir);
+  const publicMode = isPublicMode(env, publicDir);
+  log(publicModeLine(publicMode, env));
+  const sellerPal = createSellerPal({ anthropic, photoBaseUrl, publicMode });
+  const buyerPal = createBuyerPal({ anthropic, priceLookup, certLookup, knownPhotos, photoBaseUrl, publicMode });
   log(`[pay-pals] photos: ${knownPhotos.length} known photos for the reused-photo check, base URL ${photoBaseUrl ? "configured" : "from each request"}`);
-  const buildEvidencePack = createEvidencePackBuilder({ anthropic });
+  const buildEvidencePack = createEvidencePackBuilder({ anthropic, publicMode });
   const paypal = modes.paypal === "sandbox" ? createPayPalGateway(loadPayPalConfig(env)) : createMockPayPalGateway();
 
   log(`[pay-pals] pals: real Seller Pal and Buyer Pal, ${modes.claude ? "Claude on" : "rules only (ANTHROPIC_API_KEY not set)"}`);
