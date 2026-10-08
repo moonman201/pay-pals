@@ -661,12 +661,34 @@ export function runDealStoreConformance(name: string, makeStore: StoreFactory) {
       it("stores one shipment per deal and updates delivery", async () => {
         const store = await makeStore();
         const deal = await store.createDeal({ startedBy: "seller", seller, buyer });
-        const shipped = { ...fx.shipment!, dealId: deal.id, deliveredAt: null };
+        const { flags: _ignored, ...withoutFlags } = { ...fx.shipment!, dealId: deal.id, deliveredAt: null };
+        await store.saveShipment(withoutFlags);
+        // Flags are optional on the way in and always present on the way out, [] when none were raised.
+        expect(await store.getShipment(deal.id)).toEqual({ ...withoutFlags, flags: [] });
+        const delivered = { ...withoutFlags, deliveredAt: "2026-10-26T16:00:00.000Z" };
+        await store.saveShipment(delivered);
+        expect(await store.getShipment(deal.id)).toEqual({ ...delivered, flags: [] });
+      });
+
+      it("round-trips ship-time flags", async () => {
+        const store = await makeStore();
+        const deal = await store.createDeal({ startedBy: "seller", seller, buyer });
+        const flags = [
+          {
+            code: "OTHER" as const,
+            severity: "caution" as const,
+            evidence: "No photo of the sealed box with the label.",
+            explanation: "The seller skipped the sealed-box photo the checklist asked for.",
+            raisedByRule: true,
+          },
+        ];
+        const shipped = { ...fx.shipment!, dealId: deal.id, deliveredAt: null, flags };
         await store.saveShipment(shipped);
         expect(await store.getShipment(deal.id)).toEqual(shipped);
-        const delivered = { ...shipped, deliveredAt: "2026-10-26T16:00:00.000Z" };
-        await store.saveShipment(delivered);
-        expect(await store.getShipment(deal.id)).toEqual(delivered);
+        // A later save without flags clears them, same as any other field.
+        const { flags: _dropped, ...cleared } = { ...shipped, deliveredAt: "2026-10-26T16:00:00.000Z" };
+        await store.saveShipment(cleared);
+        expect((await store.getShipment(deal.id))?.flags).toEqual([]);
       });
 
       it("stores the evidence pack", async () => {
