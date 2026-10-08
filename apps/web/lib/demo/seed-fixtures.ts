@@ -237,6 +237,22 @@ function oldest(deals: Deal[]): Deal | null {
   return deals.length === 0 ? null : deals.reduce((a, b) => (a.createdAt <= b.createdAt ? a : b));
 }
 
+/**
+ * The seeded deal for a scenario among the finder's candidates: the oldest
+ * one whose deal_created carries a seed stamp (any version). A finished deal
+ * without a stamp is a person's own run of the scenario and never counts.
+ */
+async function oldestSeeded(services: SeedServices, candidates: Deal[]): Promise<{ deal: Deal; seedVersion: string } | null> {
+  const stamped: { deal: Deal; seedVersion: string }[] = [];
+  for (const deal of candidates) {
+    const events = await services.store.listEvents(deal.id);
+    const stamp = readSeedStamp(events.find((e) => e.kind === "deal_created")?.data);
+    if (stamp) stamped.push({ deal, seedVersion: stamp.seedVersion });
+  }
+  const winner = oldest(stamped.map((s) => s.deal));
+  return winner ? (stamped.find((s) => s.deal.id === winner.id) ?? null) : null;
+}
+
 /** Fresh replay of every scenario. For a store that starts empty on each process, such as the memory store. */
 export async function seedFixtureDeals(services: SeedServices, log: Log, time: ReplayTime = noClock, nowMs: number = Date.now()): Promise<SeededIds> {
   const ids: SeededIds = {};
@@ -262,22 +278,21 @@ export async function seedFixtureDealsIfMissing(services: SeedServices, finder: 
   for (const fixture of ALL_FIXTURES) {
     try {
       const query = { scenario: fixture.id, states: FINISHED_STATES };
-      const existing = oldest(await finder.findDeals(query));
+      // Only a stamped deal counts as the seed; a judge's own finished run of the scenario is just their deal.
+      const existing = await oldestSeeded(services, await finder.findDeals(query));
       if (existing) {
-        ids[fixture.id] = existing.id;
-        const events = await services.store.listEvents(existing.id);
-        const stamp = readSeedStamp(events.find((e) => e.kind === "deal_created")?.data);
-        if (stamp?.seedVersion !== SEED_VERSION) {
-          log(`[pay-pals] demo: stale demo seed for ${fixture.id} (${stamp ? `seed ${stamp.seedVersion}` : "no seed version"}, current ${SEED_VERSION}); run npm run db:delete-seeded-demo-deals -w packages/db and redeploy`);
+        ids[fixture.id] = existing.deal.id;
+        if (existing.seedVersion !== SEED_VERSION) {
+          log(`[pay-pals] demo: stale demo seed for ${fixture.id} (seed ${existing.seedVersion}, current ${SEED_VERSION}); run npm run db:delete-seeded-demo-deals -w packages/db and redeploy`);
         }
         continue;
       }
       const created = await replay(services, fixture, time, nowMs);
       replayed += 1;
-      // Another instance may have seeded the same scenario meanwhile. Both pick the oldest.
-      const settled = oldest(await finder.findDeals(query));
-      ids[fixture.id] = settled?.id ?? created;
-      if (settled && settled.id !== created) log(`[pay-pals] demo: ${fixture.id} was seeded twice, using the oldest`);
+      // Another instance may have seeded the same scenario meanwhile. Both pick the oldest stamped one.
+      const settled = await oldestSeeded(services, await finder.findDeals(query));
+      ids[fixture.id] = settled?.deal.id ?? created;
+      if (settled && settled.deal.id !== created) log(`[pay-pals] demo: ${fixture.id} was seeded twice, using the oldest`);
     } catch (error) {
       log(`[pay-pals] demo: could not seed ${fixture.id} (${error instanceof Error ? error.message : String(error)})`);
     }
