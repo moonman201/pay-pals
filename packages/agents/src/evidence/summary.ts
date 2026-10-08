@@ -8,6 +8,7 @@ import { CONDITION_LABELS, historyMatchesHead } from "@pay-pals/contracts";
 import type { ClaudeClient } from "../claude/client";
 import { callText } from "../claude/text-call";
 import { plainCopy } from "../copy";
+import { unansweredQuestions } from "./unanswered";
 
 function day(iso: string | null | undefined): string {
   return iso ? iso.slice(0, 10) : "unknown date";
@@ -31,6 +32,9 @@ export function deterministicSummary(input: EvidenceInput): string {
     if (cert) parts.push(`Grading cert check: ${cert.explanation}`);
   }
   if (card.certNumber) parts.push(`The card carries grading cert ${card.certNumber}${card.grade ? `, grade ${card.grade}` : ""}.`);
+  for (const question of unansweredQuestions(input)) {
+    parts.push(`The Buyer Pal asked the seller before payment: "${question}" The seller never answered.`);
+  }
   if (payment) {
     parts.push(
       `Payment: PayPal order ${payment.paypalOrderId}, status ${payment.status}, $${payment.amount.toFixed(2)} ${payment.currency} to ${payment.payeeEmail}${payment.method ? ` via ${payment.method}` : ""}${payment.captureId ? `, capture ${payment.captureId}` : ""}${payment.capturedAt ? `, captured ${day(payment.capturedAt)}` : ""}.`,
@@ -43,6 +47,7 @@ export function deterministicSummary(input: EvidenceInput): string {
     parts.push(
       `Shipping: ${shipment.carrier} tracking ${shipment.trackingNumber}, shipped ${day(shipment.shippedAt)}${shipment.deliveredAt ? `, delivered ${day(shipment.deliveredAt)}` : ", not yet delivered"}. ${shipment.packingPhotos.length} packing photo${shipment.packingPhotos.length === 1 ? "" : "s"} on file${missing.length > 0 ? `. Checklist steps not completed: ${missing.join("; ")}` : ""}.`,
     );
+    for (const flag of shipment.flags ?? []) parts.push(`At ship time the Buyer Pal raised ${flag.code} (${flag.severity}): ${flag.explanation}`);
   } else {
     parts.push("Shipping: nothing was shipped.");
   }
@@ -96,6 +101,11 @@ export async function writeSummary(input: EvidenceInput, client: ClaudeClient | 
   const facts = deterministicSummary(input);
   if (!client) return facts;
   const arrivalNote = (input.arrivalPhotos ?? []).length > 0 ? " Mention that the buyer's arrival photos are attached and what they show." : "";
-  const text = await callText(client, SYSTEM, `Facts, in order:\n${facts}\n\nWrite the summary.${arrivalNote}`);
+  const unanswered = unansweredQuestions(input);
+  const gapsNote =
+    unanswered.length > 0 || (input.shipment?.flags ?? []).length > 0
+      ? " State plainly any question the Buyer Pal asked the seller before payment that never got an answer, and any required packing photo the seller shipped without."
+      : "";
+  const text = await callText(client, SYSTEM, `Facts, in order:\n${facts}\n\nWrite the summary.${arrivalNote}${gapsNote}`);
   return text ? plainCopy(text, 4000) : facts;
 }

@@ -68,6 +68,7 @@ const FLAG_WORDS: Record<RedFlag["code"], string> = {
   SHIP_BEFORE_PAY_TRICK: "a trick to get money or a confirmation before shipping",
   INVITE_REFUSED: "the seller refusing Pay Pals protection",
   CERT_MISMATCH: "a grading cert that does not match the card",
+  MISSING_PACKING_PHOTO: "a shipment without the required packing photo",
   OTHER: "another concern",
 };
 
