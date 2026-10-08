@@ -116,7 +116,7 @@ export const fakeSlab: ScenarioFixture = {
   expectedArrival: null,
   timeline: chainEvents([
     { id: "e1", dealId, kind: "deal_created", actor: "buyer", summary: "Dana M. started a deal from a listing and invited the seller.", at: at(0) },
-    { id: "e2", dealId, kind: "seller_invited", actor: "system", summary: "Invite sent to the seller's PayPal email.", at: at(0) },
+    { id: "e2", dealId, kind: "seller_invited", actor: "system", summary: "Invite link created for the seller. The buyer sends it.", at: at(0) },
     { id: "e3", dealId, kind: "state_changed", actor: "system", summary: "Waiting for the seller.", fromState: "DRAFT", toState: "INVITED", at: at(0) },
     { id: "e4", dealId, kind: "seller_joined", actor: "seller", summary: "Tyler R. joined the deal.", at: at(4) },
     { id: "e5", dealId, kind: "card_updated", actor: "seller_pal", summary: `Seller Pal built card version 1. Cert ${FAKE_SLAB_CERT} read from the slab label.`, at: at(5) },

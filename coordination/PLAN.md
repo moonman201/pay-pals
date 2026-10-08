@@ -147,6 +147,24 @@ Branch `review-oct7`, merged to main 718be0b on Oct 8 and deployed. Each fix is 
 | 15 | qa | Playwright pass on the three finished deals and their evidence pages, desktop and phone width, with screenshots, flagging layout breaks. |
 | 16 | reality-check | After merge, walk all three scenarios on the Vercel URL as a skeptical judge and report anything that looks pre-written rather than produced by the agents. |
 
+## Judge walk, Oct 8 (reality-check item 16). Lane assignments
+Branch `judge-walk`. Same rules as the Oct 7 review. Full report in WORKLOG; the agents are real (different prose per run, re-review changes the answer, chain head verified on a live PayPal order) but several claims are unfounded and the seeded deals on Neon predate the Oct 7 fixes.
+
+| # | Lane | Fix |
+|---|---|---|
+| J1 | Matt | 13 of 13 demo photos 404. `assets/demo-photos` is empty. Until files exist every photo sentence is unfounded. |
+| J2 | builder-agents | Cert check honesty: with the fixture lookup (no PSA access) an unknown cert is "not checked", never a stop, and no prose may say "PSA's own database" or "we checked PSA". Only a real PSA not-found is a mismatch. The structured line and the pal message must agree. |
+| J3 | builder-agents | Ungrounded photo claims: when no image was read, the model may not conclude anything about photo content ("not a stock photo listing"); the pal message states what it looked at and nothing more. Post-check the message. |
+| J4 | builder-web | Unknown market range renders "$0 to $0 via Channel3". Show "No reliable market price found" and the source note instead; never render a range when low equals high or either is 0. |
+| J5 | builder-web | "NEXT STEP: Agree and lock the card" shows on PAYMENT_PENDING with a locked card. Agree only in REVIEWED. |
+| J6 | builder-web | Evidence page and pay panel say "PayPal's own record holds it" and show FIXTURE-ORDER ids for seeded deals with no PayPal order. Seeded deals get an "Example deal, seeded from a scenario" label, the tamper section says the hash is chained but not anchored until there is a real order, and FIXTURE ids are shown as "example order id". Goes away at the Oct 23 re-seed. |
+| J7 | builder-web | Seed versioning: the seeder stamps deal_created data with a seed version; on startup a seeded deal whose version differs is logged as stale. builder-paypal ships `npm run db:delete-seeded-demo-deals` for the Lead to run before a redeploy re-seeds. Lead runs it now so the live seeds reflect today's fixes. |
+| J8 | builder-web | "Or upload a file (local dev only)" visible on the hosted site; photo captions render twice; invite event text now reads "Invite link created for the seller" (fixtures changed). |
+| J9 | builder-paypal | PayPal item description truncates mid-word at 127 characters. Trim at a word boundary with an ellipsis. Plus the delete-seeded-deals script for J7. |
+| J10 | Lead (fixtures) | clean-ps5 timeline now has a fresh review after card v2 (REVIEWED to LISTED, review_posted, LISTED to REVIEWED) so the seeded verdict matches the locked version. Done. |
+| J11 | Matt (product) | Scenario 3 is unplayable on the hosted site past payment: it needs a real sandbox capture and the page offers no buyer login. Options in BLOCKERS. |
+| J12 | qa | Tests for J2 to J6 and J8; re-run the finished-deal screenshot pass after the re-seed. |
+
 ## Status (Lead keeps this current)
 | Lane | Status | Last merge |
 |---|---|---|
