@@ -15,6 +15,20 @@ interface Asked {
   cardVersion: number | null;
 }
 
+/** The notice apps/web posts for the seller when they press Agree, with or without the warning acknowledgement. */
+const AGREEMENT_NOTICE = /^\s*i agree to card version\b/i;
+const ACKNOWLEDGED_WARNING = /^\s*i read my pal'?s warning\b/i;
+const ONE_WORD_ACK = /^\s*(?:ok|okay|sure|yes|yep|yeah|thanks|thank you|noted|k)\s*[.!]?\s*$/i;
+
+/** A seller message answers a question only if it carries a photo or says something of substance. */
+export function answersSomething(message: EvidenceInput["messages"][number]): boolean {
+  if (message.photos.length > 0) return true;
+  const text = message.text.trim();
+  if (text.length === 0) return false;
+  if (AGREEMENT_NOTICE.test(text) || ACKNOWLEDGED_WARNING.test(text)) return false;
+  return !ONE_WORD_ACK.test(text);
+}
+
 function cleanQuestion(text: string): string {
   return text.replace(/^\s*buyer pal(?:\s+to\s+(?:the\s+)?seller)?\s*:\s*/i, "").trim();
 }
@@ -33,7 +47,7 @@ export function unansweredQuestions(input: EvidenceInput): string[] {
     }
   }
 
-  const sellerReplies = input.messages.filter((m) => m.channel === "deal" && m.author === "seller").map((m) => m.at);
+  const sellerReplies = input.messages.filter((m) => m.channel === "deal" && m.author === "seller" && answersSomething(m)).map((m) => m.at);
   const cardUpdates = input.timeline.filter((e) => e.kind === "card_updated").map((e) => e.at);
 
   // The same question may be asked more than once; it is unanswered when any asking of it got no answer.

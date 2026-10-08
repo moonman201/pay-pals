@@ -47,6 +47,24 @@ describe("unansweredQuestions", () => {
     ]);
   });
 
+  it("an agreement notice or a one-word acknowledgement is not an answer; substance or a photo is", () => {
+    const question = "Can you add a photo of the Console Information screen showing the serial?";
+    const askedAt = emptyBox.chat[2]!.at;
+    const replyAt = emptyBox.chat[3]!.at;
+    const sellerSays = (text: string, photos: EvidenceInput["messages"][number]["photos"] = []): EvidenceInput => ({
+      ...input(emptyBox),
+      messages: [...emptyBox.chat, { ...emptyBox.chat[1]!, id: "s1", author: "seller", text, photos, at: replyAt }],
+    });
+    expect(unansweredQuestions(sellerSays("I agree to card version 1 at $410."))).toEqual([question]);
+    expect(unansweredQuestions(sellerSays("I agree to card version 1 at $410. I read my pal's warning and chose to continue."))).toEqual([question]);
+    expect(unansweredQuestions(sellerSays("I read my pal's warning and chose to continue."))).toEqual([question]);
+    expect(unansweredQuestions(sellerSays("ok"))).toEqual([question]);
+    expect(unansweredQuestions(sellerSays("Sure!"))).toEqual([question]);
+    expect(unansweredQuestions(sellerSays("The console is packed already, I cannot get to that screen."))).toEqual([]);
+    expect(unansweredQuestions(sellerSays("Here you go.", [{ url: "/fixtures/empty-box/console-information.jpg", whatItShows: "TV screen showing the Console Information page.", addedBy: "seller" }]))).toEqual([]);
+    expect(askedAt < replyAt).toBe(true);
+  });
+
   it("treats a seller reply after the question as an answer, but not one before it", () => {
     const earlyReply = verdictAsking(emptyBox, "Any marks on the glass?", 1, emptyBox.chat[1]!.at);
     expect(unansweredQuestions(input(emptyBox, [earlyReply]))).toContain("Any marks on the glass?");
