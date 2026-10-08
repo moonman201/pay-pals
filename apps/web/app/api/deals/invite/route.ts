@@ -5,7 +5,7 @@ import { startBuyerFirst } from "@/lib/deal/flows/invite";
 import { getServices } from "@/lib/services";
 
 export async function POST(req: Request) {
-  return handle(async () => {
+  return handle(req, async () => {
     const body = await readBody(req, InviteBody);
     const deal = await startBuyerFirst(getServices(), body);
     return { dealId: deal.id };

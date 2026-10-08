@@ -8,6 +8,7 @@ import type { Deal, Party, Photo } from "@pay-pals/contracts";
 import type { Role } from "../../role";
 import type { Services } from "../../services";
 import { FlowError } from "../errors";
+import { absolutePhotos } from "../photo-urls";
 import { expectState, mustDeal, note, say } from "./shared";
 
 export interface InviteInput {
@@ -64,12 +65,13 @@ export async function sellerJoin(services: Services, dealId: string, input: Sell
   const built = await sellerPal.buildCard({
     dealId,
     listingText: input.listingText,
-    photos: input.photos,
+    photos: absolutePhotos(input.photos),
     sellerNotes: input.sellerNotes,
     sellerPaypalEmail: input.sellerPaypalEmail,
     askingPrice: input.askingPrice,
   });
-  await store.saveCard(built.data);
+  // The pal saw absolute URLs; the stored card keeps the photos as given so the pages keep working anywhere.
+  await store.saveCard({ ...built.data, photos: input.photos });
   await say(services, dealId, "seller_pal", "seller_pal", built.palMessage);
   await note(services, dealId, "card_updated", "seller_pal", `Seller Pal built card version ${built.data.version}.`);
   await say(services, dealId, "buyer_pal", "buyer_pal", `${deal.seller.displayName} joined and their pal built the item card. Ask me to review it before you agree to anything.`);

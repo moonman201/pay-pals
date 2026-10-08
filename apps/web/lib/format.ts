@@ -14,3 +14,13 @@ export function formatTime(iso: string): string {
 export function shortId(id: string): string {
   return id.slice(0, 8);
 }
+
+/** A name without its trailing period, so "Dana M." can end a sentence without a double stop. */
+export function nameInSentence(name: string): string {
+  return name.trim().replace(/\.+$/, "");
+}
+
+/** Ends a sentence with one period, even when it ends in a name like "Dana M.". */
+export function endSentence(text: string): string {
+  return `${text.trim().replace(/\.+$/, "")}.`;
+}

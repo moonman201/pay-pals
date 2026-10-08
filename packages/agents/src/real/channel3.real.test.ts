@@ -29,10 +29,15 @@ describe.skipIf(!enabled)("real Channel3 (needs CHANNEL3_API_KEY)", () => {
     }
     expect(check.provider).toBe("channel3");
     expect(check.currency).toBe("USD");
-    expect(check.marketLow).toBeGreaterThan(0);
-    expect(check.marketHigh).toBeGreaterThanOrEqual(check.marketLow);
-    expect(check.sources.length).toBeGreaterThan(0);
-    expect(check.sources.some((s) => s.url?.startsWith("http"))).toBe(true);
     expect(liveCalls).toBeLessThanOrEqual(1);
+    const priced = check.sources.filter((s) => s.price !== undefined);
+    if (check.marketLow > 0) {
+      // A real range: strictly wider than a point, built from at least three listings.
+      expect(check.marketHigh).toBeGreaterThan(check.marketLow);
+      expect(priced.length).toBeGreaterThanOrEqual(3);
+      expect(priced[0]!.url).toMatch(/^https?:\/\//);
+    } else {
+      expect(check.sources[0]!.name).toBe("No reliable market price found");
+    }
   }, 30_000);
 });

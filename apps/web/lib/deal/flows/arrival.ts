@@ -5,6 +5,7 @@
 import type { ArrivalCheck, Photo } from "@pay-pals/contracts";
 import type { Services } from "../../services";
 import { FlowError } from "../errors";
+import { absoluteCard, absolutePhotos } from "../photo-urls";
 import { expectState, mustDeal, mustLockedCard, note, say } from "./shared";
 
 export async function checkArrival(services: Services, dealId: string, photos: Photo[]): Promise<ArrivalCheck> {
@@ -14,9 +15,9 @@ export async function checkArrival(services: Services, dealId: string, photos: P
   const card = await mustLockedCard(services, deal);
 
   await say(services, dealId, "deal", "buyer", "Arrival photos.", photos);
-  const result = await services.buyerPal.checkArrival(card, photos);
-  // The check keeps its photos (contract v1.3.0). Fill them in when the pal did not.
-  const check = await services.store.saveArrivalCheck({ ...result.data, photos: result.data.photos?.length ? result.data.photos : photos });
+  const result = await services.buyerPal.checkArrival(absoluteCard(card), absolutePhotos(photos));
+  // The check keeps its photos (contract v1.3.0), stored as given (relative), whatever the pal echoed back.
+  const check = await services.store.saveArrivalCheck({ ...result.data, photos });
   await say(services, dealId, "buyer_pal", "buyer_pal", result.palMessage);
   const summary = check.matches
     ? `Arrival matches the locked card.${check.observed.serial ? ` Serial ${check.observed.serial} confirmed.` : ""}`

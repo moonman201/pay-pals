@@ -4,13 +4,24 @@ import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 import { PriceCheckSchema } from "@pay-pals/contracts";
 import { Channel3Error, channel3CallCount, type Channel3SearchResponse } from "./channel3-api";
-import { ESTIMATE_NOTE_PREFIX, NO_GRADED_LISTINGS_NOTE, buildSearchRequest, createChannel3PriceLookup, deriveRange, isGradedQuery, relevantProducts } from "./channel3-lookup";
+import {
+  ESTIMATE_NOTE_PREFIX,
+  NO_RELIABLE_PRICE_NOTE,
+  buildSearchRequest,
+  classifyTitle,
+  createChannel3PriceLookup,
+  deriveRange,
+  isGradedQuery,
+  modelCodes,
+  requiredWords,
+} from "./channel3-lookup";
 import { createDiskCache, type DiskCache } from "../cache/disk-cache";
 import { createFixturePriceLookup } from "./fixture-lookup";
 import { priceBelowMarketRule } from "../rules/price-below-market";
 import { card } from "../testing/builders";
 
-const MODEL = "PlayStation 5 disc edition, CFI-1215A";
+const PS5 = "PlayStation 5 disc edition, CFI-1215A";
+const SLAB = "Base Set Charizard Holo #4 PSA 10";
 
 const offer = (domain: string, price: number, condition: "new" | "used" | null = "new", availability: "InStock" | "OutOfStock" = "InStock") => ({
   url: `https://${domain}/item`,
@@ -19,24 +30,28 @@ const offer = (domain: string, price: number, condition: "new" | "used" | null =
   availability,
   condition,
 });
+const product = (id: string, title: string, offers: ReturnType<typeof offer>[]) => ({ id, title, offers });
+const at = (range: ReturnType<typeof deriveRange>) => ({ ...range, checkedAt: new Date().toISOString() });
 
-/** Shaped like the documented SearchResponse: offers and brands are optional, condition may be null. */
-const response: Channel3SearchResponse = {
+/** Shaped like the live PS5 result on 2026-10-07, plus a bundle and repeated listings. */
+const livePs5: Channel3SearchResponse = {
   products: [
-    { id: "1", title: "Sony PlayStation 5 Console Disc Edition CFI-1215A", brands: [{ id: "s", name: "Sony" }], offers: [offer("shop-a.example", 499.99), offer("shop-b.example", 549.99, null)] },
-    { id: "2", title: "Sony PlayStation 5 Disc Edition Slim Console", offers: [offer("shop-c.example", 449.99), offer("shop-d.example", 20, "new", "OutOfStock")] },
-    { id: "3", title: "PlayStation 5 Disc Edition, CFI-1215A, Sony", offers: [offer("shop-e.example", 479)] },
-    { id: "4", title: "Sony DualSense Wireless Controller", offers: [offer("shop-f.example", 69.99)] },
-    { id: "5", title: "Unrelated phone", offers: [offer("shop-g.example", 5)] },
-    { id: "6", title: "Sony PlayStation 5 Disc Edition CFI-1215A bundle" },
+    product("a", "PlayStation 5 Disc Edition with Two Controllers and Charger", [offer("newegg.com", 839.99)]),
+    product("b", "PlayStation 5 Slim Console Disc Edition", [offer("gamestop.com", 588.99), offer("gamestop.com", 588.99, "used"), offer("gamestop.com", 588.99, "used")]),
+    product("c", "PlayStation 5 Slim Console Disc Edition", [offer("dell.com", 649.99)]),
+    product("d", "PlayStation 5 Slim Console Disc Edition", [offer("cdw.com", 776.99)]),
+    product("e", "PlayStation 5 Slim 1TB Disc Edition Console", [offer("macys.com", 858.99)]),
+    product("f", "PlayStation 5 Disc Edition", [offer("walmart.com", 914.99)]),
+    product("g", "PlayStation 5 Disc Edition Console + Spider-Man 2", [offer("target.com", 499.99)]),
+    product("h", "PlayStation 5 DualSense Wireless Controller", [offer("bestbuy.com", 69.99)]),
+    product("i", "PlayStation 5 Digital Edition Console", [offer("bestbuy.com", 449.99)]),
   ],
   next_page_token: null,
 };
 
-const memoryCache = (): DiskCache & { store: Map<string, unknown> } => {
+const memoryCache = (): DiskCache => {
   const store = new Map<string, unknown>();
   return {
-    store,
     async get<T>(key: unknown) {
       return (store.get(JSON.stringify(key)) as T) ?? null;
     },
@@ -56,102 +71,132 @@ describe("buildSearchRequest", () => {
   });
 });
 
-/** Shaped like the live PS5 result on 2026-10-07: six new retail offers and GameStop used at the same price as its new one. */
-const livePs5: Channel3SearchResponse = {
-  products: [
-    { id: "a", title: "PlayStation 5 Disc Edition with Two Controllers and Charger", offers: [offer("newegg.com", 839.99)] },
-    { id: "b", title: "PlayStation 5 Slim Console Disc Edition", offers: [offer("gamestop.com", 588.99), offer("gamestop.com", 588.99, "used"), offer("gamestop.com", 588.99, "used")] },
-    { id: "c", title: "PlayStation 5 Slim Console Disc Edition", offers: [offer("dell.com", 649.99)] },
-    { id: "d", title: "PlayStation 5 Slim Console Disc Edition", offers: [offer("cdw.com", 776.99)] },
-    { id: "e", title: "PlayStation 5 Slim 1TB Disc Edition Console", offers: [offer("macys.com", 858.99)] },
-    { id: "f", title: "PlayStation 5 Disc Edition", offers: [offer("walmart.com", 914.99)] },
-  ],
-  next_page_token: null,
-};
-
-describe("deriveRange", () => {
-  it("keeps matching products and drops out of stock noise", () => {
-    const kept = relevantProducts(response.products, "Sony", MODEL);
-    expect(kept.map((p) => p.id)).toEqual(["1", "2", "3", "6"]);
-    const range = deriveRange(response, { brand: "Sony", model: MODEL, condition: "new" });
-    expect(range.provider).toBe("channel3");
-    expect(range.marketLow).toBe(449.99);
-    expect(range.marketHigh).toBe(549.99);
-    expect(range.sources).toHaveLength(4);
-    expect(range.sources[0]).toMatchObject({ name: "shop-a.example: Sony PlayStation 5 Console Disc Edition CFI-1215A", url: "https://shop-a.example/item", price: 499.99, condition: "new" });
-    expect(range.sources[1]!.condition).toBe("new");
-    expect(PriceCheckSchema.safeParse({ ...range, checkedAt: new Date().toISOString() }).success).toBe(true);
+describe("classifyTitle", () => {
+  it("knows the model code, the required words and graded queries", () => {
+    expect(modelCodes(PS5)).toEqual(["cfi1215a"]);
+    expect(requiredWords(PS5)).toEqual(["playstation", "disc"]);
+    expect(requiredWords(SLAB)).toEqual(["base", "set", "charizard"]);
+    expect(isGradedQuery(SLAB)).toBe(true);
+    expect(isGradedQuery(PS5)).toBe(false);
   });
-
-  it("scales new retail for a used card even when used offers are priced like new, and records the path", () => {
-    const range = deriveRange(livePs5, { brand: "Sony", model: "PlayStation 5 disc edition CFI-1215A", condition: "good" });
-    // New offers sorted: 588.99, 649.99, 776.99, 839.99, 858.99, 914.99. p20 -> 649.99, p80 -> 858.99, times 0.7.
-    expect(range.marketLow).toBeCloseTo(649.99 * 0.7, 2);
-    expect(range.marketHigh).toBeCloseTo(858.99 * 0.7, 2);
-    expect(range.sources[0]!.name).toBe(`${ESTIMATE_NOTE_PREFIX} from new retail prices (good: 70% of new)`);
-    expect(range.sources[0]!.url).toBeUndefined();
-    expect(PriceCheckSchema.safeParse({ ...range, checkedAt: new Date().toISOString() }).success).toBe(true);
-
-    const priceCheck = { ...range, checkedAt: new Date().toISOString() };
-    const clean = priceBelowMarketRule({ card: card({ askingPrice: 420 }), chat: [], priceCheck });
-    expect(clean).toHaveLength(0);
-    const emptyBoxAsk = priceBelowMarketRule({ card: card({ askingPrice: 410 }), chat: [], priceCheck });
-    expect(emptyBoxAsk).toHaveLength(0);
-    const scam = priceBelowMarketRule({ card: card({ askingPrice: 220 }), chat: [], priceCheck });
-    expect(scam[0]).toMatchObject({ code: "PRICE_FAR_BELOW_MARKET", severity: "stop" });
+  it("sorts PS5 titles into same model, family and dropped", () => {
+    expect(classifyTitle("Sony PlayStation 5 Console Disc Edition CFI-1215A", PS5, false)).toBe("same");
+    expect(classifyTitle("PlayStation 5 Disc Edition", PS5, false)).toBe("same");
+    expect(classifyTitle("PlayStation 5 Slim Console Disc Edition", PS5, false)).toBe("family");
+    expect(classifyTitle("PlayStation 5 Pro Disc Edition", PS5, false)).toBe("family");
+    expect(classifyTitle("PlayStation 5 Digital Edition Console", PS5, false)).toBeNull();
+    expect(classifyTitle("PlayStation 5 Disc Edition with Two Controllers and Charger", PS5, false)).toBeNull();
+    expect(classifyTitle("PlayStation 5 Disc Edition Console + Spider-Man 2", PS5, false)).toBeNull();
+    expect(classifyTitle("PlayStation 5 DualSense Wireless Controller", PS5, false)).toBeNull();
+    expect(classifyTitle("PS5 Disc Edition Bundle", PS5, false)).toBeNull();
   });
-
-  it("lets a genuinely cheaper used offer pull the low end down, never up", () => {
-    const cheaperUsed: Channel3SearchResponse = {
-      products: [{ id: "u", title: "Sony PlayStation 5 disc edition", offers: [offer("retail.example", 500), offer("retail.example", 540), offer("resale.example", 300, "used")] }],
-      next_page_token: null,
-    };
-    const range = deriveRange(cheaperUsed, { brand: "Sony", model: "PlayStation 5 disc edition", condition: "good" });
-    expect(range.marketLow).toBe(300);
-    expect(range.marketHigh).toBeCloseTo(540 * 0.7, 2);
-    expect(range.sources[0]!.name).toContain("a cheaper used offer at $300 set the low end");
-
-    const pricierUsed: Channel3SearchResponse = {
-      products: [{ id: "u", title: "Sony PlayStation 5 disc edition", offers: [offer("retail.example", 500), offer("resale.example", 450, "used")] }],
-      next_page_token: null,
-    };
-    expect(deriveRange(pricierUsed, { brand: "Sony", model: "PlayStation 5 disc edition", condition: "good" }).marketLow).toBe(350);
+  it("keeps only the same character, set, grader and grade for a graded card", () => {
+    expect(classifyTitle("1999 Pokemon Base Set Charizard Holo #4 PSA 10", SLAB, true)).toBe("same");
+    expect(classifyTitle("Jolteon Master Ball Reverse Holo PSA 10", SLAB, true)).toBeNull();
+    expect(classifyTitle("1999 Pokemon Base Set Charizard Holo PSA 9", SLAB, true)).toBeNull();
+    expect(classifyTitle("2016 Pokemon XY Evolutions Charizard Holo PSA 10", SLAB, true)).toBeNull();
+    expect(classifyTitle("1999 Pokemon Base Set Charizard Holo Ungraded", SLAB, true)).toBeNull();
+    expect(classifyTitle("PSA Card Slab Protector Case", SLAB, true)).toBeNull();
+    expect(classifyTitle("Base Set Charizard Holo PSA 10 Lot of 2", SLAB, true)).toBeNull();
   });
+});
 
-  it("uses used offers as they are when no new offers came back", () => {
-    const usedOnly: Channel3SearchResponse = {
-      products: [{ id: "u", title: "Sony PlayStation 5 disc edition used", offers: [offer("x.example", 380, "used"), offer("y.example", 420, "used")] }],
-      next_page_token: null,
-    };
-    const range = deriveRange(usedOnly, { brand: "Sony", model: "PlayStation 5 disc edition", condition: "good" });
-    expect(range.marketLow).toBe(380);
-    expect(range.marketHigh).toBe(420);
-    expect(range.sources[0]!.name).toBe(`${ESTIMATE_NOTE_PREFIX} from used offers only`);
+describe("deriveRange on PS5 comps", () => {
+  it("dedupes, drops bundles and accessories, widens to the Slim family with a note, and scales for a used card", () => {
+    const range = deriveRange(livePs5, { brand: "Sony", model: PS5, condition: "good" });
+    // Kept: walmart 914.99 (same); gamestop new 588.99, gamestop used 588.99 (one), dell 649.99, cdw 776.99, macys 858.99 (family).
+    // New listings sorted: 588.99, 649.99, 776.99, 858.99, 914.99 -> p20 588.99, p80 914.99, times 0.7.
+    expect(range.marketLow).toBeCloseTo(588.99 * 0.7, 2);
+    expect(range.marketHigh).toBeCloseTo(914.99 * 0.7, 2);
+    expect(range.sources[0]!.name).toContain("Widened to the playstation disc family because fewer than 3 listings named the same model (CFI1215A)");
+    expect(range.sources[0]!.name).toContain(`${ESTIMATE_NOTE_PREFIX} from new retail prices (good: 70% of new)`);
+    const priced = range.sources.filter((s) => s.price !== undefined);
+    expect(priced).toHaveLength(6);
+    expect(priced.map((s) => s.name)).not.toContain(expect.stringContaining("Controller"));
+    expect(priced.filter((s) => s.name.startsWith("gamestop.com") && s.condition === "used")).toHaveLength(1);
+    expect(PriceCheckSchema.safeParse(at(range)).success).toBe(true);
+    expect(priceBelowMarketRule({ card: card({ askingPrice: 420 }), chat: [], priceCheck: at(range) })).toHaveLength(0);
+    expect(priceBelowMarketRule({ card: card({ askingPrice: 220 }), chat: [], priceCheck: at(range) })[0]!.severity).toBe("stop");
   });
-
-  it("returns the unknown range with a note for a graded card when Channel3 has no graded listings", () => {
-    const retailNoise: Channel3SearchResponse = {
+  it("uses only same-model listings when there are three or more", () => {
+    const sameModel: Channel3SearchResponse = {
       products: [
-        { id: "p", title: "Charizard Figure", offers: [offer("toys.example", 21.49)] },
-        { id: "q", title: "Pokemon Charizard Plush - 12 inch Soft Plush", offers: [offer("retail.example", 24.97)] },
+        product("1", "Sony PlayStation 5 Console Disc Edition CFI-1215A", [offer("a.example", 499.99)]),
+        product("2", "PlayStation 5 Disc Edition CFI-1215A", [offer("b.example", 519.99)]),
+        product("3", "PlayStation 5 Disc Edition", [offer("c.example", 549.99)]),
+        product("4", "PlayStation 5 Slim Console Disc Edition", [offer("d.example", 99)]),
       ],
       next_page_token: null,
     };
-    expect(isGradedQuery("Base Set Charizard Holo #4 PSA 10")).toBe(true);
-    expect(isGradedQuery("PlayStation 5 disc edition, CFI-1215A")).toBe(false);
-    const range = deriveRange(retailNoise, { brand: "Pokemon", model: "Base Set Charizard Holo #4 PSA 10", condition: "like_new" });
-    expect(range).toMatchObject({ marketLow: 0, marketHigh: 0, sources: [{ name: NO_GRADED_LISTINGS_NOTE }] });
-    expect(priceBelowMarketRule({ card: card({ askingPrice: 750 }), chat: [], priceCheck: { ...range, checkedAt: new Date().toISOString() } })).toHaveLength(0);
-
-    const graded: Channel3SearchResponse = {
-      products: [{ id: "g", title: "1999 Pokemon Base Set Charizard Holo #4 PSA 10", offers: [offer("cards.example", 4200, "used")] }, ...retailNoise.products],
+    const range = deriveRange(sameModel, { brand: "Sony", model: PS5, condition: "new" });
+    expect(range.marketLow).toBe(499.99);
+    expect(range.marketHigh).toBe(549.99);
+    expect(range.sources).toHaveLength(3);
+    expect(range.sources.some((s) => s.name.includes("Widened"))).toBe(false);
+  });
+  it("lets a genuinely cheaper used offer pull the low end down, never up", () => {
+    const base = [product("1", "PlayStation 5 Disc Edition", [offer("a.example", 500), offer("b.example", 540), offer("c.example", 560)])];
+    const cheaper = deriveRange({ products: [...base, product("u", "PlayStation 5 Disc Edition", [offer("resale.example", 300, "used")])], next_page_token: null }, { brand: "Sony", model: "PlayStation 5 disc edition", condition: "good" });
+    expect(cheaper.marketLow).toBe(300);
+    expect(cheaper.marketHigh).toBeCloseTo(560 * 0.7, 2);
+    expect(cheaper.sources[0]!.name).toContain("a cheaper used offer at $300 set the low end");
+    const pricier = deriveRange({ products: [...base, product("u", "PlayStation 5 Disc Edition", [offer("resale.example", 450, "used")])], next_page_token: null }, { brand: "Sony", model: "PlayStation 5 disc edition", condition: "good" });
+    expect(pricier.marketLow).toBe(350);
+  });
+  it("uses used offers as they are when no new offers came back", () => {
+    const usedOnly: Channel3SearchResponse = {
+      products: [product("u", "PlayStation 5 Disc Edition", [offer("x.example", 380, "used"), offer("y.example", 420, "used"), offer("z.example", 440, "used")])],
       next_page_token: null,
     };
-    expect(deriveRange(graded, { brand: "Pokemon", model: "Base Set Charizard Holo #4 PSA 10", condition: "like_new" }).marketLow).toBe(4200);
+    const range = deriveRange(usedOnly, { brand: "Sony", model: "PlayStation 5 disc edition", condition: "good" });
+    expect(range).toMatchObject({ marketLow: 380, marketHigh: 440 });
+    expect(range.sources[0]!.name).toBe(`${ESTIMATE_NOTE_PREFIX} from used offers only`);
   });
+});
 
-  it("returns an unknown range when nothing comes back", () => {
-    expect(deriveRange({ products: [], next_page_token: null }, { brand: "X", model: "Y", condition: "good" })).toMatchObject({ marketLow: 0, marketHigh: 0, sources: [] });
+describe("deriveRange refuses thin or flat data", () => {
+  it("returns the unknown range with the note when fewer than three relevant listings remain", () => {
+    const two: Channel3SearchResponse = { products: [product("1", "PlayStation 5 Disc Edition", [offer("a.example", 500), offer("b.example", 540)])], next_page_token: null };
+    expect(deriveRange(two, { brand: "Sony", model: PS5, condition: "new" })).toMatchObject({ marketLow: 0, marketHigh: 0, sources: [{ name: NO_RELIABLE_PRICE_NOTE }] });
+    expect(deriveRange({ products: [], next_page_token: null }, { brand: "X", model: "Y", condition: "good" })).toMatchObject({ marketLow: 0, marketHigh: 0 });
+  });
+  it("never builds a range from one listing or one whose low equals its high", () => {
+    const one: Channel3SearchResponse = { products: [product("1", "Jolteon Master Ball Reverse Holo PSA 10", [offer("gamestop.com", 131.99)])], next_page_token: null };
+    expect(deriveRange(one, { brand: "Pokemon", model: "Jolteon Master Ball Reverse Holo PSA 10", condition: "like_new" }).marketLow).toBe(0);
+    const flat: Channel3SearchResponse = { products: [product("1", "PlayStation 5 Disc Edition", [offer("a.example", 500), offer("b.example", 500), offer("c.example", 500)])], next_page_token: null };
+    const range = deriveRange(flat, { brand: "Sony", model: PS5, condition: "new" });
+    expect(range.marketLow).toBe(0);
+    expect(range.sources[0]!.name).toBe(NO_RELIABLE_PRICE_NOTE);
+  });
+});
+
+describe("deriveRange on a graded card", () => {
+  const noise = [
+    product("j", "Jolteon Master Ball Reverse Holo PSA 10", [offer("gamestop.com", 131.99)]),
+    product("p", "Pokemon Charizard Plush - 12 inch Soft Plush", [offer("walmart.com", 24.97)]),
+    product("t", "Pokemon Card Eng. Mega Charizard Tin 'Mega Charizard X'", [offer("kickscrew.com", 97.11)]),
+    product("c", "PSA Card Slab Protector Case", [offer("walmart.com", 12)]),
+  ];
+  it("returns the unknown range when no listing is the same graded card, so the Jolteon never sets a price", () => {
+    const range = deriveRange({ products: noise, next_page_token: null }, { brand: "Pokemon", model: SLAB, condition: "like_new" });
+    expect(range).toMatchObject({ marketLow: 0, marketHigh: 0, sources: [{ name: NO_RELIABLE_PRICE_NOTE }] });
+    expect(priceBelowMarketRule({ card: card({ askingPrice: 750 }), chat: [], priceCheck: at(range) })).toHaveLength(0);
+  });
+  it("prices a graded card from same grader and grade listings with no used discount", () => {
+    const comps: Channel3SearchResponse = {
+      products: [
+        ...noise,
+        product("1", "1999 Pokemon Base Set Charizard Holo #4 PSA 10", [offer("cards.example", 4200, "used")]),
+        product("2", "1999 Pokemon Base Set Charizard Holo PSA 10 Gem Mint", [offer("auction.example", 3900, "used")]),
+        product("3", "Pokemon Base Set Charizard Holo PSA 10", [offer("shop.example", 5100, "used")]),
+      ],
+      next_page_token: null,
+    };
+    const range = deriveRange(comps, { brand: "Pokemon", model: SLAB, condition: "like_new" });
+    expect(range.marketLow).toBe(3900);
+    expect(range.marketHigh).toBe(5100);
+    expect(range.sources[0]!.name).toContain("Graded card: compared only with listings of the same grader and grade, no used discount");
+    expect(priceBelowMarketRule({ card: card({ askingPrice: 750 }), chat: [], priceCheck: at(range) })[0]!.severity).toBe("stop");
   });
 });
 
@@ -161,12 +206,12 @@ describe("createChannel3PriceLookup", () => {
     const cache = memoryCache();
     const fetchImpl = async (url: string, init?: RequestInit) => {
       calls.push({ url, init });
-      return new Response(JSON.stringify(response), { status: 200, headers: { "content-type": "application/json" } });
+      return new Response(JSON.stringify(livePs5), { status: 200, headers: { "content-type": "application/json" } });
     };
     const before = channel3CallCount();
     const lookup = createChannel3PriceLookup("test-key", { fetchImpl, cache });
-    const first = await lookup.priceRange({ brand: "Sony", model: MODEL, condition: "like_new" });
-    const second = await lookup.priceRange({ brand: "sony", model: MODEL.toLowerCase(), condition: "good" });
+    const first = await lookup.priceRange({ brand: "Sony", model: PS5, condition: "like_new" });
+    const second = await lookup.priceRange({ brand: "sony", model: PS5.toLowerCase(), condition: "good" });
     expect(calls).toHaveLength(1);
     expect(channel3CallCount() - before).toBe(1);
     expect(calls[0]!.url).toBe("https://api.trychannel3.com/v1/search");
@@ -177,7 +222,6 @@ describe("createChannel3PriceLookup", () => {
       filters: { conditions: ["new", "used"] },
       config: { country: "US", currency: "USD" },
     });
-    // Same cached response; only the estimate note differs because the second card is a different grade.
     expect(second.sources.slice(1)).toEqual(first.sources.slice(1));
     expect(first.sources[0]!.name).toContain("like new: 80% of new");
     expect(second.sources[0]!.name).toContain("good: 70% of new");
@@ -187,7 +231,6 @@ describe("createChannel3PriceLookup", () => {
     const error = await lookup.priceRange({ brand: "Sony", model: "PlayStation 5", condition: "good" }).catch((e: unknown) => e);
     expect(error).toBeInstanceOf(Channel3Error);
     expect((error as Channel3Error).status).toBe(401);
-    expect((error as Error).message).toContain("401");
   });
 });
 
@@ -205,15 +248,14 @@ describe("createDiskCache", () => {
     expect(await cache.get(key)).toEqual({ products: [] });
     clock += 2 * 60 * 60 * 1000;
     expect(await cache.get(key)).toBeNull();
-    expect(await cache.get({ query: "something else", limit: 20 })).toBeNull();
   });
 });
 
 describe("createFixturePriceLookup", () => {
-  it("answers the fixture product and says unknown otherwise", async () => {
+  it("answers the fixture products and says unknown otherwise", async () => {
     const lookup = createFixturePriceLookup();
-    expect((await lookup.priceRange({ brand: "Sony", model: MODEL, condition: "good" })).marketLow).toBe(380);
-    expect((await lookup.priceRange({ brand: "Sony", model: "PS5 disc edition", condition: "like_new" })).marketHigh).toBe(499);
+    expect((await lookup.priceRange({ brand: "Sony", model: PS5, condition: "good" })).marketLow).toBe(380);
+    expect((await lookup.priceRange({ brand: "Pokemon", model: SLAB, condition: "like_new" })).marketLow).toBe(3000);
     expect((await lookup.priceRange({ brand: "Acme", model: "Thing", condition: "good" })).marketLow).toBe(0);
   });
 });

@@ -8,6 +8,7 @@ import { fixtureById } from "../scenarios";
 import { palChannel, type Role } from "../role";
 import type { Services } from "../services";
 import { notFound } from "./errors";
+import { absoluteCard } from "./photo-urls";
 
 export interface DemoHints {
   /** Photos the seller can add when the buyer's pal asks for more. */
@@ -81,7 +82,7 @@ export async function loadSnapshot(services: Services, dealId: string): Promise<
     const key = `${deal.id}:${lockedCard.version}`;
     let result = checklistCache.get(key);
     if (!result) {
-      result = await services.sellerPal.shipmentChecklist(deal, lockedCard);
+      result = await services.sellerPal.shipmentChecklist(deal, absoluteCard(lockedCard));
       checklistCache.set(key, result);
     }
     checklist = result.data;

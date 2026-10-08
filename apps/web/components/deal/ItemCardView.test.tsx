@@ -56,14 +56,15 @@ describe("ItemCardView", () => {
     expect(screen.getByText(FAKE_SLAB_CERT)).toBeInTheDocument();
     expect(screen.getByText("Grade")).toBeInTheDocument();
     expect(screen.getByText("PSA 10")).toBeInTheDocument();
-    expect(screen.getByText(/PSA record does not match: 2016 Pokemon XY Evolutions Charizard Holo #11, grade 7/)).toBeInTheDocument();
+    const line = screen.getByText(/Card says PSA 10\. .*record says 2016 Pokemon XY Evolutions Charizard Holo #11, grade 7\./);
+    expect(line.textContent?.match(/PSA 10/g)).toHaveLength(1);
   });
 
-  it("says when the PSA record matches", () => {
+  it("says when the PSA record agrees, naming the grade once", () => {
     const slab = fakeSlab.cards[0]!;
-    const certCheck: CertCheck = { record: { ...fakeSlab.certRecord!, subject: slab.title, grade: "10" }, matches: true, explanation: "Matches." };
+    const certCheck: CertCheck = { record: { ...fakeSlab.certRecord!, provider: "psa", subject: slab.title, grade: "10" }, matches: true, explanation: "Matches." };
     render(<ItemCardView cards={[slab]} currentVersion={1} lockedVersion={null} certCheck={certCheck} />);
-    expect(screen.getByText(/PSA record matches/)).toBeInTheDocument();
+    expect(screen.getByText("PSA record agrees: PSA 10")).toBeInTheDocument();
   });
 
   it("shows no box serial row when the card has none", () => {

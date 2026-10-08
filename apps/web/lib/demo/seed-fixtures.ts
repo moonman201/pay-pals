@@ -1,9 +1,14 @@
 /**
  * Replays each scenario fixture through the store's public interface so the
- * store holds the three finished demo deals (scam blocked, clean complete,
- * empty box in issue). The fixture timeline drives the replay: state_changed
- * events become transitions, the rest become data writes. The store assigns
- * fresh ids, so the result maps scenario id to deal id.
+ * store holds the three finished demo deals (fake slab blocked, clean
+ * complete, empty box in issue). The fixture timeline drives the replay:
+ * state_changed events become transitions, the rest become data writes.
+ * The store assigns fresh ids, so the result maps scenario id to deal id.
+ *
+ * Time: the store's clock is a replay clock set to each fixture event's `at`
+ * before the call that produces it, so the seeded timeline, payment and
+ * shipment carry the fixture's dates and run in order. Chat messages are
+ * added at their own fixture times, interleaved with the events.
  *
  * On a durable store the seed is idempotent: a scenario that already has a
  * finished deal is not replayed, and when two server instances race, both
@@ -12,12 +17,22 @@
 import { ALL_FIXTURES, type Deal, type DealEvent, type DealState, type ItemCard, type ScenarioFixture, type ScenarioId } from "@pay-pals/contracts";
 import { buildEvidenceFor } from "../deal/flows/evidence";
 import type { Services } from "../services";
-import { nowIso } from "../time";
 
-type SeedServices = Pick<Services, "store" | "buyerPal" | "buildEvidencePack" | "demoPayee">;
+type SeedServices = Pick<Services, "store" | "buyerPal" | "buildEvidencePack" | "demoPayee" | "clock">;
 
-async function replay(services: SeedServices, fixture: ScenarioFixture): Promise<string> {
+/** The part of a replay clock the seeder needs: move time to a fixture timestamp. */
+export interface ReplayTime {
+  set(iso: string): void;
+}
+
+const noClock: ReplayTime = { set: () => {} };
+
+async function replay(services: SeedServices, fixture: ScenarioFixture, time: ReplayTime): Promise<string> {
   const { store } = services;
+  const at = (iso: string) => time.set(iso);
+  const first = fixture.timeline[0];
+  if (first) at(first.at);
+
   const deal = await store.createDeal({
     startedBy: fixture.deal.startedBy,
     seller: fixture.seller,
@@ -28,19 +43,33 @@ async function replay(services: SeedServices, fixture: ScenarioFixture): Promise
   const id = deal.id;
   let savedCards = 0;
   let lockedCard: ItemCard | null = null;
-  const recordEvent = (e: DealEvent, data?: Record<string, unknown>) =>
-    store.appendEvent({ dealId: id, kind: e.kind, actor: e.actor, summary: e.summary, data, at: nowIso() });
+  let nextChat = 0;
+  const recordEvent = (e: DealEvent, data?: Record<string, unknown>) => {
+    at(e.at);
+    return store.appendEvent({ dealId: id, kind: e.kind, actor: e.actor, summary: e.summary, data, at: e.at });
+  };
+  /** Chat messages dated up to this moment, each at its own fixture time. */
+  const flushChat = async (upTo: string) => {
+    while (nextChat < fixture.chat.length && fixture.chat[nextChat]!.at <= upTo) {
+      const m = fixture.chat[nextChat]!;
+      at(m.at);
+      await store.addMessage({ dealId: id, channel: m.channel, author: m.author, text: m.text, photos: m.photos, at: m.at });
+      nextChat += 1;
+    }
+  };
 
   for (const event of fixture.timeline) {
+    await flushChat(event.at);
+    at(event.at);
     switch (event.kind) {
       case "state_changed": {
         if (!event.toState) break;
         await store.transition(id, event.toState, event.actor, event.summary);
-        if (event.toState === "LISTED") {
-          for (const m of fixture.chat) {
-            await store.addMessage({ dealId: id, channel: m.channel, author: m.author, text: m.text, photos: m.photos, at: nowIso() });
-          }
-        }
+        break;
+      }
+      case "seller_joined": {
+        // The store sets sellerJoinedAt and appends the event itself.
+        await store.markSellerJoined(id, fixture.seller);
         break;
       }
       case "card_updated": {
@@ -64,19 +93,14 @@ async function replay(services: SeedServices, fixture: ScenarioFixture): Promise
             sellerJoined: (current?.sellerJoinedAt ?? null) !== null,
             inviteDeclined: false,
           });
-          await store.saveVerdict(result.data);
-          await store.addMessage({ dealId: id, channel: "buyer_pal", author: "buyer_pal", text: result.palMessage, photos: [], at: nowIso() });
+          await store.saveVerdict({ ...result.data, createdAt: event.at });
+          await store.addMessage({ dealId: id, channel: "buyer_pal", author: "buyer_pal", text: result.palMessage, photos: [], at: event.at });
         }
         await recordEvent(event);
         break;
       }
-      case "seller_joined": {
-        // The store sets sellerJoinedAt and appends the event itself.
-        await store.markSellerJoined(id, fixture.seller);
-        break;
-      }
       case "agreed": {
-        // Both agreements are recorded before the lock (contract v1.3.0). The store appends the agreed event itself.
+        // The store appends the agreed event itself, at the clock's time.
         if (event.actor === "buyer" || event.actor === "seller") await store.recordAgreement(id, event.actor);
         break;
       }
@@ -115,10 +139,10 @@ async function replay(services: SeedServices, fixture: ScenarioFixture): Promise
       }
       case "arrival_checked": {
         if (lockedCard && fixture.arrivalPhotos.length > 0) {
-          await store.addMessage({ dealId: id, channel: "deal", author: "buyer", text: "Arrival photos.", photos: fixture.arrivalPhotos, at: nowIso() });
+          await store.addMessage({ dealId: id, channel: "deal", author: "buyer", text: "Arrival photos.", photos: fixture.arrivalPhotos, at: event.at });
           const result = await services.buyerPal.checkArrival(lockedCard, fixture.arrivalPhotos);
-          await store.saveArrivalCheck({ ...result.data, photos: result.data.photos?.length ? result.data.photos : fixture.arrivalPhotos });
-          await store.addMessage({ dealId: id, channel: "buyer_pal", author: "buyer_pal", text: result.palMessage, photos: [], at: nowIso() });
+          await store.saveArrivalCheck({ ...result.data, photos: fixture.arrivalPhotos, createdAt: event.at });
+          await store.addMessage({ dealId: id, channel: "buyer_pal", author: "buyer_pal", text: result.palMessage, photos: [], at: event.at });
         }
         await recordEvent(event, { photos: fixture.arrivalPhotos });
         break;
@@ -132,6 +156,7 @@ async function replay(services: SeedServices, fixture: ScenarioFixture): Promise
         await recordEvent(event);
     }
   }
+  await flushChat("9999-12-31T23:59:59.999Z");
   return id;
 }
 
@@ -160,11 +185,11 @@ function oldest(deals: Deal[]): Deal | null {
 }
 
 /** Fresh replay of every scenario. For a store that starts empty on each process, such as the memory store. */
-export async function seedFixtureDeals(services: SeedServices, log: Log): Promise<SeededIds> {
+export async function seedFixtureDeals(services: SeedServices, log: Log, time: ReplayTime = noClock): Promise<SeededIds> {
   const ids: SeededIds = {};
   for (const fixture of ALL_FIXTURES) {
     try {
-      ids[fixture.id] = await replay(services, fixture);
+      ids[fixture.id] = await replay(services, fixture, time);
     } catch (error) {
       log(`[pay-pals] demo: could not seed ${fixture.id} (${error instanceof Error ? error.message : String(error)})`);
     }
@@ -178,7 +203,7 @@ export async function seedFixtureDeals(services: SeedServices, log: Log): Promis
  * finished deal for it exists, checks again after the replay, and settles on
  * the oldest finished deal so two instances seeding at once converge.
  */
-export async function seedFixtureDealsIfMissing(services: SeedServices, finder: DealFinder, log: Log): Promise<SeededIds> {
+export async function seedFixtureDealsIfMissing(services: SeedServices, finder: DealFinder, log: Log, time: ReplayTime = noClock): Promise<SeededIds> {
   const ids: SeededIds = {};
   let replayed = 0;
   for (const fixture of ALL_FIXTURES) {
@@ -189,7 +214,7 @@ export async function seedFixtureDealsIfMissing(services: SeedServices, finder: 
         ids[fixture.id] = existing.id;
         continue;
       }
-      const created = await replay(services, fixture);
+      const created = await replay(services, fixture, time);
       replayed += 1;
       // Another instance may have seeded the same scenario meanwhile. Both pick the oldest.
       const settled = oldest(await finder.findDeals(query));
