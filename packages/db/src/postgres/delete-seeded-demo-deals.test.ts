@@ -1,20 +1,36 @@
 /**
- * deleteSeededDemoDeals on PGlite: two seeded demo deals go, a real deal
- * with a real-looking order id stays, a fresh seed stays, and children go
- * with their deal.
+ * deleteSeededDemoDeals on PGlite: finished scenario deals go unless they
+ * carry the current seed stamp; real deals in flight stay; children go
+ * with their deal. Includes the shape of the deal the first rule missed on
+ * the hosted database (1aeb93c3: buyer-started, one unlocked card, BLOCKED,
+ * no payment).
  */
 import { PGlite } from "@electric-sql/pglite";
 import { drizzle } from "drizzle-orm/pglite";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { getFixture } from "@pay-pals/contracts";
+import type { PayPalsStore } from "@pay-pals/contracts";
 import * as schema from "../../schema";
 import { createReplayClock } from "../clock";
-import { deleteSeededDemoDeals } from "./delete-seeded-demo-deals";
+import { deleteSeededDemoDeals, explainDeal } from "./delete-seeded-demo-deals";
 import { runMigrations } from "./migrate";
 import { createPostgresDealStoreFromDb } from "./postgres-store";
 
-const fx = getFixture("clean-ps5");
+const clean = getFixture("clean-ps5");
+const slab = getFixture("fake-slab");
+const CURRENT = "2026-10-08.1";
 const hoursAgo = (h: number) => new Date(Date.now() - h * 3_600_000).toISOString();
+
+async function stamp(store: PayPalsStore, dealId: string, seedVersion: string | null, scenario: string) {
+  await store.appendEvent({
+    dealId,
+    kind: "deal_created",
+    actor: "system",
+    summary: "Seeded.",
+    data: seedVersion ? { seedVersion, scenario } : { scenario },
+    at: (await store.getDeal(dealId))!.createdAt,
+  });
+}
 
 describe("deleteSeededDemoDeals", () => {
   let client: PGlite;
@@ -30,68 +46,100 @@ describe("deleteSeededDemoDeals", () => {
     await client?.close();
   });
 
-  it("deletes only the seeded demo deals older than an hour, children included", async () => {
-    const old = createReplayClock(hoursAgo(3));
-    const seeded = createPostgresDealStoreFromDb(db, { clock: old.clock });
+  it("deletes finished scenario deals without the current seed stamp, keeps the rest, children included", async () => {
+    const store = createPostgresDealStoreFromDb(db, { clock: createReplayClock(hoursAgo(9)).clock });
 
-    // Seeded clean deal: fixture payment.
-    const clean = await seeded.createDeal({ startedBy: "buyer", seller: fx.seller, buyer: fx.buyer, scenario: "clean-ps5" });
-    await seeded.saveCard({ ...fx.cards[0]!, dealId: clean.id, version: 1, lockedAt: null });
-    await seeded.transition(clean.id, "LISTED", "system", "Listed.");
-    await seeded.savePayment({ ...fx.payment!, dealId: clean.id, paypalOrderId: "FIXTURE-ORDER-CLEAN-TEST" });
+    // The 1aeb93c3 shape: a judge's own fake-slab run, buyer-started, one unlocked card, BLOCKED, no payment, no stamp.
+    const judge = await store.createDeal({ startedBy: "buyer", seller: slab.seller, buyer: slab.buyer, scenario: "fake-slab" });
+    await stamp(store, judge.id, null, "fake-slab");
+    await store.transition(judge.id, "INVITED", "system", "Invite sent.");
+    await store.markSellerJoined(judge.id);
+    await store.saveCard({ ...slab.cards[0]!, dealId: judge.id, version: 1, lockedAt: null });
+    await store.transition(judge.id, "LISTED", "system", "Listed.");
+    await store.transition(judge.id, "REVIEWED", "buyer_pal", "Reviewed.");
+    await store.transition(judge.id, "BLOCKED", "buyer_pal", "Stopped.");
 
-    // Seeded scam deal: BLOCKED, no payment, no locked card.
-    const scam = await seeded.createDeal({ startedBy: "buyer", seller: fx.seller, buyer: fx.buyer, scenario: "fake-slab" });
-    await seeded.transition(scam.id, "INVITED", "system", "Invite sent.");
-    await seeded.transition(scam.id, "REVIEWED", "buyer_pal", "Refusal reviewed.");
-    await seeded.transition(scam.id, "BLOCKED", "buyer_pal", "Stopped.");
+    // A stale seed: fixture payment, COMPLETE, stamped with an older version.
+    const stale = await store.createDeal({ startedBy: "buyer", seller: clean.seller, buyer: clean.buyer, scenario: "clean-ps5" });
+    await stamp(store, stale.id, "2026-10-07.3", "clean-ps5");
+    await store.transition(stale.id, "LISTED", "system", "Listed.");
+    await store.savePayment({ ...clean.payment!, dealId: stale.id, paypalOrderId: "FIXTURE-ORDER-STALE" });
+    for (const s of ["REVIEWED", "AGREED", "PAYMENT_PENDING", "PAID", "SHIPPED", "DELIVERED", "COMPLETE"] as const) await store.transition(stale.id, s, "system", s);
 
-    // A real deal in a demo scenario with a real PayPal order id: must stay.
-    const real = await seeded.createDeal({ startedBy: "buyer", seller: fx.seller, buyer: fx.buyer, scenario: "clean-ps5" });
-    await seeded.transition(real.id, "LISTED", "system", "Listed.");
-    await seeded.savePayment({ ...fx.payment!, dealId: real.id, paypalOrderId: "5O190127TN364715T", status: "CREATED", captureId: null, capturedAt: null });
+    // The current seed: same shape, stamped with the current version. Must stay.
+    const current = await store.createDeal({ startedBy: "buyer", seller: clean.seller, buyer: clean.buyer, scenario: "clean-ps5" });
+    await stamp(store, current.id, CURRENT, "clean-ps5");
+    await store.transition(current.id, "LISTED", "system", "Listed.");
+    await store.savePayment({ ...clean.payment!, dealId: current.id, paypalOrderId: "FIXTURE-ORDER-CURRENT" });
+    for (const s of ["REVIEWED", "AGREED", "PAYMENT_PENDING", "PAID", "SHIPPED", "DELIVERED", "COMPLETE"] as const) await store.transition(current.id, s, "system", s);
 
-    // A real BLOCKED deal that has a locked card: must stay.
-    const blockedReal = await seeded.createDeal({ startedBy: "seller", seller: fx.seller, buyer: fx.buyer, scenario: "fake-slab" });
-    await seeded.saveCard({ ...fx.cards[0]!, dealId: blockedReal.id, version: 1, lockedAt: null });
-    await seeded.transition(blockedReal.id, "LISTED", "system", "Listed.");
-    await seeded.transition(blockedReal.id, "REVIEWED", "buyer_pal", "Reviewed.");
-    await seeded.lockCard(blockedReal.id, 1);
-    await seeded.transition(blockedReal.id, "BLOCKED", "buyer_pal", "Stopped late.");
+    // A finished ISSUE deal with no payment and no lock, unstamped: goes.
+    const issue = await store.createDeal({ startedBy: "seller", seller: clean.seller, buyer: clean.buyer, scenario: "empty-box" });
+    await store.transition(issue.id, "LISTED", "system", "Listed.");
+    await store.transition(issue.id, "REVIEWED", "system", "Reviewed.");
+    await store.transition(issue.id, "AGREED", "system", "Agreed.");
+    for (const s of ["PAYMENT_PENDING", "PAID", "ISSUE"] as const) await store.transition(issue.id, s, "system", s);
 
-    // A deal with no scenario at all: must stay.
-    const noScenario = await seeded.createDeal({ startedBy: "seller", seller: fx.seller });
-    await seeded.savePayment({ ...fx.payment!, dealId: noScenario.id, paypalOrderId: "FIXTURE-ORDER-NO-SCENARIO" });
+    // Must stay: a real deal in flight with a real PayPal order id.
+    const real = await store.createDeal({ startedBy: "buyer", seller: clean.seller, buyer: clean.buyer, scenario: "clean-ps5" });
+    await store.transition(real.id, "LISTED", "system", "Listed.");
+    await store.savePayment({ ...clean.payment!, dealId: real.id, paypalOrderId: "5O190127TN364715T", status: "CREATED", captureId: null, capturedAt: null });
 
-    // A seed from a few minutes ago: too young, must stay.
-    const fresh = createPostgresDealStoreFromDb(db, { clock: createReplayClock(new Date(Date.now() - 5 * 60_000).toISOString()).clock });
-    const young = await fresh.createDeal({ startedBy: "buyer", seller: fx.seller, buyer: fx.buyer, scenario: "clean-ps5" });
-    await fresh.savePayment({ ...fx.payment!, dealId: young.id, paypalOrderId: "FIXTURE-ORDER-YOUNG" });
+    // Must stay: a real COMPLETE deal paid with a real PayPal order (locked card, real order id).
+    const realDone = await store.createDeal({ startedBy: "buyer", seller: clean.seller, buyer: clean.buyer, scenario: "clean-ps5" });
+    await store.saveCard({ ...clean.cards[0]!, dealId: realDone.id, version: 1, lockedAt: null });
+    await store.transition(realDone.id, "LISTED", "system", "Listed.");
+    await store.transition(realDone.id, "REVIEWED", "system", "Reviewed.");
+    await store.lockCard(realDone.id, 1);
+    for (const s of ["AGREED", "PAYMENT_PENDING", "PAID", "SHIPPED", "DELIVERED", "COMPLETE"] as const) await store.transition(realDone.id, s, "system", s);
+    await store.savePayment({ ...clean.payment!, dealId: realDone.id, paypalOrderId: "88E31677MD763411W" });
 
-    const preview = await deleteSeededDemoDeals(db, { dryRun: true });
+    // Must stay: a BLOCKED deal with a locked card and no payment (not a bare run), and a deal with no scenario.
+    const blockedLocked = await store.createDeal({ startedBy: "seller", seller: slab.seller, buyer: slab.buyer, scenario: "fake-slab" });
+    await store.saveCard({ ...slab.cards[0]!, dealId: blockedLocked.id, version: 1, lockedAt: null });
+    await store.transition(blockedLocked.id, "LISTED", "system", "Listed.");
+    await store.transition(blockedLocked.id, "REVIEWED", "system", "Reviewed.");
+    await store.lockCard(blockedLocked.id, 1);
+    await store.transition(blockedLocked.id, "BLOCKED", "buyer_pal", "Stopped late.");
+    const noScenario = await store.createDeal({ startedBy: "seller", seller: clean.seller });
+    await store.transition(noScenario.id, "CANCELLED", "seller", "Never mind.");
+
+    // explainDeal names the factors: the judge's run passes every rule, the real in-flight deal fails on state.
+    const whyJudge = await explainDeal(db, judge.id, CURRENT);
+    expect(whyJudge).toMatchObject({ found: true, scenario: "fake-slab", state: "BLOCKED", lockedCardVersion: null, cardCount: 1, paymentOrderIds: [], seedVersion: null, candidate: true });
+    const whyReal = await explainDeal(db, real.id, CURRENT);
+    expect(whyReal.candidate).toBe(false);
+    expect(whyReal.checks.filter((c) => !c.pass).map((c) => c.rule)).toEqual(["state in COMPLETE, BLOCKED, ISSUE", "FIXTURE- payment, or no payment and no locked card"]);
+    expect((await explainDeal(db, "00000000-0000-4000-8000-000000000000")).found).toBe(false);
+
+    const preview = await deleteSeededDemoDeals(db, { dryRun: true, keepSeedVersion: CURRENT });
     expect(preview.deleted).toBe(0);
-    expect(preview.candidates.map((c) => [c.id, c.scenario, c.state, c.reason])).toEqual([
-      [clean.id, "clean-ps5", "LISTED", "fixture payment"],
-      [scam.id, "fake-slab", "BLOCKED", "blocked without payment"],
-    ]);
-    expect(await seeded.getDeal(clean.id)).not.toBeNull();
+    // All deals here share one replay instant, so compare as a set rather than by creation order.
+    const byId = (rows: Array<[string, ...unknown[]]>) => [...rows].sort((a, b) => a[0].localeCompare(b[0]));
+    expect(byId(preview.candidates.map((c) => [c.id, c.scenario, c.state, c.seedVersion, c.reason]))).toEqual(
+      byId([
+        [judge.id, "fake-slab", "BLOCKED", null, "no payment and no locked card"],
+        [stale.id, "clean-ps5", "COMPLETE", "2026-10-07.3", "fixture payment"],
+        [issue.id, "empty-box", "ISSUE", null, "no payment and no locked card"],
+      ]),
+    );
+    expect(await store.getDeal(judge.id)).not.toBeNull();
 
-    const result = await deleteSeededDemoDeals(db, { dryRun: false });
-    expect(result.deleted).toBe(2);
-    expect(result.candidates.map((c) => c.id)).toEqual([clean.id, scam.id]);
+    const result = await deleteSeededDemoDeals(db, { dryRun: false, keepSeedVersion: CURRENT });
+    expect(result.deleted).toBe(3);
+    for (const gone of [judge.id, stale.id, issue.id]) expect(await store.getDeal(gone)).toBeNull();
+    for (const kept of [current.id, real.id, realDone.id, blockedLocked.id, noScenario.id]) expect(await store.getDeal(kept)).not.toBeNull();
 
-    expect(await seeded.getDeal(clean.id)).toBeNull();
-    expect(await seeded.getDeal(scam.id)).toBeNull();
-    for (const kept of [real.id, blockedReal.id, noScenario.id, young.id]) expect(await seeded.getDeal(kept)).not.toBeNull();
+    // Children went with the deal; the kept deals keep theirs.
+    expect(await store.listEvents(judge.id)).toEqual([]);
+    expect(await store.listCards(judge.id)).toEqual([]);
+    expect(await store.getPaymentByOrderId("FIXTURE-ORDER-STALE")).toBeNull();
+    expect(await store.getPaymentByOrderId("FIXTURE-ORDER-CURRENT")).not.toBeNull();
+    expect(await store.getPaymentByOrderId("5O190127TN364715T")).not.toBeNull();
 
-    // Children went with the deal.
-    expect(await seeded.listEvents(clean.id)).toEqual([]);
-    expect(await seeded.listCards(clean.id)).toEqual([]);
-    expect(await seeded.getPayment(clean.id)).toBeNull();
-    expect(await seeded.getPaymentByOrderId("FIXTURE-ORDER-CLEAN-TEST")).toBeNull();
-    expect(await seeded.getPaymentByOrderId("5O190127TN364715T")).not.toBeNull();
-
-    // Running again finds nothing.
-    expect(await deleteSeededDemoDeals(db, { dryRun: false })).toEqual({ candidates: [], deleted: 0 });
-  }, 60_000);
+    // Without --keep-seed the current seed goes too; a second run with it finds nothing.
+    expect(await deleteSeededDemoDeals(db, { dryRun: false, keepSeedVersion: CURRENT })).toEqual({ candidates: [], deleted: 0 });
+    const all = await deleteSeededDemoDeals(db, { dryRun: true, keepSeedVersion: null });
+    expect(all.candidates.map((c) => c.id)).toEqual([current.id]);
+  }, 90_000);
 });

@@ -47,15 +47,19 @@ generated module is stale; `npm run db:bundle -w packages/db` refreshes it.
 Before a redeploy re-seeds the demo, clear the old seeds:
 
 ```
-npm run db:delete-seeded-demo-deals -w packages/db          # lists what would go
-npm run db:delete-seeded-demo-deals -w packages/db -- --yes # deletes
+npm run db:delete-seeded-demo-deals -w packages/db -- --keep-seed 2026-10-08.1        # lists what would go
+npm run db:delete-seeded-demo-deals -w packages/db -- --keep-seed 2026-10-08.1 --yes  # deletes
 ```
 
-A seeded demo deal is one with a scenario set, created more than an hour
-ago, that either has a payment whose `paypal_order_id` starts with
-`FIXTURE-` or is BLOCKED with no payment and no locked card. Real deals
-have real PayPal order ids and stay. Children are removed by the schema's
-cascades. The same logic is exported as `deleteSeededDemoDeals(db, { dryRun })`.
+A candidate is a deal with a scenario set, in COMPLETE, BLOCKED or ISSUE,
+that either has a payment whose `paypal_order_id` starts with `FIXTURE-`
+or has no payment and no locked card, and whose `deal_created` event does
+not carry `data.seedVersion` equal to the `--keep-seed` version. So the
+current seeds stay and every other finished scenario deal goes, including
+a judge's own run that ended in BLOCKED. Real deals in flight have real
+PayPal order ids or are not finished and stay. Children are removed by the
+schema's cascades. The same logic is exported as
+`deleteSeededDemoDeals(db, { dryRun, keepSeedVersion })`.
 
 ## Tests
 
