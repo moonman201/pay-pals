@@ -5,7 +5,8 @@
 import type { ArrivalCheck, CertRecord, PriceCheck, Verdict } from "./verdict";
 import type { CardField, ItemCard, Photo } from "./item-card";
 import type { DealEvent, Message } from "./messages";
-import type { ChecklistItem } from "./shipping";
+import type { ChecklistItem, Shipment } from "./shipping";
+import type { RedFlag } from "./red-flag";
 import type { Deal, Party } from "./deal";
 import type { EvidencePack } from "./evidence";
 import type { PaymentRecord } from "./payment";
@@ -69,6 +70,11 @@ export interface BuyerPal {
    * never removes or downgrades a flag a rule raised.
    */
   review(card: ItemCard | null, chatTranscript: Message[], context?: ReviewContext): Promise<PalResult<Verdict>>;
+  /**
+   * Check a shipment at ship time: required checklist items not done and
+   * packing photos missing raise MISSING_PACKING_PHOTO (caution). Deterministic.
+   */
+  checkShipment(lockedCard: ItemCard, shipment: Shipment): Promise<PalResult<RedFlag[]>>;
   /** Compare what arrived against the locked card. */
   checkArrival(lockedCard: ItemCard, arrivalPhotos: Photo[]): Promise<PalResult<ArrivalCheck>>;
 }

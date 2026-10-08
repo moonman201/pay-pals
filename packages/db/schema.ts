@@ -5,6 +5,7 @@
  * v1.5.0 (Oct 7): buyer-first deals (started_by, listing_url, seller_joined_at, state INVITED, three event kinds),
  *   graded items (item_cards.cert_number, grade), tamper-evident history (deal_events.prev_hash, hash; payments.history_hash),
  *   scenario enum fake-slab replaces scam-ps5.
+ * v1.6.0 (Oct 8): shipments.flags (ship-time caution), deal_event_kind gains shipment_checked.
  *
  * One table per thing a deal produces. Card, verdict, payment, shipment and
  * evidence rows are never updated in place once written, except the fields
@@ -40,6 +41,7 @@ import {
 } from "@pay-pals/contracts";
 import type {
   ChecklistItem,
+  RedFlag,
   DealEvent,
   EvidencePack,
   Photo,
@@ -193,6 +195,8 @@ export const shipments = pgTable(
     trackingNumber: text("tracking_number").notNull(),
     packingPhotos: jsonb("packing_photos").$type<Photo[]>().notNull().default([]),
     checklist: jsonb("checklist").$type<ChecklistItem[]>().notNull().default([]),
+    /** Flags the Buyer Pal raised at ship time. */
+    flags: jsonb("flags").$type<RedFlag[]>().notNull().default([]),
     shippedAt: timestamp("shipped_at", { withTimezone: true }).notNull(),
     /** Updated when the buyer confirms arrival. */
     deliveredAt: timestamp("delivered_at", { withTimezone: true }),

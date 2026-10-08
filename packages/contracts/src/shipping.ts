@@ -4,6 +4,7 @@
  */
 import { z } from "zod";
 import { PhotoSchema } from "./item-card";
+import { RedFlagSchema } from "./red-flag";
 
 export const ChecklistItemSchema = z.object({
   id: z.string().min(1),
@@ -25,5 +26,7 @@ export const ShipmentSchema = z.object({
   checklist: z.array(ChecklistItemSchema),
   shippedAt: z.string().datetime(),
   deliveredAt: z.string().datetime().nullable(),
+  /** Flags the Buyer Pal raised at ship time, for example a required packing photo that is missing. */
+  flags: z.array(RedFlagSchema).optional(),
 });
 export type Shipment = z.infer<typeof ShipmentSchema>;

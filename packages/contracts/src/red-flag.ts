@@ -17,6 +17,8 @@ export const RED_FLAG_CODES = [
   "INVITE_REFUSED",
   /** The grading certificate on the card does not match the grader's record (or does not exist). */
   "CERT_MISMATCH",
+  /** The seller shipped without a required packing photo. Raised at ship time, caution. */
+  "MISSING_PACKING_PHOTO",
   "OTHER",
 ] as const;
 export type RedFlagCode = (typeof RED_FLAG_CODES)[number];

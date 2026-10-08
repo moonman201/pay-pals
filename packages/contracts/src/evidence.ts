@@ -3,6 +3,7 @@
  */
 import { z } from "zod";
 import { ItemCardSchema, PhotoSchema } from "./item-card";
+import { RedFlagSchema } from "./red-flag";
 import { ArrivalCheckSchema, VerdictSchema } from "./verdict";
 import { DealEventSchema, MessageSchema, ACTORS } from "./messages";
 import { PaymentRecordSchema } from "./payment";
@@ -25,5 +26,9 @@ export const EvidencePackSchema = z.object({
   /** The chain head recorded on the PayPal order, and whether the stored events still reproduce it. */
   historyHash: z.string().length(64).nullable().optional(),
   historyVerified: z.boolean().nullable().optional(),
+  /** Questions the Buyer Pal asked the seller that never got an answer before payment. */
+  unansweredQuestions: z.array(z.string()).optional(),
+  /** Flags raised at ship time (see Shipment.flags). */
+  shipmentFlags: z.array(RedFlagSchema).optional(),
 });
 export type EvidencePack = z.infer<typeof EvidencePackSchema>;
