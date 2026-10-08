@@ -1,13 +1,22 @@
 /**
  * Shape of a deterministic red-flag rule. Rules see the card (null when the
- * review runs from the chat alone), the shared chat, the price check and the
- * grader's record, and return flags with raisedByRule set to true.
+ * review runs from the chat alone), the shared chat, the price check, the
+ * grader's record and any photo matches, and return flags with raisedByRule
+ * set to true.
  */
-import type { CertRecord, ItemCard, Message, PriceCheck, RedFlag } from "@pay-pals/contracts";
+import type { CertRecord, ItemCard, Message, Photo, PriceCheck, RedFlag } from "@pay-pals/contracts";
 
 export interface SellerIdentity {
   displayName: string;
   email: string;
+}
+
+/** A card photo that is the same picture as a known photo from somewhere else. */
+export interface PhotoMatch {
+  photo: Photo;
+  source: string;
+  /** Hamming distance between the two perceptual hashes, 0 to 64. */
+  distance: number;
 }
 
 export interface RuleInput {
@@ -22,6 +31,8 @@ export interface RuleInput {
   certRecord?: CertRecord | null;
   /** True when the seller declined the Pay Pals invite. */
   inviteDeclined?: boolean;
+  /** Card photos found to be the same picture as a known photo, from the image check. */
+  photoMatches?: PhotoMatch[];
 }
 
 export type Rule = (input: RuleInput) => RedFlag[];
