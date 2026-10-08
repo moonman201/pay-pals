@@ -23,6 +23,9 @@ import {
 import type { BuyerPal, EvidencePackBuilder, PayPalGateway, PayPalsStore, ScenarioId, SellerPal, WebhookEvent } from "@pay-pals/contracts";
 import { createMemoryDealStore, createPostgresDealStore, createReplayClock, systemClock } from "@pay-pals/db";
 import { createPayPalGateway, handleWebhookEvent, loadPayPalConfig, type WebhookOutcome } from "@pay-pals/paypal";
+import path from "node:path";
+import { photoBase } from "./deal/photo-urls";
+import { buildKnownPhotos } from "./demo/known-photos";
 import { asDealFinder, seedFixtureDeals, seedFixtureDealsIfMissing } from "./demo/seed-fixtures";
 import { loadRootEnvLocal } from "./env";
 import { createMockPayPalGateway } from "./mocks/paypal-gateway";
@@ -89,8 +92,12 @@ export function createServices(env: Env = process.env, log: Log = (line) => cons
   const anthropic = modes.claude ? createAnthropicClientFromEnv() : null;
   const priceLookup = modes.prices === "channel3" ? createChannel3PriceLookup(env.CHANNEL3_API_KEY!.trim()) : createFixturePriceLookup();
   const certLookup = modes.certs === "psa" ? createPsaCertLookup(env.PSA_API_TOKEN!.trim()) : createFixtureCertLookup();
-  const sellerPal = createSellerPal({ anthropic });
-  const buyerPal = createBuyerPal({ anthropic, priceLookup, certLookup });
+  // Photo URLs for the pals: absolute against the public URL when it is known; the pals also get it as a second safety net.
+  const photoBaseUrl = photoBase(env);
+  const knownPhotos = buildKnownPhotos(photoBaseUrl, path.resolve(process.cwd(), "public"));
+  const sellerPal = createSellerPal({ anthropic, photoBaseUrl });
+  const buyerPal = createBuyerPal({ anthropic, priceLookup, certLookup, knownPhotos, photoBaseUrl });
+  log(`[pay-pals] photos: ${knownPhotos.length} known photos for the reused-photo check, base URL ${photoBaseUrl ? "configured" : "from each request"}`);
   const buildEvidencePack = createEvidencePackBuilder({ anthropic });
   const paypal = modes.paypal === "sandbox" ? createPayPalGateway(loadPayPalConfig(env)) : createMockPayPalGateway();
 
