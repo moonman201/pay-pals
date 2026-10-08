@@ -42,6 +42,21 @@ The migrator reads nothing from disk, so it works inside a Next.js server
 bundle where the `drizzle/` folder is not deployed. A test fails when the
 generated module is stale; `npm run db:bundle -w packages/db` refreshes it.
 
+## Removing seeded demo deals
+
+Before a redeploy re-seeds the demo, clear the old seeds:
+
+```
+npm run db:delete-seeded-demo-deals -w packages/db          # lists what would go
+npm run db:delete-seeded-demo-deals -w packages/db -- --yes # deletes
+```
+
+A seeded demo deal is one with a scenario set, created more than an hour
+ago, that either has a payment whose `paypal_order_id` starts with
+`FIXTURE-` or is BLOCKED with no payment and no locked card. Real deals
+have real PayPal order ids and stay. Children are removed by the schema's
+cascades. The same logic is exported as `deleteSeededDemoDeals(db, { dryRun })`.
+
 ## Tests
 
 `npm test -w packages/db` runs one conformance suite three ways:
