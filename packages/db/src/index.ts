@@ -26,4 +26,6 @@ export {
   SellerJoinNotAllowedError,
 } from "./errors";
 export { backfillEventHashes } from "./postgres/backfill-hashes";
+export { deleteSeededDemoDeals, FIXTURE_ORDER_PREFIX } from "./postgres/delete-seeded-demo-deals";
+export type { DeleteSeededOptions, DeleteSeededResult, SeededDealCandidate } from "./postgres/delete-seeded-demo-deals";
 export { toCents, fromCents } from "./money";
