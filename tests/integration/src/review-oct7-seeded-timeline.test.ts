@@ -13,7 +13,7 @@ import { describe, expect, it } from "vitest";
 import { ALL_FIXTURES, verifyChain } from "@pay-pals/contracts";
 import type { DealEvent, ScenarioId } from "@pay-pals/contracts";
 import { createBuyerPal, createEvidencePackBuilder, createFixtureCertLookup, createFixturePriceLookup } from "@pay-pals/agents";
-import { createMemoryDealStore } from "@pay-pals/db";
+import { createMemoryDealStore, createReplayClock } from "@pay-pals/db";
 import type { PayPalsStore } from "@pay-pals/db";
 import { seedFixtureDeals } from "../../../apps/web/lib/demo/seed-fixtures";
 
@@ -28,17 +28,24 @@ interface Seeded {
   ids: Partial<Record<ScenarioId, string>>;
 }
 
+/** The same wiring apps/web uses: a replay clock drives the store, and the seeder moves it to each fixture time. */
 async function runSeeder(): Promise<Seeded> {
-  const store = createMemoryDealStore();
+  const time = createReplayClock();
+  const store = createMemoryDealStore({ clock: time.clock });
+  const log: string[] = [];
   const ids = await seedFixtureDeals(
     {
       store,
       buyerPal: createBuyerPal({ anthropic: null, priceLookup: createFixturePriceLookup(), certLookup: createFixtureCertLookup() }),
       buildEvidencePack: createEvidencePackBuilder({ anthropic: null }),
       demoPayee: null,
+      clock: time.clock,
     },
-    () => undefined,
+    (line) => log.push(line),
+    time,
   );
+  // The seeder logs instead of throwing; a scenario it could not seed is a failure here, not a quiet gap.
+  expect(log.filter((l) => /could not seed/.test(l)), "seeder log").toEqual([]);
   return { store, ids };
 }
 
