@@ -21,7 +21,7 @@ import {
   createSellerPal,
 } from "@pay-pals/agents";
 import type { BuyerPal, EvidencePackBuilder, PayPalGateway, PayPalsStore, ScenarioId, SellerPal, WebhookEvent } from "@pay-pals/contracts";
-import { createMemoryDealStore, createPostgresDealStore } from "@pay-pals/db";
+import { createMemoryDealStore, createPostgresDealStore, createReplayClock, systemClock } from "@pay-pals/db";
 import { createPayPalGateway, handleWebhookEvent, loadPayPalConfig, type WebhookOutcome } from "@pay-pals/paypal";
 import { asDealFinder, seedFixtureDeals, seedFixtureDealsIfMissing } from "./demo/seed-fixtures";
 import { loadRootEnvLocal } from "./env";
@@ -43,6 +43,8 @@ export interface Services {
   buildEvidencePack: EvidencePackBuilder;
   /** Verified PayPal webhook events go here. */
   handleWebhook: (event: WebhookEvent) => Promise<WebhookOutcome>;
+  /** The clock events and messages are stamped with. Wall time for live deals; the seeder replays fixtures on their own dates. */
+  clock: () => Date;
   modes: ServiceModes;
   /**
    * Payee used for deals started from demo mode, from SANDBOX_SELLER_PERSONAL_EMAIL.
@@ -103,28 +105,37 @@ export function createServices(env: Env = process.env, log: Log = (line) => cons
   let store: PayPalsStore;
   let ready: Promise<void>;
   let seededDeals: Promise<Partial<Record<ScenarioId, string>>>;
-  const services = { sellerPal, buyerPal, buildEvidencePack, paypal, demoPayee } as Services;
+  const services = { sellerPal, buyerPal, buildEvidencePack, paypal, demoPayee, clock: systemClock } as Services;
+  // The seeder replays each fixture on the fixture's own dates, so the seeded timeline, payment and shipment agree.
+  const replay = createReplayClock();
 
   if (modes.store === "postgres") {
-    const pg = createPostgresDealStore(env.DATABASE_URL!.trim());
+    const url = env.DATABASE_URL!.trim();
+    // Two store instances on the same database: one on the replay clock for seeding, one on wall time for live deals.
+    const seedingStore = createPostgresDealStore(url, { clock: replay.clock });
+    const pg = createPostgresDealStore(url);
     store = pg;
     services.store = store;
     log("[pay-pals] store: Postgres (DATABASE_URL set)");
     const migrated = pg.migrate().catch((error: unknown) => {
       log(`[pay-pals] store: migration did not run (${error instanceof Error ? error.message : String(error)}). Run: npm run migrate -w packages/db`);
     });
-    const finder = asDealFinder(pg);
+    const finder = asDealFinder(seedingStore);
     seededDeals = migrated.then(() => {
-      if (finder) return seedFixtureDealsIfMissing(services, finder, log);
+      if (finder) return seedFixtureDealsIfMissing({ ...services, store: seedingStore, clock: replay.clock }, finder, log, replay);
       log("[pay-pals] demo: finished demo deals are off on this store; it has no findDeals(scenario, states) to seed idempotently");
       return {};
     });
     ready = seededDeals.then(() => undefined);
   } else {
-    store = createMemoryDealStore();
+    // One memory store holds everything, so its clock is the replay clock while seeding and the wall clock after.
+    let seeding = true;
+    store = createMemoryDealStore({ clock: () => (seeding ? replay.clock() : systemClock()) });
     log("[pay-pals] store: in memory (DATABASE_URL not set), demo deals live until the process restarts");
     services.store = store;
-    seededDeals = seedFixtureDeals(services, log);
+    seededDeals = seedFixtureDeals({ ...services, clock: replay.clock }, log, replay).finally(() => {
+      seeding = false;
+    });
     ready = seededDeals.then(() => undefined);
   }
 
