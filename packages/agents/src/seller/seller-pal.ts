@@ -11,12 +11,14 @@ import { shipmentChecklistFor } from "./checklist";
 
 export interface SellerPalOptions {
   anthropic: ClaudeClient | null;
+  /** Base URL for app-relative photo paths. Defaults to PAY_PALS_PHOTO_BASE_URL or NEXT_PUBLIC_APP_URL. */
+  photoBaseUrl?: string | null;
   /** Override how photos are fetched for vision. Tests pass a fake. */
   fetchImage?: ImageFetcher;
 }
 
 export function createSellerPal(options: SellerPalOptions): SellerPal {
-  const deps = { client: options.anthropic, fetchImage: options.fetchImage };
+  const deps = { client: options.anthropic, fetchImage: options.fetchImage, photoBaseUrl: options.photoBaseUrl ?? null };
   return {
     buildCard: (input) => buildCardFromListing(input, deps),
     applyRequest: (card, request, reply, newPhotos) => applyBuyerRequest(card, request, reply, newPhotos, deps),

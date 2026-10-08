@@ -6,7 +6,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { CertRecordSchema, FAKE_SLAB_CERT } from "@pay-pals/contracts";
-import { psaCallCount } from "../cert/psa-api";
+import { PsaError, psaCallCount } from "../cert/psa-api";
 import { createPsaCertLookup } from "../cert/psa-lookup";
 import { hasKey } from "../testing/env";
 
@@ -15,10 +15,20 @@ const certs = [FAKE_SLAB_CERT, ...(process.env.PSA_REAL_CERT ? [process.env.PSA_
 
 describe.skipIf(!enabled)("real PSA (needs PSA_API_TOKEN)", () => {
   for (const cert of certs) {
-    it(`looks up cert ${cert}`, async () => {
+    it(`looks up cert ${cert}`, async ({ skip }) => {
       const before = psaCallCount();
       const lookup = createPsaCertLookup(process.env.PSA_API_TOKEN!);
-      const record = await lookup.lookup(cert);
+      let record;
+      try {
+        record = await lookup.lookup(cert);
+      } catch (error) {
+        // PSA gates its public API behind account approval. A 403 is an account state, not a code fault.
+        if (error instanceof PsaError && error.status === 403) {
+          console.log(`PSA returned 403 for cert ${cert}: ${error.message}. The token is set but PSA has not approved this account for the public API yet.`);
+          skip();
+        }
+        throw error;
+      }
       console.log(`PSA cert ${cert}: ${record.subject ? `${record.subject}, grade ${record.grade}` : "no record"} (${psaCallCount() - before} live call, 0 means cached)`);
       expect(CertRecordSchema.safeParse(record).success).toBe(true);
       expect(record.provider).toBe("psa");
