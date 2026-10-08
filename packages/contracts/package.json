@@ -1,6 +1,6 @@
 {
   "name": "@pay-pals/contracts",
-  "version": "1.6.0-draft",
+  "version": "1.6.0",
   "private": true,
   "description": "Shared types, deal state table, agent and PayPal interfaces, and demo fixtures. Every other package builds against this one.",
   "type": "module",

@@ -24,7 +24,7 @@ tests/e2e            Playwright runs of the three demo scenarios                
 ```
 Modules talk only through `packages/contracts` interfaces. apps/web is the only place modules are wired together.
 
-## Contracts (v1.6.0-draft on branch finish, freezes Fri Oct 9 in `packages/contracts`, frozen Fri Oct 9)
+## Contracts (v1.6.0, frozen Oct 8, a day ahead of the Fri Oct 9 date in `packages/contracts`, frozen Fri Oct 9)
 
 The TypeScript in `packages/contracts/src` is the contract. This section is the summary. Where they differ, the code wins and the Lead fixes this file.
 
@@ -169,7 +169,7 @@ Branch `judge-walk`, merged to main caf27aa on Oct 8, stale seeds deleted from N
 ## Status (Lead keeps this current)
 | Lane | Status | Last merge |
 |---|---|---|
-| Lead: contracts, schema, fixtures | v1.5.0-draft on main (e221bf2): buyer-first deals, PSA cert check, hash-chained history, two demo items. Freeze Fri Oct 9. | 2026-10-07 |
+| Lead: contracts, schema, fixtures | v1.6.0 frozen Oct 8: buyer-first deals, PSA cert check, hash-chained history, two demo items, ship-time check. Changes after this need a worklog post and a version bump. | 2026-10-08 |
 | Lane 0 gate (builder-paypal) | PASS personal and PASS business, sandbox, 2026-10-07. Personal payee cannot take direct card funding; wallet flow works. | |
 | builder-agents | merged 9e83667 plus follow-ups (v1.1.0 fields, model stop cap, grounded model flags, battery-health ask). 80 tests, reality-check holds; real Claude runs: scam stop, clean go. Real Claude tests ran 3/3; Channel3 live schema unverified until a key lands. | 2026-10-07 |
 | builder-paypal | merged 61c7ca0, follow-up merged (v1.2.0 types, raw bodies, dispute via table, skip flag, gate prints deal id). 83 tests, reality-check holds. | 2026-10-07 |
