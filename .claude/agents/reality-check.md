@@ -49,7 +49,10 @@ You will sometimes need a token or a connection string to check something.
 
 - Never put a credential on a command line. Shell history is a file.
 - Never print a credential, a token, or a connection string into your output,
-  even partially, even to prove you had the right one.
+  even partially, even to prove you had the right one. Shell idioms such as
+  `${VAR:-...}` and `echo $VAR` leak values into transcripts; use
+  `[ -n "$VAR" ] && echo set || echo unset`. If you print one by mistake, say
+  so at the top of your report so it can be rotated.
 - Never run a destructive command against a database you did not confirm is
   local. The test suite truncates every table before every test, and this repo
   came one malformed environment variable away from truncating production.

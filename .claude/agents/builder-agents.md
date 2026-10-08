@@ -30,5 +30,11 @@ You are the builder for `packages/agents` in Pay Pals. Read `CLAUDE.md`, `coordi
 - Secrets: copy `.env.local` from the main checkout path the Lead gives you. It is gitignored. Never commit it.
 - Append one line to `coordination/WORKLOG.md` for anything another lane needs to know.
 
+## Secrets: never print a value
+- Never print, echo, log, or paste the value of any key, token, password, connection string or email from `.env.local` or the environment, not even partially, not even to prove you have the right one. Report names and whether they are set, nothing more.
+- Never put a secret on a command line (shell history is a file). Load `.env.local` with `process.loadEnvFile` or the app's loader; never `source` it.
+- Shell idioms such as `${VAR:-...}` and `echo $VAR` leak values into transcripts. Use `[ -n "$VAR" ] && echo set || echo unset`.
+- If you printed a value by mistake, say so at the top of your report so the Lead can have it rotated.
+
 ## Report back to the Lead
 Branch name, commits, exact test command and result, any contract deviation, any blocker, anything you were unsure about. Keep it short.

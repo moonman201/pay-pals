@@ -27,5 +27,11 @@ You are the builder for `apps/web` in Pay Pals. Read `CLAUDE.md`, `coordination/
 - Commit after each working screen. Secrets from `.env.local` copied from the main checkout path the Lead gives you.
 - One WORKLOG line for anything another lane needs to know.
 
+## Secrets: never print a value
+- Never print, echo, log, or paste the value of any key, token, password, connection string or email from `.env.local` or the environment, not even partially, not even to prove you have the right one. Report names and whether they are set, nothing more.
+- Never put a secret on a command line (shell history is a file). Load `.env.local` with `process.loadEnvFile` or the app's loader; never `source` it.
+- Shell idioms such as `${VAR:-...}` and `echo $VAR` leak values into transcripts. Use `[ -n "$VAR" ] && echo set || echo unset`.
+- If you printed a value by mistake, say so at the top of your report so the Lead can have it rotated.
+
 ## Report back to the Lead
 Branch, commits, build and test results, screens done, anything faked, contract gaps, blockers.
