@@ -166,6 +166,28 @@ Branch `judge-walk`, merged to main caf27aa on Oct 8, stale seeds deleted from N
 | J11 | Matt (product) | Scenario 3 is unplayable on the hosted site past payment: it needs a real sandbox capture and the page offers no buyer login. Options in BLOCKERS. |
 | J12 | qa | Tests for J2 to J6 and J8; re-run the finished-deal screenshot pass after the re-seed. |
 
+## Visual pass, Oct 9 (Matt). Lane assignments
+Branch `visual`, Vercel preview deploy only. Nothing merges to main and production is untouched until Matt approves the screenshots. Stop only for a contract or schema change or a change to the product copy's meaning. Goal: the site looks like a product a judge remembers, built around the two Pals (blue Buyer Pal, gold Seller Pal) from `assets/pay-pals-hero.jpg`. Design is one of five judging criteria.
+
+| # | Lane | Work |
+|---|---|---|
+| 1 | builder-web | Hero: the Pals above the fold next to "Two AI agents. One safe deal." Hero copied into apps/web/public, optimized with next/image and sizes for phone and desktop. No PayPal logo artwork outside the official buttons. |
+| 2 | builder-web | Pal avatars (blue Buyer Pal, gold Seller Pal) in the hero's style, used wherever a pal speaks: review, private pal messages, timeline, flag cards, the landing steps. |
+| 3 | builder-web | Color system in one token file: buyer blue, seller gold, stop red, caution amber, go green; light and dark; WCAG AA contrast. |
+| 4 | builder-web | Deal progress stepper on every deal page: Invited, Card built, Reviewed, Agreed and locked, Paid, Shipped, Arrived; current step highlighted; blocked and issue states clear. |
+| 5 | builder-web | The Buyer Pal's Stop / Go / Caution is the loudest thing on the review, avatar beside it. |
+| 6 | builder-web | Locked item card styled like a physical card or receipt: visible lock state and version; the "this is the text of the PayPal order" line feels official. |
+| 7 | builder-web | Side-by-side comparisons: cert check (card says vs PSA record says) and arrival check (locked card vs what arrived), mismatches highlighted. |
+| 8 | builder-web | "History unchanged since PayPal order" as a proper verified seal. |
+| 9 | builder-web | Scenario cards with their outcome visual (blocked shield, green check, open issue) and the pal avatars. |
+| 10 | builder-web | Subtle motion only (card lock, stepper advance, flag reveal), prefers-reduced-motion respected. |
+| 11 | builder-web | Phone first: no horizontal scroll, 16 px gutters, tap targets at least 44 px. |
+| 12 | builder-agents | Until real photos exist, do not render the "could not be loaded" photo sentences on the hosted site; keep the logic. |
+| 13 | builder-agents | `assets/demo-photos/SHOTLIST.md`: the 13 photos plus the reference folder, exact filename, what the shot must show, what the pal reads from it. |
+| 14 | qa | Playwright for the new layout; visual checks at 1280 and 390 px for the landing, the three finished deals and both evidence packs. Before screenshots from production, after screenshots from the preview, committed under docs/visual-pass/ on the branch. |
+| 15 | qa | gitleaks or trufflehog over the full git history before the repo goes public. Report; never rewrite history without Matt. |
+| 16 | reality-check | Review the preview as a first-time judge on a phone: confusing, cluttered, forgettable. |
+
 ## Status (Lead keeps this current)
 | Lane | Status | Last merge |
 |---|---|---|
