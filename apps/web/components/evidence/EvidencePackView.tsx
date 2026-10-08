@@ -5,6 +5,8 @@ import { historyStatus } from "@/lib/deal/history-status";
 import { priceRangeLine, priceSourceNote } from "@/lib/deal/price-copy";
 import { isExampleDeal } from "@/lib/deal/snapshot";
 import { HistoryBadge } from "../deal/HistoryBadge";
+import { ProgressStepper } from "../deal/ProgressStepper";
+import { PalAvatar } from "../pal/PalAvatar";
 import { ShipmentFlags } from "../deal/ShipmentFlags";
 
 /** A dealId#hash token (36 plus 64 characters) or a bare 64-hex hash, which no phone width can hold on one line. */
@@ -60,7 +62,11 @@ export function EvidencePackView({ pack, deal, role }: { pack: EvidencePack; dea
     <main className="mx-auto max-w-3xl px-4 py-8 print:max-w-none print:px-0">
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-widest text-blue">Pay Pals evidence pack</p>
+          <p className="inline-flex items-center gap-2 text-sm font-black tracking-tight text-navy">
+            <PalAvatar pal="buyer" size={20} />
+            <PalAvatar pal="seller" size={20} className="-ml-4" />
+            Pay Pals evidence pack
+          </p>
           <h1 className="mt-1 text-2xl font-black text-navy">{card.title}</h1>
           <p className="mt-1 text-sm text-muted">
             Deal {pack.dealId}. Built {formatTime(pack.builtAt)} by {actorLabel(pack.builtBy, deal)}. Deal state: {STATE_LABELS[deal.state]}.
@@ -69,6 +75,9 @@ export function EvidencePackView({ pack, deal, role }: { pack: EvidencePack; dea
         <div className="flex w-full flex-wrap gap-2">
           {example ? <span className="inline-flex items-center rounded-full border border-line bg-wash px-2.5 py-0.5 text-xs text-muted">Example deal, seeded from a scenario</span> : null}
           <HistoryBadge events={pack.timeline} historyHash={pack.historyHash ?? null} example={example} />
+        </div>
+        <div className={`theme- w-full`}>
+          <ProgressStepper state={deal.state} events={pack.timeline} />
         </div>
         <div className="no-print flex gap-2">
           <Link href={`/deals/${deal.id}?as=${role}`} className="text-sm font-semibold text-navy underline-offset-2 hover:underline">
@@ -195,7 +204,9 @@ export function EvidencePackView({ pack, deal, role }: { pack: EvidencePack; dea
         <Section title="Buyer Pal review">
           {pack.verdicts.length === 0 ? <p>No review on record.</p> : null}
           {pack.verdicts.map((v, i) => (
-            <div key={i} className="mb-3">
+            <div key={i} className="mb-3 flex gap-3">
+              <PalAvatar pal="buyer" size={28} className="mt-0.5" />
+              <div className="min-w-0">
               <p className="font-semibold">Card version {v.cardVersion}: {OVERALL_LABELS[v.overall]}</p>
               <p className="text-xs text-muted">
                 {priceRangeLine(v.priceCheck)}, {priceSourceNote(v.priceCheck)}
@@ -208,6 +219,7 @@ export function EvidencePackView({ pack, deal, role }: { pack: EvidencePack; dea
                   ))}
                 </ul>
               ) : null}
+              </div>
             </div>
           ))}
         </Section>
