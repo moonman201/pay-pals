@@ -7,7 +7,7 @@
 import { expect, test } from "@playwright/test";
 import { EMPTY_BOX_LOCKED_SERIAL, emptyBox } from "@pay-pals/contracts";
 import { WEB_PRESENT } from "./env";
-import { driveToDelivered, runArrivalCheck } from "./flows";
+import { CONSOLE_PROOF_QUESTION, driveToDelivered, runArrivalCheck } from "./flows";
 import { expectState, openRoomAs, panel, pressAction, snapshot, startDemo } from "./helpers";
 
 /** Vision wording, once the photos exist and a key is present. */
@@ -41,9 +41,9 @@ test.describe("empty box arrives", () => {
     const shipped = await snapshot(page, dealId);
     expect(shipped.shipment?.flags?.map((f) => f.code)).toEqual(["MISSING_PACKING_PHOTO"]);
     expect(shipped.events.filter((e) => e.kind === "shipment_checked")).toHaveLength(1);
-    // What the live Buyer Pal asked at review. The fixture's own unanswered question sits in the seeded chat after
-    // the first review, which the demo start does not replay, so on the page the list holds only live questions.
+    // The Buyer Pal always asks a used console's seller for the Console Information screen; this seller never answers.
     const asked = shipped.verdict?.questionsForSeller ?? [];
+    expect(asked.some((q) => CONSOLE_PROOF_QUESTION.test(q)), `asked: ${asked.join(" | ")}`).toBe(true);
 
     await runArrivalCheck(page, emptyBox);
     const result = panel(page, "Arrival check");
@@ -98,16 +98,13 @@ test.describe("empty box arrives", () => {
     await expect(arrivalCheck).toContainText(MISSING);
 
     // What the seller never answered, and the ship-time caution, both in the pack.
+    // Exactly one thing asked and never got: the screen photo. The seller's "I agree" line is not an answer.
     const unanswered = page.locator("section").filter({ has: page.getByRole("heading", { name: "What the Buyer Pal asked and never got" }) });
     await expect(unanswered).toBeVisible();
-    if (asked.length > 0) {
-      const list = unanswered.getByTestId("unanswered-questions");
-      await expect(list.getByRole("listitem").first()).toBeVisible();
-      for (const question of asked) await expect(list).toContainText(question);
-      await expect(unanswered.getByText("Nothing. Every question")).toHaveCount(0);
-    } else {
-      await expect(unanswered.getByText("Nothing. Every question")).toBeVisible();
-    }
+    const list = unanswered.getByTestId("unanswered-questions");
+    await expect(list.getByRole("listitem")).toHaveCount(1);
+    await expect(list.getByRole("listitem").first()).toContainText(CONSOLE_PROOF_QUESTION);
+    await expect(unanswered.getByText("Nothing. Every question")).toHaveCount(0);
     const shipmentSection = page.locator("section").filter({ has: page.getByRole("heading", { name: "Shipment" }) });
     const evidenceCheck = shipmentSection.getByRole("list", { name: "Buyer Pal shipment check" });
     await expect(evidenceCheck.getByText("caution", { exact: true })).toBeVisible();

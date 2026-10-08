@@ -1,15 +1,15 @@
 /**
  * A card change after one side agreed sends the deal back for a fresh review
- * and clears the agreement. Clean deal as buyer: review, buyer agrees, the
- * seller adds the Console Information screen photo (card version 2), the deal reads Listed
- * again, the buyer reviews and agrees again, the seller agrees, locked at
- * version 2. Fixtures only, no keys.
+ * and clears the agreement. Clean deal as buyer: review (the pal asks for the
+ * Console Information screen), buyer agrees, the seller answers with that
+ * photo (card version 2), the deal reads Listed again, the buyer reviews and
+ * agrees again, the seller agrees, locked at version 2. Fixtures only, no keys.
  */
 import { expect, test } from "@playwright/test";
 import { cleanPs5 } from "@pay-pals/contracts";
 import { WEB_PRESENT } from "./env";
-import { agreeAsBuyer, agreeAsSeller, reviewAsBuyer } from "./flows";
-import { addAllDemoPhotos, expectState, expectStateAfterPal, openRoomAs, panel, snapshot, startDemo } from "./helpers";
+import { CONSOLE_PROOF_QUESTION, agreeAsBuyer, agreeAsSeller, answerPalWithDemoPhoto, expectAskedQuestion, reviewAsBuyer } from "./flows";
+import { expectState, openRoomAs, panel, snapshot, startDemo } from "./helpers";
 
 test.describe("card change after one side agreed", () => {
   test.skip(!WEB_PRESENT, "apps/web is not on this branch yet, nothing to load");
@@ -18,26 +18,12 @@ test.describe("card change after one side agreed", () => {
     const dealId = await startDemo(page, cleanPs5, "buyer");
     await expectState(page, "Listed");
     await reviewAsBuyer(page);
+    await expectAskedQuestion(page, CONSOLE_PROOF_QUESTION);
     await agreeAsBuyer(page, 1);
 
-    // Seller updates the card instead of agreeing.
-    await openRoomAs(page, dealId, "seller");
-    await expectState(page, "Reviewed");
-    await expect(panel(page, "Next step").getByText("The buyer has agreed to version 1.")).toBeVisible();
-    const step = panel(page, /^(Update the card|Answer the buyer's pal)$/);
-    await expect(step).toBeVisible();
-    const open = step.getByRole("button", { name: "Add a photo or note" });
-    if ((await open.count()) > 0) await open.click();
-    // The one photo version 2 adds: the Console Information screen the buyer's pal asked for.
-    await expect(step.getByText(/Console Information/)).toBeVisible();
-    expect(await addAllDemoPhotos(step)).toBe(1);
-    await step.getByLabel("Your reply").fill("Added. Same serial on the screen, software is current.");
-    await step.getByRole("button", { name: "Save a new card version" }).click();
-
-    // The Seller Pal builds the new version before the room refreshes.
-    await expectStateAfterPal(page, "Listed");
-    await expect(panel(page, "Item card").getByRole("tab", { name: "Version 2" })).toBeVisible();
-    await expect(panel(page, "Timeline").getByRole("listitem").filter({ hasText: "Card changed. It needs a fresh review." })).toBeVisible();
+    // Seller answers the pal with the screen photo instead of agreeing.
+    await answerPalWithDemoPhoto(page, dealId, "Added. Same serial on the screen, software is current.", CONSOLE_PROOF_QUESTION);
+    await expect(panel(page, "Next step").getByText("The buyer has agreed to version 1.")).toHaveCount(0);
 
     // Buyer: the earlier review is stale, there is nothing to agree to yet.
     await openRoomAs(page, dealId, "buyer");
@@ -49,6 +35,7 @@ test.describe("card change after one side agreed", () => {
     expect(before.deal.lockedCardVersion).toBeNull();
 
     await reviewAsBuyer(page);
+    await expectAskedQuestion(page, null);
     await expect(panel(page, "Next step").getByText("Card changed since you agreed. Read version 2 and agree again.")).toBeVisible();
     await agreeAsBuyer(page, 2);
     await agreeAsSeller(page, dealId, 2);
