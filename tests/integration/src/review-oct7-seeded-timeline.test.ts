@@ -16,6 +16,7 @@ import { createBuyerPal, createEvidencePackBuilder, createFixtureCertLookup, cre
 import { createMemoryDealStore, createReplayClock } from "@pay-pals/db";
 import type { PayPalsStore } from "@pay-pals/db";
 import { seedFixtureDeals } from "../../../apps/web/lib/demo/seed-fixtures";
+import { readSeedStamp, SEED_VERSION } from "../../../apps/web/lib/demo/seed-version";
 
 /** A minute. The seeder may stamp a replayed event a little after its fixture time; a day apart is a different story. */
 const TOLERANCE_MS = 60_000;
@@ -66,6 +67,18 @@ describe("the web seeder on the memory store", () => {
       // One event per fixture timeline line, in the same order of kinds.
       expect(events.map((e) => e.kind), fixture.id).toEqual(fixture.timeline.map((e) => e.kind));
     }
+  });
+
+  it("J7: every seeded deal carries the seed version and its scenario on deal_created", async () => {
+    const { store, ids } = await runSeeder();
+    for (const fixture of ALL_FIXTURES) {
+      const events = await store.listEvents(ids[fixture.id]!);
+      const created = events.find((e) => e.kind === "deal_created");
+      expect(created, `${fixture.id} deal_created`).toBeDefined();
+      expect(readSeedStamp(created!.data), fixture.id).toEqual({ seedVersion: SEED_VERSION, scenario: fixture.id });
+      expect(created!.data).toMatchObject({ seedVersion: SEED_VERSION, scenario: fixture.id });
+    }
+    expect(SEED_VERSION).toMatch(/^\d{4}-\d{2}-\d{2}\.\d+$/);
   });
 
   it.each(ALL_FIXTURES.map((f) => [f.id, f] as const))("%s: events run in order", async (_id, fixture) => {

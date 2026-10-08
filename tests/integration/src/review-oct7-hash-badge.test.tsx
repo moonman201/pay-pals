@@ -38,7 +38,8 @@ async function builtPack(): Promise<Built> {
   const locked = await store.lockCard(dealId, card.version);
   await store.appendEvent({ dealId, kind: "card_locked", actor: "system", summary: `Both sides agreed. Card version ${card.version} is locked.`, at: new Date().toISOString() });
   const head = verifyChain(await store.listEvents(dealId)).head!;
-  await store.savePayment({ ...seeded.payment!, status: "CAPTURED", historyHash: head });
+  // A real-looking order id: a FIXTURE- id marks a seeded example deal, which the page labels instead of verifying (J6).
+  await store.savePayment({ ...seeded.payment!, paypalOrderId: "5O190127TN364715T", captureId: "3C679366HH908993F", status: "CAPTURED", historyHash: head });
   await store.appendEvent({ dealId, kind: "payment_created", actor: "paypal", summary: "PayPal checkout order created.", at: new Date().toISOString() });
   for (const next of ["PAYMENT_PENDING", "PAID", "SHIPPED", "DELIVERED", "COMPLETE"] as const) await store.transition(dealId, next, "system", `${next}.`);
   await store.saveShipment(seeded.shipment!);
@@ -112,6 +113,22 @@ describe("hash badge: evidence page", () => {
     expect(screen.queryByText(VERIFIED)).toBeNull();
     // The badge and the summary may both say so; at least one element must.
     expect(screen.getAllByText(WARNING).length).toBeGreaterThan(0);
+  });
+
+  it("labels a seeded example deal (FIXTURE- order id) instead of verifying or warning (J6)", async () => {
+    const { input, pack } = await builtPack();
+    const example: EvidencePack = {
+      ...pack,
+      payment: { ...pack.payment!, paypalOrderId: "FIXTURE-ORDER-CLEAN-0001", captureId: "FIXTURE-CAPTURE-CLEAN-0001" },
+    };
+    render(<EvidencePackView pack={example} deal={input.deal} role="buyer" />);
+    expect(screen.getAllByText("Example deal, seeded from a scenario").length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/\(example deal, no PayPal order\)/).length).toBeGreaterThan(0);
+    expect(screen.getByText(/Example order id FIXTURE-ORDER-CLEAN-0001/)).toBeTruthy();
+    expect(screen.getByText(/the payment ids are placeholders/)).toBeTruthy();
+    expect(screen.queryByText(VERIFIED)).toBeNull();
+    expect(screen.queryAllByText(WARNING)).toHaveLength(0);
+    expect(screen.queryByText(/PayPal's own record holds it/)).toBeNull();
   });
 
   it("warns when the stored flag says verified but the timeline it shows was edited (PLAN item 10: compute live on render)", async () => {

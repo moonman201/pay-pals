@@ -41,8 +41,10 @@ test.describe("buyer-first start", () => {
 
     const timeline = panel(page, "Timeline").getByRole("listitem");
     await expect(timeline.filter({ hasText: "invited the seller" })).toHaveCount(1);
-    await expect(timeline.filter({ hasText: "Invite sent to the seller's PayPal email." })).toHaveCount(1);
+    await expect(timeline.filter({ hasText: "Invite link created for the seller" })).toHaveCount(1);
     await expect(timeline.filter({ hasText: "Waiting for the seller." })).toHaveCount(1);
+    // A fresh deal started here is a real deal, not a seeded example (J6).
+    await expect(page.getByText("Example deal, seeded from a scenario")).toHaveCount(0);
 
     const invited = await snapshot(page, dealId);
     expect(invited.deal.state).toBe("INVITED");
@@ -50,6 +52,12 @@ test.describe("buyer-first start", () => {
     expect(invited.deal.listingUrl).toBe(LISTING_URL);
     expect(invited.deal.sellerJoinedAt).toBeNull();
     expect(invited.deal.currentCardVersion).toBe(0);
+
+    // J8: no dev-only copy on the pages a seller or a buyer starts from.
+    await page.goto(joinPath(dealId));
+    await expect(page.getByText(/local dev only/i)).toHaveCount(0);
+    await page.goto("/deals/new");
+    await expect(page.getByText(/local dev only/i)).toHaveCount(0);
 
     // The seller opens the invite link, joins, and their pal builds the card.
     await joinAsSeller(page, dealId, cleanPs5);
