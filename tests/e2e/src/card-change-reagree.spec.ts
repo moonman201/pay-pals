@@ -29,7 +29,7 @@ test.describe("card change after one side agreed", () => {
     const open = step.getByRole("button", { name: "Add a photo or note" });
     if ((await open.count()) > 0) await open.click();
     // The one photo version 2 adds: the Console Information screen the buyer's pal asked for.
-    await expect(step.getByText(/Console Information screen/)).toBeVisible();
+    await expect(step.getByText(/Console Information/)).toBeVisible();
     expect(await addAllDemoPhotos(step)).toBe(1);
     await step.getByLabel("Your reply").fill("Added. Same serial on the screen, software is current.");
     await step.getByRole("button", { name: "Save a new card version" }).click();

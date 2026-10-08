@@ -36,7 +36,8 @@ test.describe("fake slab stopped", () => {
 
     const review = panel(page, "Buyer Pal review");
     const flags = review.getByRole("list", { name: "Red flags" }).getByRole("listitem");
-    await expect(flags.filter({ hasText: /friends and family/i }).filter({ hasText: "payment method, no override" })).toHaveCount(1);
+    // One payment flag that quotes the seller once (review item 6), marked as not overridable (item 13 wording).
+    await expect(flags.filter({ hasText: /friends and family/i }).filter({ hasText: /no override/i })).toHaveCount(1);
     await expect(flags.filter({ hasText: /below market/i })).toHaveCount(1);
     await expect(flags.filter({ hasText: /pressure|urgen/i }).first()).toBeVisible();
     // The reused-photo flag quotes the slab label too, so the cert flag is the one that says the record does not match.
@@ -45,7 +46,8 @@ test.describe("fake slab stopped", () => {
     await expect(cert).toContainText(/cert/i);
     await expect(cert).toContainText(fakeSlab.certRecord!.subject!);
     await expect(review.getByText("does not match the card").first()).toBeVisible();
-    await expect(card.getByText("does not match", { exact: false }).first()).toBeVisible();
+    // The cert row on the item card names what the grader's record says, next to the cert number (review item 12).
+    await expect(card.getByText(fakeSlab.certRecord!.subject!, { exact: false }).first()).toBeVisible();
 
     const next = panel(page, "Next step");
     await expect(next).toBeVisible();
