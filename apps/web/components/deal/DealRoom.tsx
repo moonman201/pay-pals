@@ -146,13 +146,13 @@ export function DealRoom({ snapshot, role }: { snapshot: DealSnapshot; role: Rol
                 </p>
               ) : null}
               {role === "seller" && isCardEditable(state) && currentCard ? (
-                <RequestStep dealId={deal.id} questions={openQuestions} suggestions={snapshot.demo?.requestPhotos ?? []} onDone={refresh} />
+                <RequestStep dealId={deal.id} questions={openQuestions} suggestions={snapshot.demo?.requestPhotos ?? []} uploadsEnabled={snapshot.uploadsEnabled} onDone={refresh} />
               ) : null}
               {role === "buyer" && canStillPay(state) && snapshot.lockedCard ? (
                 <PayStep dealId={deal.id} card={snapshot.lockedCard} payMode={snapshot.payMode} onDone={refresh} />
               ) : null}
               {role === "seller" && state === "PAID" && snapshot.checklist ? (
-                <ShipStep dealId={deal.id} checklist={snapshot.checklist} palMessage={snapshot.checklistMessage} demo={snapshot.demo?.packing ?? null} onDone={refresh} />
+                <ShipStep dealId={deal.id} checklist={snapshot.checklist} palMessage={snapshot.checklistMessage} demo={snapshot.demo?.packing ?? null} uploadsEnabled={snapshot.uploadsEnabled} onDone={refresh} />
               ) : null}
               {role === "buyer" && issueOpen && canTransition(state, "ISSUE") ? (
                 <IssueStep
@@ -164,7 +164,7 @@ export function DealRoom({ snapshot, role }: { snapshot: DealSnapshot; role: Rol
                 />
               ) : null}
               {role === "buyer" && state === "DELIVERED" && !snapshot.arrivalCheck ? (
-                <ArrivalStep dealId={deal.id} suggestions={snapshot.demo?.arrivalPhotos ?? []} onDone={refresh} />
+                <ArrivalStep dealId={deal.id} suggestions={snapshot.demo?.arrivalPhotos ?? []} uploadsEnabled={snapshot.uploadsEnabled} onDone={refresh} />
               ) : null}
             </>
           )}

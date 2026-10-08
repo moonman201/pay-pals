@@ -20,11 +20,12 @@ interface Props {
   /** What the buyer's pal asked for, if anything. */
   questions: string[];
   suggestions: Photo[];
+  uploadsEnabled?: boolean;
   onDone: () => void;
 }
 
 /** The seller answers the buyer side with a reply and photos. Seller Pal saves a new card version. */
-export function RequestStep({ dealId, questions, suggestions, onDone }: Props) {
+export function RequestStep({ dealId, questions, suggestions, uploadsEnabled = false, onDone }: Props) {
   const [open, setOpen] = useState(questions.length > 0);
   const [field, setField] = useState<CardField>("photos");
   const [reply, setReply] = useState("");
@@ -85,7 +86,7 @@ export function RequestStep({ dealId, questions, suggestions, onDone }: Props) {
           <span className="font-semibold">Your reply</span>
           <textarea value={reply} onChange={(e) => setReply(e.target.value)} rows={2} placeholder="For example: Added. Same serial on the Console Information screen." className="mt-1 block w-full rounded-lg border border-line px-3 py-2 text-sm" />
         </label>
-        <PhotoInput value={photos} onChange={setPhotos} addedBy="seller" suggestions={suggestions} label="New photos" />
+        <PhotoInput value={photos} onChange={setPhotos} addedBy="seller" suggestions={suggestions} label="New photos" uploadsEnabled={uploadsEnabled} />
         <div className="flex gap-2">
           <Button type="submit" disabled={busy}>
             {busy ? "Saving" : "Save a new card version"}

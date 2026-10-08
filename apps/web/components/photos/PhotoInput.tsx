@@ -12,10 +12,12 @@ interface Props {
   /** Photos the demo scenario offers, each added with one click. */
   suggestions?: Photo[];
   label?: string;
+  /** The server says uploads work here (a writable public/uploads). Off on read-only hosts: photos by URL only. */
+  uploadsEnabled?: boolean;
 }
 
-/** Add photos by URL, by upload (local dev only) or from the demo suggestions. Every photo needs a plain description. */
-export function PhotoInput({ value, onChange, addedBy, suggestions = [], label = "Photos" }: Props) {
+/** Add photos by URL, by upload where the host allows it, or from the demo suggestions. Every photo needs a plain description. */
+export function PhotoInput({ value, onChange, addedBy, suggestions = [], label = "Photos", uploadsEnabled = false }: Props) {
   const [url, setUrl] = useState("");
   const [desc, setDesc] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -119,8 +121,9 @@ export function PhotoInput({ value, onChange, addedBy, suggestions = [], label =
           Add URL
         </Button>
       </div>
+      {uploadsEnabled ? (
       <label className="block text-xs text-muted">
-        Or upload a file (local dev only){" "}
+        Or upload a file{" "}
         <input
           type="file"
           accept="image/*"
@@ -133,6 +136,7 @@ export function PhotoInput({ value, onChange, addedBy, suggestions = [], label =
           className="ml-1 text-xs"
         />
       </label>
+      ) : null}
       {error ? <p className="text-xs text-stop">{error}</p> : null}
     </div>
   );

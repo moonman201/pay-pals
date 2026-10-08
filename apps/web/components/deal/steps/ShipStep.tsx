@@ -13,11 +13,12 @@ interface Props {
   checklist: ChecklistItem[];
   palMessage: string | null;
   demo: DemoHints["packing"];
+  uploadsEnabled?: boolean;
   onDone: () => void;
 }
 
 /** The seller works through the Seller Pal's checklist, adds packing photos and tracking. */
-export function ShipStep({ dealId, checklist, palMessage, demo, onDone }: Props) {
+export function ShipStep({ dealId, checklist, palMessage, demo, uploadsEnabled = false, onDone }: Props) {
   const [done, setDone] = useState<string[]>([]);
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [carrier, setCarrier] = useState<Carrier>(demo?.carrier ?? "USPS");
@@ -59,7 +60,7 @@ export function ShipStep({ dealId, checklist, palMessage, demo, onDone }: Props)
             </li>
           ))}
         </ul>
-        <PhotoInput value={photos} onChange={setPhotos} addedBy="seller" suggestions={demo?.photos ?? []} label="Packing photos" />
+        <PhotoInput value={photos} onChange={setPhotos} addedBy="seller" suggestions={demo?.photos ?? []} label="Packing photos" uploadsEnabled={uploadsEnabled} />
         <div className="grid gap-3 sm:grid-cols-[10rem_1fr]">
           <label className="block text-sm">
             <span className="font-semibold">Carrier</span>

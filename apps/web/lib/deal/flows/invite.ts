@@ -29,7 +29,7 @@ export async function startBuyerFirst(services: Services, input: InviteInput): P
   const buyer: Party = { role: "buyer", ...input.buyer };
   let deal = await store.createDeal({ startedBy: "buyer", seller, buyer, listingUrl: input.listingUrl, scenario: null });
   await note(services, deal.id, "deal_created", "buyer", `${buyer.displayName} started a deal from a listing and invited the seller.`);
-  await note(services, deal.id, "seller_invited", "system", "Invite sent to the seller's PayPal email.");
+  await note(services, deal.id, "seller_invited", "system", "Invite link created for the seller. The buyer sends it.");
   deal = await store.transition(deal.id, "INVITED", "system", "Waiting for the seller.");
   await say(
     services,
