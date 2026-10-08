@@ -42,11 +42,19 @@ describe("buildEvidencePack", () => {
     expect(pack.summary).toContain(emptyBox.arrivalPhotos[0]!.whatItShows);
     expect(pack.summary).toContain(`serial ${EMPTY_BOX_LOCKED_SERIAL}, box label serial ${EMPTY_BOX_LOCKED_SERIAL}`);
     expect(pack.summary).toContain("not readable in the arrival photos");
-    expect(pack.summary).toContain("3 shared chat messages, 0 pal messages and");
-    expect(palMessage).toContain("3 shared chat messages,");
+    expect(pack.summary).toContain("4 shared chat messages, 0 pal messages and");
+    expect(palMessage).toContain("4 shared chat messages,");
     const withPal = await buildEvidencePack({ ...input, messages: [...input.messages, { ...input.messages[0]!, id: "p1", channel: "buyer_pal", author: "buyer_pal", text: "Looks fine." }, { ...input.messages[0]!, id: "p2", channel: "seller_pal", author: "seller_pal", text: "Card built." }] }, { anthropic: null });
-    expect(withPal.data.summary).toContain("3 shared chat messages, 2 pal messages and");
-    expect(withPal.palMessage).toContain("3 shared chat messages and 2 pal messages,");
+    expect(withPal.data.summary).toContain("4 shared chat messages, 2 pal messages and");
+    expect(withPal.palMessage).toContain("4 shared chat messages and 2 pal messages,");
+
+    // Scenario 3: the unanswered question and the ship-time flag are both in the pack and the summary.
+    expect(pack.unansweredQuestions).toEqual(["Can you add a photo of the Console Information screen showing the serial?"]);
+    expect(pack.shipmentFlags).toEqual(emptyBox.shipment!.flags);
+    expect(pack.summary).toContain('The Buyer Pal asked the seller before payment: "Can you add a photo of the Console Information screen showing the serial?" The seller never answered.');
+    expect(pack.summary).toContain("At ship time the Buyer Pal raised MISSING_PACKING_PHOTO (caution): The seller shipped without the photo of the item going into the box, so there is no proof of what was packed.");
+    expect(palMessage).toContain("The seller never answered one question the Buyer Pal asked before payment.");
+    expect(palMessage).toContain("The seller shipped without the required packing photo.");
     expect(pack.summary).toContain(emptyBox.payment!.paypalOrderId);
     expect(pack.summary).toContain(emptyBox.shipment!.trackingNumber);
     expect(pack.summary).not.toMatch(/[—!]/);
@@ -76,6 +84,9 @@ describe("buildEvidencePack", () => {
     const withModel = await createEvidencePackBuilder({ anthropic: model })(input);
     expect(withModel.data.summary).toBe(`The buyer paid for a PlayStation 5, serial ${EMPTY_BOX_LOCKED_SERIAL}, an empty box arrived.`);
     expect(prompt).toContain("arrival photo");
+    expect(prompt).toContain("never got an answer");
+    expect(prompt).toContain("The seller never answered.");
+    expect(prompt).toContain("MISSING_PACKING_PHOTO");
     expect(deterministicSummary(input)).toContain("did not match");
   });
 
@@ -136,5 +147,9 @@ describe("buildEvidencePack", () => {
     expect(pack.builtBy).toBe("seller_pal");
     expect(pack.photos).toHaveLength(6);
     expect(pack.summary).toContain("Payment: PayPal order FIXTURE-ORDER-CLEAN-0001");
+    expect(pack.unansweredQuestions).toEqual([]);
+    expect(pack.shipmentFlags).toEqual([]);
+    expect(pack.summary).not.toContain("never answered");
+    expect(pack.summary).not.toContain("At ship time");
   });
 });

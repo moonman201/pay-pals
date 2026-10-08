@@ -15,6 +15,8 @@ export { createFixtureCertLookup, isNotChecked } from "./cert/fixture-lookup";
 export { NOT_CHECKED_EXPLANATION } from "./cert/compare";
 export { PsaError, psaCallCount } from "./cert/psa-api";
 export { compareCertRecord } from "./cert/compare";
+export { shipmentFlags } from "./buyer/shipment";
+export { unansweredQuestions } from "./evidence/unanswered";
 export { runRules, overallFromFlags, type RuleInput, type SellerIdentity } from "./rules";
 export { createAnthropicClientFromEnv, modelId, DEFAULT_MODEL, type ClaudeClient } from "./claude/client";
 export { fetchImage, isFetchableUrl, resolvePhotoUrl, type ImageFetcher } from "./vision/fetch-image";
