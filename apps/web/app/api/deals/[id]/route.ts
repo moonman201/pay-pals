@@ -3,6 +3,6 @@ import { handle, type Params } from "@/lib/api/handle";
 import { loadSnapshot } from "@/lib/deal/snapshot";
 import { getServices } from "@/lib/services";
 
-export async function GET(_req: Request, { params }: Params) {
-  return handle(async () => loadSnapshot(getServices(), (await params).id));
+export async function GET(req: Request, { params }: Params) {
+  return handle(req, async () => loadSnapshot(getServices(), (await params).id));
 }

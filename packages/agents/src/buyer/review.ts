@@ -21,9 +21,10 @@ import { compareCertRecord } from "../cert/compare";
 import type { ClaudeClient } from "../claude/client";
 import { callTool } from "../claude/tool-call";
 import { plainCopy, sentences } from "../copy";
-import { overallFromFlags, runRules } from "../rules";
+import { collapsePaymentFlags, overallFromFlags, runRules, type PhotoMatch } from "../rules";
 import { buildGroundingCorpus } from "./grounding";
 import { mergeModelReview } from "./merge-flags";
+import { findReusedPhotos, type PhotoMatchDeps } from "./photo-match";
 import { ModelReviewSchema, REVIEW_TOOL } from "./review-tool";
 
 export const MAX_QUESTIONS = 3;
@@ -41,7 +42,12 @@ export interface ReviewDeps {
   client: ClaudeClient | null;
   priceLookup: MarketPriceLookup;
   certLookup?: CertLookup | null;
+  /** Known photos to compare the card's photos against. Omit to skip the image check. */
+  photoMatch?: PhotoMatchDeps | null;
 }
+
+/** The sentence added whenever the range came from the fixtures rather than a live source. */
+export const REFERENCE_RANGE_NOTE = "That is a reference range for this demo, not a live quote.";
 
 const FLAG_WORDS: Record<RedFlag["code"], string> = {
   FRIENDS_AND_FAMILY_REQUEST: "a Friends and Family payment request",
@@ -84,9 +90,12 @@ function priceNote(priceCheck: PriceCheck | null): string | null {
 }
 
 function priceLine(priceCheck: PriceCheck | null): string {
-  if (!priceCheck || priceCheck.marketLow <= 0) return `No market price was available${priceNote(priceCheck) ? ` (${priceNote(priceCheck)!.toLowerCase()})` : ""}.`;
+  if (!priceCheck || priceCheck.marketLow <= 0) {
+    return `No reliable market price was found${priceNote(priceCheck) ? ` (${priceNote(priceCheck)!.toLowerCase()})` : ""}. Say so plainly; do not invent a range.`;
+  }
   const note = priceNote(priceCheck);
-  return `Market range $${priceCheck.marketLow} to $${priceCheck.marketHigh} (${priceCheck.provider}${note ? `; ${note.toLowerCase()}` : ""}).`;
+  const reference = priceCheck.provider === "fixture" ? ` ${REFERENCE_RANGE_NOTE} Say that in your message.` : "";
+  return `Market range $${priceCheck.marketLow} to $${priceCheck.marketHigh} (${priceCheck.provider}${note ? `; ${note.toLowerCase()}` : ""}).${reference}`;
 }
 
 function certLine(card: ItemCard | null, certCheck: CertCheck | null, lookupFailed: boolean): string | null {
@@ -116,6 +125,7 @@ function fallbackMessage(card: ItemCard | null, flags: RedFlag[], priceCheck: Pr
     return sentences(
       scope,
       `Stop. I found ${list(stops)}.`,
+      card && priceCheck && priceCheck.marketLow > 0 && priceCheck.provider === "fixture" && stops.some((f) => f.code === "PRICE_FAR_BELOW_MARKET") ? REFERENCE_RANGE_NOTE : null,
       paymentFlag ? "Pay Pals only pays through a Goods and Services checkout, so this deal cannot go ahead." : "Do not pay for this.",
     );
   }
@@ -130,7 +140,8 @@ function fallbackMessage(card: ItemCard | null, flags: RedFlag[], priceCheck: Pr
     card && priceCheck && priceCheck.marketLow > 0
       ? `The asking price of $${card.askingPrice} sits within the market range of $${priceCheck.marketLow} to $${priceCheck.marketHigh}${note ? `, ${note.charAt(0).toLowerCase()}${note.slice(1)}` : ""}.`
       : null,
-    card && (!priceCheck || priceCheck.marketLow <= 0) ? `I could not find a market price to compare the $${card.askingPrice} ask against${note ? ` (${note.toLowerCase()})` : ""}.` : null,
+    card && priceCheck && priceCheck.marketLow > 0 && priceCheck.provider === "fixture" ? REFERENCE_RANGE_NOTE : null,
+    card && (!priceCheck || priceCheck.marketLow <= 0) ? `No reliable market price was found to compare the $${card.askingPrice} ask against${note ? ` (${note.toLowerCase()})` : ""}, so judge the price yourself.` : null,
     card?.serial ? `The serial ${card.serial} is on the card, so we can check it when the item arrives.` : null,
     card ? "Nothing in the chat worries me." : "I will check the price, the photos and the serial once the seller's card is in.",
   );
@@ -160,7 +171,16 @@ export async function reviewCard(card: ItemCard | null, chat: Message[], context
   const certCheck: CertCheck | null =
     card && certRecord ? (({ matches, explanation }) => ({ record: certRecord, matches, explanation }))(compareCertRecord(card, certRecord)) : null;
 
-  const ruleFlags = runRules({ card, chat, priceCheck, seller: context?.seller ?? null, certRecord, inviteDeclined: context?.inviteDeclined === true });
+  let photoMatches: PhotoMatch[] = [];
+  if (card && deps.photoMatch && deps.photoMatch.knownPhotos.length > 0) {
+    try {
+      photoMatches = await findReusedPhotos(card.photos, deps.photoMatch);
+    } catch (error) {
+      console.warn(`[pay-pals agents] photo match failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  const ruleFlags = runRules({ card, chat, priceCheck, seller: context?.seller ?? null, certRecord, inviteDeclined: context?.inviteDeclined === true, photoMatches });
 
   let review = null;
   if (deps.client) {
@@ -187,7 +207,8 @@ export async function reviewCard(card: ItemCard | null, chat: Message[], context
     review = result.value;
   }
 
-  const flags = mergeModelReview(ruleFlags, review, buildGroundingCorpus(card, chat));
+  // Collapse again after the merge: the model may have added a payment code of its own.
+  const flags = collapsePaymentFlags(mergeModelReview(ruleFlags, review, buildGroundingCorpus(card, chat)));
   const overall = overallFromFlags(flags);
   const questions = pickQuestions(review?.questions_for_seller ?? []);
   const questionsForSeller = questions.length > 0 ? questions : pickQuestions(fallbackQuestions(card, flags));

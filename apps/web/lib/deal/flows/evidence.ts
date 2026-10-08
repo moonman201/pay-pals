@@ -4,9 +4,16 @@ import type { Role } from "../../role";
 import { fixtureById } from "../../scenarios";
 import type { Services } from "../../services";
 import { FlowError, notFound } from "../errors";
+import { absoluteCard, absoluteMessages, absolutePhotos, absoluteUrl } from "../photo-urls";
 import { mustDeal, note, say } from "./shared";
 
 type EvidenceServices = Pick<Services, "store" | "buildEvidencePack">;
+
+/** Maps a photo the builder returned (absolute URL) back to the stored photo (relative URL) when it is one of ours. */
+function relativizer(stored: readonly Photo[]): (photo: Photo) => Photo {
+  const byAbsolute = new Map(stored.map((p) => [absoluteUrl(p.url), p] as const));
+  return (photo) => byAbsolute.get(photo.url) ?? byAbsolute.get(absoluteUrl(photo.url)) ?? photo;
+}
 
 /** The buyer's arrival photos: on the check itself (v1.3.0), else the arrival_checked event, else the scenario fixture for a seeded finished deal. */
 export function arrivalPhotosFrom(deal: Deal, timeline: DealEvent[], check: ArrivalCheck | null = null): Photo[] {
@@ -34,11 +41,32 @@ export async function buildEvidenceFor(services: EvidenceServices, deal: Deal, r
     store.listEvents(deal.id),
   ]);
   const arrivalPhotos = arrivalCheck ? arrivalPhotosFrom(deal, timeline, arrivalCheck) : [];
-  const result = await services.buildEvidencePack({ deal, lockedCard, verdicts, arrivalCheck, messages, payment, shipment, timeline, arrivalPhotos, requestedBy });
+  const result = await services.buildEvidencePack({
+    deal,
+    lockedCard: absoluteCard(lockedCard),
+    verdicts,
+    arrivalCheck,
+    messages: absoluteMessages(messages),
+    payment,
+    shipment: shipment ? { ...shipment, packingPhotos: absolutePhotos(shipment.packingPhotos) } : null,
+    timeline,
+    arrivalPhotos: absolutePhotos(arrivalPhotos),
+    requestedBy,
+  });
   // Tamper-evident history: the head recorded on the PayPal order, and whether the stored events still reproduce it.
   const historyHash = result.data.historyHash ?? payment?.historyHash ?? null;
   const historyVerified = result.data.historyVerified ?? (historyHash ? historyMatchesHead(timeline, historyHash) : null);
-  const pack = await store.saveEvidence({ ...result.data, historyHash, historyVerified });
+  // The pack keeps the photos as stored (relative) so its page works on any host; the builder saw absolute URLs.
+  const toRelative = relativizer([...lockedCard.photos, ...(shipment?.packingPhotos ?? []), ...arrivalPhotos, ...messages.flatMap((m) => m.photos)]);
+  const pack = await store.saveEvidence({
+    ...result.data,
+    lockedCard,
+    messages,
+    shipment,
+    photos: result.data.photos.map(toRelative),
+    historyHash,
+    historyVerified,
+  });
   await note(services, deal.id, "evidence_built", pack.builtBy, "Evidence pack built for a PayPal dispute.");
   await say(services, deal.id, requestedBy === "buyer" ? "buyer_pal" : "seller_pal", pack.builtBy, result.palMessage);
   return pack;

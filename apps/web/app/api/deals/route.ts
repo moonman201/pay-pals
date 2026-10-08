@@ -5,7 +5,7 @@ import { startDeal } from "@/lib/deal/flows/start";
 import { getServices } from "@/lib/services";
 
 export async function POST(req: Request) {
-  return handle(async () => {
+  return handle(req, async () => {
     const body = await readBody(req, StartDealBody);
     const deal = await startDeal(getServices(), {
       seller: { role: "seller", ...body.seller },

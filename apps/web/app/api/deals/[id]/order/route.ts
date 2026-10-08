@@ -5,7 +5,7 @@ import { createOrder } from "@/lib/deal/flows/pay";
 import { getServices } from "@/lib/services";
 
 export async function POST(req: Request, { params }: Params) {
-  return handle(async () => {
+  return handle(req, async () => {
     const body = await readBody(req, OrderBody);
     return createOrder(getServices(), (await params).id, body.method);
   });

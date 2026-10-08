@@ -222,13 +222,17 @@ describe("nameMismatchRule", () => {
 });
 
 describe("stockPhotoRule", () => {
-  it("cautions when every photo is catalog style or reused from another listing", () => {
-    expect(stockPhotoRule({ card: fakeSlab.cards[0]!, chat: [], priceCheck: price })[0]).toMatchObject({ code: "STOCK_OR_REUSED_PHOTO", severity: "caution" });
-    const stock = card({ photos: [{ url: "/x.jpg", whatItShows: "Console on a plain white background", addedBy: "seller" }] });
-    expect(stockPhotoRule({ card: stock, chat: [], priceCheck: price })).toHaveLength(1);
+  it("cautions when the image check found the same picture elsewhere, naming the source", () => {
+    const photo = fakeSlab.cards[0]!.photos[0]!;
+    const flags = stockPhotoRule({ card: fakeSlab.cards[0]!, chat: [], priceCheck: price, photoMatches: [{ photo, source: "the reference set (slab-front.jpg)", distance: 3 }] });
+    expect(flags[0]).toMatchObject({ code: "STOCK_OR_REUSED_PHOTO", severity: "caution" });
+    expect(flags[0]!.evidence).toContain("the reference set (slab-front.jpg)");
+    expect(flags[0]!.evidence).toContain("3 of 64 bits differ");
   });
-  it("is quiet when a photo shows the actual unit", () => {
-    expect(stockPhotoRule({ card: card(), chat: [], priceCheck: price })).toHaveLength(0);
+  it("never fires from caption words alone, and is silent with no matches", () => {
+    expect(stockPhotoRule({ card: fakeSlab.cards[0]!, chat: [], priceCheck: price })).toHaveLength(0);
+    const stock = card({ photos: [{ url: "/x.jpg", whatItShows: "Console on a plain white background, a stock photo reused from another listing", addedBy: "seller" }] });
+    expect(stockPhotoRule({ card: stock, chat: [], priceCheck: price, photoMatches: [] })).toHaveLength(0);
   });
 });
 
@@ -239,12 +243,16 @@ describe("card rules with no card", () => {
 });
 
 describe("runRules on the fixtures", () => {
-  it("fake-slab raises the required flags and stops", () => {
+  it("fake-slab raises the required flags, one payment flag, and stops", () => {
     const flags = runRules({ card: fakeSlab.cards.at(-1)!, chat: fakeSlab.chat, priceCheck: fakeSlab.marketPrice, seller: fakeSlab.seller, certRecord: fakeSlab.certRecord });
     const codes = flags.map((f) => f.code);
     for (const required of fakeSlab.expectedVerdict.requiredFlags) expect(codes).toContain(required);
-    expect(codes).toContain("OFF_PLATFORM_PAYMENT");
-    expect(codes).toContain("STOCK_OR_REUSED_PHOTO");
+    expect(codes).not.toContain("OFF_PLATFORM_PAYMENT");
+    expect(codes).not.toContain("STOCK_OR_REUSED_PHOTO");
+    expect(codes.filter((c) => c === "FRIENDS_AND_FAMILY_REQUEST" || c === "OFF_PLATFORM_PAYMENT" || c === "INVITE_REFUSED")).toHaveLength(1);
+    const payment = flags.find((f) => f.code === "FRIENDS_AND_FAMILY_REQUEST")!;
+    expect(payment.explanation).toContain("a Friends and Family payment or a payment outside the PayPal checkout");
+    expect(payment.evidence).toContain("Friends & Family");
     const allowed = new Set([...fakeSlab.expectedVerdict.requiredFlags, ...fakeSlab.expectedVerdict.optionalFlags]);
     for (const code of codes) expect(allowed.has(code), code).toBe(true);
     expect(overallFromFlags(flags)).toBe("stop");

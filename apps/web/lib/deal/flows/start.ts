@@ -3,9 +3,11 @@
  * the seller's start form. Buyer-first starts live in invite.ts.
  */
 import type { Deal, Party, Photo, ScenarioFixture, ScenarioId } from "@pay-pals/contracts";
+import { endSentence } from "../../format";
 import { fixtureById } from "../../scenarios";
 import type { Services } from "../../services";
 import { FlowError } from "../errors";
+import { absolutePhotos } from "../photo-urls";
 import { note, say } from "./shared";
 
 export interface StartDealInput {
@@ -28,12 +30,13 @@ export async function startDeal(services: Services, input: StartDealInput): Prom
   const built = await sellerPal.buildCard({
     dealId: deal.id,
     listingText: input.listingText,
-    photos: input.photos,
+    photos: absolutePhotos(input.photos),
     sellerNotes: input.sellerNotes,
     sellerPaypalEmail: input.sellerPaypalEmail,
     askingPrice: input.askingPrice,
   });
-  await store.saveCard(built.data);
+  // The pal saw absolute URLs; the stored card keeps the photos as given.
+  await store.saveCard({ ...built.data, photos: input.photos });
   await say(services, deal.id, "seller_pal", "seller_pal", built.palMessage);
   await note(services, deal.id, "card_updated", "seller_pal", `Seller Pal built card version ${built.data.version}.`);
   deal = await store.transition(deal.id, "LISTED", "system", "Listed.");
@@ -112,6 +115,6 @@ export async function joinAsBuyer(services: Services, dealId: string, buyer: Par
   if (!deal) throw new FlowError("Deal not found.", 404);
   if (deal.buyer) throw new FlowError("This deal already has a buyer.", 409);
   const updated = await services.store.setBuyer(dealId, buyer);
-  await say(services, dealId, "buyer_pal", "buyer_pal", `Hi ${buyer.displayName}. I will check this deal before any money moves. Ask me to review when you are ready.`);
+  await say(services, dealId, "buyer_pal", "buyer_pal", `${endSentence(`Hi ${buyer.displayName}`)} I will check this deal before any money moves. Ask me to review when you are ready.`);
   return updated;
 }

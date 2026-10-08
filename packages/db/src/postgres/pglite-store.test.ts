@@ -13,11 +13,12 @@ import { runMigrations } from "./migrate";
 import { createPostgresDealStoreFromDb } from "./postgres-store";
 
 let client: PGlite;
+let db: ReturnType<typeof drizzle<typeof schema>>;
 let store: PayPalsStore;
 
 beforeAll(async () => {
   client = new PGlite();
-  const db = drizzle(client, { schema });
+  db = drizzle(client, { schema });
   // The same bundled migrator production uses, not drizzle's folder reader.
   await runMigrations(db);
   store = createPostgresDealStoreFromDb(db);
@@ -27,7 +28,8 @@ afterAll(async () => {
   await client?.close();
 });
 
-runDealStoreConformance("postgres (pglite)", async () => store);
+// One database for the whole suite; a store per call so a test can bring its own clock.
+runDealStoreConformance("postgres (pglite)", async (options) => (options ? createPostgresDealStoreFromDb(db, options) : store));
 
 describe("postgres store on pglite", () => {
   it("answers not-found for ids that are not uuids instead of throwing", async () => {

@@ -30,24 +30,31 @@ export function expectState(deal: Deal, ...states: Deal["state"][]): void {
   }
 }
 
+type Stamped = Pick<Services, "store"> & Partial<Pick<Services, "clock">>;
+
+/** Timestamps come from the services clock when there is one (the seeder replays on fixture dates), else wall time. */
+function stamp(services: Stamped): string {
+  return services.clock ? services.clock().toISOString() : nowIso();
+}
+
 export async function say(
-  services: Pick<Services, "store">,
+  services: Stamped,
   dealId: string,
   channel: Message["channel"],
   author: Message["author"],
   text: string,
   photos: Photo[] = [],
 ): Promise<Message> {
-  return services.store.addMessage({ dealId, channel, author, text, photos, at: nowIso() });
+  return services.store.addMessage({ dealId, channel, author, text, photos, at: stamp(services) });
 }
 
 export async function note(
-  services: Pick<Services, "store">,
+  services: Stamped,
   dealId: string,
   kind: DealEvent["kind"],
   actor: DealEvent["actor"],
   summary: string,
   data?: Record<string, unknown>,
 ): Promise<DealEvent> {
-  return services.store.appendEvent({ dealId, kind, actor, summary, data, at: nowIso() });
+  return services.store.appendEvent({ dealId, kind, actor, summary, data, at: stamp(services) });
 }

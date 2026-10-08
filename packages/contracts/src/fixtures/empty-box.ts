@@ -20,14 +20,14 @@ const buyer = { role: "buyer", displayName: "Jen K.", email: "jen.k@example.com"
 
 const consoleSerialPhoto = {
   url: "/fixtures/empty-box/console-back-serial.jpg",
-  whatItShows: `Back of the console. Serial ${EMPTY_BOX_LOCKED_SERIAL}, model CFI-1215A.`,
+  whatItShows: `Back of a white PlayStation 5 console. The label shows serial ${EMPTY_BOX_LOCKED_SERIAL} and model CFI-1215A.`,
   addedBy: "seller",
   addedAt: at(0),
 } as const;
 
 const boxLabelPhoto = {
   url: "/fixtures/empty-box/box-label-serial.jpg",
-  whatItShows: `Original box label. Serial ${EMPTY_BOX_LOCKED_SERIAL}.`,
+  whatItShows: `Barcode label on a PlayStation 5 box. Serial ${EMPTY_BOX_LOCKED_SERIAL}.`,
   addedBy: "seller",
   addedAt: at(0),
 } as const;
@@ -133,13 +133,13 @@ export const emptyBox: ScenarioFixture = {
   arrivalPhotos: [
     {
       url: "/fixtures/empty-box/arrival-box-open-empty.jpg",
-      whatItShows: "The original box opened on arrival. Only the foam insert inside. No console, no controller, no cables.",
+      whatItShows: "PlayStation 5 box opened on a table. Grey foam insert inside.",
       addedBy: "buyer",
       addedAt: at(5 * 24 * 60 + 15),
     },
     {
       url: "/fixtures/empty-box/arrival-box-label.jpg",
-      whatItShows: `Label on the box that arrived. Serial ${EMPTY_BOX_LOCKED_SERIAL}.`,
+      whatItShows: `Barcode label on the box that arrived. Serial ${EMPTY_BOX_LOCKED_SERIAL}.`,
       addedBy: "buyer",
       addedAt: at(5 * 24 * 60 + 16),
     },

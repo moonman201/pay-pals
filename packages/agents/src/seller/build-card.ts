@@ -13,12 +13,13 @@ import { callTool } from "../claude/tool-call";
 import { sentences } from "../copy";
 import { certFromText, gradeFromText, normalizeSerial, serialFromText } from "../vision/description";
 import type { ImageFetcher } from "../vision/fetch-image";
-import { itemSerial, packagingSerial, readPhotos } from "../vision/read-photo";
+import { describeLooking, itemSerial, packagingSerial, readPhotos } from "../vision/read-photo";
 import { parseListing, type ListingDraft } from "./listing-parse";
 
 export interface BuildCardDeps {
   client: ClaudeClient | null;
   fetchImage?: ImageFetcher;
+  photoBaseUrl?: string | null;
 }
 
 export class MissingPriceError extends Error {
@@ -108,6 +109,7 @@ export async function buildCardFromListing(input: BuildCardInput, deps: BuildCar
   const readings = await readPhotos(input.photos, {
     client: deps.client,
     fetchImage: deps.fetchImage,
+    photoBaseUrl: deps.photoBaseUrl,
     hints: { brand: fields.brand, model: fields.model },
   });
   // The item's own serial and the box label's serial are read separately. The box never fills in for the item.
@@ -117,7 +119,6 @@ export async function buildCardFromListing(input: BuildCardInput, deps: BuildCar
   const serial = fromPhoto?.serial ?? typedSerial;
   const boxSerial = fromBox?.serial ?? null;
   const serialsMatch = serial && boxSerial ? normalizeSerial(serial) === normalizeSerial(boxSerial) : null;
-  const usedDescriptions = readings.length > 0 && readings.every((r) => r.source === "description");
   // A graded collectible is identified by its cert number and grade, read from the slab label text or the listing.
   const labelText = [...input.photos.map((p) => p.whatItShows), input.listingText, input.sellerNotes].join("\n");
   const certNumber = certFromText(labelText);
@@ -144,6 +145,7 @@ export async function buildCardFromListing(input: BuildCardInput, deps: BuildCar
 
   const palMessage = sentences(
     `I built card version 1 for the ${card.title} at $${card.askingPrice}.`,
+    describeLooking(readings, "photo"),
     fromPhoto ? `Serial ${serial} read from the item (${fromPhoto.reading.photo.whatItShows}).` : null,
     !fromPhoto && typedSerial ? `Serial ${serial} taken from your notes. A photo of it on the item would make the card stronger.` : null,
     serialsMatch === true ? `The box label shows the same serial. They match.` : null,
@@ -151,7 +153,6 @@ export async function buildCardFromListing(input: BuildCardInput, deps: BuildCar
     certNumber ? `Cert ${certNumber}${grade ? ` (${grade})` : ""} read from the slab label. The buyer's pal will check it with the grader.` : null,
     !serial && boxSerial ? `The only serial I found is on the box label (${boxSerial}). A box label is not the item. Add a photo of the serial on the item itself.` : null,
     !serial && !boxSerial && !certNumber ? "I could not find a serial number in the photos. Add a clear photo of the serial on the item itself before you share the card." : null,
-    usedDescriptions ? "I went by your photo descriptions because I could not open the image files." : null,
     "Check every line before you share it. Once the buyer agrees, this card becomes the PayPal order.",
   );
   return { data: card, palMessage };

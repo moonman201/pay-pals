@@ -15,7 +15,7 @@ describe("isGrounded", () => {
   it("accepts a card field with its value", () => {
     expect(isGrounded("sellerPaypalEmail: quickcash.deals.2026@example.com", slab)).toBe(true);
     expect(isGrounded("askingPrice: $750", slab)).toBe(true);
-    expect(isGrounded('photos: "The same photo is reused from another seller"', slab)).toBe(true);
+    expect(isGrounded('photos: "Front of a PSA slab on a wooden table"', slab)).toBe(true);
     expect(isGrounded(`certNumber ${FAKE_SLAB_CERT}`, slab)).toBe(true);
     expect(isGrounded(`serial ${CLEAN_SERIAL}`, clean)).toBe(true);
     expect(isGrounded(`boxSerial ${CLEAN_SERIAL}`, clean)).toBe(true);

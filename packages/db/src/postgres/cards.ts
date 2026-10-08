@@ -1,10 +1,12 @@
 /**
  * Item cards repository: one row per version, locked once at AGREED.
+ * createdAt and lockedAt come from the store's clock.
  */
 import { and, asc, eq } from "drizzle-orm";
 import type { ItemCard } from "@pay-pals/contracts";
 import { deals, itemCards } from "../../schema";
 import { assertCardLockable, assertCardSavable } from "../card-rules";
+import type { Clock } from "../clock";
 import { CardLockedError, CardNotFoundError, CardVersionError } from "../errors";
 import type { Db } from "./db";
 import { toCard, toCardRow } from "./mappers";
@@ -12,7 +14,7 @@ import { isUuid } from "./uuid";
 
 type LockRow = (tx: Db, dealId: string) => Promise<typeof deals.$inferSelect>;
 
-export function cardsRepo(db: Db, lockDeal: LockRow) {
+export function cardsRepo(db: Db, lockDeal: LockRow, clock: Clock) {
   return {
     async saveCard(card: ItemCard): Promise<ItemCard> {
       return db.transaction(async (tx) => {
@@ -21,11 +23,12 @@ export function cardsRepo(db: Db, lockDeal: LockRow) {
         assertCardSavable(card.dealId, deal.state);
         const expected = deal.currentCardVersion + 1;
         if (card.version !== expected) throw new CardVersionError(card.dealId, expected, card.version);
-        const [row] = await tx.insert(itemCards).values(toCardRow(card)).returning();
+        const now = clock();
+        const [row] = await tx.insert(itemCards).values({ ...toCardRow(card), createdAt: now }).returning();
         // A changed card needs fresh agreement from both sides.
         await tx
           .update(deals)
-          .set({ currentCardVersion: card.version, buyerAgreedAt: null, sellerAgreedAt: null, updatedAt: new Date() })
+          .set({ currentCardVersion: card.version, buyerAgreedAt: null, sellerAgreedAt: null, updatedAt: now })
           .where(eq(deals.id, card.dealId));
         return toCard(row!);
       });
@@ -71,7 +74,7 @@ export function cardsRepo(db: Db, lockDeal: LockRow) {
         assertCardLockable(dealId, deal.state);
         if (version !== deal.currentCardVersion) throw new CardVersionError(dealId, deal.currentCardVersion, version);
         if (row.lockedAt) return toCard(row);
-        const now = new Date();
+        const now = clock();
         const [locked] = await tx.update(itemCards).set({ lockedAt: now }).where(eq(itemCards.id, row.id)).returning();
         await tx.update(deals).set({ lockedCardVersion: version, updatedAt: now }).where(eq(deals.id, dealId));
         return toCard(locked!);

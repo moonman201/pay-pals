@@ -4,7 +4,7 @@ import { postChat } from "@/lib/deal/flows/chat";
 import { getServices } from "@/lib/services";
 
 export async function POST(req: Request, { params }: Params) {
-  return handle(async () => {
+  return handle(req, async () => {
     const body = await readBody(req, MessageBody);
     return postChat(getServices(), (await params).id, body.by, body.text);
   });

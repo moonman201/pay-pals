@@ -41,7 +41,12 @@ describe("buildEvidencePack", () => {
     expect(pack.summary).toContain("2 arrival photos taken by the buyer");
     expect(pack.summary).toContain(emptyBox.arrivalPhotos[0]!.whatItShows);
     expect(pack.summary).toContain(`serial ${EMPTY_BOX_LOCKED_SERIAL}, box label serial ${EMPTY_BOX_LOCKED_SERIAL}`);
-    expect(pack.summary).toContain("not present, box arrived empty");
+    expect(pack.summary).toContain("not readable in the arrival photos");
+    expect(pack.summary).toContain("3 shared chat messages, 0 pal messages and");
+    expect(palMessage).toContain("3 shared chat messages,");
+    const withPal = await buildEvidencePack({ ...input, messages: [...input.messages, { ...input.messages[0]!, id: "p1", channel: "buyer_pal", author: "buyer_pal", text: "Looks fine." }, { ...input.messages[0]!, id: "p2", channel: "seller_pal", author: "seller_pal", text: "Card built." }] }, { anthropic: null });
+    expect(withPal.data.summary).toContain("3 shared chat messages, 2 pal messages and");
+    expect(withPal.palMessage).toContain("3 shared chat messages and 2 pal messages,");
     expect(pack.summary).toContain(emptyBox.payment!.paypalOrderId);
     expect(pack.summary).toContain(emptyBox.shipment!.trackingNumber);
     expect(pack.summary).not.toMatch(/[—!]/);

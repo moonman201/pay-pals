@@ -67,8 +67,17 @@ export function deterministicSummary(input: EvidenceInput): string {
       `Tamper check: the deal history hash recorded on the PayPal order at payment time is ${head}. The ${timeline.length} stored timeline events ${verified ? "reproduce that hash, so the history was not edited after payment" : "do not reproduce that hash, so the stored history differs from what PayPal holds"}.`,
     );
   }
-  parts.push(`${messages.length} chat message${messages.length === 1 ? "" : "s"} and ${timeline.length} timeline event${timeline.length === 1 ? "" : "s"} are attached in full.`);
+  const counts = messageCounts(messages);
+  parts.push(
+    `${counts.shared} shared chat message${counts.shared === 1 ? "" : "s"}, ${counts.pal} pal message${counts.pal === 1 ? "" : "s"} and ${timeline.length} timeline event${timeline.length === 1 ? "" : "s"} are attached in full.`,
+  );
   return plainCopy(parts.join(" "), 4000);
+}
+
+/** Messages on the shared deal channel versus the two private pal channels. */
+export function messageCounts(messages: EvidenceInput["messages"]): { shared: number; pal: number } {
+  const shared = messages.filter((m) => m.channel === "deal").length;
+  return { shared, pal: messages.length - shared };
 }
 
 /** The chain head on the payment and whether the stored events reproduce it. Both undefined when no payment carries a hash. */

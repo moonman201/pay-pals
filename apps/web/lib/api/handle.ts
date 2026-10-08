@@ -6,6 +6,7 @@ import { IllegalTransitionError } from "@pay-pals/contracts";
 import { NextResponse } from "next/server";
 import { ZodError, type ZodTypeAny, type output } from "zod";
 import { FlowError } from "../deal/errors";
+import { withRequestOrigin } from "../deal/photo-urls";
 
 export type Params = { params: Promise<{ id: string }> };
 
@@ -28,9 +29,10 @@ export async function readBody<S extends ZodTypeAny>(req: Request, schema: S): P
   return schema.parse(json) as output<S>;
 }
 
-export async function handle(fn: () => Promise<unknown>): Promise<NextResponse> {
+/** Runs the route's work with the request origin available, so pal calls get absolute photo URLs. */
+export async function handle(req: Request, fn: () => Promise<unknown>): Promise<NextResponse> {
   try {
-    const data = await fn();
+    const data = await withRequestOrigin(req, fn);
     return NextResponse.json(data ?? { ok: true });
   } catch (e) {
     if (e instanceof FlowError) return NextResponse.json({ error: e.message }, { status: e.status });
@@ -38,6 +40,9 @@ export async function handle(fn: () => Promise<unknown>): Promise<NextResponse> 
     if (e instanceof ZodError) return NextResponse.json({ error: e.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ") }, { status: 400 });
     if (e instanceof SyntaxError) return NextResponse.json({ error: "Body is not valid JSON." }, { status: 400 });
     // Errors the packages raise on purpose, matched by name so apps/web does not import their classes.
+    if (e instanceof Error && e.name === "EventOutOfOrderError") {
+      return NextResponse.json({ error: "This deal's history already has a later event, so that move cannot be recorded now. Reload the page and try again." }, { status: 409 });
+    }
     if (e instanceof Error && e.name in NAMED_STATUS) return NextResponse.json({ error: e.message }, { status: NAMED_STATUS[e.name] });
     console.error(e);
     return NextResponse.json({ error: "Something went wrong on the server." }, { status: 500 });

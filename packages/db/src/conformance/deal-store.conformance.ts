@@ -6,12 +6,14 @@
 import { describe, expect, it } from "vitest";
 import { IllegalTransitionError, getFixture, verifyChain } from "@pay-pals/contracts";
 import type { ItemCard, Party } from "@pay-pals/contracts";
+import { createReplayClock, type StoreOptions } from "../clock";
 import {
   AgreementNotAllowedError,
   CardLockedError,
   CardNotEditableError,
   CardVersionError,
   DealNotFoundError,
+  EventOutOfOrderError,
   SellerJoinNotAllowedError,
 } from "../errors";
 import type { PayPalsStore } from "@pay-pals/contracts";
@@ -31,7 +33,9 @@ async function toState(store: PayPalsStore, dealId: string, target: (typeof HAPP
   }
 }
 
-export function runDealStoreConformance(name: string, makeStore: () => Promise<PayPalsStore>) {
+export type StoreFactory = (options?: StoreOptions) => Promise<PayPalsStore>;
+
+export function runDealStoreConformance(name: string, makeStore: StoreFactory) {
   const cardFor = (dealId: string, version: number, overrides: Partial<ItemCard> = {}): ItemCard => ({
     ...fx.cards[0]!,
     dealId,
@@ -370,6 +374,82 @@ export function runDealStoreConformance(name: string, makeStore: () => Promise<P
       });
     });
 
+    describe("replay clock", () => {
+      const T = (minutes: number) => new Date(Date.parse("2026-10-21T16:00:00.000Z") + minutes * 60_000).toISOString();
+
+      it("stamps every store-generated time from the clock, so a seeder can replay fixture dates", async () => {
+        const replay = createReplayClock(T(0));
+        const store = await makeStore({ clock: replay.clock });
+        const deal = await store.createDeal({ startedBy: "buyer", seller, buyer });
+        expect(deal.createdAt).toBe(T(0));
+        expect(deal.updatedAt).toBe(T(0));
+
+        replay.set(T(1));
+        await store.transition(deal.id, "INVITED", "system", "Invite sent.");
+        replay.set(T(5));
+        const joined = await store.markSellerJoined(deal.id);
+        expect(joined.sellerJoinedAt).toBe(T(5));
+        replay.set(T(10));
+        await store.saveCard(cardFor(deal.id, 1));
+        expect((await store.getDeal(deal.id))?.updatedAt).toBe(T(10));
+        replay.set(T(20));
+        await store.transition(deal.id, "LISTED", "system", "Listed.");
+        replay.set(T(30));
+        await store.transition(deal.id, "REVIEWED", "buyer_pal", "Reviewed.");
+        replay.set(T(40));
+        const agreedBuyer = await store.recordAgreement(deal.id, "buyer");
+        expect(agreedBuyer.buyerAgreedAt).toBe(T(40));
+        replay.set(T(45));
+        await store.recordAgreement(deal.id, "seller");
+        replay.set(T(60));
+        const locked = await store.lockCard(deal.id, 1);
+        expect(locked.lockedAt).toBe(T(60));
+        replay.set(T(61));
+        const agreed = await store.transition(deal.id, "AGREED", "system", "Agreed.");
+        expect(agreed.updatedAt).toBe(T(61));
+
+        const events = await store.listEvents(deal.id);
+        expect(events.map((e) => [e.kind, e.at])).toEqual([
+          ["state_changed", T(1)],
+          ["seller_joined", T(5)],
+          ["state_changed", T(20)],
+          ["state_changed", T(30)],
+          ["agreed", T(40)],
+          ["agreed", T(45)],
+          ["state_changed", T(61)],
+        ]);
+        expect(verifyChain(events).ok).toBe(true);
+        // The same instant twice is fine; order falls back to the id.
+        await store.appendEvent({ dealId: deal.id, kind: "payment_created", actor: "paypal", summary: "Order created.", at: T(61) });
+        expect(verifyChain(await store.listEvents(deal.id)).ok).toBe(true);
+      });
+
+      it("refuses a clock that moves backwards within a deal, on the store's own events and on appendEvent", async () => {
+        const replay = createReplayClock(T(10));
+        const store = await makeStore({ clock: replay.clock });
+        const deal = await store.createDeal({ startedBy: "seller", seller });
+        await store.transition(deal.id, "LISTED", "system", "Listed.");
+        replay.set(T(5));
+        await expect(store.transition(deal.id, "REVIEWED", "system", "Reviewed.")).rejects.toBeInstanceOf(EventOutOfOrderError);
+        expect((await store.getDeal(deal.id))?.state).toBe("LISTED");
+        await expect(
+          store.appendEvent({ dealId: deal.id, kind: "card_updated", actor: "seller_pal", summary: "Too early.", at: T(9) }),
+        ).rejects.toBeInstanceOf(EventOutOfOrderError);
+        expect(await store.listEvents(deal.id)).toHaveLength(1);
+        replay.set(T(11));
+        expect((await store.transition(deal.id, "REVIEWED", "system", "Reviewed.")).state).toBe("REVIEWED");
+        expect(verifyChain(await store.listEvents(deal.id)).ok).toBe(true);
+      });
+
+      it("uses the wall clock when none is given", async () => {
+        const store = await makeStore();
+        const before = Date.now();
+        const deal = await store.createDeal({ startedBy: "seller", seller });
+        expect(Date.parse(deal.createdAt)).toBeGreaterThanOrEqual(before - 1000);
+        expect(Date.parse(deal.createdAt)).toBeLessThanOrEqual(Date.now() + 1000);
+      });
+    });
+
     describe("seller join", () => {
       it("records the join once from INVITED, updates the seller name and appends seller_joined", async () => {
         const store = await makeStore();
@@ -405,7 +485,8 @@ export function runDealStoreConformance(name: string, makeStore: () => Promise<P
 
     describe("two-sided agreement", () => {
       it("records buyer then seller in REVIEWED, one agreed event each, no lock and no transition", async () => {
-        const store = await makeStore();
+        // Explicit agreement times below must not precede the deal's events, so the deal is built on a clock before them.
+        const store = await makeStore({ clock: createReplayClock("2026-01-02T08:00:00.000Z").clock });
         const deal = await store.createDeal({ startedBy: "seller", seller, buyer });
         await store.saveCard(cardFor(deal.id, 1));
         await toState(store, deal.id, "REVIEWED");
@@ -442,7 +523,7 @@ export function runDealStoreConformance(name: string, makeStore: () => Promise<P
       });
 
       it("is idempotent for the same side: first timestamp kept, one event", async () => {
-        const store = await makeStore();
+        const store = await makeStore({ clock: createReplayClock("2026-01-02T08:00:00.000Z").clock });
         const deal = await store.createDeal({ startedBy: "seller", seller, buyer });
         await store.saveCard(cardFor(deal.id, 1));
         await toState(store, deal.id, "REVIEWED");

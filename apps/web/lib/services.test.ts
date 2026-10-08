@@ -84,6 +84,17 @@ describe("createServices with no keys", () => {
     expect(createServices({}, () => {}).demoPayee).toBeNull();
   });
 
+  it("tells the pals about the known photos and the photo base URL without printing it", () => {
+    const lines: string[] = [];
+    createServices({ NEXT_PUBLIC_APP_URL: "https://pay-pals-secret-host.example" }, (l) => lines.push(l));
+    const log = lines.join("\n");
+    expect(log).toMatch(/photos: \d+ known photos for the reused-photo check, base URL configured/);
+    expect(log).not.toContain("pay-pals-secret-host");
+    const noBase: string[] = [];
+    createServices({}, (l) => noBase.push(l));
+    expect(noBase.join("\n")).toMatch(/base URL from each request/);
+  });
+
   it("keeps secrets out of the startup log when keys are present", () => {
     const lines: string[] = [];
     createServices({ PAYPAL_CLIENT_ID: "id-secret-value", PAYPAL_CLIENT_SECRET: "shh-secret-value", PAYPAL_ENV: "sandbox", CHANNEL3_API_KEY: "c3-secret-value" }, (l) => lines.push(l));

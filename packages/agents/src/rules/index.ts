@@ -16,8 +16,10 @@ import { nameMismatchRule } from "./name-mismatch";
 import { stockPhotoRule } from "./stock-photo";
 import { boxSerialMismatchRule } from "./box-serial-mismatch";
 import { certMismatchRule } from "./cert-mismatch";
+import { collapsePaymentFlags } from "./payment-collapse";
 
-export type { Rule, RuleInput, SellerIdentity } from "./types";
+export type { PhotoMatch, Rule, RuleInput, SellerIdentity } from "./types";
+export { collapsePaymentFlags } from "./payment-collapse";
 
 /** Rules that read the chat (and the card's free text when there is one). */
 export const CHAT_RULES: readonly Rule[] = [inviteRefusedRule, friendsAndFamilyRule, offPlatformRule, urgencyRule, shipBeforePayRule];
@@ -27,8 +29,9 @@ export const CARD_RULES: readonly Rule[] = [certMismatchRule, priceBelowMarketRu
 
 export const RULES: readonly Rule[] = [...CHAT_RULES, ...CARD_RULES];
 
+/** Every rule, then the three payment codes collapsed into one flag. */
 export function runRules(input: RuleInput): RedFlag[] {
-  return RULES.flatMap((rule) => rule(input));
+  return collapsePaymentFlags(RULES.flatMap((rule) => rule(input)));
 }
 
 const SEVERITY_RANK: Record<RedFlagSeverity, number> = { info: 0, caution: 1, stop: 2 };

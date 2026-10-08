@@ -16,5 +16,7 @@ export { PsaError, psaCallCount } from "./cert/psa-api";
 export { compareCertRecord } from "./cert/compare";
 export { runRules, overallFromFlags, type RuleInput, type SellerIdentity } from "./rules";
 export { createAnthropicClientFromEnv, modelId, DEFAULT_MODEL, type ClaudeClient } from "./claude/client";
-export { fetchImage, isFetchableUrl, type ImageFetcher } from "./vision/fetch-image";
+export { fetchImage, isFetchableUrl, resolvePhotoUrl, type ImageFetcher } from "./vision/fetch-image";
+export { imageHash, hammingDistance, NEAR_DUPLICATE_DISTANCE } from "./vision/phash";
+export type { KnownPhoto } from "./buyer/photo-match";
 export { plainCopy } from "./copy";

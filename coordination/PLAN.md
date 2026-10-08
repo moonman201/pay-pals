@@ -102,7 +102,7 @@ Save every working call as a Postman collection in `docs/postman/`.
 | Dates | Phase | Gate |
 |---|---|---|
 | Wed Oct 7 to Fri Oct 9 | Contracts + Lane 0 | Lane 0 result. Contracts, schema and fixtures frozen Fri Oct 9. |
-| Sat Oct 10 to Fri Oct 23 | 3 Execute | Sat Oct 17: scenario 2 end to end on mocks. Fri Oct 23: all three on real sandbox. |
+| Sat Oct 10 to Fri Oct 23 | 3 Execute | Sat Oct 17: scenario 2 end to end on mocks. Fri Oct 23: all three on real sandbox, and the three finished demo deals re-seeded with real sandbox order and capture ids (no FIXTURE-ORDER ids on the live site after that date). |
 | Sat Oct 24 to Sun Nov 1 | 4 Review | REVIEW.md empty, e2e green, deployed. **Feature freeze Sun Nov 1.** |
 | Mon Nov 2 to Sun Nov 8 | 5 Submit prep | Video recorded and edited. Devpost draft. |
 | Mon Nov 9 to Wed Nov 11 | Buffer | Fixes only. **Submit Wed Nov 11.** Deadline Thu Nov 12, 3:00 PM Eastern. |
@@ -120,7 +120,32 @@ Save every working call as a Postman collection in `docs/postman/`.
 7. **Buyer starts the deal (Oct 7).** Entry point is a payment screen: "Use Pay Pals Protection," seller PayPal email, listing link. Seller gets an invite link to join and upload photos. State `INVITED` between DRAFT and LISTED. A refusal ("Friends & Family only") is `INVITE_REFUSED`, a payment-method flag, non-overridable. Seller-started stays, secondary. Email delivery of the invite is a stretch; v1 shows a link to send.
 8. **Two demo items (Oct 7).** PS5 (clean deal, empty box) and a PSA-graded Pokemon slab (fake slab). Buyer Pal checks graded items against PSA's cert API; a mismatch is `CERT_MISMATCH`, stop.
 9. **Tamper-evident history (Oct 7).** Every DealEvent carries prevHash and hash (contracts history.ts). The chain head at order creation goes into the PayPal order custom_id (`dealId#hash`) and the payment record. The evidence pack verifies the stored events against it.
+10. **Scenario 3 ship-time check (Oct 7, Matt).** The seller never answers the Buyer Pal's questions and the buyer pays anyway; when the seller ships without the required packing photo the Buyer Pal raises a caution at ship time and the evidence pack calls out the unanswered questions and the missing photo. Proposed contract additions (jsonb only, no migration): flag code `MISSING_PACKING_PHOTO`, `Shipment.flags?: RedFlag[]`, `EvidencePack.unansweredQuestions?: string[]` and `shipmentFlags?: RedFlag[]`. Waiting on Matt before Friday.
 6. **Non-payment stops (Oct 7).** A stop that is not about payment method (price far below market, ship-before-pay) stays overridable with the acknowledgment checkbox and stronger warning wording. Only payment-method flags end the deal.
+
+## Live site review, Oct 7 (Matt). Lane assignments
+Branch `review-oct7`. Each fix is its own commit with tests. Stop rules: a contract or schema change, or a product change, goes to Matt first; everything else keeps moving.
+
+**Product decision (Matt).** Scenario 3 stays: the Buyer Pal asks for proof, the seller never answers, the buyer pays anyway. Added: when the seller ships without the required packing photo, the Buyer Pal raises a caution at ship time, and the evidence pack calls out both the unanswered questions and the missing photo. Needs a new flag code and two optional fields; surfaced to Matt before the Friday freeze (see Decisions).
+
+| # | Lane | Fix |
+|---|---|---|
+| 1 | builder-agents (+ builder-web for URLs) | Vision is not running on the live site: both PS5 arrival checks fall back to the captions. Find the cause (relative `/fixtures/...` URLs are not fetchable from the server, missing files, fetch refused), fix it so the pals read real images when they exist, and make sure the sentence "I could not open the photo files" never appears in output. apps/web passes absolute photo URLs. |
+| 2 | Lead (fixtures) + builder-agents | Captions describe only what is visible. The Lead rewrote every fixture caption. The reused-photo flag must come from an image check, not caption words; the empty-box finding must come from the pal looking at the arrival photo. |
+| 3 | builder-agents | Channel3 relevance: drop listings that are not the same item, never apply the used-from-new discount to graded cards, show "No reliable market price found" when nothing relevant comes back, never build a range from one listing. |
+| 4 | builder-agents | Scenario 1 must flag the price as far below market for a PSA 10 Base Set Charizard from a real comp source, not a guess. Report which source works; a new key is a Matt item. |
+| 5 | builder-agents | PS5 comps: dedupe repeated listings, drop bundles, prefer the same model (CFI-1215A) over Slim. |
+| 6 | builder-agents | Scenario 1: the three overlapping payment flags (Friends and Family, off platform, refused protection) collapse into one flag that quotes the seller once. Cert mismatch, pressure and reused photo stay separate. |
+| 7 | builder-paypal (stores) + builder-web (seeder) | Seeded timeline events all carry the seed time while payment and shipment carry fixture dates. Stores take an injectable clock; the seeder replays with each event's fixture time so timeline, payment and shipment agree and run in order. |
+| 8 | Lead | Oct 23 milestone: re-seed the three finished demo deals with real sandbox order and capture ids; no FIXTURE-ORDER ids on the live site after that date. |
+| 9 | builder-agents (summary) + builder-web (page) | Evidence pack says "6 chat messages" where the page shows 4: count per channel and label it ("4 shared chat messages, 2 pal messages"). |
+| 10 | builder-web | Hash chain badge on the deal page and the evidence pack: "History unchanged since PayPal order" when the stored chain verifies against the hash on the order, a clear warning when it does not, computed live on render. Raw hashes stay secondary. |
+| 11 | builder-web | "You are the buyer, Dana M.." double period. Name punctuation. |
+| 12 | builder-web | Cert comparison reads "PSA 10, PSA 10": remove the duplicate. |
+| 13 | builder-web | Flag badges (severity, category, "no override") render as separate elements, not run-together text. |
+| 14 | qa | Tests that fail if: the "could not open the photo files" string appears in any pal output; a price range has min equal to max; any seeded timeline is out of order or contradicts payment or shipment dates; the hash badge shows verified when the chain was edited. |
+| 15 | qa | Playwright pass on the three finished deals and their evidence pages, desktop and phone width, with screenshots, flagging layout breaks. |
+| 16 | reality-check | After merge, walk all three scenarios on the Vercel URL as a skeptical judge and report anything that looks pre-written rather than produced by the agents. |
 
 ## Status (Lead keeps this current)
 | Lane | Status | Last merge |

@@ -4,7 +4,9 @@ import { isTerminal } from "@pay-pals/contracts";
 import Link from "next/link";
 import { useState } from "react";
 import type { DealSnapshot } from "@/lib/deal/snapshot";
+import { endSentence } from "@/lib/format";
 import { STATE_LABELS } from "@/lib/labels";
+import { HistoryBadge } from "./HistoryBadge";
 import { otherRole, type Role } from "@/lib/role";
 import { Badge } from "../ui/Badge";
 
@@ -32,11 +34,11 @@ export function DealHeader({ snapshot, role }: { snapshot: DealSnapshot; role: R
         <div className="min-w-0 flex-1">
           <h1 className="truncate text-base font-bold text-ink">{currentCard?.title ?? "New deal"}</h1>
           <p className="text-xs text-muted">
-            You are the {role}
-            {me ? `, ${me.displayName}` : ""}. {role === "buyer" ? "Your Buyer Pal is blue." : "Your Seller Pal is gold."}
+            {endSentence(`You are the ${role}${me ? `, ${me.displayName}` : ""}`)} {role === "buyer" ? "Your Buyer Pal is blue." : "Your Seller Pal is gold."}
           </p>
         </div>
         <Badge tone={stateTone(deal.state)}>{STATE_LABELS[deal.state]}</Badge>
+        <HistoryBadge events={snapshot.events} historyHash={snapshot.payment?.historyHash ?? null} />
         <nav className="no-print flex items-center gap-3 text-xs font-semibold text-[var(--accent-ink)]">
           <Link href={`/deals/${deal.id}?as=${other}`} className="underline-offset-2 hover:underline">
             View as {other}

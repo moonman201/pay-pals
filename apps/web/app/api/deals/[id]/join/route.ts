@@ -4,7 +4,7 @@ import { joinAsBuyer } from "@/lib/deal/flows/start";
 import { getServices } from "@/lib/services";
 
 export async function POST(req: Request, { params }: Params) {
-  return handle(async () => {
+  return handle(req, async () => {
     const body = await readBody(req, JoinBody);
     return joinAsBuyer(getServices(), (await params).id, { role: "buyer", ...body });
   });

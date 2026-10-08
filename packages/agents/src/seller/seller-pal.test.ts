@@ -54,12 +54,13 @@ describe("SellerPal.buildCard", () => {
     expect(card.photos).toEqual(cleanPs5.listingPhotos);
     expect(palMessage).toContain(`Serial ${CLEAN_SERIAL} read from the item`);
     expect(palMessage).toContain("They match.");
-    expect(palMessage).toContain("photo descriptions");
+    expect(palMessage).toContain("The vision model was not available, so this check used the photos' descriptions.");
+    expect(palMessage).not.toContain("could not open the photo files");
   });
 
   it("calls out a box label that does not match the item", async () => {
     const pal = createSellerPal({ anthropic: null });
-    const photos = cleanPs5.listingPhotos.map((p) => (p.whatItShows.startsWith("Original box label") ? { ...p, whatItShows: "Original box label. Serial AH900000001." } : p));
+    const photos = cleanPs5.listingPhotos.map((p) => (p.whatItShows.startsWith("Barcode label") ? { ...p, whatItShows: "Barcode label on a PlayStation 5 box. Serial AH900000001." } : p));
     const { data: card, palMessage } = await pal.buildCard({ ...buildInput(cleanPs5), photos });
     expect(card.serial).toBe(CLEAN_SERIAL);
     expect(card.boxSerial).toBe("AH900000001");
@@ -68,7 +69,7 @@ describe("SellerPal.buildCard", () => {
 
   it("never puts a box label serial in the item serial", async () => {
     const pal = createSellerPal({ anthropic: null });
-    const boxOnly = cleanPs5.listingPhotos.filter((p) => p.whatItShows.startsWith("Original box label"));
+    const boxOnly = cleanPs5.listingPhotos.filter((p) => p.whatItShows.startsWith("Barcode label"));
     const { data: card, palMessage } = await pal.buildCard({ ...buildInput(cleanPs5), photos: boxOnly, sellerNotes: "" });
     expect(card.serial).toBeNull();
     expect(card.boxSerial).toBe(CLEAN_SERIAL);
@@ -124,12 +125,13 @@ describe("SellerPal.buildCard", () => {
       return { brand: "Sony", model: "PlayStation 5", serial: `aj 204567113`, serial_on: onBox ? "packaging" : "item", item_present: true };
     });
     const pal = createSellerPal({ anthropic: model, fetchImage: async () => ({ data: "AAAA", mediaType: "image/jpeg" as const }) });
-    const photos = emptyBox.listingPhotos.map((p) => ({ ...p, url: `https://example.com${p.url}`, whatItShows: p.whatItShows.startsWith("Original box label") ? "The box label." : "Back of the console." }));
+    const photos = emptyBox.listingPhotos.map((p) => ({ ...p, url: `https://example.com${p.url}`, whatItShows: p.whatItShows.startsWith("Barcode label") ? "The box label." : "Back of the console." }));
     const { data: card, palMessage } = await pal.buildCard({ ...buildInput(emptyBox), photos });
     expect(card.serial).toBe(EMPTY_BOX_LOCKED_SERIAL);
     expect(card.boxSerial).toBe(EMPTY_BOX_LOCKED_SERIAL);
     expect(palMessage).toContain("They match.");
-    expect(palMessage).not.toContain("photo descriptions");
+    expect(palMessage).toContain("I looked at the 2 photos.");
+    expect(palMessage).not.toContain("description");
   });
 
   it("uses the seller's typed price when the listing names none, and refuses to invent one otherwise", async () => {
@@ -179,7 +181,7 @@ describe("SellerPal.applyRequest", () => {
     const noSerial = { ...v1, serial: null };
     const withSerial = await pal.applyRequest(noSerial, { field: "serial", request: "What is the serial?" }, `Serial number is ${CLEAN_SERIAL}.`);
     expect(withSerial.data.serial).toBe(CLEAN_SERIAL);
-    const boxPhoto = cleanPs5.listingPhotos.find((p) => p.whatItShows.startsWith("Original box label"))!;
+    const boxPhoto = cleanPs5.listingPhotos.find((p) => p.whatItShows.startsWith("Barcode label"))!;
     const fromBox = await pal.applyRequest(noSerial, { field: "serial", request: "What is the serial?" }, "Here is the box.", [boxPhoto]);
     expect(fromBox.data.serial).toBeNull();
   });
