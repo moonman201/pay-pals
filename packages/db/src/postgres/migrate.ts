@@ -27,13 +27,26 @@ export interface RunMigrationsOptions {
 
 const CONFIG: MigrationConfig = { migrationsFolder: "bundled:packages/db/drizzle" };
 
+/** 0003 adds deal_events.hash as nullable; 0004 makes it NOT NULL. The code backfill must run between them. */
+const HASH_COLUMN_MIGRATION = "0003";
+
+const toMeta = ({ sql, bps, folderMillis, hash }: (typeof MIGRATIONS)[number]): MigrationMeta => ({ sql: [...sql], bps, folderMillis, hash });
+
 export async function runMigrations(db: Db, options: RunMigrationsOptions = {}): Promise<void> {
   const { dialect, session } = db as unknown as MigratableDb;
   const stopAt = options.through ? MIGRATIONS.findIndex((m) => m.tag === options.through) : MIGRATIONS.length - 1;
   if (stopAt < 0) throw new Error(`Unknown migration tag ${options.through}`);
-  const metas: MigrationMeta[] = MIGRATIONS.slice(0, stopAt + 1).map(({ sql, bps, folderMillis, hash }) => ({ sql: [...sql], bps, folderMillis, hash }));
-  await dialect.migrate(metas, session, CONFIG);
+  const hashAt = MIGRATIONS.findIndex((m) => m.tag.startsWith(HASH_COLUMN_MIGRATION));
+
+  // Up to and including the migration that adds the hash column.
+  const firstStop = Math.min(stopAt, hashAt);
+  await dialect.migrate(MIGRATIONS.slice(0, firstStop + 1).map(toMeta), session, CONFIG);
+  if (stopAt < hashAt) return;
+
   // Events written before 0003 have no hash. The chain is computed in code
-  // (same hashEvent as contracts), not in SQL, so it runs here after the DDL.
-  if (stopAt >= MIGRATIONS.findIndex((m) => m.tag.startsWith("0003"))) await backfillEventHashes(db);
+  // (same hashEvent as contracts), not in SQL, so it runs here, before the
+  // migration that makes the column NOT NULL. Drizzle skips migrations it
+  // has already recorded, so passing the later ones alone is safe.
+  await backfillEventHashes(db);
+  if (stopAt > hashAt) await dialect.migrate(MIGRATIONS.slice(hashAt + 1, stopAt + 1).map(toMeta), session, CONFIG);
 }

@@ -29,6 +29,13 @@
       "when": 1791373896303,
       "tag": "0003_buyer_first_history",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1791453812540,
+      "tag": "0004_shipment_flags",
+      "breakpoints": true
     }
   ]
 }

@@ -98,5 +98,16 @@ export const MIGRATIONS: readonly BundledMigration[] = [
     "bps": true,
     "folderMillis": 1791373896303,
     "hash": "e79112dc0abb885183291fa84bbcc4387472fb36e41f8b261255cde621e258ad"
+  },
+  {
+    "tag": "0004_shipment_flags",
+    "sql": [
+      "ALTER TYPE \"public\".\"deal_event_kind\" ADD VALUE 'shipment_checked' BEFORE 'delivered';",
+      "\nALTER TABLE \"deal_events\" ALTER COLUMN \"hash\" SET NOT NULL;",
+      "\nALTER TABLE \"shipments\" ADD COLUMN \"flags\" jsonb DEFAULT '[]'::jsonb NOT NULL;"
+    ],
+    "bps": true,
+    "folderMillis": 1791453812540,
+    "hash": "96f8e3fef62b516c530ee605c37a9cefc72805d37c6b176697d6e4fa094cd44a"
   }
 ];

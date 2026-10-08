@@ -287,8 +287,10 @@ export function createMemoryDealStore(options: StoreOptions = {}): PayPalsStore 
     },
 
     async saveShipment(shipment: Shipment): Promise<Shipment> {
-      must(shipment.dealId).shipment = copy(shipment);
-      return copy(shipment);
+      // Same shape as the Postgres store: flags are always present, [] when none were raised.
+      const stored: Shipment = { ...copy(shipment), flags: copy(shipment.flags ?? []) };
+      must(shipment.dealId).shipment = stored;
+      return copy(stored);
     },
 
     async getShipment(dealId: string): Promise<Shipment | null> {
