@@ -4,7 +4,9 @@
  * pages, at desktop (1280) and phone (390) width. Each page is screenshotted
  * into screenshots/review-oct7/ (gitignored) and checked for horizontal
  * scroll, empty panels, the state badge, and flag badges that are separate
- * elements. Fixtures only, no keys.
+ * elements. Judge walk, Oct 8: the seeded deals are labelled as examples
+ * (J6), no range has equal ends (J4), and every caption shows once (J8).
+ * Fixtures only, no keys.
  */
 import { mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
@@ -87,6 +89,24 @@ async function expectSeparateFlagBadges(list: Locator, where: string): Promise<v
   }
 }
 
+/** J8: a photo frame shows its caption once, whether the image loaded (figcaption) or not (the placeholder's text). */
+async function expectCaptionsOnce(page: Page, where: string): Promise<void> {
+  const figures = page.locator("figure");
+  for (let i = 0; i < (await figures.count()); i++) {
+    const figure = figures.nth(i);
+    const caption = ((await figure.locator("figcaption").first().textContent()) ?? "").trim();
+    await expect(figure.locator("figcaption"), `${where}: figure ${i + 1} has one caption`).toHaveCount(caption ? 1 : 0);
+    if (caption) expect(((await figure.textContent()) ?? "").trim(), `${where}: figure ${i + 1} caption appears once`).toBe(caption);
+  }
+  const placeholders = page.getByTestId("photo-placeholder");
+  for (let i = 0; i < (await placeholders.count()); i++) {
+    const box = placeholders.nth(i);
+    const label = ((await box.getAttribute("aria-label")) ?? "").trim();
+    const text = ((await box.textContent()) ?? "").trim();
+    expect(text === label || text === "Photo", `${where}: placeholder ${i + 1} shows its caption once (${text})`).toBe(true);
+  }
+}
+
 const finished = ALL_FIXTURES.map((f) => [f.id, f] as const);
 
 test.describe("finished demo deals, desktop and phone", () => {
@@ -117,15 +137,26 @@ test.describe("finished demo deals, desktop and phone", () => {
         const flags = page.getByRole("list", { name: "Red flags" });
         if ((await flags.count()) > 0) await expectSeparateFlagBadges(flags, `${id} deal room at ${size.width}px (${roomShot})`);
 
-        // PLAN item 10: the hash chain chip in the header, computed on render. A seeded deal never shows the warning.
+        // PLAN item 10 and J6: the finished demo deals are seeded examples. The header says so, the chain chip
+        // reads as chained but not anchored, and nothing claims PayPal holds the hash. Never the warning.
         const header = page.getByRole("banner");
         await expect(header.getByText(/History does not match|History chain is broken/)).toHaveCount(0);
-        // The chip carries a small "chain" label beside its text, so match the sentence, not the whole element.
+        await expect(header.getByText("Example deal, seeded from a scenario")).toBeVisible();
+        await expect(header.getByText(/History hash-chained, \d+ events? \(example deal, no PayPal order\)/)).toBeVisible();
+        await expect(header.getByText(/History unchanged since PayPal order/)).toHaveCount(0);
         if (fixture.payment) {
-          await expect(header.getByText(/History unchanged since PayPal order/)).toBeVisible();
-        } else {
-          await expect(header.getByText(/History hash-chained, \d+ events?/)).toBeVisible();
+          const payment = page.locator("section").filter({ has: page.getByRole("heading", { name: "Payment" }) });
+          await expect(payment.getByText("Example order id", { exact: true })).toBeVisible();
+          await expect(payment.getByText(/no PayPal order was created/)).toBeVisible();
+          await expect(payment.getByText("PayPal order", { exact: true })).toHaveCount(0);
         }
+
+        // J4: no zero or equal-ended range anywhere on the page.
+        await expect(page.getByText(/\$0 to \$0/)).toHaveCount(0);
+        expect(((await page.locator("main").textContent()) ?? "")).not.toMatch(/\$(\d[\d,]*(?:\.\d+)?) to \$\1\b/);
+
+        // J8: every photo shows its caption once.
+        await expectCaptionsOnce(page, `${id} deal room at ${size.width}px (${roomShot})`);
 
         // Evidence page: a pack can exist where the card was locked; the fake slab never got that far.
         // Two assertions below are red until REVIEW.md 2026-10-07 entries land (builder-web): the clean deal's
@@ -149,12 +180,16 @@ test.describe("finished demo deals, desktop and phone", () => {
           await expectNoEmptyPanels(page, `${id} evidence page at ${size.width}px (${evidenceShot})`);
           const history = page.locator("section").filter({ has: page.getByRole("heading", { name: "Tamper-evident history" }) });
           await expect(history).toBeVisible();
+          // J6: a seeded example says its chain is intact but not anchored in a PayPal order; it never claims verified.
+          await expect(page.getByText("Example deal, seeded from a scenario").first()).toBeVisible();
+          await expect(history).toContainText(/\(example deal, no PayPal order\)/);
+          await expect(history).toContainText("the payment ids are placeholders");
+          await expect(history).not.toContainText(/Does not verify|do not reproduce|PayPal's own record holds it|Verified: the stored events/);
           if (fixture.payment) {
-            await expect(history).toContainText(`${dealId}#`);
-            await expect(history).not.toContainText(/Does not verify|do not reproduce/);
-            // The badge and the sentence may both say so; at least one element must.
-            await expect(history.getByText(/Verified: the stored events reproduce this hash\.|History unchanged since PayPal order/).first()).toBeVisible();
+            const paymentSection = page.locator("section").filter({ has: page.getByRole("heading", { name: "Payment" }) });
+            await expect(paymentSection).toContainText(`Example order id ${fixture.payment.paypalOrderId}`);
           }
+          await expectCaptionsOnce(page, `${id} evidence page at ${size.width}px (${evidenceShot})`);
         } else {
           await expect(page.getByRole("heading", { name: "No evidence pack yet" })).toBeVisible();
           await expect(page.getByText("never got that far", { exact: false })).toBeVisible();

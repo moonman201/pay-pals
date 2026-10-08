@@ -15,8 +15,23 @@ import { ALL_FIXTURES } from "@pay-pals/contracts";
 import type { EvidenceInput, ScenarioFixture } from "@pay-pals/contracts";
 import { buildEvidencePack, createBuyerPal, createFixtureCertLookup, createFixturePriceLookup, createSellerPal } from "@pay-pals/agents";
 
-/** Fails the test. */
-const FORBIDDEN = [/could not open the photo files/i, /went by (?:the |your )?photo descriptions/i];
+/**
+ * Fails the test. Oct 7 item 1: the caption fallback sentences. Judge walk
+ * J2: the keyless pals use the fixture cert lookup, so they may not claim
+ * PSA was consulted. J3: no image is read here, so no sentence may describe
+ * photo content. J4: a market range is never two equal numbers or zero.
+ */
+const FORBIDDEN = [
+  /could not open the photo files/i,
+  /went by (?:the |your )?photo descriptions/i,
+  /PSA's own database/i,
+  /we checked PSA/i,
+  /stock photo/i,
+  /\bI can see\b/i,
+  /matches the photo/i,
+  /\$0 to \$0/,
+  /\$(\d[\d,]*(?:\.\d+)?) to \$\1\b/,
+];
 /** Reported, not failed, until the photos land. */
 const SOFT = [/used the photo descriptions?/i, /could not be loaded/i];
 

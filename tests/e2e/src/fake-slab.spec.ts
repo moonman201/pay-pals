@@ -49,6 +49,10 @@ test.describe("fake slab stopped", () => {
     // The cert row on the item card names what the grader's record says, next to the cert number (review item 12).
     await expect(card.getByText(fakeSlab.certRecord!.subject!, { exact: false }).first()).toBeVisible();
 
+    // J4: the page never shows a range with equal ends or zeros.
+    await expect(page.getByText(/\$0 to \$0/)).toHaveCount(0);
+    expect(((await page.locator("main").textContent()) ?? "")).not.toMatch(/\$(\d[\d,]*(?:\.\d+)?) to \$\1\b/);
+
     const next = panel(page, "Next step");
     await expect(next).toBeVisible();
     await expect(page.getByRole("button", { name: /^Agree/ })).toHaveCount(0);
