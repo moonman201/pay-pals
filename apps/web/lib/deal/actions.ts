@@ -29,9 +29,17 @@ export const DEAL_ACTIONS: readonly DealAction[] = [
   { id: "cancel", label: "Cancel the deal", role: "either", to: "CANCELLED" },
 ];
 
-/** Actions the table allows from this state, for this side. */
+/**
+ * Actions the table allows from this state, for this side. Agree is a
+ * REVIEWED move only: the table also allows PAYMENT_PENDING back to AGREED
+ * (a cancelled payment), but that is not a button anyone presses.
+ */
 export function allowedActions(state: DealState, role: Role): DealAction[] {
-  return DEAL_ACTIONS.filter((a) => (a.role === role || a.role === "either") && canTransition(state, a.to));
+  return DEAL_ACTIONS.filter((a) => {
+    if (a.role !== role && a.role !== "either") return false;
+    if (a.id === "agree") return state === "REVIEWED";
+    return canTransition(state, a.to);
+  });
 }
 
 /** Moves that end the deal rather than advance it. They do not count as "something to do". */

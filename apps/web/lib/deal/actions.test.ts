@@ -16,6 +16,12 @@ describe("allowedActions", () => {
     expect(ids("AGREED", "seller")).toEqual(["cancel"]);
   });
 
+  it("never offers agree outside REVIEWED, even where the table allows a move back to AGREED", () => {
+    expect(ids("PAYMENT_PENDING", "buyer")).toEqual(["cancel"]);
+    expect(ids("PAYMENT_PENDING", "seller")).toEqual(["cancel"]);
+    expect(ids("INVITED", "buyer")).not.toContain("agree");
+  });
+
   it("lets only the seller ship once paid; nobody can cancel, but the buyer can report an issue", () => {
     expect(ids("PAID", "seller")).toEqual(["ship"]);
     expect(ids("PAID", "buyer")).toEqual(["report_issue"]);
