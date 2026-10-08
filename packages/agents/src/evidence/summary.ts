@@ -8,6 +8,7 @@ import { CONDITION_LABELS, historyMatchesHead } from "@pay-pals/contracts";
 import type { ClaudeClient } from "../claude/client";
 import { callText } from "../claude/text-call";
 import { plainCopy } from "../copy";
+import { PUBLIC_MODE_INSTRUCTION } from "../presentation";
 import { unansweredQuestions } from "./unanswered";
 
 function day(iso: string | null | undefined): string {
@@ -97,15 +98,16 @@ const SYSTEM = [
   "Plain words, short sentences, no em dashes, no exclamation marks, no opinion about who is at fault. Four to eight sentences.",
 ].join("\n");
 
-export async function writeSummary(input: EvidenceInput, client: ClaudeClient | null): Promise<string> {
+export async function writeSummary(input: EvidenceInput, client: ClaudeClient | null, publicMode = false): Promise<string> {
   const facts = deterministicSummary(input);
   if (!client) return facts;
+  const publicNote = publicMode ? ` ${PUBLIC_MODE_INSTRUCTION}` : "";
   const arrivalNote = (input.arrivalPhotos ?? []).length > 0 ? " Mention that the buyer's arrival photos are attached and what they show." : "";
   const unanswered = unansweredQuestions(input);
   const gapsNote =
     unanswered.length > 0 || (input.shipment?.flags ?? []).length > 0
       ? " State plainly any question the Buyer Pal asked the seller before payment that never got an answer, and any required packing photo the seller shipped without."
       : "";
-  const text = await callText(client, SYSTEM, `Facts, in order:\n${facts}\n\nWrite the summary.${arrivalNote}${gapsNote}`);
+  const text = await callText(client, SYSTEM, `Facts, in order:\n${facts}\n\nWrite the summary.${arrivalNote}${gapsNote}${publicNote}`);
   return text ? plainCopy(text, 4000) : facts;
 }
