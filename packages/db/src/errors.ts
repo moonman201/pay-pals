@@ -33,6 +33,18 @@ export class SellerJoinNotAllowedError extends Error {
   }
 }
 
+/** An append would land before the deal's latest event. The chain orders by (at, id), so time only moves forward within a deal. */
+export class EventOutOfOrderError extends Error {
+  constructor(
+    public readonly dealId: string,
+    public readonly at: string,
+    public readonly latestAt: string,
+  ) {
+    super(`Event for deal ${dealId} at ${at} is earlier than the deal's latest event at ${latestAt}; the clock must only move forward within a deal`);
+    this.name = "EventOutOfOrderError";
+  }
+}
+
 /** A stored event has no hash yet. Run the backfill (npm run db:backfill-hashes -w packages/db). */
 export class EventNotHashedError extends Error {
   constructor(public readonly eventId: string) {

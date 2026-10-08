@@ -9,6 +9,8 @@
  */
 export * as schema from "../schema";
 export { createMemoryDealStore } from "./memory/memory-store";
+export { createReplayClock, systemClock } from "./clock";
+export type { Clock, ReplayClock, StoreOptions } from "./clock";
 export { createPostgresDealStore, createPostgresDealStoreFromDb } from "./postgres/postgres-store";
 export type { PostgresDealStore } from "./postgres/postgres-store";
 export type { PayPalsStore, WebhookReceiptStore } from "@pay-pals/contracts";
@@ -20,6 +22,7 @@ export {
   CardVersionError,
   DealNotFoundError,
   EventNotHashedError,
+  EventOutOfOrderError,
   SellerJoinNotAllowedError,
 } from "./errors";
 export { backfillEventHashes } from "./postgres/backfill-hashes";

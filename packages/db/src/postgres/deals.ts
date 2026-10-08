@@ -2,7 +2,8 @@
  * Deals repository: create, read, find, set buyer, seller join, agreement
  * and the state transition. Every write that adds a timeline event does it
  * in one transaction with the deal row locked, through insertEvent, so the
- * hash chain stays linear.
+ * hash chain stays linear. Every timestamp comes from the store's clock,
+ * never from the database default.
  */
 import { and, asc, eq, inArray, isNull, type SQL } from "drizzle-orm";
 import type { CreateDealInput, Deal, DealEvent, DealState, Party, ScenarioId } from "@pay-pals/contracts";
@@ -15,6 +16,7 @@ import {
   mergeSeller,
   sellerJoinedEvent,
 } from "../card-rules";
+import type { Clock } from "../clock";
 import { DealNotFoundError } from "../errors";
 import { planTransition } from "../state-machine";
 import type { Db } from "./db";
@@ -22,7 +24,7 @@ import { insertEvent } from "./events";
 import { toDeal } from "./mappers";
 import { isUuid } from "./uuid";
 
-export function dealsRepo(db: Db) {
+export function dealsRepo(db: Db, clock: Clock) {
   async function lockRow(tx: Db, dealId: string) {
     if (!isUuid(dealId)) throw new DealNotFoundError(dealId);
     const [row] = await tx.select().from(deals).where(eq(deals.id, dealId)).for("update");
@@ -34,6 +36,7 @@ export function dealsRepo(db: Db) {
     lockRow,
 
     async createDeal(input: CreateDealInput): Promise<Deal> {
+      const at = clock();
       const [row] = await db
         .insert(deals)
         .values({
@@ -44,6 +47,8 @@ export function dealsRepo(db: Db) {
           sellerEmail: input.seller.email,
           buyerName: input.buyer?.displayName ?? null,
           buyerEmail: input.buyer?.email ?? null,
+          createdAt: at,
+          updatedAt: at,
         })
         .returning();
       return toDeal(row!);
@@ -75,7 +80,7 @@ export function dealsRepo(db: Db) {
       if (!isUuid(dealId)) throw new DealNotFoundError(dealId);
       const [row] = await db
         .update(deals)
-        .set({ buyerName: buyer.displayName, buyerEmail: buyer.email, updatedAt: new Date() })
+        .set({ buyerName: buyer.displayName, buyerEmail: buyer.email, updatedAt: clock() })
         .where(eq(deals.id, dealId))
         .returning();
       if (!row) throw new DealNotFoundError(dealId);
@@ -88,7 +93,7 @@ export function dealsRepo(db: Db) {
         assertSellerMayJoin(dealId, current.state);
         if (current.sellerJoinedAt !== null) return current;
         const merged = mergeSeller(current.seller, seller);
-        const when = new Date();
+        const when = clock();
         const [updated] = await tx
           .update(deals)
           .set({ sellerName: merged.displayName, sellerEmail: merged.email, sellerJoinedAt: when, updatedAt: when })
@@ -100,7 +105,7 @@ export function dealsRepo(db: Db) {
       });
     },
 
-    async recordAgreement(dealId: string, role: "buyer" | "seller", at: string = new Date().toISOString()): Promise<Deal> {
+    async recordAgreement(dealId: string, role: "buyer" | "seller", at: string = clock().toISOString()): Promise<Deal> {
       return db.transaction(async (tx) => {
         const deal = toDeal(await lockRow(tx, dealId));
         assertAgreementAllowed(dealId, deal.state);
@@ -121,13 +126,13 @@ export function dealsRepo(db: Db) {
     async transition(dealId: string, to: DealState, actor: DealEvent["actor"], summary: string): Promise<Deal> {
       return db.transaction(async (tx) => {
         const row = await lockRow(tx, dealId);
-        const plan = planTransition(toDeal(row), to, actor, summary);
+        const plan = planTransition(toDeal(row), to, actor, summary, clock().toISOString());
+        await insertEvent(tx, plan.event);
         const [updated] = await tx
           .update(deals)
           .set({ state: plan.to, updatedAt: new Date(plan.event.at) })
           .where(eq(deals.id, dealId))
           .returning();
-        await insertEvent(tx, plan.event);
         return toDeal(updated!);
       });
     },

@@ -7,21 +7,23 @@
  */
 import { afterAll, beforeAll, describe } from "vitest";
 import { runDealStoreConformance } from "../conformance/deal-store.conformance";
-import { createPostgresDealStore, type PostgresDealStore } from "./postgres-store";
+import { connectPostgres, type PostgresConnection } from "./db";
+import { createPostgresDealStoreFromDb } from "./postgres-store";
 
 const url = process.env.TEST_DATABASE_URL;
 
 describe.skipIf(!url)("postgres (TEST_DATABASE_URL)", () => {
-  let store: PostgresDealStore;
+  let connection: PostgresConnection;
 
   beforeAll(async () => {
-    store = createPostgresDealStore(url!);
-    await store.migrate();
+    connection = connectPostgres(url!);
+    await connection.migrate();
   }, 60_000);
 
   afterAll(async () => {
-    await store?.close();
+    await connection?.close();
   });
 
-  runDealStoreConformance("postgres", async () => store);
+  // One connection for the whole suite; a store per call so a test can bring its own clock.
+  runDealStoreConformance("postgres", async (options) => createPostgresDealStoreFromDb(connection.db, options));
 });
