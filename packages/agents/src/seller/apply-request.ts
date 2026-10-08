@@ -19,6 +19,7 @@ import { parseConditionGrade, parseIncluded, parsePrice } from "./listing-parse"
 export interface ApplyRequestDeps {
   client: ClaudeClient | null;
   fetchImage?: ImageFetcher;
+  photoBaseUrl?: string | null;
 }
 
 export class CardLockedError extends Error {
@@ -95,7 +96,7 @@ export async function applyBuyerRequest(
       break;
     }
     case "serial": {
-      const readings = await readPhotos(photos, { client: deps.client, fetchImage: deps.fetchImage, hints: { brand: card.brand, model: card.model } });
+      const readings = await readPhotos(photos, { client: deps.client, fetchImage: deps.fetchImage, photoBaseUrl: deps.photoBaseUrl, hints: { brand: card.brand, model: card.model } });
       const serial = itemSerial(readings)?.serial ?? serialFromText(sellerReply);
       if (serial && serial !== card.serial) {
         next.serial = serial;
