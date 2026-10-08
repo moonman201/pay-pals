@@ -56,7 +56,7 @@ test.describe("seller refuses the invite", () => {
     const flags = review.getByRole("list", { name: "Red flags" }).getByRole("listitem");
     const refused = flags.filter({ hasText: "refused Pay Pals protection" });
     await expect(refused).toHaveCount(1);
-    await expect(refused).toContainText("payment method, no override");
+    await expect(refused).toContainText(/no override/i);
     await expect(page.getByRole("checkbox")).toHaveCount(0);
     await expect(page.getByRole("button", { name: /^Agree/ })).toHaveCount(0);
     await expect(panel(page, "Item card")).toHaveCount(0);

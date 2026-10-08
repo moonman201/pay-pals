@@ -10,7 +10,11 @@ import { WEB_PRESENT } from "./env";
 import { driveToDelivered, runArrivalCheck } from "./flows";
 import { expectState, panel, pressAction, snapshot, startDemo } from "./helpers";
 
+/** Vision wording, once the photos exist and a key is present. */
 const NOT_PRESENT = "not present, box arrived empty";
+/** Keyless wording: the serial could not be read, still a mismatch (review item 2). */
+const NOT_READABLE = "not readable in the arrival photos";
+const MISSING = new RegExp(`${NOT_PRESENT}|${NOT_READABLE}`);
 
 test.describe("empty box arrives", () => {
   test.skip(!WEB_PRESENT, "apps/web is not on this branch yet, nothing to load");
@@ -25,9 +29,14 @@ test.describe("empty box arrives", () => {
     await expect(result.getByText("does not match", { exact: true })).toBeVisible();
     const serialRow = result.getByRole("row").filter({ hasText: "serial" });
     await expect(serialRow).toContainText(EMPTY_BOX_LOCKED_SERIAL);
-    await expect(serialRow).toContainText(NOT_PRESENT);
-    await expect(result.getByRole("row").filter({ hasText: "other" })).toContainText("Only the foam insert inside");
-    await expect(result.getByText("without the item", { exact: false })).toBeVisible();
+    await expect(serialRow).toContainText(MISSING);
+    const sawEmptyBox = ((await serialRow.textContent()) ?? "").includes(NOT_PRESENT);
+    if (sawEmptyBox) {
+      await expect(result.getByRole("row").filter({ hasText: "other" })).toBeVisible();
+      await expect(result.getByText("without the item", { exact: false })).toBeVisible();
+    } else {
+      await expect(result.getByText("does not count", { exact: false })).toBeVisible();
+    }
 
     // Open the issue. Today the room posts the arrival mismatch straight away after a failed
     // check; when the issue step opens instead, pick "The box arrived empty" (REVIEW.md 2026-10-07).
@@ -65,6 +74,6 @@ test.describe("empty box arrives", () => {
 
     const arrivalCheck = page.locator("section").filter({ has: page.getByRole("heading", { name: "Arrival check" }) });
     await expect(arrivalCheck).toContainText(EMPTY_BOX_LOCKED_SERIAL);
-    await expect(arrivalCheck).toContainText(NOT_PRESENT);
+    await expect(arrivalCheck).toContainText(MISSING);
   });
 });

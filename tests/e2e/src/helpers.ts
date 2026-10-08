@@ -14,8 +14,14 @@ export type Side = "buyer" | "seller";
  * React stamps every node it owns with a "__reactProps" key once it has.
  */
 export async function waitForHydration(page: Page): Promise<void> {
-  await page.waitForFunction(() =>
-    Array.from(document.querySelectorAll("button")).some((b) => Object.keys(b).some((k) => k.startsWith("__reactProps"))),
+  // A finished deal room may have no button at all; any interactive element React owns will do.
+  // React stamps every element it renders, so any stamped element means the page is live. Some pages
+  // (an evidence page with nothing to build) have no button at all. The first visit to a route on the
+  // dev server compiles it, which can take most of a minute.
+  await page.waitForFunction(
+    () => Array.from(document.body.querySelectorAll("*")).some((el) => Object.keys(el).some((k) => k.startsWith("__reactProps"))),
+    undefined,
+    { timeout: PAL_TIMEOUT },
   );
 }
 
@@ -114,13 +120,27 @@ export async function addAllDemoPhotos(step: Locator): Promise<number> {
   return added;
 }
 
-/** The page fits its viewport: nothing forces a horizontal scroll. */
+/** The page fits its viewport: nothing forces a horizontal scroll. On failure the message names the elements that overflow. */
 export async function expectNoHorizontalScroll(page: Page, where: string): Promise<void> {
-  const widths = await page.evaluate(() => ({
-    scroll: document.scrollingElement?.scrollWidth ?? 0,
-    inner: window.innerWidth,
-  }));
-  expect(widths.scroll, `${where}: scrollWidth ${widths.scroll} > innerWidth ${widths.inner}`).toBeLessThanOrEqual(widths.inner);
+  const result = await page.evaluate(() => {
+    const inner = window.innerWidth;
+    const scroll = document.scrollingElement?.scrollWidth ?? 0;
+    const offenders: string[] = [];
+    if (scroll > inner) {
+      // A box can sit inside the viewport while its content runs past it, so look at scrollWidth as well as the box.
+      for (const el of Array.from(document.body.querySelectorAll<HTMLElement>("*"))) {
+        const r = el.getBoundingClientRect();
+        const spills = el.scrollWidth > el.clientWidth + 1 && el.scrollWidth > inner;
+        if ((r.right > inner + 1 && r.width > 0) || spills) {
+          const text = (el.textContent ?? "").trim().replace(/\s+/g, " ").slice(0, 60);
+          offenders.push(`<${el.tagName.toLowerCase()} class="${el.className.toString().slice(0, 70)}"> right=${Math.round(r.right)} scrollWidth=${el.scrollWidth} clientWidth=${el.clientWidth} "${text}"`);
+        }
+        if (offenders.length >= 8) break;
+      }
+    }
+    return { scroll, inner, offenders };
+  });
+  expect(result.scroll, `${where}: scrollWidth ${result.scroll} > innerWidth ${result.inner}. Overflowing: ${result.offenders.join(" | ") || "(none found)"}`).toBeLessThanOrEqual(result.inner);
 }
 
 export interface Snapshot {
