@@ -95,7 +95,7 @@ export function DealRoom({ snapshot, role }: { snapshot: DealSnapshot; role: Rol
       <main className="mx-auto grid max-w-6xl gap-4 px-4 py-4 md:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] md:py-6">
         <div className="min-w-0 space-y-4">
           {currentCard ? (
-            <ItemCardView cards={snapshot.cards} currentVersion={deal.currentCardVersion} lockedVersion={deal.lockedCardVersion} certCheck={snapshot.verdict?.certCheck ?? null} />
+            <ItemCardView cards={snapshot.cards} currentVersion={deal.currentCardVersion} lockedVersion={deal.lockedCardVersion} certCheck={snapshot.verdict?.certCheck ?? null} dealId={deal.id} />
           ) : null}
           {role === "buyer" && state === "INVITED" ? <InvitePanel deal={deal} /> : null}
           {role === "buyer" && state === "INVITED" && !snapshot.inviteDeclined ? <RefusalStep dealId={deal.id} onDone={refresh} /> : null}
@@ -121,7 +121,7 @@ export function DealRoom({ snapshot, role }: { snapshot: DealSnapshot; role: Rol
           ) : null}
           {snapshot.payment ? <PaymentSummary payment={snapshot.payment} /> : null}
           {snapshot.shipment ? <ShipmentSummary shipment={snapshot.shipment} /> : null}
-          {snapshot.arrivalCheck ? <ArrivalResult check={snapshot.arrivalCheck} /> : null}
+          {snapshot.arrivalCheck ? <ArrivalResult check={snapshot.arrivalCheck} lockedCard={snapshot.lockedCard} /> : null}
 
           {needsBuyer ? (
             <JoinForm dealId={deal.id} onDone={refresh} />
@@ -141,7 +141,7 @@ export function DealRoom({ snapshot, role }: { snapshot: DealSnapshot; role: Rol
                 onAction={onAction}
               />
               {error ? (
-                <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-stop">
+                <p role="alert" className="rounded-lg border border-stop-line bg-stop-soft px-3 py-2 text-sm text-stop">
                   {error}
                 </p>
               ) : null}

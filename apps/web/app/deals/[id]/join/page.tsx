@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { ProgressStepper } from "@/components/deal/ProgressStepper";
 import { SellerJoinForm } from "@/components/join/SellerJoinForm";
 import { FlowError } from "@/lib/deal/errors";
 import { canSellerJoin } from "@/lib/deal/flows/invite";
@@ -18,6 +19,9 @@ export default async function JoinPage({ params }: Props) {
     return (
       <main className="theme-seller mx-auto max-w-2xl px-4 py-8 sm:py-12">
         <p className="text-sm font-black tracking-tight text-navy">Pay Pals</p>
+        <div className="mt-3">
+          <ProgressStepper state={snapshot.deal.state} events={snapshot.events} />
+        </div>
         <h1 className="mt-4 text-3xl font-black text-navy">{snapshot.deal.buyer?.displayName ?? "A buyer"} wants to buy from you with Pay Pals Protection</h1>
         <p className="mt-2 text-sm text-muted">
           You get paid through a PayPal Goods and Services payment to your own PayPal account. Your Seller Pal turns your photos into an item card; the buyer&apos;s pal checks it;

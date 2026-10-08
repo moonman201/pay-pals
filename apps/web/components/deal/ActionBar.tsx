@@ -63,7 +63,7 @@ export function ActionBar({ state, role, verdict, dealId, busy, hasLockedCard, a
       <Panel title="Next step" accent>
         <p className="text-sm">{ENDINGS[state]}</p>
         {hasLockedCard ? (
-          <Link href={`/deals/${dealId}/evidence?as=${role}`} className="mt-2 inline-block text-sm font-semibold text-[var(--accent-ink)] underline-offset-2 hover:underline">
+          <Link href={`/deals/${dealId}/evidence?as=${role}`} className="mt-1 inline-flex min-h-11 items-center text-sm font-semibold text-[var(--accent-ink)] underline-offset-2 hover:underline">
             Open the evidence pack
           </Link>
         ) : null}
@@ -75,7 +75,7 @@ export function ActionBar({ state, role, verdict, dealId, busy, hasLockedCard, a
     <Panel title="Next step" accent>
       {gate === "blocked" ? <p className="mb-3 text-sm font-semibold text-stop">{BLOCKED_SENTENCE}</p> : null}
       {gate === "stop_override" && verdict ? (
-        <div role="alert" className="mb-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-ink">
+        <div role="alert" className="mb-3 rounded-lg border border-stop-line bg-stop-soft p-3 text-sm text-ink">
           {stopWarning(verdict).map((line) => (
             <p key={line} className="mb-1 last:mb-0">
               {line}

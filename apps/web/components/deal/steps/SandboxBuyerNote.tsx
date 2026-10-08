@@ -17,7 +17,7 @@ function CopyField({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center gap-2">
       <span className="w-20 shrink-0 text-xs font-semibold uppercase tracking-wide text-muted">{label}</span>
-      <code className="min-w-0 flex-1 truncate rounded bg-white px-2 py-1 text-xs">{value}</code>
+      <code className="min-w-0 flex-1 truncate rounded bg-surface px-2 py-1 text-xs">{value}</code>
       <Button variant="secondary" className="shrink-0 px-3 py-1" onClick={copy} aria-label={`Copy ${label.toLowerCase()}`}>
         {copied ? "Copied" : "Copy"}
       </Button>

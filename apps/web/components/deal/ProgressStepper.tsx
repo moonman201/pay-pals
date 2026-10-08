@@ -1,0 +1,64 @@
+import type { DealEvent, DealState } from "@pay-pals/contracts";
+import { dealProgress, type ProgressEnd } from "@/lib/deal/progress";
+import { CheckIcon, IssueIcon, ShieldStopIcon } from "../ui/icons";
+
+const END_STYLE: Record<NonNullable<ProgressEnd>["kind"], string> = {
+  blocked: "border-stop-line bg-stop-soft text-stop",
+  issue: "border-caution-line bg-caution-soft text-caution",
+  cancelled: "border-line bg-wash text-muted",
+};
+
+function EndIcon({ kind }: { kind: NonNullable<ProgressEnd>["kind"] }) {
+  if (kind === "blocked") return <ShieldStopIcon size={16} />;
+  if (kind === "issue") return <IssueIcon size={16} />;
+  return null;
+}
+
+/**
+ * Where the deal stands, as seven steps. Done steps fill with the side's
+ * colour, the current one pulses once, and a deal that ended early carries
+ * its end badge right after the last step it reached.
+ */
+export function ProgressStepper({ state, events, className = "" }: { state: DealState; events: readonly DealEvent[]; className?: string }) {
+  const progress = dealProgress(state, events);
+  const lastDone = progress.steps.reduce((acc, s, i) => (s.status === "done" ? i : acc), -1);
+  return (
+    <nav aria-label="Deal progress" className={`-mx-4 overflow-x-auto px-4 ${className}`} data-testid="progress-stepper">
+      <ol className="flex min-w-max items-center sm:min-w-0 sm:flex-wrap sm:gap-y-1">
+        {progress.steps.map((step, i) => {
+          const done = step.status === "done";
+          const current = step.status === "current";
+          return (
+            <li key={step.id} className="flex items-center" aria-current={current ? "step" : undefined} data-status={step.status}>
+              {i > 0 ? <span aria-hidden className={`h-0.5 w-5 sm:w-8 ${done || current ? "bg-[var(--accent)]" : "bg-line"}`} /> : null}
+              <span className="flex items-center gap-2 py-2">
+                <span
+                  aria-hidden
+                  className={`motion-step flex h-6 w-6 items-center justify-center rounded-full border-2 text-[11px] font-bold ${
+                    done
+                      ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)]"
+                      : current
+                        ? "border-[var(--accent)] bg-surface text-[var(--accent-ink)] shadow-[0_0_0_4px_var(--accent-soft)]"
+                        : "border-line bg-surface text-muted"
+                  }`}
+                >
+                  {done ? <CheckIcon size={14} strokeWidth={3} /> : i + 1}
+                </span>
+                <span className={`text-xs ${current ? "font-bold text-[var(--accent-ink)]" : done ? "font-semibold text-ink" : "text-muted"}`}>{step.label}</span>
+              </span>
+              {progress.end && i === Math.max(lastDone, 0) ? (
+                <>
+                  <span aria-hidden className="h-0.5 w-5 bg-line sm:w-8" />
+                  <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-bold ${END_STYLE[progress.end.kind]}`} data-testid="progress-end">
+                    <EndIcon kind={progress.end.kind} />
+                    {progress.end.label}
+                  </span>
+                </>
+              ) : null}
+            </li>
+          );
+        })}
+      </ol>
+    </nav>
+  );
+}

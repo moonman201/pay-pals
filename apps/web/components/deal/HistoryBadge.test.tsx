@@ -33,4 +33,16 @@ describe("HistoryBadge", () => {
     render(<HistoryBadge events={events.slice(0, 3)} historyHash={null} />);
     expect(screen.getByTestId("history-badge")).toHaveTextContent("History hash-chained, 3 events");
   });
+
+  it("wears a seal only once there is a verdict: green when verified, red on a mismatch, none before an order", () => {
+    const { container, unmount } = render(<HistoryBadge events={events} historyHash={head} />);
+    expect(container.querySelector("svg.text-go")).not.toBeNull();
+    unmount();
+    const edited = events.map((e, i) => (i === 1 ? { ...e, summary: "changed" } : e));
+    const red = render(<HistoryBadge events={edited} historyHash={head} />);
+    expect(red.container.querySelector("svg.text-stop")).not.toBeNull();
+    red.unmount();
+    const plain = render(<HistoryBadge events={events.slice(0, 3)} historyHash={null} />);
+    expect(plain.container.querySelector("svg")).toBeNull();
+  });
 });

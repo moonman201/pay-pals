@@ -79,7 +79,7 @@ export function PhotoInput({ value, onChange, addedBy, suggestions = [], label =
                 type="button"
                 aria-label={`Remove photo: ${p.whatItShows}`}
                 onClick={() => onChange(value.filter((v) => v.url !== p.url))}
-                className="absolute -right-1 -top-1 h-5 w-5 rounded-full border border-line bg-white text-xs leading-none text-muted"
+                className="absolute -right-1 -top-1 h-5 w-5 rounded-full border border-line bg-surface text-xs leading-none text-muted"
               >
                 x
               </button>

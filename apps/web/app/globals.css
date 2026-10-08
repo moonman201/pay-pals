@@ -1,45 +1,40 @@
 @import "tailwindcss";
+@import "./tokens.css";
 
-/* Brand tokens. Buyer side is PayPal navy and blue, seller side is gold. */
-@theme {
-  --color-navy: #003087;
-  --color-blue: #0070e0;
-  --color-sky: #009cde;
-  --color-gold: #c9960c;
-  --color-gold-deep: #6f4e00;
-  --color-ink: #10213a;
-  --color-muted: #5c6b80;
-  --color-line: #e2e8f0;
-  --color-wash: #f5f8fc;
-  --color-go: #1a7f4b;
-  --color-caution: #b26a00;
-  --color-stop: #c0262d;
-}
+/* Utility names map onto the runtime tokens, so dark mode and the side themes work through the same classes. */
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-wash: var(--wash);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
 
-:root,
-.theme-buyer {
-  --accent: #0070e0;
-  --accent-ink: #003087;
-  --accent-soft: #e8f1fd;
-  --accent-line: #bcd6f7;
-  --accent-contrast: #ffffff;
-}
+  --color-blue: var(--buyer);
+  --color-navy: var(--buyer-ink);
+  --color-gold: var(--seller);
+  --color-gold-deep: var(--seller-ink);
 
-.theme-seller {
-  --accent: #c9960c;
-  --accent-ink: #6f4e00;
-  --accent-soft: #fbf3dc;
-  --accent-line: #ead9a3;
-  --accent-contrast: #1f1500;
+  --color-go: var(--go);
+  --color-go-soft: var(--go-soft);
+  --color-go-line: var(--go-line);
+  --color-caution: var(--caution);
+  --color-caution-soft: var(--caution-soft);
+  --color-caution-line: var(--caution-line);
+  --color-stop: var(--stop);
+  --color-stop-soft: var(--stop-soft);
+  --color-stop-line: var(--stop-line);
+
+  --shadow-card: var(--shadow);
 }
 
 html {
-  background: #ffffff;
+  background: var(--bg);
 }
 
 body {
-  background: #ffffff;
-  color: var(--color-ink);
+  background: var(--bg);
+  color: var(--ink);
   font-family:
     ui-sans-serif,
     system-ui,
@@ -50,6 +45,101 @@ body {
     Arial,
     sans-serif;
   -webkit-font-smoothing: antialiased;
+  font-variant-numeric: tabular-nums;
+}
+
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+}
+
+input,
+textarea,
+select {
+  background: var(--surface);
+  color: var(--ink);
+  min-height: 2.75rem;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--muted);
+}
+
+/* Browser surfaces take the side's colour. */
+::selection {
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+* {
+  scrollbar-color: var(--line) transparent;
+}
+
+/*
+ * Motion. Three short moments, each from an already visible state: the
+ * item card settling as it locks, the current step lighting up, a flag
+ * card revealing. All off under prefers-reduced-motion.
+ */
+@keyframes lock-settle {
+  from {
+    transform: scale(0.985);
+    box-shadow: 0 0 0 0 var(--accent-soft);
+  }
+  to {
+    transform: scale(1);
+    box-shadow: 0 0 0 6px transparent;
+  }
+}
+
+@keyframes step-light {
+  from {
+    box-shadow: 0 0 0 0 var(--accent-soft);
+  }
+  to {
+    box-shadow: 0 0 0 4px var(--accent-soft);
+  }
+}
+
+@keyframes reveal {
+  from {
+    opacity: 0.4;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.motion-lock {
+  animation: lock-settle 480ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+[aria-current="step"] .motion-step {
+  animation: step-light 600ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.motion-reveal {
+  animation: reveal 360ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .motion-lock,
+  [aria-current="step"] .motion-step,
+  .motion-reveal {
+    animation: none;
+  }
+  * {
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 @media print {
