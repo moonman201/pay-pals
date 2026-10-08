@@ -70,6 +70,9 @@ async function gatherEvidence(delivered: DeliveredDeal): Promise<EvidenceInput> 
 }
 
 describe("empty-box: arrival check to evidence pack", () => {
+  // Red until PLAN item 2 (builder-agents) lands: the captions now describe only what is visible
+  // ("Grey foam insert inside."), so the empty-box finding has to come from the pal looking at the
+  // arrival photo, not from caption words. Today the keyless pal can only say the serial is unreadable.
   it("finds no console serial, names the mismatch against the locked card, and the box label does not count", async () => {
     const delivered = await deliverEmptyBox();
     const check = await checkAndRaiseIssue(delivered);

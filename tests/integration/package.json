@@ -2,7 +2,7 @@
   "name": "@pay-pals/integration-tests",
   "version": "0.1.0",
   "private": true,
-  "description": "Cross-module tests driven by the three scenario fixtures: agents into the deal store, the locked card into the PayPal order body, PayPal webhooks into deal state. No network, no database.",
+  "description": "Cross-module tests driven by the three scenario fixtures: agents into the deal store, the locked card into the PayPal order body, PayPal webhooks into deal state, the web seeder's timeline, and the evidence pack view with a tampered history. No network, no database.",
   "type": "module",
   "scripts": {
     "typecheck": "tsc -p tsconfig.json --noEmit",
@@ -13,5 +13,11 @@
     "@pay-pals/contracts": "*",
     "@pay-pals/db": "*",
     "@pay-pals/paypal": "*"
+  },
+  "devDependencies": {
+    "@testing-library/react": "^16.3.0",
+    "jsdom": "^26.1.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
   }
 }
