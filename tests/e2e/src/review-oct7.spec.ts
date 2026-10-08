@@ -14,10 +14,15 @@ import { fileURLToPath } from "node:url";
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { ALL_FIXTURES } from "@pay-pals/contracts";
 import type { ScenarioFixture } from "@pay-pals/contracts";
-import { WEB_PRESENT } from "./env";
-import { expectNoHorizontalScroll, waitForHydration } from "./helpers";
+import { STARTS_SERVER, WEB_PRESENT } from "./env";
+import { expectNoHorizontalScroll, snapshot, waitForHydration } from "./helpers";
 
-const SHOTS = resolve(dirname(fileURLToPath(import.meta.url)), "..", "screenshots", "review-oct7");
+/** Against a server we did not start (E2E_BASE_URL, for example production) the pass is read-only: no evidence build. */
+const REMOTE = !STARTS_SERVER;
+const SHOTS = resolve(dirname(fileURLToPath(import.meta.url)), "..", "screenshots", REMOTE ? "review-oct7-production" : "review-oct7");
+
+/** Sentences that must never reach a page (Oct 7 item 1, judge walk J4). */
+const FORBIDDEN_PAGE_TEXT = [/could not open the photo files/i, /went by the photo descriptions/i, /\$0 to \$0/, /\$(\d[\d,]*(?:\.\d+)?) to \$\1\b/];
 const WIDTHS = [
   { name: "desktop", width: 1280, height: 900 },
   { name: "phone", width: 390, height: 844 },
@@ -151,12 +156,26 @@ test.describe("finished demo deals, desktop and phone", () => {
           await expect(payment.getByText("PayPal order", { exact: true })).toHaveCount(0);
         }
 
-        // J4: no zero or equal-ended range anywhere on the page.
-        await expect(page.getByText(/\$0 to \$0/)).toHaveCount(0);
-        expect(((await page.locator("main").textContent()) ?? "")).not.toMatch(/\$(\d[\d,]*(?:\.\d+)?) to \$\1\b/);
+        // Oct 7 item 1 and J4: no caption-fallback sentence, no zero or equal-ended range, anywhere on the page.
+        const roomText = (await page.locator("body").textContent()) ?? "";
+        for (const pattern of FORBIDDEN_PAGE_TEXT) expect(roomText, `${id} deal room at ${size.width}px must not match ${pattern}`).not.toMatch(pattern);
 
-        // J8: every photo shows its caption once.
+        // J8: every photo shows its caption once. Buyer-started deals show the new invite wording.
         await expectCaptionsOnce(page, `${id} deal room at ${size.width}px (${roomShot})`);
+        const timeline = page.locator("section").filter({ has: page.getByRole("heading", { name: "Timeline" }) }).getByRole("listitem");
+        if (fixture.deal.startedBy === "buyer") {
+          await expect(timeline.filter({ hasText: "Invite link created for the seller" })).toHaveCount(1);
+          await expect(timeline.filter({ hasText: "Invite sent to the seller's PayPal email" })).toHaveCount(0);
+        }
+
+        // Item 7: the seeded dates run in order and the story ended before now (read-only GET).
+        const snap = await snapshot(page, dealId!);
+        const ats = snap.events.map((e) => Date.parse(e.at));
+        expect(ats.length, `${id}: events`).toBeGreaterThan(0);
+        for (let i = 1; i < ats.length; i++) expect(ats[i], `${id}: event ${i + 1} (${snap.events[i]!.kind}) is not before event ${i}`).toBeGreaterThanOrEqual(ats[i - 1]!);
+        expect(ats[ats.length - 1], `${id}: the last event ${snap.events[ats.length - 1]!.at} is before now`).toBeLessThan(Date.now());
+        if (snap.payment?.createdAt) expect(Date.parse(snap.payment.createdAt), `${id}: payment created before now`).toBeLessThan(Date.now());
+        expect(snap.deal.state).toBe(fixture.deal.state);
 
         // Evidence page: a pack can exist where the card was locked; the fake slab never got that far.
         // Two assertions below are red until REVIEW.md 2026-10-07 entries land (builder-web): the clean deal's
@@ -164,17 +183,27 @@ test.describe("finished demo deals, desktop and phone", () => {
         // deal-id#hash token forces a horizontal scroll.
         await page.goto(`/deals/${dealId}/evidence?as=buyer`);
         await waitForHydration(page);
+        let built = Boolean(fixture.deal.lockedCardVersion);
         if (fixture.deal.lockedCardVersion) {
           // The clean deal ends without a pack (nothing went wrong); either side builds one on this page.
+          // Against a remote server the pass stays read-only, so the empty state is accepted as is.
           const build = page.getByRole("button", { name: "Build the evidence pack" });
           if ((await build.count()) > 0) {
-            await build.click();
-            await expect(page.getByText("Pay Pals evidence pack")).toBeVisible({ timeout: 60_000 });
+            if (REMOTE) built = false;
+            else {
+              await build.click();
+              await expect(page.getByText("Pay Pals evidence pack")).toBeVisible({ timeout: 60_000 });
+            }
           }
         }
         const evidenceShot = await shoot(page, `${id}-evidence-${size.name}`);
         await expectNoHorizontalScroll(page, `${id} evidence page at ${size.width}px (${evidenceShot})`);
-        if (fixture.deal.lockedCardVersion) {
+        const evidenceText = (await page.locator("body").textContent()) ?? "";
+        for (const pattern of FORBIDDEN_PAGE_TEXT) expect(evidenceText, `${id} evidence page at ${size.width}px must not match ${pattern}`).not.toMatch(pattern);
+        if (fixture.deal.lockedCardVersion && !built) {
+          await expect(page.getByRole("heading", { name: "No evidence pack yet" })).toBeVisible();
+          await expect(page.getByRole("button", { name: "Build the evidence pack" })).toBeVisible();
+        } else if (fixture.deal.lockedCardVersion) {
           await expect(page.getByText("Pay Pals evidence pack")).toBeVisible();
           await expect(page.getByText(`Deal state: ${STATE_LABEL[fixture.deal.state]}`, { exact: false })).toBeVisible();
           await expectNoEmptyPanels(page, `${id} evidence page at ${size.width}px (${evidenceShot})`);

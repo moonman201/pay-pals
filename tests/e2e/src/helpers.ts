@@ -152,9 +152,10 @@ export interface Snapshot {
     lockedCardVersion: number | null;
     currentCardVersion: number;
   };
+  events: { kind: string; at: string }[];
   hasEvidence: boolean;
   inviteDeclined: boolean;
-  payment: { historyHash?: string | null } | null;
+  payment: { historyHash?: string | null; createdAt?: string; capturedAt?: string | null } | null;
 }
 
 /** GET /api/deals/[id], the full snapshot, for the few checks that are awkward on the page. */
