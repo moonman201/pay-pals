@@ -54,7 +54,8 @@ export async function agreeAsBuyer(page: Page, version: number): Promise<void> {
   const override = next.getByRole("checkbox");
   if ((await override.count()) > 0) await override.check();
   await next.getByRole("button", { name: /^Agree( and lock the card)?$/ }).click();
-  await expect(next.getByText(`You agreed to version ${version}, waiting for the other side.`)).toBeVisible();
+  // The room re-renders in full after the agreement; on a busy dev server that can take a while.
+  await expect(next.getByText(`You agreed to version ${version}, waiting for the other side.`)).toBeVisible({ timeout: PAL_TIMEOUT });
   await expectState(page, "Reviewed");
 }
 
@@ -96,7 +97,8 @@ export async function payWithDemoButtons(page: Page, method: "PayPal" | "Venmo" 
   const pay = panel(page, "Pay");
   await expect(pay.getByText("Goods and Services", { exact: false })).toBeVisible();
   await pay.getByRole("button", { name: `Pay with ${method} (demo)` }).click();
-  await expectState(page, "Paid");
+  // One click creates and captures through two routes; on a cold server both compile first.
+  await expectStateAfterPal(page, "Paid");
   await expect(panel(page, "Payment")).toBeVisible();
 }
 
@@ -128,8 +130,9 @@ export async function shipAsSeller(page: Page, dealId: string, fixture: Scenario
   await expect(step.getByRole("combobox")).toHaveValue(fixture.shipment!.carrier);
 
   // The action bar has a button with the same name that only scrolls here, so stay inside the form.
+  // Shipping runs the Buyer Pal's shipment check before the room refreshes (contracts v1.6.0).
   await step.getByRole("button", { name: "Mark as shipped" }).click();
-  await expectState(page, "Shipped");
+  await expectStateAfterPal(page, "Shipped");
   await expect(panel(page, "Shipment").getByText(fixture.shipment!.trackingNumber)).toBeVisible();
 }
 
@@ -168,9 +171,9 @@ export async function payByCaptureButton(page: Page, dealId: string): Promise<vo
   const res = await page.request.post(`/api/deals/${dealId}/order`, { data: { method: "paypal" } });
   expect(res.ok(), `POST order -> ${res.status()}`).toBe(true);
   await openRoomAs(page, dealId, "buyer");
-  await expectState(page, "Payment pending");
+  await expectStateAfterPal(page, "Payment pending");
   const pay = panel(page, "Pay");
   await pay.getByRole("button", { name: "I approved in PayPal, capture now" }).click();
-  await expectState(page, "Paid");
+  await expectStateAfterPal(page, "Paid");
   await expect(panel(page, "Payment")).toBeVisible();
 }

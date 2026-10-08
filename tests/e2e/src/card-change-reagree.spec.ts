@@ -9,7 +9,7 @@ import { expect, test } from "@playwright/test";
 import { cleanPs5 } from "@pay-pals/contracts";
 import { WEB_PRESENT } from "./env";
 import { agreeAsBuyer, agreeAsSeller, reviewAsBuyer } from "./flows";
-import { addAllDemoPhotos, expectState, openRoomAs, panel, snapshot, startDemo } from "./helpers";
+import { addAllDemoPhotos, expectState, expectStateAfterPal, openRoomAs, panel, snapshot, startDemo } from "./helpers";
 
 test.describe("card change after one side agreed", () => {
   test.skip(!WEB_PRESENT, "apps/web is not on this branch yet, nothing to load");
@@ -34,7 +34,8 @@ test.describe("card change after one side agreed", () => {
     await step.getByLabel("Your reply").fill("Added. Same serial on the screen, software is current.");
     await step.getByRole("button", { name: "Save a new card version" }).click();
 
-    await expectState(page, "Listed");
+    // The Seller Pal builds the new version before the room refreshes.
+    await expectStateAfterPal(page, "Listed");
     await expect(panel(page, "Item card").getByRole("tab", { name: "Version 2" })).toBeVisible();
     await expect(panel(page, "Timeline").getByRole("listitem").filter({ hasText: "Card changed. It needs a fresh review." })).toBeVisible();
 
