@@ -63,7 +63,7 @@ export function ActionBar({ state, role, verdict, dealId, busy, hasLockedCard, a
       <Panel title="Next step" accent>
         <p className="text-sm">{ENDINGS[state]}</p>
         {hasLockedCard ? (
-          <Link href={`/deals/${dealId}/evidence?as=${role}`} className="mt-2 inline-block text-sm font-semibold text-[var(--accent-ink)] underline-offset-2 hover:underline">
+          <Link href={`/deals/${dealId}/evidence?as=${role}`} className="mt-1 inline-flex min-h-11 items-center text-sm font-semibold text-[var(--accent-ink)] underline-offset-2 hover:underline">
             Open the evidence pack
           </Link>
         ) : null}
