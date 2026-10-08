@@ -16,11 +16,14 @@ const buyerPal = createBuyerPal({ anthropic: null, priceLookup: createFixturePri
 
 describe("J2: cert check honesty with the fixture provider", () => {
   it("an unknown cert is not checked, never a stop, and the words say so", async () => {
-    const card: ItemCard = { ...fakeSlab.cards[0]!, certNumber: "99999999" };
+    // Priced inside the slab's market range and with no chat, so the cert is the only thing that could stop this card.
+    const inRange = Math.round((fakeSlab.marketPrice.marketLow + fakeSlab.marketPrice.marketHigh) / 2);
+    const card: ItemCard = { ...fakeSlab.cards[0]!, certNumber: "99999999", askingPrice: inRange };
     const { data: verdict, palMessage } = await buyerPal.review(card, [], { dealId: card.dealId, seller: fakeSlab.seller, sellerJoined: true });
 
     expect(verdict.flags.map((f) => f.code)).not.toContain("CERT_MISMATCH");
-    expect(verdict.overall).not.toBe("stop");
+    expect(verdict.flags.filter((f) => f.severity === "stop").map((f) => f.code), "no stop comes from the cert").not.toContain("CERT_MISMATCH");
+    expect(verdict.overall, `flags: ${verdict.flags.map((f) => `${f.code}/${f.severity}`).join(", ")}`).not.toBe("stop");
     const words = [palMessage, verdict.palMessage, verdict.certCheck?.explanation ?? "", ...verdict.flags.map((f) => `${f.explanation} ${f.evidence}`)].join(" ");
     expect(words).toMatch(/not checked against PSA/i);
     expect(words).not.toMatch(/PSA's own database|we checked PSA/i);
