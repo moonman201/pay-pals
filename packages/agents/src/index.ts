@@ -11,7 +11,8 @@ export { createChannel3PriceLookup, type Channel3Options } from "./price/channel
 export { Channel3Error, channel3CallCount } from "./price/channel3-api";
 export { createFixturePriceLookup } from "./price/fixture-lookup";
 export { createPsaCertLookup, type PsaOptions } from "./cert/psa-lookup";
-export { createFixtureCertLookup } from "./cert/fixture-lookup";
+export { createFixtureCertLookup, isNotChecked } from "./cert/fixture-lookup";
+export { NOT_CHECKED_EXPLANATION } from "./cert/compare";
 export { PsaError, psaCallCount } from "./cert/psa-api";
 export { compareCertRecord } from "./cert/compare";
 export { runRules, overallFromFlags, type RuleInput, type SellerIdentity } from "./rules";

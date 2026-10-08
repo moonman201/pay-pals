@@ -65,7 +65,8 @@ describe.skipIf(!enabled)("real Claude (needs ANTHROPIC_API_KEY)", () => {
     });
     console.log(`clean-ps5 card: ${card.brand} / ${card.model} / serial ${card.serial} / box ${card.boxSerial} / $${card.askingPrice}\n  pal: ${palMessage}`);
     expect(card.brand.toLowerCase()).toBe("sony");
-    expect(card.model.toLowerCase()).toContain("playstation 5");
+    expect(card.model.toLowerCase()).toMatch(/playstation 5|ps5/);
+    expect(card.model.toLowerCase()).toContain("cfi-1215a");
     expect(card.serial).toBe(CLEAN_SERIAL);
     expect(card.boxSerial).toBe(CLEAN_SERIAL);
     expect(card.askingPrice).toBe(420);

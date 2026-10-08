@@ -14,7 +14,7 @@ import { sentences } from "../copy";
 import { certFromText, gradeFromText, normalizeSerial, serialFromText } from "../vision/description";
 import type { ImageFetcher } from "../vision/fetch-image";
 import { describeLooking, itemSerial, packagingSerial, readPhotos } from "../vision/read-photo";
-import { parseListing, type ListingDraft } from "./listing-parse";
+import { canonicalBrand, parseListing, type ListingDraft } from "./listing-parse";
 
 export interface BuildCardDeps {
   client: ClaudeClient | null;
@@ -92,7 +92,7 @@ async function draftFields(input: BuildCardInput, client: ClaudeClient | null): 
   if (!draft) return fallback;
   return {
     title: draft.title || fallback.title,
-    brand: draft.brand || fallback.brand,
+    brand: canonicalBrand(draft.brand || fallback.brand),
     model: draft.model || fallback.model,
     conditionGrade: draft.condition_grade,
     conditionNotes: draft.condition_notes,
