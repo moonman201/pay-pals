@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { CertRecord } from "@pay-pals/contracts";
 import { FAKE_SLAB_CERT, fakeSlab } from "@pay-pals/contracts";
-import { compareCertRecord, gradeNumber, subjectTokens } from "./compare";
+import { NOT_CHECKED_EXPLANATION, compareCertRecord, gradeNumber, subjectTokens } from "./compare";
 
 const card = fakeSlab.cards[0]!;
 const now = new Date().toISOString();
@@ -35,9 +35,10 @@ describe("subjectTokens", () => {
 });
 
 describe("compareCertRecord", () => {
-  it("fake-slab: a different card and grade is a mismatch", () => {
+  it("fake-slab: a different card and grade is a mismatch, labelled a demo record", () => {
     const result = compareCertRecord(card, fakeSlab.certRecord!);
     expect(result.matches).toBe(false);
+    expect(result.explanation).toContain("PSA (demo record) cert");
     expect(result.explanation).toContain("2016 Pokemon XY Evolutions Charizard Holo #11");
     expect(result.explanation).toContain("grade 7, not 10");
     expect(result.evidence).toContain(`certNumber: ${FAKE_SLAB_CERT}`);
@@ -45,11 +46,22 @@ describe("compareCertRecord", () => {
     expect(result.overlap).toBeLessThan(0.6);
   });
 
-  it("a missing record is a mismatch", () => {
+  it("a real PSA not-found is a mismatch", () => {
     const result = compareCertRecord(card, psaRecord({ subject: null, grade: null, year: null, brand: null }));
     expect(result.matches).toBe(false);
     expect(result.explanation).toBe(`PSA has no record for cert ${FAKE_SLAB_CERT}, so the slab label cannot be trusted.`);
     expect(result.evidence).toContain("PSA record: none");
+  });
+
+  it("a cert nobody looked up compares to null with the not-checked sentence, never a mismatch", () => {
+    const unknown = { ...psaRecord({ subject: null, grade: null, year: null, brand: null }), provider: "fixture" as const, certNumber: "49172834", raw: { notChecked: true } };
+    const result = compareCertRecord({ ...card, certNumber: "49172834" }, unknown);
+    expect(result.matches).toBeNull();
+    expect(result.explanation).toBe(NOT_CHECKED_EXPLANATION);
+    expect(result.explanation).toBe("The cert number was not checked against PSA (no PSA access on this server).");
+    expect(result.evidence).toContain("not checked");
+    const bareFixture = { ...unknown, raw: null };
+    expect(compareCertRecord({ ...card, certNumber: "49172834" }, bareFixture).matches).toBeNull();
   });
 
   it("a PSA record for the same card and grade matches, in PSA's own spelling", () => {

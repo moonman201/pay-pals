@@ -161,8 +161,12 @@ describe("certMismatchRule", () => {
     expect(flags[0]).toMatchObject({ code: "CERT_MISMATCH", severity: "stop", raisedByRule: true });
     expect(flags[0]!.evidence).toContain(FAKE_SLAB_CERT);
     expect(flags[0]!.evidence).toContain("2016 Pokemon XY Evolutions Charizard Holo #11");
-    const none = certMismatchRule({ card: fakeSlab.cards[0]!, chat: [], priceCheck: null, certRecord: { ...fakeSlab.certRecord!, subject: null, grade: null, year: null, brand: null } });
+    const none = certMismatchRule({ card: fakeSlab.cards[0]!, chat: [], priceCheck: null, certRecord: { ...fakeSlab.certRecord!, provider: "psa", subject: null, grade: null, year: null, brand: null } });
     expect(none[0]!.explanation).toContain(`PSA has no record for cert ${FAKE_SLAB_CERT}`);
+  });
+  it("raises nothing for a cert that was never looked up (fixture provider, no fixture record)", () => {
+    const notChecked = { ...fakeSlab.certRecord!, certNumber: "49172834", subject: null, grade: null, year: null, brand: null, raw: { notChecked: true } };
+    expect(certMismatchRule({ card: { ...fakeSlab.cards[0]!, certNumber: "49172834" }, chat: [], priceCheck: null, certRecord: notChecked })).toHaveLength(0);
   });
   it("is quiet on a match, without a record, or without a cert on the card", () => {
     const match = { ...fakeSlab.certRecord!, subject: "1999 Pokemon Game Charizard Holo #4", grade: "GEM MT 10", year: "1999" };

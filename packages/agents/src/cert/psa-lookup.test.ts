@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { CertRecordSchema, FAKE_SLAB_CERT } from "@pay-pals/contracts";
 import type { DiskCache } from "../cache/disk-cache";
-import { createFixtureCertLookup } from "./fixture-lookup";
+import { createFixtureCertLookup, isNotChecked } from "./fixture-lookup";
 import { PsaError, psaCallCount } from "./psa-api";
 import { createPsaCertLookup, toCertRecord } from "./psa-lookup";
 
@@ -100,8 +100,10 @@ describe("createFixtureCertLookup", () => {
     const known = await lookup.lookup(FAKE_SLAB_CERT);
     expect(known.subject).toBe("2016 Pokemon XY Evolutions Charizard Holo #11");
     expect(known.grade).toBe("7");
-    const unknown = await lookup.lookup("00000001");
-    expect(unknown).toMatchObject({ provider: "fixture", certNumber: "00000001", subject: null, grade: null });
+    const unknown = await lookup.lookup("49172834");
+    expect(unknown).toMatchObject({ provider: "fixture", certNumber: "49172834", subject: null, grade: null, raw: { notChecked: true } });
+    expect(isNotChecked(unknown)).toBe(true);
+    expect(isNotChecked(known)).toBe(false);
     expect(CertRecordSchema.safeParse(unknown).success).toBe(true);
   });
 });
