@@ -47,6 +47,24 @@ describe("VerdictPanel", () => {
     expect(screen.queryByText(/needs another look/)).not.toBeInTheDocument();
   });
 
+  it("never renders a zero or flat market range: says no reliable price instead, with the source note", () => {
+    const zero = verdict({ overall: "go", priceCheck: { marketLow: 0, marketHigh: 0, currency: "USD", provider: "channel3", sources: [], checkedAt: "2026-10-08T00:00:00.000Z" } });
+    const { unmount } = render(<VerdictPanel verdict={zero} currentVersion={1} locked={false} />);
+    expect(screen.getByTestId("price-check")).toHaveTextContent("No reliable market price found");
+    expect(screen.getByTestId("price-check")).toHaveTextContent("via Channel3");
+    expect(screen.getByTestId("price-check")).not.toHaveTextContent("$0");
+    unmount();
+    render(<VerdictPanel verdict={verdict({ overall: "go", priceCheck: null })} currentVersion={1} locked={false} />);
+    expect(screen.getByTestId("price-check")).toHaveTextContent("No reliable market price found");
+  });
+
+  it("renders a real range with its sources", () => {
+    const real = verdict({ overall: "go", priceCheck: fakeSlab.marketPrice });
+    render(<VerdictPanel verdict={real} currentVersion={1} locked={false} />);
+    expect(screen.getByTestId("price-check")).toHaveTextContent(`Market range $${fakeSlab.marketPrice.marketLow} to $${fakeSlab.marketPrice.marketHigh}`);
+    expect(screen.getByTestId("price-check")).toHaveTextContent("demo prices");
+  });
+
   it("omits the no-override marker for a caution flag", () => {
     render(<VerdictPanel verdict={verdict({ overall: "caution", flags: [flag("URGENCY_PRESSURE", "caution")] })} currentVersion={1} locked={false} />);
     const row = screen.getByTestId("flag-badges");
