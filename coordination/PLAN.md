@@ -124,7 +124,7 @@ Save every working call as a Postman collection in `docs/postman/`.
 6. **Non-payment stops (Oct 7).** A stop that is not about payment method (price far below market, ship-before-pay) stays overridable with the acknowledgment checkbox and stronger warning wording. Only payment-method flags end the deal.
 
 ## Live site review, Oct 7 (Matt). Lane assignments
-Branch `review-oct7`. Each fix is its own commit with tests. Stop rules: a contract or schema change, or a product change, goes to Matt first; everything else keeps moving.
+Branch `review-oct7`, merged to main 718be0b on Oct 8 and deployed. Each fix is its own commit with tests. Items 1 to 15 done (item 1 and the reused-photo check light up fully once photo files exist; item 4 needs a comp key, see BLOCKERS). Item 16 running against production. Stop rules: a contract or schema change, or a product change, goes to Matt first; everything else keeps moving.
 
 **Product decision (Matt).** Scenario 3 stays: the Buyer Pal asks for proof, the seller never answers, the buyer pays anyway. Added: when the seller ships without the required packing photo, the Buyer Pal raises a caution at ship time, and the evidence pack calls out both the unanswered questions and the missing photo. Needs a new flag code and two optional fields; surfaced to Matt before the Friday freeze (see Decisions).
 
