@@ -5,6 +5,7 @@ import { historyStatus } from "@/lib/deal/history-status";
 import { priceRangeLine, priceSourceNote } from "@/lib/deal/price-copy";
 import { isExampleDeal } from "@/lib/deal/snapshot";
 import { HistoryBadge } from "../deal/HistoryBadge";
+import { ShipmentFlags } from "../deal/ShipmentFlags";
 
 /** A dealId#hash token (36 plus 64 characters) or a bare 64-hex hash, which no phone width can hold on one line. */
 const HASH_TOKEN = /([0-9a-f-]{36}#[0-9a-f]{64}|\b[0-9a-f]{64}\b)/g;
@@ -53,6 +54,8 @@ export function EvidencePackView({ pack, deal, role }: { pack: EvidencePack; dea
   const sellerPhotos = pack.photos.filter((p) => p.addedBy === "seller");
   const buyerPhotos = pack.photos.filter((p) => p.addedBy === "buyer");
   const example = isExampleDeal(pack.timeline, pack.payment);
+  const shipmentFlags = pack.shipmentFlags ?? pack.shipment?.flags ?? [];
+  const unanswered = pack.unansweredQuestions ?? [];
   return (
     <main className="mx-auto max-w-3xl px-4 py-8 print:max-w-none print:px-0">
       <header className="flex flex-wrap items-start justify-between gap-3">
@@ -170,9 +173,22 @@ export function EvidencePackView({ pack, deal, role }: { pack: EvidencePack; dea
                   <li key={c.id}>{c.done ? "Done" : "Not done"}: {c.label}</li>
                 ))}
               </ul>
+              {shipmentFlags.length > 0 ? <ShipmentFlags flags={shipmentFlags} /> : null}
             </>
           ) : (
             <p>No shipment on record.</p>
+          )}
+        </Section>
+
+        <Section title="What the Buyer Pal asked and never got">
+          {unanswered.length > 0 ? (
+            <ul className="list-disc pl-5" data-testid="unanswered-questions">
+              {unanswered.map((q, i) => (
+                <li key={i}>{q}</li>
+              ))}
+            </ul>
+          ) : (
+            <p>Nothing. Every question the Buyer Pal asked before payment was answered.</p>
           )}
         </Section>
 
