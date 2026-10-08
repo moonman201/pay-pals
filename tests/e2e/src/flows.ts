@@ -73,9 +73,10 @@ export async function answerPalWithDemoPhoto(page: Page, dealId: string, reply: 
   if ((await open.count()) > 0) await open.click();
   await expect(step.getByText(/The buyer's pal asked:/)).toContainText(question);
 
+  // The hint row shows the photo's caption (the screen page with the serial), not the question itself.
   const hintRow = step.locator("li").filter({ has: page.getByRole("button", { name: "Add", exact: true }) });
   await expect(hintRow).toHaveCount(1);
-  await expect(hintRow).toContainText(question);
+  await expect(hintRow).toContainText(/Console Information/);
   expect(await addAllDemoPhotos(step)).toBe(1);
   await step.getByLabel("Your reply").fill(reply);
   await step.getByRole("button", { name: "Save a new card version" }).click();
