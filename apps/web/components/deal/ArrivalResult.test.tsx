@@ -28,7 +28,6 @@ describe("arrivalRows", () => {
     ]);
     expect(rows[2]!.left).toBe(card.serial);
     expect(rows[2]!.right).toBe("not readable in the arrival photos");
-    expect(rows[2]!.note).toBe("No serial could be read.");
     expect(rows[0]!.right).toBe("not readable");
   });
 

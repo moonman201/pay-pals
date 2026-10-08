@@ -7,7 +7,7 @@ import { Comparison, type ComparisonRow } from "./Comparison";
 const READ_FIELDS = ["brand", "model", "serial"] as const;
 const NOT_READ = "not readable";
 
-/** One row per field: the locked card on the left, what the arrival photos showed on the right. */
+/** One row per field: the locked card on the left, what the arrival photos showed on the right. The pal's reasons stay in its message, so nothing is said twice. */
 export function arrivalRows(check: ArrivalCheck, lockedCard: ItemCard | null): ComparisonRow[] {
   const rows: ComparisonRow[] = READ_FIELDS.map((field) => {
     const mismatch = check.mismatches.find((m) => m.field === field);
@@ -18,13 +18,12 @@ export function arrivalRows(check: ArrivalCheck, lockedCard: ItemCard | null): C
       left: expected || "not on the card",
       right: observed || NOT_READ,
       status: mismatch ? "mismatch" : observed && expected ? "match" : "unknown",
-      note: mismatch?.explanation ?? null,
       mono: field === "serial",
     };
   });
   for (const m of check.mismatches) {
     if ((READ_FIELDS as readonly string[]).includes(m.field)) continue;
-    rows.push({ label: m.field, left: m.expected, right: m.observed, status: "mismatch", note: m.explanation });
+    rows.push({ label: m.field, left: m.expected, right: m.observed, status: "mismatch" });
   }
   return rows;
 }
