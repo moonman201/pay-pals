@@ -3,7 +3,7 @@
  * finder: a second run seeds nothing, and a race (a finished deal appearing
  * during the replay) settles on the oldest.
  */
-import { ALL_FIXTURES, cleanPs5, type Deal, type DealState, type ScenarioId } from "@pay-pals/contracts";
+import { ALL_FIXTURES, cleanPs5, fakeSlab, type Deal, type DealState, type ScenarioId } from "@pay-pals/contracts";
 import { createMemoryDealStore, createReplayClock } from "@pay-pals/db";
 import { describe, expect, it } from "vitest";
 import { buildEvidence } from "../deal/flows/evidence";
@@ -117,6 +117,39 @@ describe("seedFixtureDealsIfMissing", () => {
     expect((await store.findDeals({ scenario: "clean-ps5", states: FINISHED_STATES })).length).toBe(1);
   });
 
+  it("ignores a person's own finished run of a scenario: it still seeds a stamped deal and returns that one", async () => {
+    const replay = createReplayClock();
+    const store = withFinder(createMemoryDealStore({ clock: replay.clock }));
+    const services = servicesOn(store, replay.clock);
+
+    // A judge played fake-slab to BLOCKED on the live site before the seed ran. No seed stamp on its deal_created.
+    replay.set("2026-10-01T10:00:00.000Z");
+    const judges = await store.createDeal({ startedBy: "buyer", seller: fakeSlab.seller, buyer: fakeSlab.buyer, listingUrl: fakeSlab.deal.listingUrl, scenario: "fake-slab" });
+    await store.appendEvent({ dealId: judges.id, kind: "deal_created", actor: "buyer", summary: "A judge started a deal.", at: "2026-10-01T10:00:00.000Z" });
+    await store.transition(judges.id, "INVITED", "system", "Waiting for the seller.");
+    await store.transition(judges.id, "LISTED", "system", "Listed.");
+    await store.transition(judges.id, "REVIEWED", "system", "Reviewed.");
+    await store.transition(judges.id, "BLOCKED", "buyer_pal", "Blocked.");
+    expect((await store.findDeals({ scenario: "fake-slab", states: FINISHED_STATES })).map((d) => d.id)).toEqual([judges.id]);
+
+    const lines: string[] = [];
+    const ids = await seedFixtureDealsIfMissing(services, store, (l) => lines.push(l), replay);
+    expect(ids["fake-slab"]).toBeDefined();
+    expect(ids["fake-slab"]).not.toBe(judges.id);
+    expect(lines.at(-1)).toMatch(/3 seeded now/);
+    const seededEvents = await store.listEvents(ids["fake-slab"]!);
+    expect(readSeedStamp(seededEvents[0]?.data)?.scenario).toBe("fake-slab");
+    const judgeEvents = await store.listEvents(judges.id);
+    expect(readSeedStamp(judgeEvents[0]?.data)).toBeNull();
+
+    // Both finished fake-slab deals exist now; a second start still picks the stamped one and seeds nothing.
+    const again = await seedFixtureDealsIfMissing(services, store, (l) => lines.push(l), replay);
+    expect(again["fake-slab"]).toBe(ids["fake-slab"]);
+    expect(lines.at(-1)).toMatch(/0 seeded now/);
+    expect(lines.some((l) => /stale demo seed/.test(l))).toBe(false);
+    expect((await store.findDeals({ scenario: "fake-slab", states: FINISHED_STATES })).length).toBe(2);
+  });
+
   it("stamps deal_created with the seed version and the scenario, and reports a stale seed without seeding a duplicate", async () => {
     const replay = createReplayClock();
     const store = withFinder(createMemoryDealStore({ clock: replay.clock }));
@@ -144,13 +177,14 @@ describe("seedFixtureDealsIfMissing", () => {
     const replay = createReplayClock();
     const store = withFinder(createMemoryDealStore({ clock: replay.clock }));
     const services = servicesOn(store, replay.clock);
-    // A rival instance finished first: an older BLOCKED scam deal appears while we replay.
+    // A rival instance finished first: an older, stamped BLOCKED fake-slab seed appears while we replay.
     let rivalId: string | null = null;
     const racing: DealFinder = {
       async findDeals(query) {
         const mine = await store.findDeals(query);
         if (query.scenario === "fake-slab" && mine.length > 0 && !rivalId) {
           const rival = await store.createDeal({ startedBy: "buyer", seller: mine[0]!.seller, buyer: mine[0]!.buyer, listingUrl: null, scenario: "fake-slab" });
+          await store.appendEvent({ dealId: rival.id, kind: "deal_created", actor: "buyer", summary: "Seeded by another instance.", data: { seedVersion: SEED_VERSION, scenario: "fake-slab" }, at: replay.now() });
           await store.transition(rival.id, "LISTED", "system", "Listed.");
           await store.transition(rival.id, "REVIEWED", "system", "Reviewed.");
           await store.transition(rival.id, "BLOCKED", "system", "Blocked.");
