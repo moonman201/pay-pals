@@ -12,12 +12,14 @@ Deadline Thu Nov 12, 2026, 12:00 PM Pacific. Target: submit Wed Nov 11. Facts fr
 - [x] Buyer-first entry with a seller invite; a refusal is the strongest stop.
 - [x] PSA cert check for graded items (live call pending `PSA_API_TOKEN`).
 - [x] Tamper-evident history: hash chain anchored in the PayPal order, verified on the evidence page.
+- [x] Scenario 3 ship-time check: unanswered questions and the missing packing photo called out in the evidence pack.
+- [ ] `SANDBOX_BUYER_EMAIL` and `SANDBOX_BUYER_PASSWORD` set on Vercel so judges can finish a live payment from the pay panel (Matt).
 - [ ] Demo photos in `assets/demo-photos` (PS5 and the slab) and the real console serial in the fixtures (Matt).
 - [ ] `PSA_API_TOKEN` in `.env.local`, then one live PSA call to confirm the response shape (Matt, then Lead).
 - [ ] `ANTHROPIC_API_KEY` rotated after the Oct 7 transcript exposure (Matt).
 - [x] Hosted on Vercel: https://pay-pals-m00n1.vercel.app opens with no setup, runs on Neon, live Claude and Channel3, sandbox PayPal (Oct 8).
 - [x] Sandbox webhook 6BJ660763N133044S on the production URL; a live order's CHECKOUT.ORDER.APPROVED was verified and recorded by the deployed handler (Oct 8).
-- [ ] Contracts frozen Fri Oct 9: bump `packages/contracts` from 1.4.0-draft to 1.4.0 (Lead).
+- [x] Contracts frozen at v1.6.0 on Oct 8 (Lead).
 - [ ] A judge-facing walkthrough on the landing page: which scenario to click first, which side to play.
 
 ## Repo (public at submission)
