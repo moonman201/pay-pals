@@ -77,6 +77,8 @@ export async function agreeAsSeller(page: Page, dealId: string, version: number)
 export interface AgreeHooks {
   /** Runs while the buyer has agreed and the seller has not, on the buyer's page. */
   afterBuyerAgreed?: () => Promise<void>;
+  /** How the seller ships; by default every checklist item is ticked. */
+  ship?: ShipOptions;
 }
 
 /** Review as buyer, buyer agrees, seller agrees, back to the buyer's room with the card locked. */
@@ -98,8 +100,13 @@ export async function payWithDemoButtons(page: Page, method: "PayPal" | "Venmo" 
   await expect(panel(page, "Payment")).toBeVisible();
 }
 
+export interface ShipOptions {
+  /** Checklist items whose label matches stay unticked, so the Buyer Pal's shipment check has something to say. */
+  leaveUnticked?: RegExp;
+}
+
 /** Seller ticks the Seller Pal's checklist, adds the demo packing photos, uses the demo tracking number and ships. */
-export async function shipAsSeller(page: Page, dealId: string, fixture: ScenarioFixture): Promise<void> {
+export async function shipAsSeller(page: Page, dealId: string, fixture: ScenarioFixture, options: ShipOptions = {}): Promise<void> {
   await openRoomAs(page, dealId, "seller");
   await expectState(page, "Paid");
   const step = panel(page, "Pack and ship");
@@ -108,7 +115,11 @@ export async function shipAsSeller(page: Page, dealId: string, fixture: Scenario
   const boxes = step.getByRole("checkbox");
   const count = await boxes.count();
   expect(count).toBeGreaterThan(0);
-  for (let i = 0; i < count; i += 1) await boxes.nth(i).check();
+  for (let i = 0; i < count; i += 1) {
+    const label = ((await boxes.nth(i).locator("xpath=..").textContent()) ?? "").trim();
+    if (options.leaveUnticked && options.leaveUnticked.test(label)) continue;
+    await boxes.nth(i).check();
+  }
 
   await addAllDemoPhotos(step);
   await step.getByRole("button", { name: "Use the demo tracking number" }).click();
@@ -144,6 +155,22 @@ export async function driveToDelivered(page: Page, dealId: string, fixture: Scen
   await expectState(page, "Listed");
   await reviewAndAgree(page, dealId, 1, hooks);
   await payWithDemoButtons(page, fixture.payment?.method === "venmo" ? "Venmo" : "PayPal");
-  await shipAsSeller(page, dealId, fixture);
+  await shipAsSeller(page, dealId, fixture, hooks.ship);
   await confirmDelivery(page, dealId);
+}
+
+/**
+ * The buyer approved the order in PayPal and comes back to capture it: the
+ * order is created through the API (as the buttons do), the room then shows
+ * the capture button, and one press moves the deal to Paid.
+ */
+export async function payByCaptureButton(page: Page, dealId: string): Promise<void> {
+  const res = await page.request.post(`/api/deals/${dealId}/order`, { data: { method: "paypal" } });
+  expect(res.ok(), `POST order -> ${res.status()}`).toBe(true);
+  await openRoomAs(page, dealId, "buyer");
+  await expectState(page, "Payment pending");
+  const pay = panel(page, "Pay");
+  await pay.getByRole("button", { name: "I approved in PayPal, capture now" }).click();
+  await expectState(page, "Paid");
+  await expect(panel(page, "Payment")).toBeVisible();
 }

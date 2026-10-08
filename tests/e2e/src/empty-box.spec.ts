@@ -8,7 +8,7 @@ import { expect, test } from "@playwright/test";
 import { EMPTY_BOX_LOCKED_SERIAL, emptyBox } from "@pay-pals/contracts";
 import { WEB_PRESENT } from "./env";
 import { driveToDelivered, runArrivalCheck } from "./flows";
-import { expectState, panel, pressAction, snapshot, startDemo } from "./helpers";
+import { expectState, openRoomAs, panel, pressAction, snapshot, startDemo } from "./helpers";
 
 /** Vision wording, once the photos exist and a key is present. */
 const NOT_PRESENT = "not present, box arrived empty";
@@ -22,7 +22,26 @@ test.describe("empty box arrives", () => {
   test("names the missing console against the locked serial, opens an issue and builds the evidence pack", async ({ page }) => {
     const dealId = await startDemo(page, emptyBox, "buyer");
     await expect(panel(page, "Item card").getByText("matches the console")).toBeVisible();
-    await driveToDelivered(page, dealId, emptyBox);
+
+    // The seller ships without the required photo of the item going into the box (contracts v1.6.0).
+    await driveToDelivered(page, dealId, emptyBox, { ship: { leaveUnticked: /going into the box/i } });
+
+    // Both rooms show the Buyer Pal's ship-time caution, and the timeline records the check.
+    const shipmentCheck = page.getByRole("list", { name: "Buyer Pal shipment check" });
+    await expect(shipmentCheck).toBeVisible();
+    await expect(shipmentCheck.getByText("Buyer Pal:", { exact: true })).toBeVisible();
+    await expect(shipmentCheck.getByText("caution", { exact: true })).toBeVisible();
+    await expect(shipmentCheck).toContainText("The seller shipped without the photo of the item going into the box");
+    await expect(panel(page, "Timeline").getByRole("listitem").filter({ hasText: "Buyer Pal shipment check" })).toHaveCount(1);
+    await openRoomAs(page, dealId, "seller");
+    await expect(page.getByRole("list", { name: "Buyer Pal shipment check" }).getByText("caution", { exact: true })).toBeVisible();
+    await expect(panel(page, "Timeline").getByRole("listitem").filter({ hasText: "Buyer Pal shipment check" })).toHaveCount(1);
+    await openRoomAs(page, dealId, "buyer");
+    const shipped = await snapshot(page, dealId);
+    expect(shipped.shipment?.flags?.map((f) => f.code)).toEqual(["MISSING_PACKING_PHOTO"]);
+    expect(shipped.events.filter((e) => e.kind === "shipment_checked")).toHaveLength(1);
+    const asked = shipped.verdict?.questionsForSeller ?? [];
+    expect(asked.length, "the Buyer Pal asked the seller for something at review time").toBeGreaterThan(0);
 
     await runArrivalCheck(page, emptyBox);
     const result = panel(page, "Arrival check");
@@ -75,5 +94,18 @@ test.describe("empty box arrives", () => {
     const arrivalCheck = page.locator("section").filter({ has: page.getByRole("heading", { name: "Arrival check" }) });
     await expect(arrivalCheck).toContainText(EMPTY_BOX_LOCKED_SERIAL);
     await expect(arrivalCheck).toContainText(MISSING);
+
+    // What the seller never answered, and the ship-time caution, both in the pack.
+    const unanswered = page.locator("section").filter({ has: page.getByRole("heading", { name: "What the Buyer Pal asked and never got" }) });
+    await expect(unanswered).toBeVisible();
+    const list = unanswered.getByTestId("unanswered-questions");
+    await expect(list.getByRole("listitem").first()).toBeVisible();
+    for (const question of asked) await expect(list).toContainText(question);
+    await expect(unanswered.getByText("Nothing. Every question")).toHaveCount(0);
+    const shipmentSection = page.locator("section").filter({ has: page.getByRole("heading", { name: "Shipment" }) });
+    const evidenceCheck = shipmentSection.getByRole("list", { name: "Buyer Pal shipment check" });
+    await expect(evidenceCheck.getByText("caution", { exact: true })).toBeVisible();
+    await expect(evidenceCheck).toContainText("The seller shipped without the photo of the item going into the box");
+    await expect(page.locator("section").filter({ has: page.getByRole("heading", { name: "Summary" }) })).toContainText(/packing photo|going into the box/i);
   });
 });

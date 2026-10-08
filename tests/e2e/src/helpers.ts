@@ -153,6 +153,8 @@ export interface Snapshot {
     currentCardVersion: number;
   };
   events: { kind: string; at: string }[];
+  verdict: { questionsForSeller: string[] } | null;
+  shipment: { flags?: { code: string; severity: string }[] } | null;
   hasEvidence: boolean;
   inviteDeclined: boolean;
   payment: { historyHash?: string | null; createdAt?: string; capturedAt?: string | null } | null;
