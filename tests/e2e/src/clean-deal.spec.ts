@@ -6,7 +6,7 @@
 import { expect, test } from "@playwright/test";
 import { cleanPs5 } from "@pay-pals/contracts";
 import { WEB_PRESENT } from "./env";
-import { driveToDelivered, runArrivalCheck } from "./flows";
+import { confirmDelivery, payByCaptureButton, reviewAndAgree, runArrivalCheck, shipAsSeller } from "./flows";
 import { expectState, panel, pressAction, snapshot, startDemo, waitForHydration } from "./helpers";
 
 test.describe("clean deal", () => {
@@ -23,7 +23,18 @@ test.describe("clean deal", () => {
     await expect(boxSerialRow).toHaveCount(1);
     await expect(boxSerialRow).toContainText(cleanPs5.cards[0]!.boxSerial!);
 
-    await driveToDelivered(page, dealId, cleanPs5);
+    // Pay by the capture button: the order is created, the buyer comes back approved, one press captures.
+    await expectState(page, "Listed");
+    await reviewAndAgree(page, dealId, 1);
+    const pay = panel(page, "Pay");
+    await expect(pay).toBeVisible();
+    // The default e2e server is demo-only, so the sandbox test buyer note never shows here (its presence is a component test).
+    await expect(pay.getByText("PayPal sandbox test buyer, no real money")).toHaveCount(0);
+    await expect(page.getByTestId("sandbox-buyer")).toHaveCount(0);
+    await payByCaptureButton(page, dealId);
+    await expect(page.getByTestId("sandbox-buyer")).toHaveCount(0);
+    await shipAsSeller(page, dealId, cleanPs5);
+    await confirmDelivery(page, dealId);
 
     // J6: a deal paid through the demo gateway is a real deal with a DEMO- order, not a seeded example.
     const payment = panel(page, "Payment");
@@ -59,5 +70,8 @@ test.describe("clean deal", () => {
     await expect(history).toContainText("Verified: the stored events reproduce this hash.");
     await expect(history).not.toContainText("Does not verify");
     await expect(page.getByText("Example deal, seeded from a scenario")).toHaveCount(0);
+    // The seller shipped with every photo, so no ship-time caution rides on this pack.
+    await expect(page.getByRole("heading", { name: "What the Buyer Pal asked and never got" })).toBeVisible();
+    await expect(page.getByRole("list", { name: "Buyer Pal shipment check" })).toHaveCount(0);
   });
 });

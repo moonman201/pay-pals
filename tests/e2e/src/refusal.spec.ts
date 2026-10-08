@@ -7,7 +7,7 @@
 import { expect, test } from "@playwright/test";
 import { fakeSlab } from "@pay-pals/contracts";
 import { WEB_PRESENT } from "./env";
-import { expectState, expectStateAfterPal, joinPath, openRoomAs, panel, pressAction, snapshot, startBuyerFirst, waitForHydration } from "./helpers";
+import { PAL_TIMEOUT, expectState, expectStateAfterPal, joinPath, openRoomAs, panel, pressAction, snapshot, startBuyerFirst, waitForHydration } from "./helpers";
 
 const REASON = "Friends and Family only, I am not paying fees.";
 
@@ -30,7 +30,7 @@ test.describe("seller refuses the invite", () => {
     await expect(page.getByText("You will not use Pay Pals for this deal.")).toBeVisible();
     await page.getByLabel("Tell the buyer why (optional)").fill(REASON);
     await page.getByRole("button", { name: "Record that I will not use Pay Pals" }).click();
-    await expect(page.getByText("You chose not to use Pay Pals for this deal. The buyer has been told.")).toBeVisible();
+    await expect(page.getByText("You chose not to use Pay Pals for this deal. The buyer has been told.")).toBeVisible({ timeout: PAL_TIMEOUT });
 
     const declined = await snapshot(page, dealId);
     expect(declined.deal.state).toBe("INVITED");
