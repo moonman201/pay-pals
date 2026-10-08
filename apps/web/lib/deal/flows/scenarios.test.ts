@@ -50,6 +50,8 @@ describe("fake-slab", () => {
     const codes = verdict.flags.map((f) => f.code);
     expect(codes).toEqual(expect.arrayContaining(fakeSlab.expectedVerdict.requiredFlags));
     expect(verdict.certCheck?.matches).toBe(false);
+    // The reused-photo flag comes from an image match. With no photo files served, it must stay silent.
+    expect(codes).not.toContain("STOCK_OR_REUSED_PHOTO");
 
     const snap = await loadSnapshot(services, deal.id);
     expect(snap.deal.state).toBe("BLOCKED");
