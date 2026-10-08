@@ -1,7 +1,7 @@
 import { cleanPs5 } from "@pay-pals/contracts";
 import { describe, expect, it } from "vitest";
 import { startDemoDeal } from "./deal/flows/start";
-import { loadSnapshot } from "./deal/snapshot";
+import { loadSnapshot, sandboxBuyerFor } from "./deal/snapshot";
 import { createServices } from "./services";
 
 describe("createServices with no keys", () => {
@@ -93,6 +93,28 @@ describe("createServices with no keys", () => {
     const noBase: string[] = [];
     createServices({}, (l) => noBase.push(l));
     expect(noBase.join("\n")).toMatch(/base URL from each request/);
+  });
+
+  it("serves the sandbox test buyer only for demo deals on the sandbox gateway, and never logs the values", async () => {
+    const creds = { SANDBOX_BUYER_EMAIL: "sb-buyer@personal.example.com", SANDBOX_BUYER_PASSWORD: "sandbox-pass-123" };
+    const lines: string[] = [];
+    const sandbox = createServices({ PAYPAL_ENV: "sandbox", PAYPAL_CLIENT_ID: "id-secret-value", PAYPAL_CLIENT_SECRET: "shh-secret-value", ...creds }, (l) => lines.push(l));
+    expect(sandbox.sandboxBuyer).toEqual({ email: creds.SANDBOX_BUYER_EMAIL, password: creds.SANDBOX_BUYER_PASSWORD });
+    expect(lines.join("\n")).toMatch(/sandbox buyer: test account available/);
+    expect(lines.join("\n")).not.toContain("sb-buyer");
+    expect(lines.join("\n")).not.toContain("sandbox-pass");
+    const demoDeal = { ...cleanPs5.deal, scenario: "clean-ps5" as const };
+    const realDeal = { ...cleanPs5.deal, scenario: null };
+    expect(sandboxBuyerFor(demoDeal, sandbox)).toEqual(sandbox.sandboxBuyer);
+    expect(sandboxBuyerFor(realDeal, sandbox)).toBeNull();
+
+    const mock = createServices({ ...creds }, () => {});
+    expect(mock.sandboxBuyer).toBeNull();
+    expect(sandboxBuyerFor(demoDeal, mock)).toBeNull();
+    const demoOnly = createServices({ PAYPAL_ENV: "sandbox", PAYPAL_CLIENT_ID: "id-secret-value", PAYPAL_CLIENT_SECRET: "shh-secret-value", ...creds, PAY_PALS_DEMO_ONLY: "1" }, () => {});
+    expect(demoOnly.sandboxBuyer).toBeNull();
+    const snap = await loadSnapshot(mock, (await mock.seededDeals)["clean-ps5"]!);
+    expect(snap.sandboxBuyer).toBeNull();
   });
 
   it("keeps secrets out of the startup log when keys are present", () => {
