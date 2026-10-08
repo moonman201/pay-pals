@@ -167,7 +167,7 @@ export const cleanPs5: ScenarioFixture = {
   expectedArrival: { matches: true, mismatchFields: [] },
   timeline: chainEvents([
     { id: "e1", dealId, kind: "deal_created", actor: "buyer", summary: "Priya S. started a deal from a listing and invited the seller.", at: at(0) },
-    { id: "e1b", dealId, kind: "seller_invited", actor: "system", summary: "Invite sent to the seller's PayPal email.", at: at(0) },
+    { id: "e1b", dealId, kind: "seller_invited", actor: "system", summary: "Invite link created for the seller. The buyer sends it.", at: at(0) },
     { id: "e1c", dealId, kind: "state_changed", actor: "system", summary: "Waiting for the seller.", fromState: "DRAFT", toState: "INVITED", at: at(0) },
     { id: "e1d", dealId, kind: "seller_joined", actor: "seller", summary: "Matt M. joined the deal.", at: at(3) },
     { id: "e2", dealId, kind: "card_updated", actor: "seller_pal", summary: `Seller Pal built card version 1. Console serial ${CLEAN_SERIAL} read from the back of the console; the box label shows the same serial.`, at: at(4) },
@@ -175,6 +175,9 @@ export const cleanPs5: ScenarioFixture = {
     { id: "e4", dealId, kind: "review_posted", actor: "buyer_pal", summary: "Buyer Pal reviewed the deal: go, pending one photo.", at: at(30) },
     { id: "e5", dealId, kind: "state_changed", actor: "system", summary: "Reviewed.", fromState: "LISTED", toState: "REVIEWED", at: at(30) },
     { id: "e6", dealId, kind: "card_updated", actor: "seller_pal", summary: "Card version 2: Console Information screen photo added.", at: at(42) },
+    { id: "e6a", dealId, kind: "state_changed", actor: "system", summary: "Card changed. It needs a fresh review.", fromState: "REVIEWED", toState: "LISTED", at: at(42) },
+    { id: "e6a2", dealId, kind: "review_posted", actor: "buyer_pal", summary: "Buyer Pal reviewed card version 2: go.", at: at(46) },
+    { id: "e6a3", dealId, kind: "state_changed", actor: "system", summary: "Reviewed.", fromState: "LISTED", toState: "REVIEWED", at: at(46) },
     { id: "e6b", dealId, kind: "agreed", actor: "buyer", summary: "Priya S. agreed to card version 2.", at: at(55) },
     { id: "e6c", dealId, kind: "agreed", actor: "seller", summary: "Matt M. agreed to card version 2.", at: at(60) },
     { id: "e7", dealId, kind: "card_locked", actor: "system", summary: "Both sides agreed. Card version 2 is locked.", at: at(60) },

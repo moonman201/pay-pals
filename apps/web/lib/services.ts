@@ -28,6 +28,7 @@ import { photoBase } from "./deal/photo-urls";
 import { buildKnownPhotos } from "./demo/known-photos";
 import { asDealFinder, seedFixtureDeals, seedFixtureDealsIfMissing } from "./demo/seed-fixtures";
 import { loadRootEnvLocal } from "./env";
+import { detectUploadsEnabled } from "./uploads";
 import { createMockPayPalGateway } from "./mocks/paypal-gateway";
 
 export interface ServiceModes {
@@ -48,6 +49,8 @@ export interface Services {
   handleWebhook: (event: WebhookEvent) => Promise<WebhookOutcome>;
   /** The clock events and messages are stamped with. Wall time for live deals; the seeder replays fixtures on their own dates. */
   clock: () => Date;
+  /** Photo uploads work on this host (public/uploads is writable). Hosted builds are read-only. */
+  uploadsEnabled: boolean;
   modes: ServiceModes;
   /**
    * Payee used for deals started from demo mode, from SANDBOX_SELLER_PERSONAL_EMAIL.
@@ -112,7 +115,9 @@ export function createServices(env: Env = process.env, log: Log = (line) => cons
   let store: PayPalsStore;
   let ready: Promise<void>;
   let seededDeals: Promise<Partial<Record<ScenarioId, string>>>;
-  const services = { sellerPal, buyerPal, buildEvidencePack, paypal, demoPayee, clock: systemClock } as Services;
+  const uploadsEnabled = detectUploadsEnabled();
+  log(`[pay-pals] uploads: ${uploadsEnabled ? "on (public/uploads is writable)" : "off (read-only host), photos by URL only"}`);
+  const services = { sellerPal, buyerPal, buildEvidencePack, paypal, demoPayee, clock: systemClock, uploadsEnabled } as Services;
   // The seeder replays each fixture on the fixture's own dates, so the seeded timeline, payment and shipment agree.
   const replay = createReplayClock();
 

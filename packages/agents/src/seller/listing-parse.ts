@@ -27,6 +27,13 @@ const KNOWN_FAMILIES: ReadonlyArray<[RegExp, string]> = [
   [/\bpok[eé]mon\b/i, "Pokemon"],
 ];
 
+/** The maker's name when the text names a product family instead ("PlayStation" is Sony). Otherwise the text as given. */
+export function canonicalBrand(brand: string): string {
+  const trimmed = brand.trim();
+  const family = KNOWN_FAMILIES.find(([pattern]) => pattern.test(trimmed));
+  return family ? family[1] : trimmed;
+}
+
 export function parsePrice(text: string): number | null {
   const match = text.match(PRICE);
   if (!match) return null;

@@ -53,6 +53,12 @@ describe("ActionBar: buttons per state and role", () => {
     expect(buttonNames()).toEqual(["Pay", "Cancel the deal"]);
   });
 
+  it("PAYMENT_PENDING with a locked card: no agree button, the pay panel is the next step", () => {
+    renderBar({ state: "PAYMENT_PENDING", role: "buyer", hasLockedCard: true, agreement: { buyerAgreedAt: AT, sellerAgreedAt: AT }, cardVersion: 2 });
+    expect(buttonNames()).toEqual(["Cancel the deal"]);
+    expect(screen.queryByText(/Agree and lock the card/)).not.toBeInTheDocument();
+  });
+
   it("PAID: seller marks shipped", () => {
     renderBar({ state: "PAID", role: "seller" });
     expect(buttonNames()).toEqual(["Mark as shipped"]);

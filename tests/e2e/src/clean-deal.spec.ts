@@ -25,6 +25,13 @@ test.describe("clean deal", () => {
 
     await driveToDelivered(page, dealId, cleanPs5);
 
+    // J6: a deal paid through the demo gateway is a real deal with a DEMO- order, not a seeded example.
+    const payment = panel(page, "Payment");
+    await expect(payment.getByText("PayPal order", { exact: true })).toBeVisible();
+    await expect(payment.getByText(/Example order id|placeholders/)).toHaveCount(0);
+    await expect(page.getByText("Example deal, seeded from a scenario")).toHaveCount(0);
+    await expect(page.getByRole("banner").getByText(/History unchanged since PayPal order/)).toBeVisible();
+
     await runArrivalCheck(page, cleanPs5);
     const result = panel(page, "Arrival check");
     await expect(result.getByText("matches", { exact: true })).toBeVisible();
@@ -51,5 +58,6 @@ test.describe("clean deal", () => {
     await expect(history).toContainText(`${dealId}#${snap.payment!.historyHash}`);
     await expect(history).toContainText("Verified: the stored events reproduce this hash.");
     await expect(history).not.toContainText("Does not verify");
+    await expect(page.getByText("Example deal, seeded from a scenario")).toHaveCount(0);
   });
 });

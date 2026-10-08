@@ -33,6 +33,7 @@ export function createBuyerPal(options: BuyerPalOptions): BuyerPal {
         priceLookup: options.priceLookup,
         certLookup: options.certLookup ?? null,
         photoMatch: { knownPhotos: options.knownPhotos ?? [], hashCache, ...photos },
+        ...photos,
       }),
     checkArrival: (card, arrivalPhotos) => checkArrivalAgainstCard(card, arrivalPhotos, { client, ...photos }),
   };

@@ -38,7 +38,12 @@ export function DealHeader({ snapshot, role }: { snapshot: DealSnapshot; role: R
           </p>
         </div>
         <Badge tone={stateTone(deal.state)}>{STATE_LABELS[deal.state]}</Badge>
-        <HistoryBadge events={snapshot.events} historyHash={snapshot.payment?.historyHash ?? null} />
+        {snapshot.example ? (
+          <Badge tone="neutral" className="font-normal" data-testid="example-label">
+            Example deal, seeded from a scenario
+          </Badge>
+        ) : null}
+        <HistoryBadge events={snapshot.events} historyHash={snapshot.payment?.historyHash ?? null} example={snapshot.example} />
         <nav className="no-print flex items-center gap-3 text-xs font-semibold text-[var(--accent-ink)]">
           <Link href={`/deals/${deal.id}?as=${other}`} className="underline-offset-2 hover:underline">
             View as {other}

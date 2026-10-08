@@ -9,6 +9,7 @@ import { describe, expect, it } from "vitest";
 import { buildEvidence } from "../deal/flows/evidence";
 import { createServices } from "../services";
 import { FINISHED_STATES, SEED_ANCHOR_MS, fixtureOffsetMs, seedFixtureDeals, seedFixtureDealsIfMissing, shiftIso, type DealFinder } from "./seed-fixtures";
+import { readSeedStamp, SEED_VERSION } from "./seed-version";
 
 /** Tracks every deal the store creates so it can answer findDeals the way a database would. */
 function withFinder(store: ReturnType<typeof createMemoryDealStore>) {
@@ -112,7 +113,31 @@ describe("seedFixtureDealsIfMissing", () => {
     const second = await seedFixtureDealsIfMissing(services, store, (l) => lines.push(l), replay);
     expect(second).toEqual(first);
     expect(lines.at(-1)).toMatch(/0 seeded now/);
+    expect(lines.some((l) => /stale demo seed/.test(l))).toBe(false);
     expect((await store.findDeals({ scenario: "clean-ps5", states: FINISHED_STATES })).length).toBe(1);
+  });
+
+  it("stamps deal_created with the seed version and the scenario, and reports a stale seed without seeding a duplicate", async () => {
+    const replay = createReplayClock();
+    const store = withFinder(createMemoryDealStore({ clock: replay.clock }));
+    const services = servicesOn(store, replay.clock);
+    const ids = await seedFixtureDealsIfMissing(services, store, () => {}, replay);
+    const events = await store.listEvents(ids["clean-ps5"]!);
+    expect(readSeedStamp(events[0]?.data)).toEqual({ seedVersion: SEED_VERSION, scenario: "clean-ps5" });
+    expect(SEED_VERSION).toMatch(/^\d{4}-\d{2}-\d{2}\.\d+$/);
+
+    // A store seeded by an older build: the stamp differs (or is missing). Log once, keep the existing deal, add nothing.
+    const olderFinder: DealFinder = {
+      findDeals: async (q) => (await store.findDeals(q)).map((d) => d),
+    };
+    const stale = { ...services, store: { ...store, listEvents: async (id: string) => (await store.listEvents(id)).map((e, i) => (i === 0 ? { ...e, data: { seedVersion: "2000-01-01.0", scenario: e.data?.scenario } } : e)) } };
+    const lines: string[] = [];
+    const again = await seedFixtureDealsIfMissing(stale, olderFinder, (l) => lines.push(l), replay);
+    expect(again).toEqual(ids);
+    const staleLines = lines.filter((l) => /stale demo seed/.test(l));
+    expect(staleLines).toHaveLength(3);
+    expect(staleLines[0]).toMatch(/run npm run db:delete-seeded-demo-deals -w packages\/db and redeploy/);
+    expect(lines.at(-1)).toMatch(/0 seeded now/);
   });
 
   it("settles on the oldest finished deal when another instance seeded during the replay", async () => {

@@ -116,7 +116,7 @@ describe("buildEvidencePack", () => {
     };
     const { data: pack } = await buildEvidencePack(input, { anthropic: null });
     expect(pack.summary).toContain(`The card carries grading cert ${FAKE_SLAB_CERT}, grade PSA 10.`);
-    expect(pack.summary).toContain("Grading cert check: PSA cert");
+    expect(pack.summary).toContain("Grading cert check: PSA (demo record) cert");
     expect(pack.summary).toContain("2016 Pokemon XY Evolutions Charizard Holo #11");
   });
 

@@ -13,18 +13,37 @@ export class CardNotLockedError extends Error {
   }
 }
 
-/** Cuts text to a PayPal field limit, marking the cut with "...". */
+export const ELLIPSIS = "...";
+
+/**
+ * Cuts text to a PayPal field limit at the last word boundary that fits,
+ * ending with an ellipsis, so PayPal's record never shows half a word. A
+ * single word longer than the limit is cut hard; the result never exceeds
+ * the limit.
+ */
 export function trimTo(text: string, limit: number): string {
   if (text.length <= limit) return text;
-  return `${text.slice(0, limit - 3)}...`;
+  const budget = limit - ELLIPSIS.length;
+  if (budget <= 0) return text.slice(0, limit);
+  const head = text.slice(0, budget + 1);
+  const lastSpace = head.lastIndexOf(" ");
+  const kept = lastSpace > 0 ? head.slice(0, lastSpace) : text.slice(0, budget);
+  return `${kept.replace(/[\s,;:.]+$/, "")}${ELLIPSIS}`;
 }
 
-/** "Serial AH912345678. Condition: Good. Owned from new..." within the item description limit. */
+/**
+ * "Serial AH912345678. Condition: Good. Owned from new..." within the item
+ * description limit. The serial and condition are the proof, so they are
+ * never trimmed: only the notes give way, at a word boundary.
+ */
 export function describeCard(card: ItemCard): string {
   const serial = card.serial ? `Serial ${card.serial}.` : "Serial not provided.";
   const condition = `Condition: ${CONDITION_LABELS[card.conditionGrade]}.`;
+  const lead = `${serial} ${condition}`;
   const notes = card.conditionNotes.trim();
-  return trimTo([serial, condition, notes].filter(Boolean).join(" "), PAYPAL_LIMITS.itemDescription);
+  const room = PAYPAL_LIMITS.itemDescription - lead.length - 1;
+  if (!notes || room < ELLIPSIS.length + 2) return lead;
+  return `${lead} ${trimTo(notes, room)}`;
 }
 
 export interface OrderItem {

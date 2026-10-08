@@ -11,7 +11,7 @@ import { Panel } from "../ui/Panel";
 const field = "mt-1 block w-full rounded-lg border border-line px-3 py-2 text-sm";
 
 /** The seller joins with photos and the listing text, or says they will not use Pay Pals. */
-export function SellerJoinForm({ deal }: { deal: Deal }) {
+export function SellerJoinForm({ deal, uploadsEnabled = false }: { deal: Deal; uploadsEnabled?: boolean }) {
   const router = useRouter();
   const [displayName, setName] = useState(deal.seller.displayName);
   const [paypalEmail, setPaypalEmail] = useState(deal.seller.email);
@@ -101,7 +101,7 @@ export function SellerJoinForm({ deal }: { deal: Deal }) {
           <span className="font-semibold">Notes for your pal</span>
           <input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Where the serial or cert number is, anything the card should say." className={field} />
         </label>
-        <PhotoInput value={photos} onChange={setPhotos} addedBy="seller" label="Photos (serial or cert label, front, what is included)" />
+        <PhotoInput value={photos} onChange={setPhotos} addedBy="seller" label="Photos (serial or cert label, front, what is included)" uploadsEnabled={uploadsEnabled} />
         <Button type="submit" disabled={busy} className="w-full sm:w-auto">
           {busy && !declining ? "Building the card" : "Join and add your photos"}
         </Button>
