@@ -4,15 +4,22 @@
  * are known, and the record's subject shares enough words with the card's
  * title and model. The word overlap is the share of the card's own words
  * (year, set, character, card number; grade words removed) that also appear
- * in the record; SUBJECT_MATCH_THRESHOLD is 0.6. A missing record is a
- * mismatch: the cert does not exist.
+ * in the record; SUBJECT_MATCH_THRESHOLD is 0.6.
+ *
+ * Honesty rules: a record that was never looked up (fixture provider, no
+ * fixture entry) compares to null, "not checked", and is never a mismatch.
+ * Only a real PSA answer with no record is a mismatch. A fixture record that
+ * stands in for PSA is labelled a demo record in every sentence.
  */
 import type { CertRecord, ItemCard } from "@pay-pals/contracts";
+import { NOT_CHECKED_REASON, isNotChecked } from "./fixture-lookup";
 
 export const SUBJECT_MATCH_THRESHOLD = 0.6;
+export const NOT_CHECKED_EXPLANATION = `The cert number was not checked against PSA (${NOT_CHECKED_REASON}).`;
 
 export interface CertComparison {
-  matches: boolean;
+  /** True on a match, false on a mismatch or a real not-found, null when the cert was not checked. */
+  matches: boolean | null;
   /** One plain sentence for the buyer. */
   explanation: string;
   /** The card and the record side by side, for the flag. */
@@ -48,14 +55,19 @@ export function subjectTokens(text: string, grade: string | null): Set<string> {
   return out;
 }
 
-function graderName(record: CertRecord): string {
-  return record.provider === "psa" || record.provider === "fixture" ? "PSA" : record.provider;
+/** "PSA" for a live answer, "PSA (demo record)" for a fixture standing in for one. */
+export function graderLabel(record: CertRecord): string {
+  return record.provider === "psa" ? "PSA" : "PSA (demo record)";
 }
 
 export function compareCertRecord(card: ItemCard, record: CertRecord): CertComparison {
   const cert = card.certNumber ?? record.certNumber;
-  const grader = graderName(record);
+  const grader = graderLabel(record);
   const cardLabel = `"${card.title}"${card.grade ? `, grade ${card.grade}` : ""}`;
+
+  if (isNotChecked(record)) {
+    return { matches: null, explanation: NOT_CHECKED_EXPLANATION, evidence: `certNumber: ${cert}; card: ${cardLabel}; not checked (${NOT_CHECKED_REASON})`, overlap: 0 };
+  }
 
   if (!record.subject) {
     return {

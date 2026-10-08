@@ -11,6 +11,7 @@ import { flag } from "./text";
 export const certMismatchRule: Rule = ({ card, certRecord }) => {
   if (!card || !card.certNumber || !certRecord) return [];
   const comparison = compareCertRecord(card, certRecord);
-  if (comparison.matches) return [];
+  // Only a real mismatch or a real not-found flags. A cert nobody looked up (matches null) raises nothing.
+  if (comparison.matches !== false) return [];
   return [flag("CERT_MISMATCH", "stop", comparison.evidence, comparison.explanation)];
 };
