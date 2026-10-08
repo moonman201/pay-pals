@@ -5,7 +5,7 @@
 import type { ArrivalCheck, CertRecord, PriceCheck, Verdict } from "./verdict";
 import type { CardField, ItemCard, Photo } from "./item-card";
 import type { DealEvent, Message } from "./messages";
-import type { ChecklistItem, Shipment } from "./shipping";
+import type { ChecklistItem } from "./shipping";
 import type { RedFlag } from "./red-flag";
 import type { Deal, Party } from "./deal";
 import type { EvidencePack } from "./evidence";
