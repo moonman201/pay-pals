@@ -36,16 +36,18 @@ export function unansweredQuestions(input: EvidenceInput): string[] {
   const sellerReplies = input.messages.filter((m) => m.channel === "deal" && m.author === "seller").map((m) => m.at);
   const cardUpdates = input.timeline.filter((e) => e.kind === "card_updated").map((e) => e.at);
 
+  // The same question may be asked more than once; it is unanswered when any asking of it got no answer.
   const seen = new Set<string>();
   const out: string[] = [];
   for (const q of asked) {
     if (!beforePayment(q.askedAt)) continue;
     const key = q.text.toLowerCase().replace(/\s+/g, " ").trim();
     if (key.length === 0 || seen.has(key)) continue;
-    seen.add(key);
     const replied = sellerReplies.some((at) => at > q.askedAt && beforePayment(at));
     const cardChanged = cardUpdates.some((at) => at > q.askedAt && beforePayment(at)) || (q.cardVersion !== null && input.lockedCard.version > q.cardVersion);
-    if (!replied && !cardChanged) out.push(q.text);
+    if (replied || cardChanged) continue;
+    seen.add(key);
+    out.push(q.text);
   }
   return out;
 }
