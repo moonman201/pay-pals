@@ -25,28 +25,28 @@ const buyer = { role: "buyer", displayName: "Priya S.", email: "priya.s@example.
 
 const consoleSerialPhoto = {
   url: "/fixtures/clean-ps5/console-back-serial.jpg",
-  whatItShows: `Back of the console. Serial ${CLEAN_SERIAL} and model CFI-1215A on the label.`,
+  whatItShows: `Back of a white PlayStation 5 console. The label shows serial ${CLEAN_SERIAL} and model CFI-1215A.`,
   addedBy: "seller",
   addedAt: at(3),
 } as const;
 
 const boxLabelPhoto = {
   url: "/fixtures/clean-ps5/box-label-serial.jpg",
-  whatItShows: `Original box label. Serial ${CLEAN_SERIAL}, model CFI-1215A.`,
+  whatItShows: `Barcode label on a PlayStation 5 box. Serial ${CLEAN_SERIAL}, model CFI-1215A.`,
   addedBy: "seller",
   addedAt: at(3),
 } as const;
 
 const frontPhoto = {
   url: "/fixtures/clean-ps5/front-with-box.jpg",
-  whatItShows: "Console standing next to its open box with the controller and cables.",
+  whatItShows: "White PlayStation 5 standing next to its open box, with a controller and two cables.",
   addedBy: "seller",
   addedAt: at(3),
 } as const;
 
 const consoleInfoPhoto = {
   url: "/fixtures/clean-ps5/console-information-screen.jpg",
-  whatItShows: `Console Information screen on the TV showing serial ${CLEAN_SERIAL} and current system software.`,
+  whatItShows: `TV screen showing the PlayStation Console Information page. Serial ${CLEAN_SERIAL}, system software version listed.`,
   addedBy: "seller",
   addedAt: at(40),
 } as const;
@@ -149,7 +149,7 @@ export const cleanPs5: ScenarioFixture = {
     carrier: "UPS",
     trackingNumber: "1Z999AA10123456784",
     packingPhotos: [
-      { url: "/fixtures/clean-ps5/packing-in-box.jpg", whatItShows: "Console, controller and cables in the original box, inside the shipping box with padding.", addedBy: "seller", addedAt: at(24 * 60) },
+      { url: "/fixtures/clean-ps5/packing-in-box.jpg", whatItShows: "PlayStation 5 box with the console, a controller and cables inside, sitting in a larger shipping box with padding.", addedBy: "seller", addedAt: at(24 * 60) },
       { url: "/fixtures/clean-ps5/packing-sealed.jpg", whatItShows: "Sealed shipping box with the label.", addedBy: "seller", addedAt: at(24 * 60 + 5) },
     ],
     checklist: [
@@ -162,7 +162,7 @@ export const cleanPs5: ScenarioFixture = {
     deliveredAt: at(5 * 24 * 60),
   },
   arrivalPhotos: [
-    { url: "/fixtures/clean-ps5/arrival-console-serial.jpg", whatItShows: `Back of the console as received. Serial ${CLEAN_SERIAL}.`, addedBy: "buyer", addedAt: at(5 * 24 * 60 + 20) },
+    { url: "/fixtures/clean-ps5/arrival-console-serial.jpg", whatItShows: `Back of a white PlayStation 5 console on a desk. The label shows serial ${CLEAN_SERIAL}.`, addedBy: "buyer", addedAt: at(5 * 24 * 60 + 20) },
   ],
   expectedArrival: { matches: true, mismatchFields: [] },
   timeline: chainEvents([

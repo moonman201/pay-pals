@@ -21,7 +21,7 @@ const listingUrl = "https://marketplace.example/listings/8841";
 
 const slabFront = {
   url: "/fixtures/fake-slab/slab-front.jpg",
-  whatItShows: `Front of a PSA slab. Label reads 1999 Pokemon Game Charizard Holo #4, PSA 10, cert ${FAKE_SLAB_CERT}. The same photo is reused from another seller's real listing.`,
+  whatItShows: `Front of a PSA slab on a wooden table. Label reads 1999 POKEMON GAME CHARIZARD-HOLO #4, GEM MT 10, cert ${FAKE_SLAB_CERT}.`,
   addedBy: "seller",
   addedAt: at(4),
 } as const;
@@ -64,7 +64,7 @@ export const fakeSlab: ScenarioFixture = {
       certNumber: FAKE_SLAB_CERT,
       grade: "PSA 10",
       conditionGrade: "like_new",
-      conditionNotes: "Graded PSA 10 per the label. One photo, reused from another listing.",
+      conditionNotes: "Graded PSA 10 per the label. One photo of the slab front.",
       included: ["Graded slab"],
       photos: [slabFront],
       askingPrice: 750,
