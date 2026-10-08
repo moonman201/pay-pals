@@ -9,6 +9,7 @@
 import { isPaymentMethodFlag, type Deal, type DealEvent, type ReviewContext, type Verdict } from "@pay-pals/contracts";
 import type { Services } from "../../services";
 import { FlowError } from "../errors";
+import { absoluteCard, absoluteMessages } from "../photo-urls";
 import { expectState, mustDeal, note, say } from "./shared";
 
 export const BLOCK_SUMMARY = "Blocked. Pay Pals will not move money outside a Goods and Services payment.";
@@ -38,7 +39,7 @@ export async function runReview(services: Services, dealId: string): Promise<Ver
     throw new FlowError("There is nothing to review yet. Paste the seller's reply in the chat, or wait for them to join.", 409);
   }
 
-  const result = await services.buyerPal.review(card, chat, reviewContext(deal, events));
+  const result = await services.buyerPal.review(card ? absoluteCard(card) : null, absoluteMessages(chat), reviewContext(deal, events));
   const verdict = await store.saveVerdict(result.data);
   await say(services, dealId, "buyer_pal", "buyer_pal", result.palMessage);
   const what = card ? `card version ${card.version}` : "the seller's reply, with no card";

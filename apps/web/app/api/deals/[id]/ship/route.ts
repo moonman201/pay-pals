@@ -4,7 +4,7 @@ import { markShipped } from "@/lib/deal/flows/ship";
 import { getServices } from "@/lib/services";
 
 export async function POST(req: Request, { params }: Params) {
-  return handle(async () => {
+  return handle(req, async () => {
     const body = await readBody(req, ShipBody);
     return markShipped(getServices(), (await params).id, body);
   });
