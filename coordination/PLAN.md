@@ -148,7 +148,7 @@ Branch `review-oct7`, merged to main 718be0b on Oct 8 and deployed. Each fix is 
 | 16 | reality-check | After merge, walk all three scenarios on the Vercel URL as a skeptical judge and report anything that looks pre-written rather than produced by the agents. |
 
 ## Judge walk, Oct 8 (reality-check item 16). Lane assignments
-Branch `judge-walk`. Same rules as the Oct 7 review. Full report in WORKLOG; the agents are real (different prose per run, re-review changes the answer, chain head verified on a live PayPal order) but several claims are unfounded and the seeded deals on Neon predate the Oct 7 fixes.
+Branch `judge-walk`, merged to main caf27aa on Oct 8, stale seeds deleted from Neon and re-seeded on deploy. Same rules as the Oct 7 review. Full report in WORKLOG; the agents are real (different prose per run, re-review changes the answer, chain head verified on a live PayPal order) but several claims are unfounded and the seeded deals on Neon predate the Oct 7 fixes.
 
 | # | Lane | Fix |
 |---|---|---|
