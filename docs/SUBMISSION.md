@@ -15,7 +15,7 @@ Deadline Thu Nov 12, 2026, 12:00 PM Pacific. Target: submit Wed Nov 11. Facts fr
 - [ ] Demo photos in `assets/demo-photos` (PS5 and the slab) and the real console serial in the fixtures (Matt).
 - [ ] `PSA_API_TOKEN` in `.env.local`, then one live PSA call to confirm the response shape (Matt, then Lead).
 - [ ] `ANTHROPIC_API_KEY` rotated after the Oct 7 transcript exposure (Matt).
-- [ ] Hosted on Vercel with every env var from `docs/DEPLOY.md`; `/` opens with no setup (Lead, once Vercel is connected).
+- [x] Hosted on Vercel: https://pay-pals-m00n1.vercel.app opens with no setup, runs on Neon, live Claude and Channel3, sandbox PayPal (Oct 8).
 - [ ] Sandbox webhook created and `PAYPAL_WEBHOOK_ID` set; a real capture moves a deal to PAID through the webhook (Lead).
 - [ ] Contracts frozen Fri Oct 9: bump `packages/contracts` from 1.4.0-draft to 1.4.0 (Lead).
 - [ ] A judge-facing walkthrough on the landing page: which scenario to click first, which side to play.

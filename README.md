@@ -39,7 +39,7 @@ For the real thing, copy `.env.example` to `.env.local` and fill in:
 | `CHANNEL3_API_KEY` | Live market prices. Without it the fixture price ranges are used. |
 | `DATABASE_URL` | Postgres (Neon) instead of the in-memory store. |
 
-Status: in development for the PayPal AI Hackathon. The hosted link lands here before submission.
+Hosted demo: https://pay-pals-m00n1.vercel.app (PayPal sandbox, Neon, live Claude and Channel3). In development for the PayPal AI Hackathon.
 
 ## Test it
 
