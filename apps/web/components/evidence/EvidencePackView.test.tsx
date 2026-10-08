@@ -1,7 +1,7 @@
 import { emptyBox, type EvidencePack } from "@pay-pals/contracts";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { EvidencePackView, messageCounts } from "./EvidencePackView";
+import { EvidencePackView, messageCounts, summaryParts } from "./EvidencePackView";
 
 const firstCard = emptyBox.cards[0];
 if (!firstCard) throw new Error("fixture needs a card");
@@ -80,6 +80,24 @@ describe("EvidencePackView", () => {
     const badges = screen.getAllByTestId("history-badge");
     expect(badges.length).toBeGreaterThanOrEqual(1);
     expect(badges[0]).toHaveTextContent(`History hash-chained, ${emptyBox.timeline.length} events`);
+  });
+
+  it("puts a dealId#hash token from the summary on its own breakable monospace line, so the page never scrolls sideways", () => {
+    const token = `${emptyBox.deal.id}#${"c".repeat(64)}`;
+    expect(token).toHaveLength(101);
+    const summary = `The chain head recorded on the PayPal order was ${token}, written into custom_id.\n\nA second paragraph with no hash.`;
+    render(<EvidencePackView pack={pack({ summary })} deal={emptyBox.deal} role="buyer" />);
+    const hash = screen.getByTestId("summary-hash");
+    expect(hash).toHaveTextContent(token);
+    expect(hash.className).toMatch(/break-all/);
+    expect(hash.className).toMatch(/font-mono/);
+    expect(hash.className).toMatch(/block/);
+    const paragraph = hash.closest("p");
+    expect(paragraph?.className).toMatch(/break-words/);
+    expect(paragraph).toHaveTextContent(/The chain head recorded on the PayPal order was/);
+    expect(paragraph).toHaveTextContent(/written into custom_id\./);
+    expect(summaryParts("plain words only")).toEqual([{ kind: "text", text: "plain words only" }]);
+    expect(summaryParts(`a ${"d".repeat(64)} b`).map((p) => p.kind)).toEqual(["text", "hash", "text"]);
   });
 
   it("has no box serial row when the card has none", () => {

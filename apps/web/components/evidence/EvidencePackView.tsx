@@ -4,6 +4,25 @@ import { boxSerialLabel, boxSerialMatches } from "@/lib/deal/box-serial";
 import { historyStatus } from "@/lib/deal/history-status";
 import { HistoryBadge } from "../deal/HistoryBadge";
 
+/** A dealId#hash token (36 plus 64 characters) or a bare 64-hex hash, which no phone width can hold on one line. */
+const HASH_TOKEN = /([0-9a-f-]{36}#[0-9a-f]{64}|\b[0-9a-f]{64}\b)/g;
+
+export type SummaryPart = { kind: "text" | "hash"; text: string };
+
+/** Splits a summary paragraph so a hash token can sit on its own monospace line. */
+export function summaryParts(paragraph: string): SummaryPart[] {
+  const parts: SummaryPart[] = [];
+  let last = 0;
+  for (const match of paragraph.matchAll(HASH_TOKEN)) {
+    const start = match.index ?? 0;
+    if (start > last) parts.push({ kind: "text", text: paragraph.slice(last, start) });
+    parts.push({ kind: "hash", text: match[0] });
+    last = start + match[0].length;
+  }
+  if (last < paragraph.length) parts.push({ kind: "text", text: paragraph.slice(last) });
+  return parts.length > 0 ? parts : [{ kind: "text", text: paragraph }];
+}
+
 /** "4 shared chat messages, 2 pal messages": counted per channel, never one lump. */
 export function messageCounts(messages: readonly Message[]): string {
   const shared = messages.filter((m) => m.channel === "deal").length;
@@ -55,8 +74,16 @@ export function EvidencePackView({ pack, deal, role }: { pack: EvidencePack; dea
       <div className="mt-6 space-y-6">
         <Section title="Summary">
           {pack.summary.split("\n\n").map((p, i) => (
-            <p key={i} className="mb-2 leading-relaxed">
-              {p}
+            <p key={i} className="mb-2 break-words leading-relaxed">
+              {summaryParts(p).map((part, j) =>
+                part.kind === "hash" ? (
+                  <span key={j} data-testid="summary-hash" className="my-1 block break-all font-mono text-xs">
+                    {part.text}
+                  </span>
+                ) : (
+                  <span key={j}>{part.text}</span>
+                ),
+              )}
             </p>
           ))}
         </Section>
