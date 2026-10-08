@@ -7,7 +7,7 @@ import type { EvidenceInput, EvidencePack, EvidencePackBuilder, PalResult, Photo
 import type { ClaudeClient } from "../claude/client";
 import { createAnthropicClientFromEnv } from "../claude/client";
 import { sentences } from "../copy";
-import { historyStatus, writeSummary } from "./summary";
+import { historyStatus, messageCounts, writeSummary } from "./summary";
 
 export interface EvidencePackOptions {
   anthropic: ClaudeClient | null;
@@ -49,8 +49,9 @@ export async function buildEvidencePack(input: EvidenceInput, options?: Evidence
     timeline: input.timeline,
     summary,
   };
+  const counts = messageCounts(input.messages);
   const palMessage = sentences(
-    `Evidence pack ready: locked card version ${input.lockedCard.version}, ${photos.length} photo${photos.length === 1 ? "" : "s"}, ${input.messages.length} chat message${input.messages.length === 1 ? "" : "s"},`,
+    `Evidence pack ready: locked card version ${input.lockedCard.version}, ${photos.length} photo${photos.length === 1 ? "" : "s"}, ${counts.shared} shared chat message${counts.shared === 1 ? "" : "s"}${counts.pal > 0 ? ` and ${counts.pal} pal message${counts.pal === 1 ? "" : "s"}` : ""},`,
     input.payment ? `PayPal order ${input.payment.paypalOrderId},` : "no PayPal order,",
     input.shipment ? `${input.shipment.carrier} tracking ${input.shipment.trackingNumber},` : "no shipment,",
     input.arrivalCheck ? `and the arrival check (${input.arrivalCheck.matches ? "matched" : "did not match"}).` : "and the full timeline.",
