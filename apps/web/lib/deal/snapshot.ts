@@ -4,6 +4,7 @@
  * removed). Demo hints come from the scenario fixture and only prefill forms.
  */
 import type { ArrivalCheck, ChecklistItem, Deal, DealEvent, ItemCard, Message, PalResult, PaymentRecord, Photo, Shipment, Verdict } from "@pay-pals/contracts";
+import { readSeedStamp } from "../demo/seed-version";
 import { fixtureById } from "../scenarios";
 import { palChannel, type Role } from "../role";
 import type { Services } from "../services";
@@ -37,6 +38,15 @@ export interface DealSnapshot {
   payMode: "sandbox" | "mock";
   /** The seller declined the invite (recorded on the join page or relayed by the buyer). */
   inviteDeclined: boolean;
+  /** Seeded from a scenario (seed stamp on deal_created, or a FIXTURE- order id): an example deal with no PayPal order behind it. */
+  example: boolean;
+  /** Photo uploads work on this host (a writable public/uploads). */
+  uploadsEnabled: boolean;
+}
+
+export function isExampleDeal(events: readonly DealEvent[], payment: PaymentRecord | null): boolean {
+  if (payment?.paypalOrderId.startsWith("FIXTURE-")) return true;
+  return readSeedStamp(events.find((e) => e.kind === "deal_created")?.data) !== null;
 }
 
 function demoHints(deal: Deal, currentCard: ItemCard | null): DemoHints | null {
@@ -106,6 +116,8 @@ export async function loadSnapshot(services: Services, dealId: string): Promise<
     demo: demoHints(deal, currentCard),
     payMode: services.modes.paypal,
     inviteDeclined: events.some((e) => e.kind === "invite_declined"),
+    example: isExampleDeal(events, payment),
+    uploadsEnabled: services.uploadsEnabled,
   };
 }
 
