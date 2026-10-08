@@ -33,7 +33,7 @@ export function PaymentSummary({ payment }: { payment: PaymentRecord }) {
           <a href={approve} target="_blank" rel="noreferrer" className="font-semibold text-[var(--accent-ink)] underline-offset-2 hover:underline">
             Approve it in the PayPal sandbox
           </a>
-          , then press Pay again to capture.
+          , then press &quot;I approved in PayPal, capture now&quot; in the pay panel.
         </p>
       ) : null}
       <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2">

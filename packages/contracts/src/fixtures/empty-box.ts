@@ -81,7 +81,8 @@ export const emptyBox: ScenarioFixture = {
   chat: [
     { id: "m1", dealId, channel: "deal", author: "buyer", text: "Hi Marcus, I will take the PS5 at $410 if the card checks out.", photos: [], at: at(10) },
     { id: "m2", dealId, channel: "deal", author: "seller", text: "Sounds good. Everything is on the card.", photos: [], at: at(12) },
-    { id: "m3", dealId, channel: "deal", author: "buyer", text: "My pal says go. Sending payment now.", photos: [], at: at(48) },
+    { id: "m3", dealId, channel: "deal", author: "buyer_pal", text: "Buyer Pal to seller: Can you add a photo of the Console Information screen showing the serial?", photos: [], at: at(31) },
+    { id: "m4", dealId, channel: "deal", author: "buyer", text: "My pal asked for one more photo but I am fine either way. Sending payment now.", photos: [], at: at(48) },
   ],
   marketPrice: {
     marketLow: 380,
@@ -129,6 +130,15 @@ export const emptyBox: ScenarioFixture = {
     ],
     shippedAt: at(24 * 60 + 15),
     deliveredAt: at(5 * 24 * 60),
+    flags: [
+      {
+        code: "MISSING_PACKING_PHOTO",
+        severity: "caution",
+        evidence: "checklist: Photo of the console, controller and cables going into the box: not done",
+        explanation: "The seller shipped without the photo of the item going into the box, so there is no proof of what was packed.",
+        raisedByRule: true,
+      },
+    ],
   },
   arrivalPhotos: [
     {
@@ -149,7 +159,7 @@ export const emptyBox: ScenarioFixture = {
     { id: "e1", dealId, kind: "deal_created", actor: "seller", summary: "Marcus B. started a deal.", at: at(0) },
     { id: "e2", dealId, kind: "card_updated", actor: "seller_pal", summary: `Seller Pal built card version 1. Console serial ${EMPTY_BOX_LOCKED_SERIAL} matches the box label.`, at: at(1) },
     { id: "e3", dealId, kind: "state_changed", actor: "system", summary: "Listed.", fromState: "DRAFT", toState: "LISTED", at: at(1) },
-    { id: "e4", dealId, kind: "review_posted", actor: "buyer_pal", summary: "Buyer Pal reviewed the deal: go.", at: at(30) },
+    { id: "e4", dealId, kind: "review_posted", actor: "buyer_pal", summary: "Buyer Pal reviewed the deal: go, and asked for a Console Information screen photo. The seller never answered.", at: at(30) },
     { id: "e5", dealId, kind: "state_changed", actor: "system", summary: "Reviewed.", fromState: "LISTED", toState: "REVIEWED", at: at(30) },
     { id: "e5b", dealId, kind: "agreed", actor: "buyer", summary: "Jen K. agreed to card version 1.", at: at(48) },
     { id: "e5c", dealId, kind: "agreed", actor: "seller", summary: "Marcus B. agreed to card version 1.", at: at(50) },
@@ -161,6 +171,7 @@ export const emptyBox: ScenarioFixture = {
     { id: "e11", dealId, kind: "state_changed", actor: "system", summary: "Paid.", fromState: "PAYMENT_PENDING", toState: "PAID", at: at(55) },
     { id: "e12", dealId, kind: "shipped", actor: "seller", summary: "Shipped with USPS, tracking 9400100000000000000002. One packing photo missing.", at: at(24 * 60 + 15) },
     { id: "e13", dealId, kind: "state_changed", actor: "system", summary: "Shipped.", fromState: "PAID", toState: "SHIPPED", at: at(24 * 60 + 15) },
+    { id: "e13b", dealId, kind: "shipment_checked", actor: "buyer_pal", summary: "Caution: the seller shipped without the packing photo of the item going into the box.", at: at(24 * 60 + 16) },
     { id: "e14", dealId, kind: "delivered", actor: "buyer", summary: "Buyer confirmed delivery.", at: at(5 * 24 * 60) },
     { id: "e15", dealId, kind: "state_changed", actor: "system", summary: "Delivered.", fromState: "SHIPPED", toState: "DELIVERED", at: at(5 * 24 * 60) },
     { id: "e16", dealId, kind: "arrival_checked", actor: "buyer_pal", summary: `Arrival does not match. Card says console serial ${EMPTY_BOX_LOCKED_SERIAL}. The box arrived with no console inside.`, at: at(5 * 24 * 60 + 20) },

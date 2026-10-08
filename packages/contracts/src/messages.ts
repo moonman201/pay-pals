@@ -40,6 +40,7 @@ export const DEAL_EVENT_KINDS = [
   "payment_created",
   "payment_captured",
   "shipped",
+  "shipment_checked",
   "delivered",
   "arrival_checked",
   "evidence_built",

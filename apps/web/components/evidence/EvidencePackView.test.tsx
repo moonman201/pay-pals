@@ -1,5 +1,5 @@
 import { emptyBox, type EvidencePack } from "@pay-pals/contracts";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { EvidencePackView, messageCounts, summaryParts } from "./EvidencePackView";
 
@@ -128,6 +128,27 @@ describe("EvidencePackView", () => {
     render(<EvidencePackView pack={pack({ verdicts: [verdict] })} deal={emptyBox.deal} role="buyer" />);
     expect(screen.getByText(/No reliable market price found, via Channel3/)).toBeInTheDocument();
     expect(screen.queryByText(/\$0 to \$0/)).not.toBeInTheDocument();
+  });
+
+  it("lists what the Buyer Pal asked and never got, and the ship-time flags under the shipment", () => {
+    render(
+      <EvidencePackView
+        pack={pack({ unansweredQuestions: ["Can you add a photo of the Console Information screen showing the serial?"], shipmentFlags: emptyBox.shipment!.flags })}
+        deal={emptyBox.deal}
+        role="buyer"
+      />,
+    );
+    expect(screen.getByText("What the Buyer Pal asked and never got")).toBeInTheDocument();
+    expect(within(screen.getByTestId("unanswered-questions")).getByText(/Console Information screen/)).toBeInTheDocument();
+    const flags = screen.getByTestId("shipment-flags");
+    expect(within(flags).getByText("a packing photo the seller skipped")).toBeInTheDocument();
+    expect(within(flags).getByText("caution")).toBeInTheDocument();
+  });
+
+  it("says plainly when nothing went unanswered, and falls back to the shipment's own flags", () => {
+    render(<EvidencePackView pack={pack({ unansweredQuestions: [], shipment: emptyBox.shipment, shipmentFlags: undefined })} deal={emptyBox.deal} role="buyer" />);
+    expect(screen.getByText(/Every question the Buyer Pal asked before payment was answered/)).toBeInTheDocument();
+    expect(screen.getByTestId("shipment-flags")).toBeInTheDocument();
   });
 
   it("has no box serial row when the card has none", () => {

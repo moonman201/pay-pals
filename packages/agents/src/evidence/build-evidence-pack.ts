@@ -8,6 +8,7 @@ import type { ClaudeClient } from "../claude/client";
 import { createAnthropicClientFromEnv } from "../claude/client";
 import { sentences } from "../copy";
 import { historyStatus, messageCounts, writeSummary } from "./summary";
+import { unansweredQuestions } from "./unanswered";
 
 export interface EvidencePackOptions {
   anthropic: ClaudeClient | null;
@@ -34,8 +35,12 @@ export async function buildEvidencePack(input: EvidenceInput, options?: Evidence
   const photos = collectPhotos(input);
   const summary = await writeSummary(input, client);
   const history = historyStatus(input);
+  const unanswered = unansweredQuestions(input);
+  const shipmentFlags = input.shipment?.flags ?? [];
   const pack: EvidencePack = {
     ...(history ?? {}),
+    unansweredQuestions: unanswered,
+    shipmentFlags,
     dealId: input.deal.id,
     builtBy: input.requestedBy === "buyer" ? "buyer_pal" : "seller_pal",
     builtAt: new Date().toISOString(),
@@ -56,6 +61,8 @@ export async function buildEvidencePack(input: EvidenceInput, options?: Evidence
     input.shipment ? `${input.shipment.carrier} tracking ${input.shipment.trackingNumber},` : "no shipment,",
     input.arrivalCheck ? `and the arrival check (${input.arrivalCheck.matches ? "matched" : "did not match"}).` : "and the full timeline.",
     history ? (history.historyVerified ? "The history hash on the PayPal order matches the stored events." : "The stored events do not reproduce the history hash on the PayPal order.") : null,
+    unanswered.length > 0 ? `The seller never answered ${unanswered.length === 1 ? "one question" : `${unanswered.length} questions`} the Buyer Pal asked before payment.` : null,
+    shipmentFlags.length > 0 ? "The seller shipped without the required packing photo." : null,
     input.arrivalCheck && !input.arrivalCheck.matches ? "Open a dispute in PayPal for this order and attach this pack." : "Keep this in case either side needs it.",
   );
   return { data: pack, palMessage };

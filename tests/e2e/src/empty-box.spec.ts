@@ -7,8 +7,8 @@
 import { expect, test } from "@playwright/test";
 import { EMPTY_BOX_LOCKED_SERIAL, emptyBox } from "@pay-pals/contracts";
 import { WEB_PRESENT } from "./env";
-import { driveToDelivered, runArrivalCheck } from "./flows";
-import { expectState, panel, pressAction, snapshot, startDemo } from "./helpers";
+import { CONSOLE_PROOF_QUESTION, driveToDelivered, runArrivalCheck } from "./flows";
+import { expectState, openRoomAs, panel, pressAction, snapshot, startDemo } from "./helpers";
 
 /** Vision wording, once the photos exist and a key is present. */
 const NOT_PRESENT = "not present, box arrived empty";
@@ -22,7 +22,28 @@ test.describe("empty box arrives", () => {
   test("names the missing console against the locked serial, opens an issue and builds the evidence pack", async ({ page }) => {
     const dealId = await startDemo(page, emptyBox, "buyer");
     await expect(panel(page, "Item card").getByText("matches the console")).toBeVisible();
-    await driveToDelivered(page, dealId, emptyBox);
+
+    // The seller ships without the required photo of the item going into the box (contracts v1.6.0).
+    // The live Seller Pal words that step "going into the shipping box"; the fixture says "going into the box".
+    await driveToDelivered(page, dealId, emptyBox, { ship: { leaveUnticked: /going into the (?:shipping )?box/i } });
+
+    // Both rooms show the Buyer Pal's ship-time caution, and the timeline records the check.
+    const shipmentCheck = page.getByRole("list", { name: "Buyer Pal shipment check" });
+    await expect(shipmentCheck).toBeVisible();
+    await expect(shipmentCheck.getByText("Buyer Pal:", { exact: true })).toBeVisible();
+    await expect(shipmentCheck.getByText("caution", { exact: true })).toBeVisible();
+    await expect(shipmentCheck).toContainText("The seller shipped without the photo of the item going into the box");
+    await expect(panel(page, "Timeline").getByRole("listitem").filter({ hasText: "Buyer Pal shipment check" })).toHaveCount(1);
+    await openRoomAs(page, dealId, "seller");
+    await expect(page.getByRole("list", { name: "Buyer Pal shipment check" }).getByText("caution", { exact: true })).toBeVisible();
+    await expect(panel(page, "Timeline").getByRole("listitem").filter({ hasText: "Buyer Pal shipment check" })).toHaveCount(1);
+    await openRoomAs(page, dealId, "buyer");
+    const shipped = await snapshot(page, dealId);
+    expect(shipped.shipment?.flags?.map((f) => f.code)).toEqual(["MISSING_PACKING_PHOTO"]);
+    expect(shipped.events.filter((e) => e.kind === "shipment_checked")).toHaveLength(1);
+    // The Buyer Pal always asks a used console's seller for the Console Information screen; this seller never answers.
+    const asked = shipped.verdict?.questionsForSeller ?? [];
+    expect(asked.some((q) => CONSOLE_PROOF_QUESTION.test(q)), `asked: ${asked.join(" | ")}`).toBe(true);
 
     await runArrivalCheck(page, emptyBox);
     const result = panel(page, "Arrival check");
@@ -75,5 +96,19 @@ test.describe("empty box arrives", () => {
     const arrivalCheck = page.locator("section").filter({ has: page.getByRole("heading", { name: "Arrival check" }) });
     await expect(arrivalCheck).toContainText(EMPTY_BOX_LOCKED_SERIAL);
     await expect(arrivalCheck).toContainText(MISSING);
+
+    // What the seller never answered, and the ship-time caution, both in the pack.
+    // Exactly one thing asked and never got: the screen photo. The seller's "I agree" line is not an answer.
+    const unanswered = page.locator("section").filter({ has: page.getByRole("heading", { name: "What the Buyer Pal asked and never got" }) });
+    await expect(unanswered).toBeVisible();
+    const list = unanswered.getByTestId("unanswered-questions");
+    await expect(list.getByRole("listitem")).toHaveCount(1);
+    await expect(list.getByRole("listitem").first()).toContainText(CONSOLE_PROOF_QUESTION);
+    await expect(unanswered.getByText("Nothing. Every question")).toHaveCount(0);
+    const shipmentSection = page.locator("section").filter({ has: page.getByRole("heading", { name: "Shipment" }) });
+    const evidenceCheck = shipmentSection.getByRole("list", { name: "Buyer Pal shipment check" });
+    await expect(evidenceCheck.getByText("caution", { exact: true })).toBeVisible();
+    await expect(evidenceCheck).toContainText("The seller shipped without the photo of the item going into the box");
+    await expect(page.locator("section").filter({ has: page.getByRole("heading", { name: "Summary" }) })).toContainText(/packing photo|going into the box/i);
   });
 });

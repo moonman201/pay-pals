@@ -8,6 +8,7 @@ import type { ImageFetcher } from "../vision/fetch-image";
 import { checkArrivalAgainstCard } from "./arrival";
 import type { KnownPhoto } from "./photo-match";
 import { reviewCard } from "./review";
+import { checkShipmentAgainstCard } from "./shipment";
 
 export interface BuyerPalOptions {
   anthropic: ClaudeClient | null;
@@ -36,5 +37,6 @@ export function createBuyerPal(options: BuyerPalOptions): BuyerPal {
         ...photos,
       }),
     checkArrival: (card, arrivalPhotos) => checkArrivalAgainstCard(card, arrivalPhotos, { client, ...photos }),
+    checkShipment: async (card, shipment) => checkShipmentAgainstCard(card, shipment),
   };
 }

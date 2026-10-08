@@ -26,6 +26,7 @@ export function shipmentsRepo(db: Db) {
               checklist: row.checklist,
               shippedAt: row.shippedAt,
               deliveredAt: row.deliveredAt,
+              flags: row.flags,
             },
           })
           .returning();

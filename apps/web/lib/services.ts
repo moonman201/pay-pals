@@ -51,6 +51,12 @@ export interface Services {
   clock: () => Date;
   /** Photo uploads work on this host (public/uploads is writable). Hosted builds are read-only. */
   uploadsEnabled: boolean;
+  /**
+   * The PayPal sandbox test buyer, for demo deals paid through the sandbox
+   * gateway. Server-side only; the pay panel shows it so a judge can approve.
+   * Null without both SANDBOX_BUYER_EMAIL and SANDBOX_BUYER_PASSWORD, or on the mock gateway.
+   */
+  sandboxBuyer: { email: string; password: string } | null;
   modes: ServiceModes;
   /**
    * Payee used for deals started from demo mode, from SANDBOX_SELLER_PERSONAL_EMAIL.
@@ -117,7 +123,12 @@ export function createServices(env: Env = process.env, log: Log = (line) => cons
   let seededDeals: Promise<Partial<Record<ScenarioId, string>>>;
   const uploadsEnabled = detectUploadsEnabled();
   log(`[pay-pals] uploads: ${uploadsEnabled ? "on (public/uploads is writable)" : "off (read-only host), photos by URL only"}`);
-  const services = { sellerPal, buyerPal, buildEvidencePack, paypal, demoPayee, clock: systemClock, uploadsEnabled } as Services;
+  const sandboxBuyer =
+    modes.paypal === "sandbox" && has(env, "SANDBOX_BUYER_EMAIL") && has(env, "SANDBOX_BUYER_PASSWORD")
+      ? { email: env.SANDBOX_BUYER_EMAIL!.trim(), password: env.SANDBOX_BUYER_PASSWORD!.trim() }
+      : null;
+  if (modes.paypal === "sandbox") log(`[pay-pals] sandbox buyer: ${sandboxBuyer ? "test account available on demo deals" : "not set (SANDBOX_BUYER_EMAIL and SANDBOX_BUYER_PASSWORD)"}`);
+  const services = { sellerPal, buyerPal, buildEvidencePack, paypal, demoPayee, clock: systemClock, uploadsEnabled, sandboxBuyer } as Services;
   // The seeder replays each fixture on the fixture's own dates, so the seeded timeline, payment and shipment agree.
   const replay = createReplayClock();
 

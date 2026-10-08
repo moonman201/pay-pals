@@ -1,5 +1,5 @@
 /** Plain words for the enums the contracts use. */
-import type { Actor, Deal, DealState, VerdictOverall } from "@pay-pals/contracts";
+import type { Actor, Deal, DealEventKind, DealState, VerdictOverall } from "@pay-pals/contracts";
 
 export const STATE_LABELS: Readonly<Record<DealState, string>> = {
   DRAFT: "Draft",
@@ -15,6 +15,27 @@ export const STATE_LABELS: Readonly<Record<DealState, string>> = {
   BLOCKED: "Blocked",
   ISSUE: "Issue open",
   CANCELLED: "Cancelled",
+};
+
+/** Short label for an event kind, for the timeline and the evidence pack. */
+export const EVENT_KIND_LABELS: Readonly<Record<DealEventKind, string>> = {
+  deal_created: "Deal started",
+  seller_invited: "Seller invited",
+  seller_joined: "Seller joined",
+  invite_declined: "Invite declined",
+  card_updated: "Card updated",
+  review_posted: "Buyer Pal review",
+  agreed: "Agreed",
+  card_locked: "Card locked",
+  state_changed: "State changed",
+  payment_created: "PayPal order created",
+  payment_captured: "Payment captured",
+  shipped: "Shipped",
+  shipment_checked: "Buyer Pal shipment check",
+  delivered: "Delivered",
+  arrival_checked: "Buyer Pal arrival check",
+  evidence_built: "Evidence pack built",
+  dispute_opened: "Dispute opened",
 };
 
 export const OVERALL_LABELS: Readonly<Record<VerdictOverall, string>> = {

@@ -30,7 +30,8 @@ export async function startDemo(page: Page, fixture: ScenarioFixture, side: Side
   await page.goto("/");
   const card = page.getByRole("article").filter({ has: page.getByRole("heading", { name: fixture.name }) });
   await card.getByRole("button", { name: `Play as ${side}` }).click();
-  await expect(page).toHaveURL(new RegExp(`/deals/[^/?]+\\?as=${side}$`));
+  // The first request to a cold dev server compiles the route and seeds the demo deals with the real pals.
+  await expect(page).toHaveURL(new RegExp(`/deals/[^/?]+\\?as=${side}$`), { timeout: PAL_TIMEOUT });
   const id = /\/deals\/([^/?]+)/.exec(page.url())?.[1];
   if (!id) throw new Error(`No deal id in ${page.url()}`);
   expect(id).not.toBe(fixture.deal.id);
@@ -67,7 +68,8 @@ export async function startBuyerFirst(page: Page, input: BuyerFirstInput): Promi
   await form.getByLabel("Your name").fill(input.buyerName);
   await form.getByLabel("Your email").fill(input.buyerEmail);
   await form.getByRole("button", { name: "Use Pay Pals Protection" }).click();
-  await expect(page).toHaveURL(/\/deals\/[^/?]+\?as=buyer$/);
+  // Same first-request cost as startDemo when this spec is the first to reach the server.
+  await expect(page).toHaveURL(/\/deals\/[^/?]+\?as=buyer$/, { timeout: PAL_TIMEOUT });
   const id = /\/deals\/([^/?]+)/.exec(page.url())?.[1];
   if (!id) throw new Error(`No deal id in ${page.url()}`);
   await waitForHydration(page);
@@ -153,6 +155,8 @@ export interface Snapshot {
     currentCardVersion: number;
   };
   events: { kind: string; at: string }[];
+  verdict: { questionsForSeller: string[] } | null;
+  shipment: { flags?: { code: string; severity: string }[] } | null;
   hasEvidence: boolean;
   inviteDeclined: boolean;
   payment: { historyHash?: string | null; createdAt?: string; capturedAt?: string | null } | null;

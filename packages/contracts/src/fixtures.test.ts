@@ -99,6 +99,14 @@ describe("scenario fixtures", () => {
     expect(card.boxSerial).toBe(card.serial);
   });
 
+  it("empty box scenario ships without the packing photo and the pal says so", () => {
+    const fx = FIXTURES["empty-box"];
+    expect(fx.shipment!.checklist.some((c) => c.required && !c.done)).toBe(true);
+    expect(fx.shipment!.flags!.map((f) => f.code)).toContain("MISSING_PACKING_PHOTO");
+    expect(fx.timeline.some((e) => e.kind === "shipment_checked")).toBe(true);
+    expect(fx.chat.some((m) => m.author === "buyer_pal")).toBe(true);
+  });
+
   it("empty box scenario arrives with no console", () => {
     const fx = FIXTURES["empty-box"];
     expect(fx.arrivalPhotos.some((p) => /foam insert/i.test(p.whatItShows))).toBe(true);

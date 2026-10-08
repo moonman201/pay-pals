@@ -149,7 +149,7 @@ export function DealRoom({ snapshot, role }: { snapshot: DealSnapshot; role: Rol
                 <RequestStep dealId={deal.id} questions={openQuestions} suggestions={snapshot.demo?.requestPhotos ?? []} uploadsEnabled={snapshot.uploadsEnabled} onDone={refresh} />
               ) : null}
               {role === "buyer" && canStillPay(state) && snapshot.lockedCard ? (
-                <PayStep dealId={deal.id} card={snapshot.lockedCard} payMode={snapshot.payMode} onDone={refresh} />
+                <PayStep dealId={deal.id} card={snapshot.lockedCard} payMode={snapshot.payMode} payment={snapshot.payment} sandboxBuyer={snapshot.sandboxBuyer} onDone={refresh} />
               ) : null}
               {role === "seller" && state === "PAID" && snapshot.checklist ? (
                 <ShipStep dealId={deal.id} checklist={snapshot.checklist} palMessage={snapshot.checklistMessage} demo={snapshot.demo?.packing ?? null} uploadsEnabled={snapshot.uploadsEnabled} onDone={refresh} />

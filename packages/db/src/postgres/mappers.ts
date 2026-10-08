@@ -180,6 +180,7 @@ export function toShipment(row: ShipmentRow): Shipment {
     checklist: row.checklist,
     shippedAt: iso(row.shippedAt),
     deliveredAt: isoOrNull(row.deliveredAt),
+    flags: row.flags ?? [],
   };
 }
 
@@ -192,6 +193,7 @@ export function toShipmentRow(s: Shipment): typeof shipments.$inferInsert {
     checklist: s.checklist,
     shippedAt: date(s.shippedAt),
     deliveredAt: dateOrNull(s.deliveredAt),
+    flags: s.flags ?? [],
   };
 }
 

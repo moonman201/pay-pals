@@ -31,6 +31,7 @@ import { buildGroundingCorpus } from "./grounding";
 import { mergeModelReview } from "./merge-flags";
 import { photoFactsBlock } from "./photo-facts";
 import { findReusedPhotos, type PhotoMatchDeps } from "./photo-match";
+import { proofQuestion, withProofQuestion } from "./proof-question";
 import { ModelReviewSchema, REVIEW_TOOL, type ModelReview } from "./review-tool";
 
 export const MAX_QUESTIONS = 3;
@@ -68,6 +69,7 @@ const FLAG_WORDS: Record<RedFlag["code"], string> = {
   SHIP_BEFORE_PAY_TRICK: "a trick to get money or a confirmation before shipping",
   INVITE_REFUSED: "the seller refusing Pay Pals protection",
   CERT_MISMATCH: "a grading cert that does not match the card",
+  MISSING_PACKING_PHOTO: "a shipment without the required packing photo",
   OTHER: "another concern",
 };
 
@@ -251,8 +253,10 @@ export async function reviewCard(card: ItemCard | null, chat: Message[], context
   // Collapse again after the merge: the model may have added a payment code of its own.
   const flags = collapsePaymentFlags(mergeModelReview(ruleFlags, review, buildGroundingCorpus(card, chat)));
   const overall = overallFromFlags(flags);
-  const questions = pickQuestions(review?.questions_for_seller ?? []);
-  const questionsForSeller = questions.length > 0 ? questions : pickQuestions(fallbackQuestions(card, flags));
+  // The proof question is deterministic and comes first; the model's questions, or the rules-only ones, follow.
+  const proof = overall === "stop" ? null : proofQuestion(card);
+  const modelQuestions = review?.questions_for_seller ?? [];
+  const questionsForSeller = pickQuestions(withProofQuestion(proof, modelQuestions.length > 0 ? modelQuestions : fallbackQuestions(card, flags)));
   const body = pass.message ? plainCopy(pass.message) : fallbackMessage(card, flags, priceCheck, certCheck, certLookupFailed);
   const palMessage = sentences(describeLooking(readings, "card photo"), body);
 

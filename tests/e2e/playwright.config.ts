@@ -22,7 +22,12 @@ export default defineConfig({
   testDir: "./src",
   testMatch: /.*\.spec\.ts/,
   testIgnore: REAL,
-  timeout: 120_000,
+  // One dev server serves every worker; it compiles each route on first hit, so the warm-up pays those
+  // compiles once and three workers keep the rest from piling up.
+  globalSetup: "./src/global-setup.ts",
+  workers: 3,
+  // A whole scenario, with the dev server compiling routes as it goes; each step keeps its own shorter wait.
+  timeout: 300_000,
   expect: { timeout: 15_000 },
   retries: 0,
   reporter: [["list"]],
