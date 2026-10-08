@@ -7,8 +7,11 @@
  *
  * Time: the store's clock is a replay clock set to each fixture event's `at`
  * before the call that produces it, so the seeded timeline, payment and
- * shipment carry the fixture's dates and run in order. Chat messages are
- * added at their own fixture times, interleaved with the events.
+ * shipment run in order with the fixture's gaps. The fixture dates are
+ * shifted by one constant per fixture so its last event lands a fixed
+ * distance before the wall clock (the finished deals read as last week),
+ * which keeps every later action on them after the deal's latest event.
+ * Chat messages are added at their own (shifted) times, interleaved.
  *
  * On a durable store the seed is idempotent: a scenario that already has a
  * finished deal is not replayed, and when two server instances race, both
@@ -27,9 +30,25 @@ export interface ReplayTime {
 
 const noClock: ReplayTime = { set: () => {} };
 
-async function replay(services: SeedServices, fixture: ScenarioFixture, time: ReplayTime): Promise<string> {
+/** How far before the wall clock a fixture's last event lands. */
+export const SEED_ANCHOR_MS = 3 * 24 * 60 * 60 * 1000;
+
+/** Milliseconds to add to every fixture timestamp so the last event sits SEED_ANCHOR_MS before `nowMs`. */
+export function fixtureOffsetMs(fixture: ScenarioFixture, nowMs: number): number {
+  const last = fixture.timeline[fixture.timeline.length - 1];
+  if (!last) return 0;
+  return nowMs - SEED_ANCHOR_MS - Date.parse(last.at);
+}
+
+export function shiftIso(iso: string, offsetMs: number): string {
+  return new Date(Date.parse(iso) + offsetMs).toISOString();
+}
+
+async function replay(services: SeedServices, fixture: ScenarioFixture, time: ReplayTime, nowMs: number): Promise<string> {
   const { store } = services;
-  const at = (iso: string) => time.set(iso);
+  const offset = fixtureOffsetMs(fixture, nowMs);
+  const when = (iso: string) => shiftIso(iso, offset);
+  const at = (iso: string) => time.set(when(iso));
   const first = fixture.timeline[0];
   if (first) at(first.at);
 
@@ -46,14 +65,14 @@ async function replay(services: SeedServices, fixture: ScenarioFixture, time: Re
   let nextChat = 0;
   const recordEvent = (e: DealEvent, data?: Record<string, unknown>) => {
     at(e.at);
-    return store.appendEvent({ dealId: id, kind: e.kind, actor: e.actor, summary: e.summary, data, at: e.at });
+    return store.appendEvent({ dealId: id, kind: e.kind, actor: e.actor, summary: e.summary, data, at: when(e.at) });
   };
-  /** Chat messages dated up to this moment, each at its own fixture time. */
+  /** Chat messages dated up to this moment, each at its own (shifted) fixture time. */
   const flushChat = async (upTo: string) => {
     while (nextChat < fixture.chat.length && fixture.chat[nextChat]!.at <= upTo) {
       const m = fixture.chat[nextChat]!;
       at(m.at);
-      await store.addMessage({ dealId: id, channel: m.channel, author: m.author, text: m.text, photos: m.photos, at: m.at });
+      await store.addMessage({ dealId: id, channel: m.channel, author: m.author, text: m.text, photos: m.photos, at: when(m.at) });
       nextChat += 1;
     }
   };
@@ -93,8 +112,8 @@ async function replay(services: SeedServices, fixture: ScenarioFixture, time: Re
             sellerJoined: (current?.sellerJoinedAt ?? null) !== null,
             inviteDeclined: false,
           });
-          await store.saveVerdict({ ...result.data, createdAt: event.at });
-          await store.addMessage({ dealId: id, channel: "buyer_pal", author: "buyer_pal", text: result.palMessage, photos: [], at: event.at });
+          await store.saveVerdict({ ...result.data, createdAt: when(event.at) });
+          await store.addMessage({ dealId: id, channel: "buyer_pal", author: "buyer_pal", text: result.palMessage, photos: [], at: when(event.at) });
         }
         await recordEvent(event);
         break;
@@ -114,7 +133,16 @@ async function replay(services: SeedServices, fixture: ScenarioFixture, time: Re
         if (fixture.payment) {
           const events = await store.listEvents(id);
           const historyHash = events[events.length - 1]?.hash ?? null;
-          await store.savePayment({ ...fixture.payment, dealId: id, payeeEmail: services.demoPayee ?? fixture.payment.payeeEmail, status: "CREATED", captureId: null, capturedAt: null, historyHash });
+          await store.savePayment({
+            ...fixture.payment,
+            dealId: id,
+            payeeEmail: services.demoPayee ?? fixture.payment.payeeEmail,
+            status: "CREATED",
+            captureId: null,
+            createdAt: when(fixture.payment.createdAt),
+            capturedAt: null,
+            historyHash,
+          });
         }
         await recordEvent(event);
         break;
@@ -122,27 +150,35 @@ async function replay(services: SeedServices, fixture: ScenarioFixture, time: Re
       case "payment_captured": {
         if (fixture.payment) {
           const created = await store.getPayment(id);
-          await store.savePayment({ ...fixture.payment, dealId: id, payeeEmail: services.demoPayee ?? fixture.payment.payeeEmail, historyHash: created?.historyHash ?? null });
+          await store.savePayment({
+            ...fixture.payment,
+            dealId: id,
+            payeeEmail: services.demoPayee ?? fixture.payment.payeeEmail,
+            createdAt: when(fixture.payment.createdAt),
+            capturedAt: fixture.payment.capturedAt ? when(fixture.payment.capturedAt) : null,
+            historyHash: created?.historyHash ?? null,
+          });
         }
         await recordEvent(event);
         break;
       }
       case "shipped": {
-        if (fixture.shipment) await store.saveShipment({ ...fixture.shipment, dealId: id, deliveredAt: null });
+        if (fixture.shipment) await store.saveShipment({ ...shiftedShipment(fixture, when), dealId: id, deliveredAt: null });
         await recordEvent(event);
         break;
       }
       case "delivered": {
-        if (fixture.shipment) await store.saveShipment({ ...fixture.shipment, dealId: id });
+        if (fixture.shipment) await store.saveShipment({ ...shiftedShipment(fixture, when), dealId: id });
         await recordEvent(event);
         break;
       }
       case "arrival_checked": {
         if (lockedCard && fixture.arrivalPhotos.length > 0) {
-          await store.addMessage({ dealId: id, channel: "deal", author: "buyer", text: "Arrival photos.", photos: fixture.arrivalPhotos, at: event.at });
+          const photos = fixture.arrivalPhotos.map((p) => (p.addedAt ? { ...p, addedAt: when(p.addedAt) } : p));
+          await store.addMessage({ dealId: id, channel: "deal", author: "buyer", text: "Arrival photos.", photos, at: when(event.at) });
           const result = await services.buyerPal.checkArrival(lockedCard, fixture.arrivalPhotos);
-          await store.saveArrivalCheck({ ...result.data, photos: fixture.arrivalPhotos, createdAt: event.at });
-          await store.addMessage({ dealId: id, channel: "buyer_pal", author: "buyer_pal", text: result.palMessage, photos: [], at: event.at });
+          await store.saveArrivalCheck({ ...result.data, photos, createdAt: when(event.at) });
+          await store.addMessage({ dealId: id, channel: "buyer_pal", author: "buyer_pal", text: result.palMessage, photos: [], at: when(event.at) });
         }
         await recordEvent(event, { photos: fixture.arrivalPhotos });
         break;
@@ -158,6 +194,17 @@ async function replay(services: SeedServices, fixture: ScenarioFixture, time: Re
   }
   await flushChat("9999-12-31T23:59:59.999Z");
   return id;
+}
+
+/** The fixture shipment with its dates and photo times shifted. */
+function shiftedShipment(fixture: ScenarioFixture, when: (iso: string) => string): NonNullable<ScenarioFixture["shipment"]> {
+  const s = fixture.shipment!;
+  return {
+    ...s,
+    shippedAt: when(s.shippedAt),
+    deliveredAt: s.deliveredAt ? when(s.deliveredAt) : null,
+    packingPhotos: s.packingPhotos.map((p) => (p.addedAt ? { ...p, addedAt: when(p.addedAt) } : p)),
+  };
 }
 
 type Log = (line: string) => void;
@@ -185,11 +232,11 @@ function oldest(deals: Deal[]): Deal | null {
 }
 
 /** Fresh replay of every scenario. For a store that starts empty on each process, such as the memory store. */
-export async function seedFixtureDeals(services: SeedServices, log: Log, time: ReplayTime = noClock): Promise<SeededIds> {
+export async function seedFixtureDeals(services: SeedServices, log: Log, time: ReplayTime = noClock, nowMs: number = Date.now()): Promise<SeededIds> {
   const ids: SeededIds = {};
   for (const fixture of ALL_FIXTURES) {
     try {
-      ids[fixture.id] = await replay(services, fixture, time);
+      ids[fixture.id] = await replay(services, fixture, time, nowMs);
     } catch (error) {
       log(`[pay-pals] demo: could not seed ${fixture.id} (${error instanceof Error ? error.message : String(error)})`);
     }
@@ -203,7 +250,7 @@ export async function seedFixtureDeals(services: SeedServices, log: Log, time: R
  * finished deal for it exists, checks again after the replay, and settles on
  * the oldest finished deal so two instances seeding at once converge.
  */
-export async function seedFixtureDealsIfMissing(services: SeedServices, finder: DealFinder, log: Log, time: ReplayTime = noClock): Promise<SeededIds> {
+export async function seedFixtureDealsIfMissing(services: SeedServices, finder: DealFinder, log: Log, time: ReplayTime = noClock, nowMs: number = Date.now()): Promise<SeededIds> {
   const ids: SeededIds = {};
   let replayed = 0;
   for (const fixture of ALL_FIXTURES) {
@@ -214,7 +261,7 @@ export async function seedFixtureDealsIfMissing(services: SeedServices, finder: 
         ids[fixture.id] = existing.id;
         continue;
       }
-      const created = await replay(services, fixture, time);
+      const created = await replay(services, fixture, time, nowMs);
       replayed += 1;
       // Another instance may have seeded the same scenario meanwhile. Both pick the oldest.
       const settled = oldest(await finder.findDeals(query));

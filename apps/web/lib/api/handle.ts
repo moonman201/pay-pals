@@ -40,6 +40,9 @@ export async function handle(req: Request, fn: () => Promise<unknown>): Promise<
     if (e instanceof ZodError) return NextResponse.json({ error: e.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ") }, { status: 400 });
     if (e instanceof SyntaxError) return NextResponse.json({ error: "Body is not valid JSON." }, { status: 400 });
     // Errors the packages raise on purpose, matched by name so apps/web does not import their classes.
+    if (e instanceof Error && e.name === "EventOutOfOrderError") {
+      return NextResponse.json({ error: "This deal's history already has a later event, so that move cannot be recorded now. Reload the page and try again." }, { status: 409 });
+    }
     if (e instanceof Error && e.name in NAMED_STATUS) return NextResponse.json({ error: e.message }, { status: NAMED_STATUS[e.name] });
     console.error(e);
     return NextResponse.json({ error: "Something went wrong on the server." }, { status: 500 });
