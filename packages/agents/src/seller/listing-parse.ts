@@ -27,6 +27,22 @@ const KNOWN_FAMILIES: ReadonlyArray<[RegExp, string]> = [
   [/\bpok[eé]mon\b/i, "Pokemon"],
 ];
 
+export type DeviceFamily = "console" | "phone" | "laptop" | "camera" | "wearable";
+
+/** Electronics families that have a system or settings screen showing the serial. */
+const DEVICE_FAMILIES: ReadonlyArray<[RegExp, DeviceFamily]> = [
+  [/\b(?:playstation|ps[345]|xbox|nintendo|switch|steam\s*deck|console)\b/i, "console"],
+  [/\b(?:iphone|galaxy|pixel|android|smartphone|phone)\b/i, "phone"],
+  [/\b(?:ipad|macbook|laptop|notebook|chromebook|thinkpad|surface|tablet)\b/i, "laptop"],
+  [/\b(?:camera|canon|nikon|gopro|mirrorless|dslr)\b/i, "camera"],
+  [/\b(?:smartwatch|apple\s+watch|fitbit|wearable|garmin)\b/i, "wearable"],
+];
+
+/** Which kind of device the text names, or null for anything that is not one (a graded card, a chair). */
+export function deviceFamily(text: string): DeviceFamily | null {
+  return DEVICE_FAMILIES.find(([pattern]) => pattern.test(text))?.[1] ?? null;
+}
+
 /** The maker's name when the text names a product family instead ("PlayStation" is Sony). Otherwise the text as given. */
 export function canonicalBrand(brand: string): string {
   const trimmed = brand.trim();

@@ -351,10 +351,10 @@ describe("BuyerPal.review on clean-ps5", () => {
     expect(shown).toContain("A missing answer, an unasked question or something you merely wish you knew is never a flag.");
   });
 
-  it("clean-ps5 v1 with rules only is go with no questions", async () => {
+  it("clean-ps5 v1 with rules only is go and asks only for the Console Information screen", async () => {
     const { data: verdict } = await createBuyerPal({ anthropic: null, priceLookup }).review(cleanPs5.cards[0]!, cleanPs5.chat.slice(0, 2));
     expect(verdict.overall).toBe("go");
-    expect(verdict.questionsForSeller).toEqual([]);
+    expect(verdict.questionsForSeller).toEqual(["Can you add a photo of the Console Information screen showing the serial?"]);
   });
 });
 
