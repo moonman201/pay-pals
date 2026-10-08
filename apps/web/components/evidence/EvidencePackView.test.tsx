@@ -7,6 +7,9 @@ const firstCard = emptyBox.cards[0];
 if (!firstCard) throw new Error("fixture needs a card");
 const lockedCard: NonNullable<typeof firstCard> = firstCard;
 
+/** A real-looking payment: the fixture one carries a FIXTURE- id, which marks an example deal. */
+const realPayment = { ...emptyBox.payment!, paypalOrderId: "2NW245573K1279237", captureId: "9PC825472S929124S" };
+
 function pack(overrides: Partial<EvidencePack> = {}): EvidencePack {
   return {
     dealId: emptyBox.deal.id,
@@ -17,7 +20,7 @@ function pack(overrides: Partial<EvidencePack> = {}): EvidencePack {
     arrivalCheck: null,
     messages: [],
     photos: lockedCard.photos,
-    payment: emptyBox.payment,
+    payment: realPayment,
     shipment: emptyBox.shipment,
     timeline: emptyBox.timeline,
     summary: "Summary.",
@@ -98,6 +101,33 @@ describe("EvidencePackView", () => {
     expect(paragraph).toHaveTextContent(/written into custom_id\./);
     expect(summaryParts("plain words only")).toEqual([{ kind: "text", text: "plain words only" }]);
     expect(summaryParts(`a ${"d".repeat(64)} b`).map((p) => p.kind)).toEqual(["text", "hash", "text"]);
+  });
+
+  it("on a seeded example deal (fixture order id), labels it and never claims PayPal holds the hash", () => {
+    const head = emptyBox.timeline.find((e) => e.kind === "payment_created")!.hash;
+    render(<EvidencePackView pack={pack({ historyHash: head, historyVerified: true, payment: emptyBox.payment })} deal={emptyBox.deal} role="buyer" />);
+    expect(screen.getAllByText("Example deal, seeded from a scenario").length).toBeGreaterThan(0);
+    expect(screen.getAllByTestId("history-badge")[0]).toHaveTextContent(/example deal, no PayPal order/);
+    expect(screen.queryByText(/PayPal's own record holds it/)).not.toBeInTheDocument();
+    expect(screen.getByText(/Example order id FIXTURE-ORDER/)).toBeInTheDocument();
+    expect(screen.getByText(/no PayPal order holds the head/)).toBeInTheDocument();
+  });
+
+  it("a real deal keeps the verified claim and the plain order label", () => {
+    const head = emptyBox.timeline.find((e) => e.kind === "payment_created")!.hash;
+    const realTimeline = emptyBox.timeline.map((e) => (e.kind === "deal_created" ? { ...e, data: undefined } : e));
+    render(<EvidencePackView pack={pack({ historyHash: head, payment: realPayment, timeline: realTimeline })} deal={emptyBox.deal} role="buyer" />);
+    expect(screen.queryByText("Example deal, seeded from a scenario")).not.toBeInTheDocument();
+    expect(screen.getByText(/PayPal's own record holds it/)).toBeInTheDocument();
+    expect(screen.getByText(/Order 2NW245573K1279237/)).toBeInTheDocument();
+  });
+
+  it("shows the market line per review and never a zero range", () => {
+    const zero = { marketLow: 0, marketHigh: 0, currency: "USD" as const, provider: "channel3" as const, sources: [], checkedAt: "2026-10-08T00:00:00.000Z" };
+    const verdict = { dealId: emptyBox.deal.id, cardVersion: 1, overall: "go" as const, flags: [], priceCheck: zero, questionsForSeller: [], palMessage: "Looks fine.", createdAt: "2026-10-08T00:00:00.000Z" };
+    render(<EvidencePackView pack={pack({ verdicts: [verdict] })} deal={emptyBox.deal} role="buyer" />);
+    expect(screen.getByText(/No reliable market price found, via Channel3/)).toBeInTheDocument();
+    expect(screen.queryByText(/\$0 to \$0/)).not.toBeInTheDocument();
   });
 
   it("has no box serial row when the card has none", () => {

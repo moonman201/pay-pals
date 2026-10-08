@@ -24,7 +24,7 @@ export default async function JoinPage({ params }: Props) {
           both of you agree before any money moves.
         </p>
         <div className="mt-6">
-          <SellerJoinForm deal={snapshot.deal} />
+          <SellerJoinForm deal={snapshot.deal} uploadsEnabled={snapshot.uploadsEnabled} />
         </div>
       </main>
     );

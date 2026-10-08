@@ -6,6 +6,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { NextResponse } from "next/server";
+import { uploadsDir } from "@/lib/uploads";
 
 const MAX_BYTES = 8 * 1024 * 1024;
 const TYPES: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/heic": "heic" };
@@ -19,7 +20,7 @@ export async function POST(req: Request) {
   if (!ext) return NextResponse.json({ error: "Use a JPEG, PNG, WebP or HEIC photo." }, { status: 400 });
 
   const name = `${crypto.randomUUID()}.${ext}`;
-  const dir = path.join(process.cwd(), "public", "uploads");
+  const dir = uploadsDir();
   try {
     await mkdir(dir, { recursive: true });
     await writeFile(path.join(dir, name), Buffer.from(await file.arrayBuffer()));

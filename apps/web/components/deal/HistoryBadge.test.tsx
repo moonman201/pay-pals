@@ -21,6 +21,14 @@ describe("HistoryBadge", () => {
     expect(screen.getByRole("alert")).toHaveTextContent("History does not match the hash on the PayPal order");
   });
 
+  it("on an example deal, says the history is chained but that no PayPal order holds it, even with a hash on the fixture payment", () => {
+    render(<HistoryBadge events={events} historyHash={head} example />);
+    const badge = screen.getByTestId("history-badge");
+    expect(badge).toHaveTextContent(`History hash-chained, ${events.length} events (example deal, no PayPal order)`);
+    expect(badge).toHaveAttribute("data-status", "unanchored");
+    expect(screen.queryByText(/unchanged since PayPal order/)).not.toBeInTheDocument();
+  });
+
   it("shows a count and no verdict before any order", () => {
     render(<HistoryBadge events={events.slice(0, 3)} historyHash={null} />);
     expect(screen.getByTestId("history-badge")).toHaveTextContent("History hash-chained, 3 events");

@@ -14,12 +14,19 @@ function approveLink(payment: PaymentRecord): string | null {
   return null;
 }
 
+/** A fixture payment on a seeded example deal: there is no PayPal order behind it. */
+export function isExamplePayment(payment: PaymentRecord): boolean {
+  return payment.paypalOrderId.startsWith("FIXTURE-");
+}
+
 /** The PayPal order for this deal: who got paid, how much, which capture. */
 export function PaymentSummary({ payment }: { payment: PaymentRecord }) {
   const captured = payment.status === "CAPTURED";
   const approve = approveLink(payment);
+  const example = isExamplePayment(payment);
   return (
     <Panel title="Payment" aside={<Badge tone={captured ? "go" : payment.status === "FAILED" ? "stop" : "neutral"}>{payment.status.toLowerCase()}</Badge>}>
+      {example ? <p className="mb-3 text-xs text-muted">Example deal seeded from a scenario. These ids are placeholders; no PayPal order was created.</p> : null}
       {approve ? (
         <p className="mb-3 text-sm">
           The order is waiting for the buyer&apos;s approval.{" "}
@@ -39,11 +46,11 @@ export function PaymentSummary({ payment }: { payment: PaymentRecord }) {
           <dd className="break-all">{payment.payeeEmail}</dd>
         </div>
         <div>
-          <dt className="text-xs font-semibold uppercase tracking-wide text-muted">PayPal order</dt>
+          <dt className="text-xs font-semibold uppercase tracking-wide text-muted">{example ? "Example order id" : "PayPal order"}</dt>
           <dd className="font-mono text-xs">{payment.paypalOrderId}</dd>
         </div>
         <div>
-          <dt className="text-xs font-semibold uppercase tracking-wide text-muted">Capture</dt>
+          <dt className="text-xs font-semibold uppercase tracking-wide text-muted">{example ? "Example capture id" : "Capture"}</dt>
           <dd className="font-mono text-xs">{payment.captureId ?? "pending"}</dd>
         </div>
         <div>

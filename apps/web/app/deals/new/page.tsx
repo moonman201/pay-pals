@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { StartDealForm } from "@/components/start/StartDealForm";
+import { getServices } from "@/lib/services";
 
 export default function NewDealPage() {
   return (
@@ -16,7 +17,7 @@ export default function NewDealPage() {
         instead and invite the seller. Money only moves through a PayPal Goods and Services payment to the seller&apos;s account.
       </p>
       <div className="mt-6">
-        <StartDealForm />
+        <StartDealForm uploadsEnabled={getServices().uploadsEnabled} />
       </div>
     </main>
   );

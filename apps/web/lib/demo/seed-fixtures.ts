@@ -20,6 +20,7 @@
 import { ALL_FIXTURES, type Deal, type DealEvent, type DealState, type ItemCard, type ScenarioFixture, type ScenarioId } from "@pay-pals/contracts";
 import { buildEvidenceFor } from "../deal/flows/evidence";
 import type { Services } from "../services";
+import { readSeedStamp, SEED_VERSION } from "./seed-version";
 
 type SeedServices = Pick<Services, "store" | "buyerPal" | "buildEvidencePack" | "demoPayee" | "clock">;
 
@@ -81,6 +82,11 @@ async function replay(services: SeedServices, fixture: ScenarioFixture, time: Re
     await flushChat(event.at);
     at(event.at);
     switch (event.kind) {
+      case "deal_created": {
+        // The seed stamp: lets a durable store tell a stale seeded deal from a current one (J7).
+        await recordEvent(event, { seedVersion: SEED_VERSION, scenario: fixture.id });
+        break;
+      }
       case "state_changed": {
         if (!event.toState) break;
         await store.transition(id, event.toState, event.actor, event.summary);
@@ -259,6 +265,11 @@ export async function seedFixtureDealsIfMissing(services: SeedServices, finder: 
       const existing = oldest(await finder.findDeals(query));
       if (existing) {
         ids[fixture.id] = existing.id;
+        const events = await services.store.listEvents(existing.id);
+        const stamp = readSeedStamp(events.find((e) => e.kind === "deal_created")?.data);
+        if (stamp?.seedVersion !== SEED_VERSION) {
+          log(`[pay-pals] demo: stale demo seed for ${fixture.id} (${stamp ? `seed ${stamp.seedVersion}` : "no seed version"}, current ${SEED_VERSION}); run npm run db:delete-seeded-demo-deals -w packages/db and redeploy`);
+        }
         continue;
       }
       const created = await replay(services, fixture, time, nowMs);

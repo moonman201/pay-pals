@@ -71,7 +71,7 @@ export async function startDemoDeal(services: Services, scenario: ScenarioId): P
   });
   if (buyerFirst) {
     await note(services, deal.id, "deal_created", "buyer", `${fixture.buyer.displayName} started a deal from a listing and invited the seller.`);
-    await note(services, deal.id, "seller_invited", "system", "Invite sent to the seller's PayPal email.");
+    await note(services, deal.id, "seller_invited", "system", "Invite link created for the seller. The buyer sends it.");
     await store.transition(deal.id, "INVITED", "system", "Waiting for the seller.");
     await store.markSellerJoined(deal.id, fixture.seller);
   } else {

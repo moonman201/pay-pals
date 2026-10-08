@@ -2,6 +2,8 @@ import { CONDITION_LABELS, type Deal, type EvidencePack, type Message } from "@p
 import Link from "next/link";
 import { boxSerialLabel, boxSerialMatches } from "@/lib/deal/box-serial";
 import { historyStatus } from "@/lib/deal/history-status";
+import { priceRangeLine, priceSourceNote } from "@/lib/deal/price-copy";
+import { isExampleDeal } from "@/lib/deal/snapshot";
 import { HistoryBadge } from "../deal/HistoryBadge";
 
 /** A dealId#hash token (36 plus 64 characters) or a bare 64-hex hash, which no phone width can hold on one line. */
@@ -50,6 +52,7 @@ export function EvidencePackView({ pack, deal, role }: { pack: EvidencePack; dea
   const card = pack.lockedCard;
   const sellerPhotos = pack.photos.filter((p) => p.addedBy === "seller");
   const buyerPhotos = pack.photos.filter((p) => p.addedBy === "buyer");
+  const example = isExampleDeal(pack.timeline, pack.payment);
   return (
     <main className="mx-auto max-w-3xl px-4 py-8 print:max-w-none print:px-0">
       <header className="flex flex-wrap items-start justify-between gap-3">
@@ -60,8 +63,9 @@ export function EvidencePackView({ pack, deal, role }: { pack: EvidencePack; dea
             Deal {pack.dealId}. Built {formatTime(pack.builtAt)} by {actorLabel(pack.builtBy, deal)}. Deal state: {STATE_LABELS[deal.state]}.
           </p>
         </div>
-        <div className="w-full">
-          <HistoryBadge events={pack.timeline} historyHash={pack.historyHash ?? null} />
+        <div className="flex w-full flex-wrap gap-2">
+          {example ? <span className="inline-flex items-center rounded-full border border-line bg-wash px-2.5 py-0.5 text-xs text-muted">Example deal, seeded from a scenario</span> : null}
+          <HistoryBadge events={pack.timeline} historyHash={pack.historyHash ?? null} example={example} />
         </div>
         <div className="no-print flex gap-2">
           <Link href={`/deals/${deal.id}?as=${role}`} className="text-sm font-semibold text-navy underline-offset-2 hover:underline">
@@ -111,9 +115,14 @@ export function EvidencePackView({ pack, deal, role }: { pack: EvidencePack; dea
 
         <Section title="Tamper-evident history">
           <div className="mb-3">
-            <HistoryBadge events={pack.timeline} historyHash={pack.historyHash ?? null} />
+            <HistoryBadge events={pack.timeline} historyHash={pack.historyHash ?? null} example={example} />
           </div>
-          {pack.historyHash ? (
+          {example ? (
+            <p>
+              This is an example deal seeded from a scenario. Its {pack.timeline.length} events are hash-chained, so an edit would break the chain, but no PayPal order holds the
+              head: the payment ids are placeholders. A real deal writes the head into the PayPal order&apos;s custom_id.
+            </p>
+          ) : pack.historyHash ? (
             <>
               <p>
                 When the PayPal order was created, the head of this deal&apos;s event chain was written into the order&apos;s custom_id, so PayPal&apos;s own record holds it:
@@ -141,7 +150,8 @@ export function EvidencePackView({ pack, deal, role }: { pack: EvidencePack; dea
         <Section title="Payment">
           {pack.payment ? (
             <p>
-              {formatMoney(pack.payment.amount, pack.payment.currency)} to {pack.payment.payeeEmail} via {pack.payment.method === "venmo" ? "Venmo" : "PayPal"} Goods and Services. Order {pack.payment.paypalOrderId}
+              {formatMoney(pack.payment.amount, pack.payment.currency)} to {pack.payment.payeeEmail} via {pack.payment.method === "venmo" ? "Venmo" : "PayPal"} Goods and Services.{" "}
+              {example ? "Example order id" : "Order"} {pack.payment.paypalOrderId}
               {pack.payment.captureId ? `, capture ${pack.payment.captureId}` : ""}. Status {pack.payment.status}.{pack.payment.capturedAt ? ` Captured ${formatTime(pack.payment.capturedAt)}.` : ""}
             </p>
           ) : (
@@ -171,6 +181,9 @@ export function EvidencePackView({ pack, deal, role }: { pack: EvidencePack; dea
           {pack.verdicts.map((v, i) => (
             <div key={i} className="mb-3">
               <p className="font-semibold">Card version {v.cardVersion}: {OVERALL_LABELS[v.overall]}</p>
+              <p className="text-xs text-muted">
+                {priceRangeLine(v.priceCheck)}, {priceSourceNote(v.priceCheck)}
+              </p>
               <p>{v.palMessage}</p>
               {v.flags.length > 0 ? (
                 <ul className="mt-1 list-disc pl-5">

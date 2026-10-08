@@ -1,6 +1,7 @@
 import { isPaymentMethodFlag, type RedFlag, type Verdict } from "@pay-pals/contracts";
 import { certSentence } from "@/lib/deal/cert-copy";
 import { FLAG_WORDS } from "@/lib/deal/override";
+import { hasUsableRange, priceRangeLine, priceSourceNote } from "@/lib/deal/price-copy";
 import { OVERALL_LABELS } from "@/lib/labels";
 import { Badge, type Tone } from "../ui/Badge";
 import { Panel } from "../ui/Panel";
@@ -29,12 +30,12 @@ export function VerdictPanel({ verdict, currentVersion, locked, cardTitle = null
       ) : null}
       <p className="text-sm leading-relaxed">{verdict.palMessage}</p>
 
-      {verdict.priceCheck ? (
-        <div className="mt-4 rounded-lg bg-wash p-3 text-sm">
-          <p className="font-semibold">
-            Market range ${verdict.priceCheck.marketLow} to ${verdict.priceCheck.marketHigh}
-            <span className="ml-2 text-xs font-normal text-muted">{verdict.priceCheck.provider === "channel3" ? "via Channel3" : "demo prices"}</span>
-          </p>
+      <div className="mt-4 rounded-lg bg-wash p-3 text-sm" data-testid="price-check">
+        <p className="font-semibold">
+          {priceRangeLine(verdict.priceCheck)}
+          <span className="ml-2 text-xs font-normal text-muted">{priceSourceNote(verdict.priceCheck)}</span>
+        </p>
+        {hasUsableRange(verdict.priceCheck) && verdict.priceCheck.sources.length > 0 ? (
           <ul className="mt-1 space-y-0.5 text-xs text-muted">
             {verdict.priceCheck.sources.map((s, i) => (
               <li key={`${s.name}-${i}`}>
@@ -43,8 +44,8 @@ export function VerdictPanel({ verdict, currentVersion, locked, cardTitle = null
               </li>
             ))}
           </ul>
-        </div>
-      ) : null}
+        ) : null}
+      </div>
 
       {verdict.certCheck ? (
         <div className="mt-4 rounded-lg bg-wash p-3 text-sm" data-testid="cert-check">

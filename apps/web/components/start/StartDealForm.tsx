@@ -10,7 +10,7 @@ import { Button } from "../ui/Button";
 const field = "mt-1 block w-full rounded-lg border border-line px-3 py-2 text-sm";
 
 /** The seller lists first and shares the link. Buyers usually start from the landing page instead. */
-export function StartDealForm() {
+export function StartDealForm({ uploadsEnabled = false }: { uploadsEnabled?: boolean }) {
   const router = useRouter();
   const [myName, setMyName] = useState("");
   const [myEmail, setMyEmail] = useState("");
@@ -99,7 +99,7 @@ export function StartDealForm() {
         <span className="font-semibold">Notes for your pal</span>
         <input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Anything the card should say." className={field} />
       </label>
-      <PhotoInput value={photos} onChange={setPhotos} addedBy="seller" label="Listing photos" />
+      <PhotoInput value={photos} onChange={setPhotos} addedBy="seller" label="Listing photos" uploadsEnabled={uploadsEnabled} />
 
       <Button type="submit" disabled={busy} className="w-full sm:w-auto">
         {busy ? "Building the card" : "Build the card and start"}
