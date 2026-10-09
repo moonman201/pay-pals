@@ -20,8 +20,8 @@ import { createFixturePriceLookup } from "./fixture-lookup";
 import { priceBelowMarketRule } from "../rules/price-below-market";
 import { card } from "../testing/builders";
 
-const PS5 = "PlayStation 5 disc edition, CFI-1215A";
-const SLAB = "Base Set Charizard Holo #4 PSA 10";
+const PS5 = "PlayStation 5 disc edition, CFI-1015A";
+const SLAB = "Sun & Moon Tag Bolt, Gengar & Mimikyu GX, 038/095, PSA 10";
 
 const offer = (domain: string, price: number, condition: "new" | "used" | null = "new", availability: "InStock" | "OutOfStock" = "InStock") => ({
   url: `https://${domain}/item`,
@@ -63,8 +63,8 @@ const memoryCache = (): DiskCache => {
 
 describe("buildSearchRequest", () => {
   it("normalizes the query and asks for used offers only when the card is used", () => {
-    const used = buildSearchRequest({ brand: "Sony", model: "  PlayStation 5   disc edition, CFI-1215A ", condition: "good" }, 20);
-    expect(used).toEqual({ query: "sony playstation 5 disc edition, cfi-1215a", limit: 20, filters: { conditions: ["new", "used"] }, config: { country: "US", currency: "USD" } });
+    const used = buildSearchRequest({ brand: "Sony", model: "  PlayStation 5   disc edition, CFI-1015A ", condition: "good" }, 20);
+    expect(used).toEqual({ query: "sony playstation 5 disc edition, cfi-1015a", limit: 20, filters: { conditions: ["new", "used"] }, config: { country: "US", currency: "USD" } });
     const fresh = buildSearchRequest({ brand: "Sony", model: "PlayStation 5", condition: "new" }, 50);
     expect(fresh.filters).toBeUndefined();
     expect(fresh.limit).toBe(30);
@@ -73,14 +73,14 @@ describe("buildSearchRequest", () => {
 
 describe("classifyTitle", () => {
   it("knows the model code, the required words and graded queries", () => {
-    expect(modelCodes(PS5)).toEqual(["cfi1215a"]);
+    expect(modelCodes(PS5)).toEqual(["cfi1015a"]);
     expect(requiredWords(PS5)).toEqual(["playstation", "disc"]);
-    expect(requiredWords(SLAB)).toEqual(["base", "set", "charizard"]);
+    expect(requiredWords(SLAB)).toEqual(["sun", "moon", "tag", "bolt", "gengar", "mimikyu"]);
     expect(isGradedQuery(SLAB)).toBe(true);
     expect(isGradedQuery(PS5)).toBe(false);
   });
   it("sorts PS5 titles into same model, family and dropped", () => {
-    expect(classifyTitle("Sony PlayStation 5 Console Disc Edition CFI-1215A", PS5, false)).toBe("same");
+    expect(classifyTitle("Sony PlayStation 5 Console Disc Edition CFI-1015A", PS5, false)).toBe("same");
     expect(classifyTitle("PlayStation 5 Disc Edition", PS5, false)).toBe("same");
     expect(classifyTitle("PlayStation 5 Slim Console Disc Edition", PS5, false)).toBe("family");
     expect(classifyTitle("PlayStation 5 Pro Disc Edition", PS5, false)).toBe("family");
@@ -91,13 +91,13 @@ describe("classifyTitle", () => {
     expect(classifyTitle("PS5 Disc Edition Bundle", PS5, false)).toBeNull();
   });
   it("keeps only the same character, set, grader and grade for a graded card", () => {
-    expect(classifyTitle("1999 Pokemon Base Set Charizard Holo #4 PSA 10", SLAB, true)).toBe("same");
+    expect(classifyTitle("2018 Pokemon Japanese Sun & Moon Tag Bolt Gengar & Mimikyu GX #038 PSA 10", SLAB, true)).toBe("same");
     expect(classifyTitle("Jolteon Master Ball Reverse Holo PSA 10", SLAB, true)).toBeNull();
-    expect(classifyTitle("1999 Pokemon Base Set Charizard Holo PSA 9", SLAB, true)).toBeNull();
-    expect(classifyTitle("2016 Pokemon XY Evolutions Charizard Holo PSA 10", SLAB, true)).toBeNull();
-    expect(classifyTitle("1999 Pokemon Base Set Charizard Holo Ungraded", SLAB, true)).toBeNull();
+    expect(classifyTitle("2018 Pokemon Japanese Sun & Moon Tag Bolt Gengar & Mimikyu GX PSA 9", SLAB, true)).toBeNull();
+    expect(classifyTitle("2018 Pokemon Japanese Sun & Moon Tag Bolt Pikachu & Zekrom GX PSA 10", SLAB, true)).toBeNull();
+    expect(classifyTitle("2018 Pokemon Japanese Sun & Moon Tag Bolt Gengar & Mimikyu GX Ungraded", SLAB, true)).toBeNull();
     expect(classifyTitle("PSA Card Slab Protector Case", SLAB, true)).toBeNull();
-    expect(classifyTitle("Base Set Charizard Holo PSA 10 Lot of 2", SLAB, true)).toBeNull();
+    expect(classifyTitle("Sun & Moon Tag Bolt Gengar & Mimikyu GX PSA 10 Lot of 2", SLAB, true)).toBeNull();
   });
 });
 
@@ -108,7 +108,7 @@ describe("deriveRange on PS5 comps", () => {
     // New listings sorted: 588.99, 649.99, 776.99, 858.99, 914.99 -> p20 588.99, p80 914.99, times 0.7.
     expect(range.marketLow).toBeCloseTo(588.99 * 0.7, 2);
     expect(range.marketHigh).toBeCloseTo(914.99 * 0.7, 2);
-    expect(range.sources[0]!.name).toContain("Widened to the playstation disc family because fewer than 3 listings named the same model (CFI1215A)");
+    expect(range.sources[0]!.name).toContain("Widened to the playstation disc family because fewer than 3 listings named the same model (CFI1015A)");
     expect(range.sources[0]!.name).toContain(`${ESTIMATE_NOTE_PREFIX} from new retail prices (good: 70% of new)`);
     const priced = range.sources.filter((s) => s.price !== undefined);
     expect(priced).toHaveLength(6);
@@ -123,8 +123,8 @@ describe("deriveRange on PS5 comps", () => {
   it("uses only same-model listings when there are three or more", () => {
     const sameModel: Channel3SearchResponse = {
       products: [
-        product("1", "Sony PlayStation 5 Console Disc Edition CFI-1215A", [offer("a.example", 499.99)]),
-        product("2", "PlayStation 5 Disc Edition CFI-1215A", [offer("b.example", 519.99)]),
+        product("1", "Sony PlayStation 5 Console Disc Edition CFI-1015A", [offer("a.example", 499.99)]),
+        product("2", "PlayStation 5 Disc Edition CFI-1015A", [offer("b.example", 519.99)]),
         product("3", "PlayStation 5 Disc Edition", [offer("c.example", 549.99)]),
         product("4", "PlayStation 5 Slim Console Disc Edition", [offer("d.example", 99)]),
       ],
@@ -175,30 +175,30 @@ describe("deriveRange refuses thin or flat data", () => {
 describe("deriveRange on a graded card", () => {
   const noise = [
     product("j", "Jolteon Master Ball Reverse Holo PSA 10", [offer("gamestop.com", 131.99)]),
-    product("p", "Pokemon Charizard Plush - 12 inch Soft Plush", [offer("walmart.com", 24.97)]),
-    product("t", "Pokemon Card Eng. Mega Charizard Tin 'Mega Charizard X'", [offer("kickscrew.com", 97.11)]),
+    product("p", "Pokemon Gengar Plush - 12 inch Soft Plush", [offer("walmart.com", 24.97)]),
+    product("t", "Pokemon Card Eng. Gengar VMAX Tin", [offer("kickscrew.com", 97.11)]),
     product("c", "PSA Card Slab Protector Case", [offer("walmart.com", 12)]),
   ];
   it("returns the unknown range when no listing is the same graded card, so the Jolteon never sets a price", () => {
     const range = deriveRange({ products: noise, next_page_token: null }, { brand: "Pokemon", model: SLAB, condition: "like_new" });
     expect(range).toMatchObject({ marketLow: 0, marketHigh: 0, sources: [{ name: NO_RELIABLE_PRICE_NOTE }] });
-    expect(priceBelowMarketRule({ card: card({ askingPrice: 750 }), chat: [], priceCheck: at(range) })).toHaveLength(0);
+    expect(priceBelowMarketRule({ card: card({ askingPrice: 140 }), chat: [], priceCheck: at(range) })).toHaveLength(0);
   });
   it("prices a graded card from same grader and grade listings with no used discount", () => {
     const comps: Channel3SearchResponse = {
       products: [
         ...noise,
-        product("1", "1999 Pokemon Base Set Charizard Holo #4 PSA 10", [offer("cards.example", 4200, "used")]),
-        product("2", "1999 Pokemon Base Set Charizard Holo PSA 10 Gem Mint", [offer("auction.example", 3900, "used")]),
-        product("3", "Pokemon Base Set Charizard Holo PSA 10", [offer("shop.example", 5100, "used")]),
+        product("1", "2018 Pokemon Japanese Sun & Moon Tag Bolt Gengar & Mimikyu GX #038 PSA 10", [offer("cards.example", 480, "used")]),
+        product("2", "2018 Pokemon Japanese Sun & Moon Tag Bolt Gengar & Mimikyu GX PSA 10 Gem Mint", [offer("auction.example", 310, "used")]),
+        product("3", "Pokemon Sun & Moon Tag Bolt Gengar & Mimikyu GX PSA 10", [offer("shop.example", 505, "used")]),
       ],
       next_page_token: null,
     };
     const range = deriveRange(comps, { brand: "Pokemon", model: SLAB, condition: "like_new" });
-    expect(range.marketLow).toBe(3900);
-    expect(range.marketHigh).toBe(5100);
+    expect(range.marketLow).toBe(310);
+    expect(range.marketHigh).toBe(505);
     expect(range.sources[0]!.name).toContain("Graded card: compared only with listings of the same grader and grade, no used discount");
-    expect(priceBelowMarketRule({ card: card({ askingPrice: 750 }), chat: [], priceCheck: at(range) })[0]!.severity).toBe("stop");
+    expect(priceBelowMarketRule({ card: card({ askingPrice: 140 }), chat: [], priceCheck: at(range) })[0]!.severity).toBe("stop");
   });
 });
 
@@ -219,7 +219,7 @@ describe("createChannel3PriceLookup", () => {
     expect(calls[0]!.url).toBe("https://api.trychannel3.com/v1/search");
     expect((calls[0]!.init!.headers as Record<string, string>)["x-api-key"]).toBe("test-key");
     expect(JSON.parse(calls[0]!.init!.body as string)).toEqual({
-      query: "sony playstation 5 disc edition, cfi-1215a",
+      query: "sony playstation 5 disc edition, cfi-1015a",
       limit: 20,
       filters: { conditions: ["new", "used"] },
       config: { country: "US", currency: "USD" },
@@ -257,7 +257,7 @@ describe("createFixturePriceLookup", () => {
   it("answers the fixture products and says unknown otherwise", async () => {
     const lookup = createFixturePriceLookup();
     expect((await lookup.priceRange({ brand: "Sony", model: PS5, condition: "good" })).marketLow).toBe(380);
-    expect((await lookup.priceRange({ brand: "Pokemon", model: SLAB, condition: "like_new" })).marketLow).toBe(3000);
+    expect((await lookup.priceRange({ brand: "Pokemon", model: SLAB, condition: "like_new" })).marketLow).toBe(305);
     expect((await lookup.priceRange({ brand: "Acme", model: "Thing", condition: "good" })).marketLow).toBe(0);
   });
 });

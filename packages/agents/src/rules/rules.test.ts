@@ -146,21 +146,26 @@ describe("urgencyRule", () => {
 });
 
 describe("missingSerialRule", () => {
-  it("cautions when the card has no serial", () => {
-    expect(missingSerialRule({ card: card({ serial: null }), chat: [], priceCheck: price })[0]).toMatchObject({ code: "MISSING_SERIAL", severity: "caution" });
+  it("cautions when the card carries no number at all", () => {
+    expect(missingSerialRule({ card: card({ serial: null, boxSerial: null }), chat: [], priceCheck: price })[0]).toMatchObject({ code: "MISSING_SERIAL", severity: "caution" });
   });
-  it("is quiet when the serial is present or the item is a graded slab with a cert", () => {
-    expect(missingSerialRule({ card: card(), chat: [], priceCheck: price })).toHaveLength(0);
+  it("is quiet for a serial on the item, a number off the box label, or a graded slab with a cert", () => {
+    expect(missingSerialRule({ card: card({ serial: "AJ164952580" }), chat: [], priceCheck: price })).toHaveLength(0);
+    // clean-ps5 card version 1: the box label has the number, the console's own sticker is not readable yet.
+    expect(cleanPs5.cards[0]!.serial).toBeNull();
+    expect(missingSerialRule({ card: cleanPs5.cards[0]!, chat: [], priceCheck: price })).toHaveLength(0);
     expect(missingSerialRule({ card: fakeSlab.cards[0]!, chat: [], priceCheck: price })).toHaveLength(0);
   });
 });
 
 describe("certMismatchRule", () => {
+  const differentCard = { ...fakeSlab.certRecord!, subject: "2019 P.M. JPN. SUN & MOON PIKACHU & ZEKROM GX #054", grade: "7", year: "2019" };
+
   it("stops when the grader's record is a different card, or when there is no record", () => {
-    const flags = certMismatchRule({ card: fakeSlab.cards[0]!, chat: [], priceCheck: null, certRecord: fakeSlab.certRecord });
+    const flags = certMismatchRule({ card: fakeSlab.cards[0]!, chat: [], priceCheck: null, certRecord: differentCard });
     expect(flags[0]).toMatchObject({ code: "CERT_MISMATCH", severity: "stop", raisedByRule: true });
     expect(flags[0]!.evidence).toContain(FAKE_SLAB_CERT);
-    expect(flags[0]!.evidence).toContain("2016 Pokemon XY Evolutions Charizard Holo #11");
+    expect(flags[0]!.evidence).toContain("2019 P.M. JPN. SUN & MOON PIKACHU & ZEKROM GX #054");
     const none = certMismatchRule({ card: fakeSlab.cards[0]!, chat: [], priceCheck: null, certRecord: { ...fakeSlab.certRecord!, provider: "psa", subject: null, grade: null, year: null, brand: null } });
     expect(none[0]!.explanation).toContain(`PSA has no record for cert ${FAKE_SLAB_CERT}`);
   });
@@ -169,22 +174,22 @@ describe("certMismatchRule", () => {
     expect(certMismatchRule({ card: { ...fakeSlab.cards[0]!, certNumber: "49172834" }, chat: [], priceCheck: null, certRecord: notChecked })).toHaveLength(0);
   });
   it("is quiet on a match, without a record, or without a cert on the card", () => {
-    const match = { ...fakeSlab.certRecord!, subject: "1999 Pokemon Game Charizard Holo #4", grade: "GEM MT 10", year: "1999" };
-    expect(certMismatchRule({ card: fakeSlab.cards[0]!, chat: [], priceCheck: null, certRecord: match })).toHaveLength(0);
+    // The fixture record is the real one for this cert and it matches the card.
+    expect(certMismatchRule({ card: fakeSlab.cards[0]!, chat: [], priceCheck: null, certRecord: fakeSlab.certRecord })).toHaveLength(0);
     expect(certMismatchRule({ card: fakeSlab.cards[0]!, chat: [], priceCheck: null, certRecord: null })).toHaveLength(0);
-    expect(certMismatchRule({ card: card(), chat: [], priceCheck: null, certRecord: fakeSlab.certRecord })).toHaveLength(0);
+    expect(certMismatchRule({ card: card(), chat: [], priceCheck: null, certRecord: differentCard })).toHaveLength(0);
   });
 });
 
 describe("boxSerialMismatchRule", () => {
   it("cautions with both serials when the box label differs from the item", () => {
-    const flags = boxSerialMismatchRule({ card: card({ serial: "AH912345678", boxSerial: "AH900000001" }), chat: [], priceCheck: price });
-    expect(flags[0]).toMatchObject({ code: "OTHER", severity: "caution", evidence: "Serial on the item AH912345678; serial on the box label AH900000001" });
+    const flags = boxSerialMismatchRule({ card: card({ serial: "AJ164952580", boxSerial: "AJ100000001" }), chat: [], priceCheck: price });
+    expect(flags[0]).toMatchObject({ code: "OTHER", severity: "caution", evidence: "Serial on the item AJ164952580; serial on the box label AJ100000001" });
   });
   it("is quiet when they match, ignoring case and dashes, or when either is missing", () => {
-    expect(boxSerialMismatchRule({ card: card({ serial: "AH912345678", boxSerial: "ah9-1234-5678" }), chat: [], priceCheck: price })).toHaveLength(0);
-    expect(boxSerialMismatchRule({ card: card({ serial: "AH912345678", boxSerial: null }), chat: [], priceCheck: price })).toHaveLength(0);
-    expect(boxSerialMismatchRule({ card: card({ serial: null, boxSerial: "AH912345678" }), chat: [], priceCheck: price })).toHaveLength(0);
+    expect(boxSerialMismatchRule({ card: card({ serial: "AJ164952580", boxSerial: "aj1-6495-2580" }), chat: [], priceCheck: price })).toHaveLength(0);
+    expect(boxSerialMismatchRule({ card: card({ serial: "AJ164952580", boxSerial: null }), chat: [], priceCheck: price })).toHaveLength(0);
+    expect(boxSerialMismatchRule({ card: card({ serial: null, boxSerial: "AJ164952580" }), chat: [], priceCheck: price })).toHaveLength(0);
   });
 });
 
@@ -256,7 +261,7 @@ describe("runRules on the fixtures", () => {
     expect(codes.filter((c) => c === "FRIENDS_AND_FAMILY_REQUEST" || c === "OFF_PLATFORM_PAYMENT" || c === "INVITE_REFUSED")).toHaveLength(1);
     const payment = flags.find((f) => f.code === "FRIENDS_AND_FAMILY_REQUEST")!;
     expect(payment.explanation).toContain("a Friends and Family payment or a payment outside the PayPal checkout");
-    expect(payment.evidence).toContain("Friends & Family");
+    expect(payment.evidence).toContain("Friends and Family");
     const allowed = new Set([...fakeSlab.expectedVerdict.requiredFlags, ...fakeSlab.expectedVerdict.optionalFlags]);
     for (const code of codes) expect(allowed.has(code), code).toBe(true);
     expect(overallFromFlags(flags)).toBe("stop");

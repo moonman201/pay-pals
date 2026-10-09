@@ -68,7 +68,7 @@ describe("public mode is presentation only", () => {
     const input = { dealId: cleanPs5.deal.id, listingText: cleanPs5.listingText, photos: cleanPs5.listingPhotos, sellerNotes: cleanPs5.sellerNotes, sellerPaypalEmail: cleanPs5.seller.email };
     const pub = await createSellerPal({ anthropic: null }).buildCard(input);
     expect(pub.palMessage).not.toMatch(LOADING);
-    expect(pub.data.serial).toBe(CLEAN_SERIAL);
+    expect(pub.data.serial).toBeNull();
     expect(pub.data.boxSerial).toBe(CLEAN_SERIAL);
     const normal = await createSellerPal({ anthropic: null, publicMode: false }).buildCard(input);
     expect(normal.palMessage).toMatch(LOADING);

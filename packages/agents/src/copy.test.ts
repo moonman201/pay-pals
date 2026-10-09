@@ -37,7 +37,7 @@ describe("stripMarkdown", () => {
     expect(plainCopy("__bold__ text")).toBe("bold text");
   });
   it("leaves a card number and a single underscore alone", () => {
-    expect(plainCopy("Charizard Holo #4 is the card.")).toBe("Charizard Holo #4 is the card.");
+    expect(plainCopy("Gengar & Mimikyu GX #038 is the card.")).toBe("Gengar & Mimikyu GX #038 is the card.");
     expect(stripMarkdown("condition like_new")).toBe("condition like_new");
   });
 });
