@@ -91,7 +91,7 @@ export const emptyBox: ScenarioFixture = {
   chat: [
     { id: "m1", dealId, channel: "deal", author: "buyer", text: "Hi Marcus, I will take the PS5 at $410 if the card checks out.", photos: [], at: at(10) },
     { id: "m2", dealId, channel: "deal", author: "seller", text: "Sounds good. Everything is on the card.", photos: [], at: at(12) },
-    { id: "m3", dealId, channel: "deal", author: "buyer_pal", text: "Buyer Pal to seller: Can you add a close-up of the serial label on the console itself? The box label is readable but a box is not the console.", photos: [], at: at(31) },
+    { id: "m3", dealId, channel: "deal", author: "buyer_pal", text: "Buyer Pal to seller: Can you send a close-up of the serial label on the console itself? The box label is readable but a box is not the console.", photos: [], at: at(31) },
     { id: "m4", dealId, channel: "deal", author: "buyer", text: "My pal asked for one more photo but I am happy either way. Sending payment now.", photos: [], at: at(48) },
   ],
   marketPrice: {

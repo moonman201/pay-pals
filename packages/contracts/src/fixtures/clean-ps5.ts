@@ -114,7 +114,7 @@ export const cleanPs5: ScenarioFixture = {
   chat: [
     { id: "m1", dealId, channel: "deal", author: "buyer", text: "Hi, I sent you a Pay Pals invite for the PS5. Still available?", photos: [], at: at(10) },
     { id: "m2", dealId, channel: "deal", author: "seller", text: "Yes it is. Card is filled in, ask me anything.", photos: [], at: at(12) },
-    { id: "m3", dealId, channel: "deal", author: "buyer_pal", text: "Buyer Pal to seller: Can you add a close-up of the serial label on the console itself? The box label is readable but a box is not the console.", photos: [], at: at(31) },
+    { id: "m3", dealId, channel: "deal", author: "buyer_pal", text: "Buyer Pal to seller: Can you send a close-up of the serial label on the console itself? The box label is readable but a box is not the console.", photos: [], at: at(31) },
     { id: "m4", dealId, channel: "deal", author: "seller", text: "Sure, give me a second.", photos: [], at: at(38) },
     { id: "m5", dealId, channel: "deal", author: "seller", text: "Here you go, that is the sticker on the back.", photos: [serialCloseUpPhoto], at: at(41) },
     { id: "m6", dealId, channel: "deal", author: "buyer", text: "Perfect, matches the box. I am good to go.", photos: [], at: at(55) },
