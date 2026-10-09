@@ -25,6 +25,13 @@
   --color-stop-soft: var(--stop-soft);
   --color-stop-line: var(--stop-line);
 
+  --color-chip-go: var(--chip-go);
+  --color-chip-go-ink: var(--chip-go-ink);
+  --color-chip-caution: var(--chip-caution);
+  --color-chip-caution-ink: var(--chip-caution-ink);
+  --color-chip-stop: var(--chip-stop);
+  --color-chip-stop-ink: var(--chip-stop-ink);
+
   --shadow-card: var(--shadow);
 }
 
@@ -152,6 +159,17 @@ textarea::placeholder {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* The hero art is painted on white. In dark it sits in a wash frame and is eased down a little so it does not glare. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .hero-art {
+    filter: brightness(0.93) saturate(0.97);
+  }
+}
+
+:root[data-theme="dark"] .hero-art {
+  filter: brightness(0.93) saturate(0.97);
 }
 
 @media print {

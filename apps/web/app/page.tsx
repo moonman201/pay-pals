@@ -45,7 +45,7 @@ export default async function HomePage() {
       </nav>
 
       <header className="grid items-center gap-6 pt-4 sm:pt-8 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:gap-10">
-        <figure className="order-first m-0 overflow-hidden rounded-3xl bg-[var(--hero-bg)] shadow-card ring-1 ring-line lg:order-none">
+        <figure className="order-first m-0 rounded-3xl bg-[var(--hero-frame)] p-2 shadow-card ring-1 ring-line lg:order-none">
           <Image
             src="/pay-pals-hero.jpg"
             alt="The Buyer Pal, a white robot with blue trim, and the Seller Pal, in gold trim, shaking hands over a PayPal Goods and Services shield"
@@ -53,7 +53,7 @@ export default async function HomePage() {
             height={785}
             priority
             sizes="(min-width: 1024px) 620px, (min-width: 640px) 90vw, 100vw"
-            className="h-auto w-full"
+            className="hero-art h-auto w-full rounded-2xl"
           />
         </figure>
         <div className="text-center lg:text-left">
