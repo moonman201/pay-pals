@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ALL_FIXTURES, FIXTURES, getFixture } from "./fixtures";
+import { ALL_FIXTURES, CLEAN_SERIAL, FIXTURES, getFixture } from "./fixtures";
 import { DealSchema } from "./deal";
 import { ItemCardSchema } from "./item-card";
 import { DealEventSchema, MessageSchema } from "./messages";
@@ -81,22 +81,38 @@ describe("scenario fixtures", () => {
     });
   }
 
-  it("scam scenario expects the three required flags and a stop", () => {
-    const v = FIXTURES["fake-slab"].expectedVerdict;
+  it("stolen photo scenario stops on the payment demand, the price and the pressure, not on the cert", () => {
+    const fx = FIXTURES["fake-slab"];
+    const v = fx.expectedVerdict;
     expect(v.overall).toBe("stop");
     expect(v.requiredFlags).toEqual(
-      expect.arrayContaining(["FRIENDS_AND_FAMILY_REQUEST", "PRICE_FAR_BELOW_MARKET", "URGENCY_PRESSURE", "CERT_MISMATCH"]),
+      expect.arrayContaining(["FRIENDS_AND_FAMILY_REQUEST", "PRICE_FAR_BELOW_MARKET", "URGENCY_PRESSURE"]),
     );
-    const fx = FIXTURES["fake-slab"];
+    // The cert is real and matches the card, so CERT_MISMATCH must never be expected here.
+    expect(v.requiredFlags).not.toContain("CERT_MISMATCH");
+    expect(v.optionalFlags).not.toContain("CERT_MISMATCH");
     expect(fx.deal.startedBy).toBe("buyer");
-    expect(fx.cards[0]!.certNumber).toBe(fx.certRecord!.certNumber);
-    expect(fx.certRecord!.grade).not.toBe("10");
+    const card = fx.cards[0]!;
+    expect(card.certNumber).toBe(fx.certRecord!.certNumber);
+    // The grader's record describes the same card and the same grade.
+    expect(fx.certRecord!.grade).toMatch(/10/);
+    expect(fx.certRecord!.subject).toMatch(/GENGAR & MIMIKYU GX/i);
+    // Priced far under the real comp range.
+    expect(card.askingPrice).toBeLessThan(fx.marketPrice.marketLow * 0.6);
   });
 
-  it("clean scenario card carries matching console and box serials", () => {
-    const card = FIXTURES["clean-ps5"].cards[0]!;
-    expect(card.serial).not.toBeNull();
-    expect(card.boxSerial).toBe(card.serial);
+  it("clean scenario starts with no readable console serial and ends with one that matches the box", () => {
+    const fx = FIXTURES["clean-ps5"];
+    const v1 = fx.cards[0]!;
+    const v2 = fx.cards[1]!;
+    // Version 1 has the box label only: a box is not the item.
+    expect(v1.serial).toBeNull();
+    expect(v1.boxSerial).toBe(CLEAN_SERIAL);
+    // The close-up arrives in version 2 and the two agree.
+    expect(v2.serial).toBe(CLEAN_SERIAL);
+    expect(v2.boxSerial).toBe(CLEAN_SERIAL);
+    expect(v2.photos.length).toBe(v1.photos.length + 1);
+    expect(fx.arrivalPhotos.some((p) => p.whatItShows.includes(CLEAN_SERIAL))).toBe(true);
   });
 
   it("empty box scenario ships without the packing photo and the pal says so", () => {

@@ -1,10 +1,18 @@
 /**
- * Scenario 1: fake slab stopped. Buyer-started. The buyer taps "Use Pay Pals
- * Protection" on a listing for a PSA 10 Charizard priced far under market and
- * invites the seller by PayPal email. The seller joins and uploads the slab
- * photo (reused from Matt's real listing). The Buyer Pal checks the cert
- * number with PSA: the record is a different card and grade. Together with the
- * Friends and Family ask and the pressure, the deal stops. No order is created.
+ * Scenario 1: a stolen photo, stopped. Buyer-started.
+ *
+ * Someone copied a real listing photo of a graded card and put it up again at
+ * a fraction of what the card sells for. The cert on the label is real and it
+ * does match the card in the picture, which is the point: a real cert proves
+ * the slab exists somewhere, not that this seller is holding it. The Buyer Pal
+ * asks for the one photo a real owner can take in ten seconds and a photo
+ * thief cannot, the slab next to a note with the seller's name and today's
+ * date. The seller talks around it, pushes Friends and Family and sets a
+ * deadline. Stopped before any money moves.
+ *
+ * The card, the cert and the photo are real and belong to the project owner.
+ * The reused-photo check compares the listing photo against the reference
+ * folder, which holds that same original listing photo.
  */
 import { chainEvents } from "../history";
 import type { ScenarioFixture } from "./types";
@@ -13,24 +21,25 @@ const dealId = "11111111-1111-4111-8111-111111111111";
 const t0 = "2026-10-20T14:00:00.000Z";
 const at = (minutes: number) => new Date(Date.parse(t0) + minutes * 60_000).toISOString();
 
-export const FAKE_SLAB_CERT = "81234567";
+/** Printed on the slab label in the photo. */
+export const FAKE_SLAB_CERT = "72096346";
 
-const seller = { role: "seller", displayName: "Tyler R.", email: "quickcash.deals.2026@example.com" } as const;
+const seller = { role: "seller", displayName: "Chris W.", email: "cashdeals.quick2026@example.com" } as const;
 const buyer = { role: "buyer", displayName: "Dana M.", email: "dana.m@example.com" } as const;
 const listingUrl = "https://marketplace.example/listings/8841";
 
 const slabFront = {
   url: "/fixtures/fake-slab/slab-front.jpg",
-  whatItShows: `Front of a PSA slab on a wooden table. Label reads 1999 POKEMON GAME CHARIZARD-HOLO #4, GEM MT 10, cert ${FAKE_SLAB_CERT}.`,
+  whatItShows: `Front of a PSA slab on a wooden table. The label reads 2018 P.M. JPN. SUN & MOON #038, GENGAR & MIMIKYU GX, TAG BOLT, GEM MT 10, and the number ${FAKE_SLAB_CERT}. The card shows Gengar and Mimikyu against a yellow moon.`,
   addedBy: "seller",
   addedAt: at(4),
 } as const;
 
 export const fakeSlab: ScenarioFixture = {
   id: "fake-slab",
-  name: "Fake slab stopped",
+  name: "Stolen photo stopped",
   summary:
-    "A buyer taps Use Pay Pals Protection on a PSA 10 Charizard listed at $750 and invites the seller. The seller reuses someone else's photo, says he is moving out of state tomorrow and that the first to send Friends and Family gets it. The Buyer Pal checks the cert number with PSA: it is a different card. Stopped before any money moves.",
+    "A graded Pokemon card that sells for about $400 is listed at $140, with a photo lifted from someone else's listing. The cert on the label is real and matches the card, which proves the slab exists, not that this seller has it. The Buyer Pal asks for the slab next to a note with the seller's name and today's date. He will not take it.",
   seller,
   buyer,
   deal: {
@@ -50,64 +59,65 @@ export const fakeSlab: ScenarioFixture = {
     updatedAt: at(25),
   },
   listingText:
-    "1999 Pokemon Base Set Charizard Holo PSA 10. Gem mint, slab is flawless. $750 FIRM. Moving out of state tomorrow so it needs to go today. Serious buyers only. No lowballs.",
-  sellerNotes: "Just pay and I ship. Cert number is on the label.",
+    "Gengar & Mimikyu GX Tag Bolt PSA 10, Japanese. 038/095. Clean slab, no scratches. $140 firm, need it gone today, moving out of state tomorrow.",
+  sellerNotes: "Cert is right there on the label if you want to look it up.",
   listingPhotos: [slabFront],
   cards: [
     {
       dealId,
       version: 1,
-      title: "1999 Pokemon Base Set Charizard Holo, PSA 10",
+      title: "2018 Pokemon Japanese Sun & Moon Tag Bolt Gengar & Mimikyu GX #038, PSA 10",
       brand: "Pokemon",
-      model: "Base Set Charizard Holo #4",
+      model: "Sun & Moon Tag Bolt, Gengar & Mimikyu GX, 038/095",
       serial: null,
       certNumber: FAKE_SLAB_CERT,
       grade: "PSA 10",
       conditionGrade: "like_new",
-      conditionNotes: "Graded PSA 10 per the label. One photo of the slab front.",
+      conditionNotes: "Graded PSA 10 per the label. One photo of the slab front, taken on a wooden table.",
       included: ["Graded slab"],
       photos: [slabFront],
-      askingPrice: 750,
+      askingPrice: 140,
       currency: "USD",
-      sellerPaypalEmail: "quickcash.deals.2026@example.com",
+      sellerPaypalEmail: "cashdeals.quick2026@example.com",
       lockedAt: null,
     },
   ],
   chat: [
-    { id: "m1", dealId, channel: "deal", author: "buyer", text: "Hi, I sent you a Pay Pals invite for the Charizard. Still available?", photos: [], at: at(2) },
-    { id: "m2", dealId, channel: "deal", author: "seller", text: "Yes but it has to be today. I am moving out of state tomorrow and clearing everything out.", photos: [], at: at(5) },
-    { id: "m3", dealId, channel: "deal", author: "buyer", text: "Can you add a clear photo of the back of the slab and the cert number?", photos: [], at: at(6) },
-    { id: "m4", dealId, channel: "deal", author: "seller", text: "The photo in the listing is what you get. Cert is on the label.", photos: [], at: at(7) },
-    { id: "m5", dealId, channel: "deal", author: "seller", text: "I'm moving out of state tomorrow and have three other people interested, first to send Friends & Family gets it.", photos: [], at: at(8) },
-    { id: "m6", dealId, channel: "deal", author: "buyer", text: "Let me check with my pal first.", photos: [], at: at(9) },
-    { id: "m7", dealId, channel: "deal", author: "seller", text: "No time for that. Send it as Friends & Family or Zelle in the next hour or it goes to the next person.", photos: [], at: at(10) },
+    { id: "m1", dealId, channel: "deal", author: "buyer", text: "Hey, is the Gengar and Mimikyu still there? I sent a Pay Pals invite so we are both covered.", photos: [], at: at(2) },
+    { id: "m2", dealId, channel: "deal", author: "seller", text: "Still here. I don't really use that app, I just do Friends and Family, it's quicker.", photos: [], at: at(5) },
+    { id: "m3", dealId, channel: "deal", author: "buyer_pal", text: "Buyer Pal to seller: Can you send one photo of the slab next to a handwritten note with your name and today's date on it?", photos: [], at: at(7) },
+    { id: "m4", dealId, channel: "deal", author: "seller", text: "The photo in the listing is the card lol. Cert number is on the label, go look it up on PSA, it's legit.", photos: [], at: at(9) },
+    { id: "m5", dealId, channel: "deal", author: "buyer", text: "I did look it up and it checks out, I just want the one with your name on it.", photos: [], at: at(11) },
+    { id: "m6", dealId, channel: "deal", author: "seller", text: "I'm at work, not digging it out again for one picture. Two other people have asked today and I'm moving tomorrow.", photos: [], at: at(13) },
+    { id: "m7", dealId, channel: "deal", author: "seller", text: "Send the $140 F&F or Zelle in the next hour and it's yours, otherwise I'll let the next person have it.", photos: [], at: at(15) },
   ],
   marketPrice: {
-    marketLow: 3000,
-    marketHigh: 5500,
+    marketLow: 305,
+    marketHigh: 493,
     currency: "USD",
     provider: "fixture",
-    checkedAt: at(12),
+    checkedAt: at(18),
     sources: [
-      { name: "Online marketplace sold listing, PSA 10", price: 3200, condition: "like_new" },
-      { name: "Online marketplace sold listing, PSA 10", price: 4100, condition: "like_new" },
-      { name: "Auction house result, PSA 10", price: 5400, condition: "like_new" },
+      { name: "Graded sale, PSA 10", price: 418, condition: "like_new" },
+      { name: "Graded sale, PSA 10", price: 305, condition: "like_new" },
+      { name: "Graded sale, PSA 10", price: 493, condition: "like_new" },
+      { name: "Reference range from recent PSA 10 sold prices for this card, October 2026." },
     ],
   },
   certRecord: {
     provider: "fixture",
     certNumber: FAKE_SLAB_CERT,
-    subject: "2016 Pokemon XY Evolutions Charizard Holo #11",
-    grade: "7",
-    year: "2016",
-    brand: "Pokemon",
+    subject: "2018 P.M. JPN. SUN & MOON GENGAR & MIMIKYU GX TAG BOLT #038",
+    grade: "GEM MT 10",
+    year: "2018",
+    brand: "P.M. JPN. SUN & MOON",
     raw: null,
-    checkedAt: at(12),
+    checkedAt: at(18),
   },
   expectedVerdict: {
     overall: "stop",
-    requiredFlags: ["FRIENDS_AND_FAMILY_REQUEST", "PRICE_FAR_BELOW_MARKET", "URGENCY_PRESSURE", "CERT_MISMATCH"],
-    optionalFlags: ["OFF_PLATFORM_PAYMENT", "STOCK_OR_REUSED_PHOTO", "NAME_MISMATCH"],
+    requiredFlags: ["FRIENDS_AND_FAMILY_REQUEST", "PRICE_FAR_BELOW_MARKET", "URGENCY_PRESSURE"],
+    optionalFlags: ["OFF_PLATFORM_PAYMENT", "INVITE_REFUSED", "STOCK_OR_REUSED_PHOTO", "NAME_MISMATCH"],
     forbiddenSeverity: null,
   },
   payment: null,
@@ -118,11 +128,11 @@ export const fakeSlab: ScenarioFixture = {
     { id: "e1", dealId, kind: "deal_created", actor: "buyer", summary: "Dana M. started a deal from a listing and invited the seller.", at: at(0) },
     { id: "e2", dealId, kind: "seller_invited", actor: "system", summary: "Invite link created for the seller. The buyer sends it.", at: at(0) },
     { id: "e3", dealId, kind: "state_changed", actor: "system", summary: "Waiting for the seller.", fromState: "DRAFT", toState: "INVITED", at: at(0) },
-    { id: "e4", dealId, kind: "seller_joined", actor: "seller", summary: "Tyler R. joined the deal.", at: at(4) },
-    { id: "e5", dealId, kind: "card_updated", actor: "seller_pal", summary: `Seller Pal built card version 1. Cert ${FAKE_SLAB_CERT} read from the slab label.`, at: at(5) },
+    { id: "e4", dealId, kind: "seller_joined", actor: "seller", summary: "Chris W. opened the invite.", at: at(4) },
+    { id: "e5", dealId, kind: "card_updated", actor: "seller_pal", summary: `Seller Pal built card version 1. Cert ${FAKE_SLAB_CERT}, grade PSA 10, read off the slab label.`, at: at(5) },
     { id: "e6", dealId, kind: "state_changed", actor: "system", summary: "Listed.", fromState: "INVITED", toState: "LISTED", at: at(5) },
-    { id: "e7", dealId, kind: "review_posted", actor: "buyer_pal", summary: `Buyer Pal reviewed the deal: stop. PSA cert ${FAKE_SLAB_CERT} is a 2016 Charizard graded 7, not the card on the slab.`, at: at(12) },
-    { id: "e8", dealId, kind: "state_changed", actor: "system", summary: "Reviewed.", fromState: "LISTED", toState: "REVIEWED", at: at(12) },
+    { id: "e7", dealId, kind: "review_posted", actor: "buyer_pal", summary: `Buyer Pal reviewed the deal: stop. The cert matches the card, but the listing photo is the same picture as another listing and the seller will not photograph the slab with his name on it.`, at: at(18) },
+    { id: "e8", dealId, kind: "state_changed", actor: "system", summary: "Reviewed.", fromState: "LISTED", toState: "REVIEWED", at: at(18) },
     { id: "e9", dealId, kind: "state_changed", actor: "buyer_pal", summary: "Blocked. Pay Pals will not move money outside a Goods and Services payment.", fromState: "REVIEWED", toState: "BLOCKED", at: at(25) },
   ]),
 };

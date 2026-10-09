@@ -1,14 +1,15 @@
 /**
  * Scenario 2: clean deal. Buyer-started. Priya taps "Use Pay Pals Protection"
- * on Matt's listing and invites him by PayPal email. Matt joins and uploads
- * photos of his PlayStation 5 with its original box.
- * Seller Pal reads the serial on the back of the console and the serial on the
- * box label and confirms they match. Buyer Pal confirms the price and asks for
- * a photo of the Console Information screen. Seller adds it (card version 2).
- * Both agree, buyer pays, seller ships, buyer confirms. Complete.
+ * on a PlayStation 5 listing and invites the seller by PayPal email. He joins
+ * and uploads his photos: the back of the console, the box label and
+ * everything that is included.
  *
- * Serial values are placeholders until the real photos land in
- * assets/demo-photos; see BLOCKERS.md.
+ * The wide shot of the back does not show the serial large enough to trust, so
+ * the Buyer Pal asks for a close-up of the serial label on the console itself,
+ * because a box label is not the item. The seller adds it as card version 2,
+ * the console serial and the box label agree, and the deal goes through.
+ *
+ * Every value here comes from the real photos in assets/demo-photos.
  */
 import { chainEvents } from "../history";
 import type { ScenarioFixture } from "./types";
@@ -18,35 +19,37 @@ const dealId = "22222222-2222-4222-8222-222222222222";
 const t0 = "2026-10-21T16:00:00.000Z";
 const at = (minutes: number) => new Date(Date.parse(t0) + minutes * 60_000).toISOString();
 
-export const CLEAN_SERIAL = "AH912345678";
+/** Read off the console and off the box label in the photos. */
+export const CLEAN_SERIAL = "AJ164952580";
+export const CLEAN_MODEL = "CFI-1015A";
 
 const seller = { role: "seller", displayName: "Matt M.", email: "matt.m@example.com" } as const;
 const buyer = { role: "buyer", displayName: "Priya S.", email: "priya.s@example.com" } as const;
 
-const consoleSerialPhoto = {
-  url: "/fixtures/clean-ps5/console-back-serial.jpg",
-  whatItShows: `Back of a white PlayStation 5 console. The label shows serial ${CLEAN_SERIAL} and model CFI-1215A.`,
+const consoleBackPhoto = {
+  url: "/fixtures/clean-ps5/console-back.jpg",
+  whatItShows: `Back of a white PlayStation 5. The printed block reads Sony PlayStation 5, MODEL ${CLEAN_MODEL}, manufactured February 2021. A barcode sticker sits to the right of it, too small in this shot to read.`,
   addedBy: "seller",
   addedAt: at(3),
 } as const;
 
 const boxLabelPhoto = {
-  url: "/fixtures/clean-ps5/box-label-serial.jpg",
-  whatItShows: `Barcode label on a PlayStation 5 box. Serial ${CLEAN_SERIAL}, model CFI-1215A.`,
+  url: "/fixtures/clean-ps5/box-label.jpg",
+  whatItShows: `Registration label on a PlayStation 5 box, torn open along the top. It reads "Serial # for Registration" with a barcode and ${CLEAN_SERIAL} beside it.`,
   addedBy: "seller",
   addedAt: at(3),
 } as const;
 
-const frontPhoto = {
-  url: "/fixtures/clean-ps5/front-with-box.jpg",
-  whatItShows: "White PlayStation 5 standing next to its open box, with a controller and two cables.",
+const includedPhoto = {
+  url: "/fixtures/clean-ps5/everything-included.jpg",
+  whatItShows: "A white PlayStation 5 laid out with a blue DualSense controller, an HDMI cable, a power cable, a USB cable and the round stand.",
   addedBy: "seller",
   addedAt: at(3),
 } as const;
 
-const consoleInfoPhoto = {
-  url: "/fixtures/clean-ps5/console-information-screen.jpg",
-  whatItShows: `TV screen showing the PlayStation Console Information page. Serial ${CLEAN_SERIAL}, system software version listed.`,
+const serialCloseUpPhoto = {
+  url: "/fixtures/clean-ps5/console-serial-closeup.jpg",
+  whatItShows: `Close-up of the label on the back of the console. The barcode is readable and the number under it is ${CLEAN_SERIAL}.`,
   addedBy: "seller",
   addedAt: at(40),
 } as const;
@@ -54,15 +57,16 @@ const consoleInfoPhoto = {
 const cardV1: ItemCard = {
   dealId,
   version: 1,
-  title: "Sony PlayStation 5 disc edition with original box",
+  title: `Sony PlayStation 5 disc edition, ${CLEAN_MODEL}, with the original box`,
   brand: "Sony",
-  model: "PlayStation 5 disc edition, CFI-1215A",
-  serial: CLEAN_SERIAL,
+  model: `PlayStation 5 disc edition, ${CLEAN_MODEL}`,
+  serial: null,
   boxSerial: CLEAN_SERIAL,
   conditionGrade: "good",
-  conditionNotes: "Owned from new, used in a smoke-free home. Light scuff on the base, no marks on the console. Console serial matches the box label.",
-  included: ["Console", "DualSense controller", "HDMI cable", "Power cable", "Original box"],
-  photos: [consoleSerialPhoto, boxLabelPhoto, frontPhoto],
+  conditionNotes:
+    "Bought new in 2021 and used in a smoke-free home. Everything in the photo is included: the console, a blue DualSense controller, HDMI, power and USB cables and the stand. The serial on the box label is readable. The sticker on the console is in the photo but too small to read.",
+  included: ["Console", "Blue DualSense controller", "HDMI cable", "Power cable", "USB cable", "Stand", "Original box"],
+  photos: [consoleBackPhoto, boxLabelPhoto, includedPhoto],
   askingPrice: 420,
   currency: "USD",
   sellerPaypalEmail: "matt.m@example.com",
@@ -72,8 +76,10 @@ const cardV1: ItemCard = {
 const cardV2: ItemCard = {
   ...cardV1,
   version: 2,
-  conditionNotes: cardV1.conditionNotes + " Console Information screen shows the same serial and up-to-date system software.",
-  photos: [consoleSerialPhoto, boxLabelPhoto, frontPhoto, consoleInfoPhoto],
+  serial: CLEAN_SERIAL,
+  conditionNotes:
+    cardV1.conditionNotes + " Close-up added: the serial on the console matches the serial on the box label.",
+  photos: [consoleBackPhoto, boxLabelPhoto, includedPhoto, serialCloseUpPhoto],
   lockedAt: at(60),
 };
 
@@ -81,7 +87,7 @@ export const cleanPs5: ScenarioFixture = {
   id: "clean-ps5",
   name: "Clean deal",
   summary:
-    "A PlayStation 5 with its original box. Seller Pal reads the console serial and the box label and confirms they match, Buyer Pal confirms the price and asks for the Console Information screen, both agree, the buyer pays with PayPal and the console arrives as described.",
+    "A buyer invites a seller for a PlayStation 5 with its original box. The Buyer Pal cannot read the serial on the console from the wide shot, so it asks for a close-up. The seller sends one, the console serial matches the box label, and the deal goes through to a paid, shipped, matched ending.",
   seller,
   buyer,
   deal: {
@@ -101,17 +107,17 @@ export const cleanPs5: ScenarioFixture = {
     updatedAt: at(7 * 24 * 60),
   },
   listingText:
-    "PlayStation 5 disc edition, CFI-1215A, with the original box, DualSense controller, HDMI and power cables. Owned from new, works perfectly, light scuff on the base. $420.",
-  sellerNotes: "Serial is on the back of the console and on the box label, photos of both attached.",
-  listingPhotos: [consoleSerialPhoto, boxLabelPhoto, frontPhoto],
+    "PlayStation 5, disc version, with the original box. Bought it new in 2021, smoke free house, works perfectly. Comes with the blue controller, HDMI, power and USB cables and the stand. $420.",
+  sellerNotes: "Box label photo has the serial on it. Happy to answer anything.",
+  listingPhotos: [consoleBackPhoto, boxLabelPhoto, includedPhoto],
   cards: [cardV1, cardV2],
   chat: [
-    { id: "m1", dealId, channel: "deal", author: "buyer", text: "Hi Matt, I sent you a Pay Pals invite for the PS5. Still available?", photos: [], at: at(10) },
-    { id: "m2", dealId, channel: "deal", author: "seller", text: "Yes. Everything is on the card my pal built. Ask away.", photos: [], at: at(12) },
-    { id: "m3", dealId, channel: "deal", author: "buyer", text: "My pal says the price is fair and the serials match. It wants a photo of the Console Information screen before I commit. Can you add one?", photos: [], at: at(35) },
-    { id: "m4", dealId, channel: "deal", author: "seller", text: "Sure, one second.", photos: [], at: at(38) },
-    { id: "m5", dealId, channel: "deal", author: "seller", text: "Added. Same serial on the screen, software is current.", photos: [consoleInfoPhoto], at: at(41) },
-    { id: "m6", dealId, channel: "deal", author: "buyer", text: "Great. I am good to go.", photos: [], at: at(55) },
+    { id: "m1", dealId, channel: "deal", author: "buyer", text: "Hi, I sent you a Pay Pals invite for the PS5. Still available?", photos: [], at: at(10) },
+    { id: "m2", dealId, channel: "deal", author: "seller", text: "Yes it is. Card is filled in, ask me anything.", photos: [], at: at(12) },
+    { id: "m3", dealId, channel: "deal", author: "buyer_pal", text: "Buyer Pal to seller: Can you add a close-up of the serial label on the console itself? The box label is readable but a box is not the console.", photos: [], at: at(31) },
+    { id: "m4", dealId, channel: "deal", author: "seller", text: "Sure, give me a second.", photos: [], at: at(38) },
+    { id: "m5", dealId, channel: "deal", author: "seller", text: "Here you go, that is the sticker on the back.", photos: [serialCloseUpPhoto], at: at(41) },
+    { id: "m6", dealId, channel: "deal", author: "buyer", text: "Perfect, matches the box. I am good to go.", photos: [], at: at(55) },
   ],
   marketPrice: {
     marketLow: 380,
@@ -120,9 +126,9 @@ export const cleanPs5: ScenarioFixture = {
     provider: "fixture",
     checkedAt: at(30),
     sources: [
-      { name: "Online marketplace listing, used, like new, with box", price: 395, condition: "like_new" },
-      { name: "Online marketplace listing, used, good", price: 380, condition: "good" },
-      { name: "Retailer, new", price: 499, condition: "new" },
+      { name: "Used listing", price: 380, condition: "good" },
+      { name: "Used listing", price: 425, condition: "like_new" },
+      { name: "Retail listing, new", price: 499, condition: "new" },
     ],
   },
   certRecord: null,
@@ -149,12 +155,12 @@ export const cleanPs5: ScenarioFixture = {
     carrier: "UPS",
     trackingNumber: "1Z999AA10123456784",
     packingPhotos: [
-      { url: "/fixtures/clean-ps5/packing-in-box.jpg", whatItShows: "PlayStation 5 box with the console, a controller and cables inside, sitting in a larger shipping box with padding.", addedBy: "seller", addedAt: at(24 * 60) },
-      { url: "/fixtures/clean-ps5/packing-sealed.jpg", whatItShows: "Sealed shipping box with the label.", addedBy: "seller", addedAt: at(24 * 60 + 5) },
+      { url: "/fixtures/clean-ps5/packing-in-box.jpg", whatItShows: "The controller, cables and stand laid in the open shipping box on top of the console box.", addedBy: "seller", addedAt: at(24 * 60) },
+      { url: "/fixtures/clean-ps5/packing-sealed.jpg", whatItShows: "The same box taped shut along the seam, no label on it yet.", addedBy: "seller", addedAt: at(24 * 60 + 5) },
     ],
     checklist: [
       { id: "c1", label: "Photo of the console, controller and cables going into the box", required: true, done: true },
-      { id: "c2", label: "Photo of the sealed box with the label on it", required: true, done: true },
+      { id: "c2", label: "Photo of the sealed box", required: true, done: true },
       { id: "c3", label: "Enter the carrier and tracking number", required: true, done: true },
       { id: "c4", label: "Ship to the address on the PayPal order only", required: true, done: true },
     ],
@@ -162,7 +168,7 @@ export const cleanPs5: ScenarioFixture = {
     deliveredAt: at(5 * 24 * 60),
   },
   arrivalPhotos: [
-    { url: "/fixtures/clean-ps5/arrival-console-serial.jpg", whatItShows: `Back of a white PlayStation 5 console on a desk. The label shows serial ${CLEAN_SERIAL}.`, addedBy: "buyer", addedAt: at(5 * 24 * 60 + 20) },
+    { url: "/fixtures/clean-ps5/arrival-console-serial.jpg", whatItShows: `Close-up of the label on the back of the console that arrived. The number under the barcode is ${CLEAN_SERIAL}.`, addedBy: "buyer", addedAt: at(5 * 24 * 60 + 20) },
   ],
   expectedArrival: { matches: true, mismatchFields: [] },
   timeline: chainEvents([
@@ -170,11 +176,11 @@ export const cleanPs5: ScenarioFixture = {
     { id: "e1b", dealId, kind: "seller_invited", actor: "system", summary: "Invite link created for the seller. The buyer sends it.", at: at(0) },
     { id: "e1c", dealId, kind: "state_changed", actor: "system", summary: "Waiting for the seller.", fromState: "DRAFT", toState: "INVITED", at: at(0) },
     { id: "e1d", dealId, kind: "seller_joined", actor: "seller", summary: "Matt M. joined the deal.", at: at(3) },
-    { id: "e2", dealId, kind: "card_updated", actor: "seller_pal", summary: `Seller Pal built card version 1. Console serial ${CLEAN_SERIAL} read from the back of the console; the box label shows the same serial.`, at: at(4) },
+    { id: "e2", dealId, kind: "card_updated", actor: "seller_pal", summary: `Seller Pal built card version 1. The box label reads ${CLEAN_SERIAL}. The sticker on the console is in the wide shot but not readable.`, at: at(4) },
     { id: "e3", dealId, kind: "state_changed", actor: "system", summary: "Listed.", fromState: "INVITED", toState: "LISTED", at: at(4) },
-    { id: "e4", dealId, kind: "review_posted", actor: "buyer_pal", summary: "Buyer Pal reviewed the deal: go, pending one photo.", at: at(30) },
+    { id: "e4", dealId, kind: "review_posted", actor: "buyer_pal", summary: "Buyer Pal reviewed card version 1: go, and asked for a close-up of the serial on the console.", at: at(30) },
     { id: "e5", dealId, kind: "state_changed", actor: "system", summary: "Reviewed.", fromState: "LISTED", toState: "REVIEWED", at: at(30) },
-    { id: "e6", dealId, kind: "card_updated", actor: "seller_pal", summary: "Card version 2: Console Information screen photo added.", at: at(42) },
+    { id: "e6", dealId, kind: "card_updated", actor: "seller_pal", summary: `Card version 2: close-up added. Console ${CLEAN_SERIAL} matches the box label.`, at: at(42) },
     { id: "e6a", dealId, kind: "state_changed", actor: "system", summary: "Card changed. It needs a fresh review.", fromState: "REVIEWED", toState: "LISTED", at: at(42) },
     { id: "e6a2", dealId, kind: "review_posted", actor: "buyer_pal", summary: "Buyer Pal reviewed card version 2: go.", at: at(46) },
     { id: "e6a3", dealId, kind: "state_changed", actor: "system", summary: "Reviewed.", fromState: "LISTED", toState: "REVIEWED", at: at(46) },
@@ -190,7 +196,7 @@ export const cleanPs5: ScenarioFixture = {
     { id: "e14", dealId, kind: "state_changed", actor: "system", summary: "Shipped.", fromState: "PAID", toState: "SHIPPED", at: at(24 * 60 + 30) },
     { id: "e15", dealId, kind: "delivered", actor: "buyer", summary: "Buyer confirmed delivery.", at: at(5 * 24 * 60) },
     { id: "e16", dealId, kind: "state_changed", actor: "system", summary: "Delivered.", fromState: "SHIPPED", toState: "DELIVERED", at: at(5 * 24 * 60) },
-    { id: "e17", dealId, kind: "arrival_checked", actor: "buyer_pal", summary: `Arrival matches the locked card. Serial ${CLEAN_SERIAL} confirmed.`, at: at(5 * 24 * 60 + 25) },
+    { id: "e17", dealId, kind: "arrival_checked", actor: "buyer_pal", summary: `Arrival matches the locked card. Serial ${CLEAN_SERIAL} read on the console that arrived.`, at: at(5 * 24 * 60 + 25) },
     { id: "e18", dealId, kind: "state_changed", actor: "system", summary: "Complete.", fromState: "DELIVERED", toState: "COMPLETE", at: at(5 * 24 * 60 + 30) },
   ]),
 };
