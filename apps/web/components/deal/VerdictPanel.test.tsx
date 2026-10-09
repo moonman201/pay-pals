@@ -89,6 +89,29 @@ describe("VerdictPanel", () => {
     expect(within(screen.getByRole("list", { name: "Listing prices" })).getAllByRole("listitem").map((li) => li.textContent)).toEqual(["$588.99", "$914.99"]);
   });
 
+  it("shows the sentence that says how the range was reached, under the range and above the chips", () => {
+    const note = "Estimated for a used unit from new retail prices (good: 70% of new), scaled from 11 new listings priced $588.99 to $949.99";
+    const v = verdict({
+      overall: "go",
+      priceCheck: {
+        marketLow: 412,
+        marketHigh: 665,
+        currency: "USD",
+        provider: "channel3",
+        checkedAt: new Date().toISOString(),
+        sources: [{ name: note }, { name: "a shop", url: "https://shop.example/1", price: 588.99, condition: "new" }, { name: "another", url: "https://shop.example/2", price: 949.99, condition: "new" }],
+      },
+    });
+    render(<VerdictPanel verdict={v} currentVersion={1} locked={false} />);
+    const block = screen.getByTestId("price-check");
+    expect(screen.getByTestId("price-method")).toHaveTextContent(note);
+    // The count is the listings, not the sources: the note is not a listing.
+    expect(screen.getByTestId("price-sources")).toHaveTextContent("From 2 listings: 2 new, $588.99 to $949.99");
+    expect(block.textContent).not.toMatch(/shop\.example|a shop|another/);
+    const order = [...block.querySelectorAll("[data-testid]")].map((el) => el.getAttribute("data-testid"));
+    expect(order).toEqual(["price-method", "price-sources"]);
+  });
+
   it("renders a real range with its sources", () => {
     const real = verdict({ overall: "go", priceCheck: fakeSlab.marketPrice });
     render(<VerdictPanel verdict={real} currentVersion={1} locked={false} />);
