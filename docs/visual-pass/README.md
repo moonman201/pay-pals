@@ -57,6 +57,10 @@ What it would cost us with a judge, worst first:
 10. Dark mode had a muddy caution panel, low contrast chips and a white hero slab. Fixed.
 11. The seller join page had no Seller Pal, a label collision and a refusal box that looked unfinished. Fixed.
 
-## Two decisions for Matt
+## Decisions, Oct 9
 
-See `coordination/BLOCKERS.md`: the retailer names Channel3 returns in the price panel, and the PayPal badges in the hero artwork.
+- Price panel: show the count and the prices only, no retailer names, keeping "via Channel3" visible. Decided, not yet built.
+- Hero: keep the PayPal badges as supplied.
+- Re-seeding the demo deals: approved, to run only after the merge to main is approved.
+
+The after screenshots in this folder were captured before the judge-read fixes landed. The preview link above is current; the after files are refreshed on Matt's word.

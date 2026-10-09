@@ -186,7 +186,9 @@ Branch `visual`, Vercel preview deploy only. Nothing merges to main and producti
 | 13 | builder-agents | `assets/demo-photos/SHOTLIST.md`: the 13 photos plus the reference folder, exact filename, what the shot must show, what the pal reads from it. |
 | 14 | qa | Playwright for the new layout; visual checks at 1280 and 390 px for the landing, the three finished deals and both evidence packs. Before screenshots from production, after screenshots from the preview, committed under docs/visual-pass/ on the branch. |
 | 15 | qa | gitleaks or trufflehog over the full git history before the repo goes public. Report; never rewrite history without Matt. |
-| 16 | reality-check | Review the preview as a first-time judge on a phone: confusing, cluttered, forgettable. |
+| 16 | reality-check | Review the preview as a first-time judge on a phone: confusing, cluttered, forgettable. Done; notes in docs/visual-pass/README.md. |
+
+**Matt's decisions, Oct 9.** (1) Price panel shows the count and the prices only, no retailer names, with "via Channel3" still visible. Not yet built; it waits with everything else. (2) The hero keeps the PayPal badges as supplied. (3) Re-seeding the demo deals is approved, but only after Matt approves the merge to main. Polish is stopped until Matt replies.
 
 ## Status (Lead keeps this current)
 | Lane | Status | Last merge |
