@@ -2,7 +2,7 @@
 
 import { CONDITION_LABELS, type CertCheck, type ItemCard } from "@pay-pals/contracts";
 import { useState } from "react";
-import { boxSerialLabel, boxSerialMatches } from "@/lib/deal/box-serial";
+import { boxSerialLabel, boxSerialStatus } from "@/lib/deal/box-serial";
 import { certSentence, type CertTone } from "@/lib/deal/cert-copy";
 import { diffCards } from "@/lib/deal/card-diff";
 import { formatMoney, formatTime } from "@/lib/format";
@@ -22,6 +22,7 @@ interface Props {
 }
 
 const CERT_TONE: Record<CertTone, string> = { go: "text-go", stop: "text-stop", muted: "text-muted" };
+const BOX_SERIAL_TONE = { match: "text-go", mismatch: "text-stop", unread: "text-muted" } as const;
 
 function Field({ label, children, wide = false }: { label: string; children: React.ReactNode; wide?: boolean }) {
   return (
@@ -116,7 +117,7 @@ export function ItemCardView({ cards, currentVersion, lockedVersion, certCheck =
         {card.grade ? <Field label="Grade">{card.grade}</Field> : null}
         {card.boxSerial ? (
           <Field label="Box serial">
-            <span className="font-mono">{card.boxSerial}</span> <span className={`text-xs font-semibold ${boxSerialMatches(card) ? "text-go" : "text-stop"}`}>{boxSerialLabel(card)}</span>
+            <span className="font-mono">{card.boxSerial}</span> <span className={`text-xs font-semibold ${BOX_SERIAL_TONE[boxSerialStatus(card)]}`}>{boxSerialLabel(card)}</span>
           </Field>
         ) : null}
         <Field label="Condition">{CONDITION_LABELS[card.conditionGrade]}</Field>

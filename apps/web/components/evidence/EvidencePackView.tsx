@@ -1,5 +1,5 @@
 import { CONDITION_LABELS, type Deal, type DealEvent, type EvidencePack, type Message } from "@pay-pals/contracts";
-import { boxSerialLabel, boxSerialMatches } from "@/lib/deal/box-serial";
+import { boxSerialLabel, boxSerialStatus } from "@/lib/deal/box-serial";
 import { historyStatus } from "@/lib/deal/history-status";
 import { priceRangeLine, priceSourceNote } from "@/lib/deal/price-copy";
 import { summariseSources } from "@/lib/deal/price-sources";
@@ -114,7 +114,7 @@ export function EvidencePackView({ pack, deal, role, events }: { pack: EvidenceP
               <div>
                 <dt className="text-xs uppercase text-muted">Box serial</dt>
                 <dd>
-                  <span className="font-mono">{card.boxSerial}</span> <span className={boxSerialMatches(card) ? "text-go" : "text-stop"}>({boxSerialLabel(card)})</span>
+                  <span className="font-mono">{card.boxSerial}</span> <span className={boxSerialStatus(card) === "match" ? "text-go" : boxSerialStatus(card) === "mismatch" ? "text-stop" : "text-muted"}>({boxSerialLabel(card)})</span>
                 </dd>
               </div>
             ) : null}

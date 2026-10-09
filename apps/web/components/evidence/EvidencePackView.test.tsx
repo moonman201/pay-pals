@@ -30,16 +30,22 @@ function pack(overrides: Partial<EvidencePack> = {}): EvidencePack {
 
 describe("EvidencePackView", () => {
   it("lists the box serial on the locked card and says it matches the console", () => {
-    render(<EvidencePackView pack={pack()} deal={emptyBox.deal} role="buyer" />);
+    render(<EvidencePackView pack={pack({ lockedCard: { ...lockedCard, serial: lockedCard.boxSerial } })} deal={emptyBox.deal} role="buyer" />);
     expect(screen.getByText("Box serial")).toBeInTheDocument();
-    expect(screen.getAllByText("AJ204567113").length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByText(lockedCard.boxSerial!).length).toBeGreaterThanOrEqual(2);
     expect(screen.getByText("(matches the console)")).toBeInTheDocument();
   });
 
   it("says when the box serial does not match", () => {
-    render(<EvidencePackView pack={pack({ lockedCard: { ...lockedCard, boxSerial: "ZZ000000000" } })} deal={emptyBox.deal} role="buyer" />);
+    render(<EvidencePackView pack={pack({ lockedCard: { ...lockedCard, serial: lockedCard.boxSerial, boxSerial: "ZZ000000000" } })} deal={emptyBox.deal} role="buyer" />);
     expect(screen.getByText("ZZ000000000")).toBeInTheDocument();
     expect(screen.getByText("(does not match)")).toBeInTheDocument();
+  });
+
+  it("says nothing was read off the console when the locked card carries only the box label", () => {
+    expect(lockedCard.serial).toBeNull();
+    render(<EvidencePackView pack={pack()} deal={emptyBox.deal} role="buyer" />);
+    expect(screen.getByText("(no serial read off the console yet)")).toBeInTheDocument();
   });
 
   it("shows the tamper-evident history: the custom_id form, the event count, and a verification computed from the stored events", () => {
