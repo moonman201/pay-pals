@@ -1,7 +1,9 @@
 /**
  * The deal progress stepper, read from the deal state and the events.
- * Seven steps, one current; a deal that ended early (blocked, issue,
- * cancelled) keeps the steps it reached and adds an end badge.
+ * Seven steps. One rule holds everywhere: a step is done when the thing it
+ * names has happened, and the current step is the next thing to do. A deal
+ * that ended early (blocked, issue, cancelled) keeps the steps it reached
+ * and adds an end badge instead of a current step.
  */
 import type { DealEvent, DealState } from "@pay-pals/contracts";
 
@@ -30,16 +32,23 @@ export interface Progress {
   complete: boolean;
 }
 
-/** Index of the step the state is working on; -1 for an end state, which reads the events instead. */
-const CURRENT_BY_STATE: Readonly<Record<DealState, number>> = {
-  DRAFT: 1,
-  INVITED: 0,
-  LISTED: 1,
-  REVIEWED: 2,
-  AGREED: 3,
+/**
+ * How many steps the state says are finished. The invite is sent in
+ * INVITED, the card exists in LISTED, the review is in at REVIEWED, the
+ * card is locked at AGREED, and so on: the step the state names is done and
+ * the next one is current. PAYMENT_PENDING is an order created but not
+ * captured, so Paid is still the current step. An end state reads the
+ * events instead.
+ */
+const DONE_BY_STATE: Readonly<Record<DealState, number>> = {
+  DRAFT: 0,
+  INVITED: 1,
+  LISTED: 2,
+  REVIEWED: 3,
+  AGREED: 4,
   PAYMENT_PENDING: 4,
-  PAID: 4,
-  SHIPPED: 5,
+  PAID: 5,
+  SHIPPED: 6,
   DELIVERED: 6,
   COMPLETE: 7,
   BLOCKED: -1,
@@ -47,7 +56,7 @@ const CURRENT_BY_STATE: Readonly<Record<DealState, number>> = {
   CANCELLED: -1,
 };
 
-/** How far a deal got, from its events: the number of steps completed. */
+/** How far a deal that ended early got, from its events: the number of steps completed. */
 function reachedFromEvents(events: readonly DealEvent[]): number {
   const kinds = new Set(events.map((e) => e.kind));
   if (kinds.has("arrival_checked")) return 7;
@@ -63,12 +72,9 @@ function reachedFromEvents(events: readonly DealEvent[]): number {
 
 export function dealProgress(state: DealState, events: readonly DealEvent[]): Progress {
   const end: ProgressEnd = state === "BLOCKED" ? { kind: "blocked", label: "Blocked" } : state === "ISSUE" ? { kind: "issue", label: "Issue open" } : state === "CANCELLED" ? { kind: "cancelled", label: "Cancelled" } : null;
-  const byState = CURRENT_BY_STATE[state];
-  // On the happy path the state names the current step and everything before it is done.
-  // Off it, every step reached is done and nothing is current: the end badge is.
-  const done = byState >= 0 ? byState : reachedFromEvents(events);
-  // A deal that has moved to the next step has done the previous one; PAID means paid, so step "paid" is done and shipping is next.
-  const doneCount = state === "PAID" ? 5 : state === "DELIVERED" ? 6 : done;
+  const byState = DONE_BY_STATE[state];
+  const doneCount = byState >= 0 ? byState : reachedFromEvents(events);
+  // Off the happy path nothing is current: the end badge is what the reader needs next.
   const currentIndex = end ? -1 : doneCount;
   const steps = PROGRESS_STEPS.map((id, i) => ({
     id,
