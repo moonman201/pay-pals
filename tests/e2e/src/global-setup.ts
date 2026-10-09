@@ -87,5 +87,15 @@ export default async function globalSetup(): Promise<void> {
   await post(`/api/deals/${refused.dealId}/decline`, { by: "seller", reason: "Friends and Family only." });
   await post(`/api/deals/${refused.dealId}/review`, {});
 
-  console.log(`[e2e] warm-up done in ${((Date.now() - started) / 1000).toFixed(1)}s`);
+  // The seeded finished deals the landing page links to: the clean one ends without an evidence pack,
+  // and building one appends a pal message and a timeline event. Build it here, once, before any worker
+  // starts, so every spec sees the same room and the same evidence page however the run interleaves.
+  const landing = await (await fetch(`${BASE_URL}/`)).text();
+  const seeded = new Set([...landing.matchAll(/\/deals\/([0-9a-f-]{36})\?as=buyer/g)].map((m) => m[1]!));
+  for (const id of seeded) {
+    const snap = (await (await fetch(`${BASE_URL}/api/deals/${id}`)).json()) as { deal?: { lockedCardVersion: number | null }; hasEvidence?: boolean };
+    if (snap.deal?.lockedCardVersion && !snap.hasEvidence) await post(`/api/deals/${id}/evidence`, { by: "buyer" });
+  }
+
+  console.log(`[e2e] warm-up done in ${((Date.now() - started) / 1000).toFixed(1)}s, ${seeded.size} seeded finished deals ready`);
 }
