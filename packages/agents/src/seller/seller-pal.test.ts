@@ -213,6 +213,56 @@ describe("SellerPal.applyRequest", () => {
     expect(typed.data.serial).toBe(CLEAN_SERIAL);
   });
 
+  it("puts the console serial on the new version when the buyer asked under photos", async () => {
+    const pal = createSellerPal({ anthropic: null });
+    expect(v1.serial).toBeNull();
+    const { data: v2, palMessage } = await pal.applyRequest(
+      v1,
+      { field: "photos", request: "Can you send a close-up of the serial label on the console itself?" },
+      "Here you go, that is the sticker on the back.",
+      [serialCloseUp],
+    );
+    expect(v2.serial).toBe(CLEAN_SERIAL);
+    expect(v2.boxSerial).toBe(v1.boxSerial);
+    expect(palMessage).toContain(`serial ${CLEAN_SERIAL} read off the item`);
+  });
+
+  it("reads the close-up with vision when the image loads", async () => {
+    const model = fakeClaude((params) =>
+      params.tools?.[0]?.name === "report_photo_reading"
+        ? { brand: "Sony", model: "PlayStation 5", serial: "aj 164952580", serial_on: "item", item_present: true }
+        : { sentence: "Close-up of the serial sticker on the back of the console" },
+    );
+    const pal = createSellerPal({ anthropic: model, fetchImage: async () => ({ data: "AAAA", mediaType: "image/jpeg" as const }) });
+    const hosted = { ...serialCloseUp, url: `https://example.com${serialCloseUp.url}`, whatItShows: "Back of the console." };
+    const { data: v2 } = await pal.applyRequest(v1, { field: "photos", request: "Close-up of the serial?" }, "Here you go.", [hosted]);
+    expect(v2.serial).toBe(CLEAN_SERIAL);
+  });
+
+  it("never lets a photo change a serial the card already has", async () => {
+    const pal = createSellerPal({ anthropic: null });
+    const withSerial = { ...v1, serial: "AJ100000001", boxSerial: null };
+    const fromBox = await pal.applyRequest(withSerial, { field: "photos", request: "Can you show the box?" }, "Here is the box.", [boxLabel]);
+    expect(fromBox.data.serial).toBe("AJ100000001");
+    expect(fromBox.data.boxSerial).toBe(CLEAN_SERIAL);
+    expect(fromBox.palMessage).toContain(`box label serial ${CLEAN_SERIAL} added`);
+
+    const otherUnit = await pal.applyRequest(withSerial, { field: "photos", request: "Close-up of the serial?" }, "Attached.", [serialCloseUp]);
+    expect(otherUnit.data.serial).toBe("AJ100000001");
+    expect(otherUnit.palMessage).toContain(`The new photo reads serial ${CLEAN_SERIAL} and the card says AJ100000001`);
+  });
+
+  it("reads a cert off a slab photo and keeps one the card already carries", async () => {
+    const pal = createSellerPal({ anthropic: null });
+    const slabFront = fakeSlab.cards[0]!.photos[0]!;
+    const plain = { ...v1, certNumber: null, grade: null };
+    const { data: graded } = await pal.applyRequest(plain, { field: "photos", request: "Can you show the label?" }, "Attached.", [slabFront]);
+    expect(graded.certNumber).toBe(FAKE_SLAB_CERT);
+    expect(graded.grade).toBe("GEM MT 10");
+    const { data: kept } = await pal.applyRequest({ ...plain, certNumber: "99999999", grade: "PSA 9" }, { field: "photos", request: "Label?" }, "Attached.", [slabFront]);
+    expect(kept.certNumber).toBe("99999999");
+  });
+
   it("throws on a locked card", async () => {
     const pal = createSellerPal({ anthropic: null });
     await expect(pal.applyRequest(cleanPs5.cards[1]!, { field: "askingPrice", request: "Lower?" }, "$400")).rejects.toBeInstanceOf(CardLockedError);

@@ -2,7 +2,9 @@
  * SellerPal.applyRequest: a buyer's request plus the seller's reply become
  * the next card version. Structured fields change deterministically from the
  * reply; free-text fields get one plain sentence, written by Claude when
- * available and taken from the reply otherwise. A locked card throws.
+ * available and taken from the reply otherwise. Any photo the seller adds is
+ * read for identifying numbers whatever field the buyer named. A locked card
+ * throws.
  */
 import type Anthropic from "@anthropic-ai/sdk";
 import type { BuyerRequest, ItemCard, PalResult, Photo } from "@pay-pals/contracts";
@@ -11,15 +13,17 @@ import { z } from "zod";
 import type { ClaudeClient } from "../claude/client";
 import { callTool } from "../claude/tool-call";
 import { plainCopy, sentences } from "../copy";
-import { serialFromText } from "../vision/description";
+import { certFromText, gradeFromText, normalizeSerial, serialFromText } from "../vision/description";
 import type { ImageFetcher } from "../vision/fetch-image";
-import { itemSerial, readPhotos } from "../vision/read-photo";
+import { describeLooking, itemSerial, packagingSerial, readPhotos, type PhotoReading } from "../vision/read-photo";
 import { parseConditionGrade, parseIncluded, parsePrice } from "./listing-parse";
 
 export interface ApplyRequestDeps {
   client: ClaudeClient | null;
   fetchImage?: ImageFetcher;
   photoBaseUrl?: string | null;
+  /** Presentation only: drop the sentences about photo files that could not be loaded. */
+  publicMode?: boolean;
 }
 
 export class CardLockedError extends Error {
@@ -69,6 +73,42 @@ function appendNote(notes: string, sentence: string): string {
   return joined.length <= 600 ? joined : notes;
 }
 
+/**
+ * Reads the identifying numbers off the photos the seller just added, the way
+ * buildCard does: vision when the image loads, the caption when it does not.
+ * This runs whatever field the buyer named, because a buyer who asks for a
+ * close-up of the serial is asking for a photo, and the number on that photo
+ * belongs on the card either way.
+ *
+ * Two rules it never breaks. A number read off packaging only ever fills
+ * boxSerial, never the item serial. Nothing already on the card is replaced:
+ * a photo that reads a different number is reported to the seller and the
+ * card is left as it is.
+ */
+function numbersFromPhotos(next: ItemCard, readings: PhotoReading[], changes: string[], conflicts: string[]): void {
+  const fromItem = itemSerial(readings);
+  if (fromItem && !next.serial) {
+    next.serial = fromItem.serial;
+    changes.push(`serial ${fromItem.serial} read off the item`);
+  } else if (fromItem && next.serial && normalizeSerial(fromItem.serial) !== normalizeSerial(next.serial)) {
+    conflicts.push(`The new photo reads serial ${fromItem.serial} and the card says ${next.serial}, so I left the card as it is. Tell the buyer which unit this is.`);
+  }
+
+  const fromBox = packagingSerial(readings);
+  if (fromBox && !next.boxSerial) {
+    next.boxSerial = fromBox.serial;
+    changes.push(`box label serial ${fromBox.serial} added`);
+  }
+
+  const labelText = readings.map((r) => r.photo.whatItShows).join("\n");
+  const cert = certFromText(labelText);
+  if (cert && !next.certNumber) {
+    next.certNumber = cert;
+    next.grade = gradeFromText(labelText);
+    changes.push(`cert ${cert}${next.grade ? ` (${next.grade})` : ""} read off the label`);
+  }
+}
+
 export async function applyBuyerRequest(
   card: ItemCard,
   request: BuyerRequest,
@@ -80,10 +120,14 @@ export async function applyBuyerRequest(
 
   const next: ItemCard = { ...card, version: card.version + 1, lockedAt: null, photos: [...card.photos], included: [...card.included] };
   const changes: string[] = [];
+  const conflicts: string[] = [];
   const photos = newPhotos ?? [];
+  let readings: PhotoReading[] = [];
   if (photos.length > 0) {
     next.photos.push(...photos);
     changes.push(`${photos.length} photo${photos.length === 1 ? "" : "s"} added`);
+    readings = await readPhotos(photos, { client: deps.client, fetchImage: deps.fetchImage, photoBaseUrl: deps.photoBaseUrl, hints: { brand: card.brand, model: card.model } });
+    numbersFromPhotos(next, readings, changes, conflicts);
   }
 
   switch (request.field) {
@@ -96,11 +140,13 @@ export async function applyBuyerRequest(
       break;
     }
     case "serial": {
-      const readings = await readPhotos(photos, { client: deps.client, fetchImage: deps.fetchImage, photoBaseUrl: deps.photoBaseUrl, hints: { brand: card.brand, model: card.model } });
-      const serial = itemSerial(readings)?.serial ?? serialFromText(sellerReply);
-      if (serial && serial !== card.serial) {
-        next.serial = serial;
-        changes.push(`serial ${serial} added`);
+      // The photos have already been read. What is left is a serial the seller typed out.
+      const typed = serialFromText(sellerReply);
+      if (typed && !next.serial) {
+        next.serial = typed;
+        changes.push(`serial ${typed} added`);
+      } else if (typed && next.serial && normalizeSerial(typed) !== normalizeSerial(next.serial)) {
+        conflicts.push(`You typed serial ${typed} and the card says ${next.serial}, so I left the card as it is.`);
       }
       break;
     }
@@ -142,6 +188,8 @@ export async function applyBuyerRequest(
 
   const palMessage = sentences(
     changes.length > 0 ? `Card version ${next.version}: ${changes.join(", ")}.` : `Card version ${next.version} is the same as before. I could not find a change in your reply for ${request.field}.`,
+    describeLooking(readings, "photo", deps.publicMode === true),
+    ...conflicts,
     `The buyer asked: "${plainCopy(request.request, 200)}"`,
     "The buyer's pal will see the new version.",
   );
