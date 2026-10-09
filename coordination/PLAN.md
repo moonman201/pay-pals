@@ -167,7 +167,7 @@ Branch `judge-walk`, merged to main caf27aa on Oct 8, stale seeds deleted from N
 | J12 | qa | Tests for J2 to J6 and J8; re-run the finished-deal screenshot pass after the re-seed. |
 
 ## Visual pass, Oct 9 (Matt). Lane assignments
-Branch `visual`, Vercel preview deploy only. Nothing merges to main and production is untouched until Matt approves the screenshots. Stop only for a contract or schema change or a change to the product copy's meaning. Goal: the site looks like a product a judge remembers, built around the two Pals (blue Buyer Pal, gold Seller Pal) from `assets/pay-pals-hero.jpg`. Design is one of five judging criteria.
+Branch `visual`, merged to main ee70456 on Oct 9 with Matt's approval, production deployed and the demo deals re-seeded. Done. Stop only for a contract or schema change or a change to the product copy's meaning. Goal: the site looks like a product a judge remembers, built around the two Pals (blue Buyer Pal, gold Seller Pal) from `assets/pay-pals-hero.jpg`. Design is one of five judging criteria.
 
 | # | Lane | Work |
 |---|---|---|

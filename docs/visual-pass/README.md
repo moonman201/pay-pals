@@ -1,6 +1,6 @@
 # Visual pass, Oct 8 and 9
 
-Branch `visual`. Preview deploy only. Nothing is merged to main and production is untouched until Matt approves.
+Merged to main (ee70456) and deployed on Oct 9. The after screenshots were taken from the preview, which was the same code.
 
 **Preview:** https://pay-pals-git-visual-m00n1.vercel.app (rebuilds on every push to the branch)
 **Production, for comparison:** https://pay-pals-m00n1.vercel.app
