@@ -2,7 +2,7 @@ import type { ScenarioFixture } from "@pay-pals/contracts";
 import Link from "next/link";
 import { PalAvatar } from "../pal/PalAvatar";
 import { buttonClass } from "../ui/Button";
-import { IssueIcon, ShieldCheckIcon, ShieldStopIcon } from "../ui/icons";
+import { ArrowIcon, IssueIcon, ShieldCheckIcon, ShieldStopIcon } from "../ui/icons";
 
 type Outcome = { kind: "blocked" | "complete" | "issue"; line: string };
 
@@ -55,8 +55,10 @@ export function ScenarioCard({ fixture, finishedDealId }: { fixture: ScenarioFix
         </button>
       </form>
       {finishedDealId ? (
-        <Link href={`/deals/${finishedDealId}?as=buyer`} className="mt-2 inline-flex min-h-11 items-center justify-center text-center text-xs text-muted underline-offset-2 hover:underline">
+        // The finished deal is the payoff, so it gets a pressable control, not a caption.
+        <Link href={`/deals/${finishedDealId}?as=buyer`} className={`theme-buyer mt-2 w-full ${buttonClass("secondary")}`}>
           See the finished deal
+          <ArrowIcon size={16} />
         </Link>
       ) : null}
     </article>
