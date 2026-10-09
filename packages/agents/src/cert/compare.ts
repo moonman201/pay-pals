@@ -66,14 +66,14 @@ export function compareCertRecord(card: ItemCard, record: CertRecord): CertCompa
   const cardLabel = `"${card.title}"${card.grade ? `, grade ${card.grade}` : ""}`;
 
   if (isNotChecked(record)) {
-    return { matches: null, explanation: NOT_CHECKED_EXPLANATION, evidence: `certNumber: ${cert}; card: ${cardLabel}; not checked (${NOT_CHECKED_REASON})`, overlap: 0 };
+    return { matches: null, explanation: NOT_CHECKED_EXPLANATION, evidence: `Cert ${cert} on the card for ${cardLabel}; not checked, ${NOT_CHECKED_REASON}`, overlap: 0 };
   }
 
   if (!record.subject) {
     return {
       matches: false,
       explanation: `${grader} has no record for cert ${cert}, so the slab label cannot be trusted.`,
-      evidence: `certNumber: ${cert}; card: ${cardLabel}; ${grader} record: none`,
+      evidence: `Cert ${cert} on the card for ${cardLabel}; ${grader} has no record of it`,
       overlap: 0,
     };
   }
@@ -94,7 +94,7 @@ export function compareCertRecord(card: ItemCard, record: CertRecord): CertCompa
   const subjectDiffers = overlap < SUBJECT_MATCH_THRESHOLD;
 
   const recordLabel = `"${record.subject}"${record.grade ? `, grade ${record.grade}` : ""}`;
-  const evidence = `certNumber: ${cert}; card: ${cardLabel}; ${grader} record: ${recordLabel}`;
+  const evidence = `Cert ${cert} on the card for ${cardLabel}; ${grader} says ${recordLabel}`;
 
   if (!gradeDiffers && !yearDiffers && !subjectDiffers) {
     return { matches: true, explanation: `${grader} confirms cert ${cert}: ${record.subject}, grade ${record.grade ?? "not stated"}.`, evidence, overlap };

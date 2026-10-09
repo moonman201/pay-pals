@@ -15,7 +15,7 @@ export const stockPhotoRule: Rule = ({ card, photoMatches }) => {
     flag(
       "STOCK_OR_REUSED_PHOTO",
       "caution",
-      `photo "${best.photo.whatItShows}" is the same picture as ${best.source} (${best.distance} of 64 bits differ)${others > 0 ? `; ${others} more photo${others === 1 ? "" : "s"} matched too` : ""}`,
+      `Photo "${best.photo.whatItShows}" is the same picture as ${best.source} (${best.distance} of 64 bits differ)${others > 0 ? `; ${others} more photo${others === 1 ? "" : "s"} matched too` : ""}`,
       "A photo on this card is the same picture as one from another listing, so you have not seen the seller's own item.",
     ),
   ];

@@ -45,7 +45,7 @@ describe("friendsAndFamilyRule", () => {
 describe("inviteRefusedRule", () => {
   it("fires on the record of a declined invite", () => {
     const flags = inviteRefusedRule({ card: null, chat: [], priceCheck: null, inviteDeclined: true });
-    expect(flags[0]).toMatchObject({ code: "INVITE_REFUSED", severity: "stop", evidence: "inviteDeclined: true (the seller declined the Pay Pals invite)" });
+    expect(flags[0]).toMatchObject({ code: "INVITE_REFUSED", severity: "stop", evidence: "The seller declined the Pay Pals invite" });
   });
   it("fires on a seller refusing the invite or insisting on an unprotected method", () => {
     for (const text of [
@@ -179,7 +179,7 @@ describe("certMismatchRule", () => {
 describe("boxSerialMismatchRule", () => {
   it("cautions with both serials when the box label differs from the item", () => {
     const flags = boxSerialMismatchRule({ card: card({ serial: "AH912345678", boxSerial: "AH900000001" }), chat: [], priceCheck: price });
-    expect(flags[0]).toMatchObject({ code: "OTHER", severity: "caution", evidence: "serial: AH912345678, boxSerial: AH900000001" });
+    expect(flags[0]).toMatchObject({ code: "OTHER", severity: "caution", evidence: "Serial on the item AH912345678; serial on the box label AH900000001" });
   });
   it("is quiet when they match, ignoring case and dashes, or when either is missing", () => {
     expect(boxSerialMismatchRule({ card: card({ serial: "AH912345678", boxSerial: "ah9-1234-5678" }), chat: [], priceCheck: price })).toHaveLength(0);

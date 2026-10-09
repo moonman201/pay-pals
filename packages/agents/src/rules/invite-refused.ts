@@ -29,7 +29,7 @@ export const inviteRefusedRule: Rule = (input) => {
     flag(
       "INVITE_REFUSED",
       "stop",
-      match ? quoted(match.quote) : "inviteDeclined: true (the seller declined the Pay Pals invite)",
+      match ? quoted(match.quote) : "The seller declined the Pay Pals invite",
       "The seller refused Pay Pals protection and wants an unprotected payment, which is the strongest sign of a scam. Pay Pals cannot pay this seller.",
     ),
   ];

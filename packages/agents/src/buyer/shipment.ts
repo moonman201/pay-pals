@@ -8,12 +8,13 @@ import { sentences } from "../copy";
 
 const PHOTO_ITEM = /\bphoto\b/i;
 export const MISSING_PHOTO_EXPLANATION = "The seller shipped without the photo of the item going into the box, so there is no proof of what was packed.";
+export const NO_PACKING_PHOTOS_EVIDENCE = "No packing photos were added to the shipment";
 
 function flagFor(item: ChecklistItem): RedFlag {
   return {
     code: "MISSING_PACKING_PHOTO",
     severity: "caution",
-    evidence: `checklist: ${item.label}: not done`,
+    evidence: `Packing step not done: ${item.label}`,
     explanation: PHOTO_ITEM.test(item.label) ? MISSING_PHOTO_EXPLANATION : `The seller shipped without finishing a required step (${item.label}), so the shipment record is incomplete.`,
     raisedByRule: true,
   };
@@ -25,7 +26,7 @@ export function shipmentFlags(shipment: Shipment): RedFlag[] {
   const asksForPhotos = shipment.checklist.some((item) => PHOTO_ITEM.test(item.label));
   const photoItemFlagged = missing.some((item) => PHOTO_ITEM.test(item.label));
   if (asksForPhotos && shipment.packingPhotos.length === 0 && !photoItemFlagged) {
-    flags.push({ code: "MISSING_PACKING_PHOTO", severity: "caution", evidence: "packingPhotos: none", explanation: MISSING_PHOTO_EXPLANATION, raisedByRule: true });
+    flags.push({ code: "MISSING_PACKING_PHOTO", severity: "caution", evidence: NO_PACKING_PHOTOS_EVIDENCE, explanation: MISSING_PHOTO_EXPLANATION, raisedByRule: true });
   }
   return flags;
 }
@@ -33,7 +34,7 @@ export function shipmentFlags(shipment: Shipment): RedFlag[] {
 export function checkShipmentAgainstCard(card: ItemCard, shipment: Shipment): PalResult<RedFlag[]> {
   const flags = shipmentFlags(shipment);
   const missingLabels = shipment.checklist.filter((item) => item.required && !item.done).map((item) => item.label);
-  const photosMissing = flags.some((f) => f.evidence === "packingPhotos: none");
+  const photosMissing = flags.some((f) => f.evidence === NO_PACKING_PHOTOS_EVIDENCE);
   const palMessage = sentences(
     `The seller shipped ${card.title} with ${shipment.carrier}, tracking ${shipment.trackingNumber}.`,
     flags.length === 0 ? "The seller shipped with every packing photo." : null,

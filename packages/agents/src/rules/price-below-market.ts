@@ -17,7 +17,7 @@ export const priceBelowMarketRule: Rule = ({ card, priceCheck }) => {
   if (ratio >= CAUTION_RATIO) return [];
 
   const percent = Math.round(ratio * 100);
-  const evidence = `askingPrice: $${card.askingPrice} against a market low of $${priceCheck.marketLow} (${percent}% of the low end, source ${priceCheck.provider})`;
+  const evidence = `Asking price $${card.askingPrice} against a market low of $${priceCheck.marketLow} (${percent}% of the low end, source ${priceCheck.provider})`;
   if (ratio < STOP_RATIO) {
     return [
       flag(

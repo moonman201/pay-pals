@@ -41,7 +41,7 @@ describe("compareCertRecord", () => {
     expect(result.explanation).toContain("PSA (demo record) cert");
     expect(result.explanation).toContain("2016 Pokemon XY Evolutions Charizard Holo #11");
     expect(result.explanation).toContain("grade 7, not 10");
-    expect(result.evidence).toContain(`certNumber: ${FAKE_SLAB_CERT}`);
+    expect(result.evidence).toContain(`Cert ${FAKE_SLAB_CERT} on the card`);
     expect(result.evidence).toContain(card.title);
     expect(result.overlap).toBeLessThan(0.6);
   });
@@ -50,7 +50,7 @@ describe("compareCertRecord", () => {
     const result = compareCertRecord(card, psaRecord({ subject: null, grade: null, year: null, brand: null }));
     expect(result.matches).toBe(false);
     expect(result.explanation).toBe(`PSA has no record for cert ${FAKE_SLAB_CERT}, so the slab label cannot be trusted.`);
-    expect(result.evidence).toContain("PSA record: none");
+    expect(result.evidence).toContain("PSA has no record of it");
   });
 
   it("a cert nobody looked up compares to null with the not-checked sentence, never a mismatch", () => {
