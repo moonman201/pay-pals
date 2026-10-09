@@ -16,3 +16,8 @@ test-results/
 .agents/
 .claude/skills/
 skills-lock.json
+
+# Phone originals for the demo photos. Converted, stripped JPEGs are committed instead.
+assets/demo-photos/*.HEIC
+assets/demo-photos/*.heic
+.DS_Store
