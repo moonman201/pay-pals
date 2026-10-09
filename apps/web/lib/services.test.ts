@@ -84,6 +84,41 @@ describe("createServices with no keys", () => {
     expect(createServices({}, () => {}).demoPayee).toBeNull();
   });
 
+  it("keeps the fixture payee in demo-only mode, so an .env.local on disk cannot change what the pages render", async () => {
+    const lines: string[] = [];
+    const sandboxSeller = "sb-seller-personal@example.com";
+    const env = {
+      PAY_PALS_DEMO_ONLY: "1",
+      SANDBOX_SELLER_PERSONAL_EMAIL: sandboxSeller,
+      PAYPAL_ENV: "sandbox",
+      PAYPAL_CLIENT_ID: "id-secret-value",
+      PAYPAL_CLIENT_SECRET: "shh-secret-value",
+    };
+    const services = createServices(env, (l) => lines.push(l));
+    expect(services.demoPayee).toBeNull();
+    expect(lines.join("\n")).toMatch(/demo payee: fixture payee kept/);
+    expect(lines.join("\n")).not.toContain(sandboxSeller);
+
+    const seeded = await services.seededDeals;
+    const clean = await loadSnapshot(services, seeded["clean-ps5"]!);
+    expect(clean.lockedCard?.sellerPaypalEmail).toBe(cleanPs5.cards[0]!.sellerPaypalEmail);
+    expect(clean.payment?.payeeEmail).toBe(cleanPs5.payment!.payeeEmail);
+
+    const fresh = await startDemoDeal(services, "clean-ps5");
+    const card = await services.store.getCurrentCard(fresh.id);
+    expect(card?.sellerPaypalEmail).toBe(cleanPs5.cards[0]!.sellerPaypalEmail);
+  });
+
+  it("still substitutes the sandbox seller in sandbox mode with the same env present", () => {
+    const sandboxSeller = "sb-seller-personal@example.com";
+    const sandbox = createServices(
+      { SANDBOX_SELLER_PERSONAL_EMAIL: sandboxSeller, PAYPAL_ENV: "sandbox", PAYPAL_CLIENT_ID: "id-secret-value", PAYPAL_CLIENT_SECRET: "shh-secret-value" },
+      () => {},
+    );
+    expect(sandbox.modes.paypal).toBe("sandbox");
+    expect(sandbox.demoPayee).toBe(sandboxSeller);
+  });
+
   it("tells the pals about the known photos and the photo base URL without printing it", () => {
     const lines: string[] = [];
     createServices({ NEXT_PUBLIC_APP_URL: "https://pay-pals-secret-host.example" }, (l) => lines.push(l));
