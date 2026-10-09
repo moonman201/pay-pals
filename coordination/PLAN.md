@@ -190,6 +190,46 @@ Branch `visual`, Vercel preview deploy only. Nothing merges to main and producti
 
 **Matt's decisions, Oct 9.** (1) Price panel shows the count and the prices only, no retailer names, with "via Channel3" still visible. Not yet built; it waits with everything else. (2) The hero keeps the PayPal badges as supplied. (3) Re-seeding the demo deals is approved, but only after Matt approves the merge to main. Polish is stopped until Matt replies.
 
+## Next: candidate features (recorded Oct 9, not built)
+
+The pitch these serve: anywhere people can pay with PayPal, Pay Pals gives them a reason to choose Goods and Services. Wording rule for all of these, in code, copy and video: never "verified" and never "authentic". Say what was checked and against what.
+
+### A. "Pay Pals Protected" listing link (hackathon candidate)
+The seller builds and locks the card first, then pastes a public link into a listing anywhere. Two paths behind one link:
+- **Direct PayPal sale** (online marketplace, groups, forums): today's flow. The locked card text and the history hash go into our own PayPal order, payee is the seller.
+- **Platform checkout with PayPal as the payment method** (eBay): we keep the card, the packing photos, the tracking, the arrival check and the evidence pack, plus the platform's own order reference. We do not create the order, so no payee of ours, no card text on the order, no hash in custom_id.
+- The Buyer Pal flags a "Pay Pals Protected" claim whose link does not resolve to a locked card.
+
+What changes: `Deal` gains a listing mode, a public link id, an external order reference and a platform name; a `PUBLISHED` state for a locked card with no buyer yet; `lockCard` becomes legal with one side in that state; `PaymentRecord` gains a source and an external reference and its PayPal order id becomes nullable; one red flag code; two event kinds. Schema: four deal columns, three payment columns, one state enum value, one unique index.
+
+**How a dispute works on an eBay purchase paid with PayPal.** Two independent paths, and the buyer picks one:
+- eBay's Money Back Guarantee, opened on eBay, decided by eBay. Seller response window about three business days.
+- A PayPal payment dispute, opened with PayPal, decided by PayPal under its own terms, not eBay's. Seller response window about five calendar days for an external payment dispute.
+Since late 2021 eBay processes payments itself (Adyen) and sellers are not paid into PayPal, so on that path the money never lands in a PayPal account we control. Our evidence pack is useful to either process as attachable proof, and that is all we should claim for it. Sources: eBay's "Handling payment disputes" help page and PayPal's Purchase Protection program page.
+
+### B. Local pickup (hackathon candidate)
+At the meetup the buyer points a phone at the item, the Buyer Pal reads the serial against the locked card, and Pay unlocks only on a match.
+
+**What PayPal's protection actually covers in person, checked Oct 9 against PayPal's Purchase Protection program page (policy current as of Jan 26, 2026).** For a non-QR-code payment, a purchase is **not** eligible for an Item Not Received claim if the buyer paid in person, or ordered online and collected the item in person. It **may** be eligible if the item picked up is Significantly Not as Described. The exception is paying in person by scanning a PayPal **goods and services QR code**: that may be eligible for Purchase Protection, and the seller handing over in person may be eligible for Seller Protection, though PayPal can ask for other evidence of delivery. So:
+- Copy may say the pickup flow helps with an item that is not as described. It must never say it covers an item that never arrived, because for a pickup that claim is not available.
+- If we want the strongest protection story for pickup, the payment should be a PayPal goods and services QR code, which PayPal's own app creates. We cannot attach our card text or history hash to a QR code payment, so the card and the hash stay on our side and the pack is the link between them.
+
+What changes: `Deal` gains a handoff mode; the state table gains PAID to DELIVERED so a pickup skips shipping; the verdict kind enum gains a pickup check and the store must hold more than one check per deal; anything that assumes an arrival check exists only after delivery.
+
+### C. Venmo purchase protection nudge (roadmap)
+Venmo's protected path for buying from a stranger, surfaced the same way: the pal explains which Venmo option carries protection and which does not, before the money moves.
+
+### D. Tickets (roadmap)
+The card is section, row and seat. Arrival is the transfer being accepted in the ticket account rather than a package. The same lock, the same evidence pack, the same hash.
+
+### E. Seller track record on the link (roadmap)
+Computed only from completed deals: how many, over what period, how many ended in an issue. No stars, no badges, no claim about the person. Just counted history.
+
+### F. "Already scammed" triage (roadmap)
+Someone who already sent Friends and Family: what is still possible, what is not, what to gather, where to report. Honest about the fact that Friends and Family has no purchase protection.
+
+Explicitly out: deposits on cars, pets and rentals.
+
 ## Status (Lead keeps this current)
 | Lane | Status | Last merge |
 |---|---|---|
