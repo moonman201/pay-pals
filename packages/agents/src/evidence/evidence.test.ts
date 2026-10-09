@@ -5,6 +5,7 @@ import { createBuyerPal } from "../buyer/buyer-pal";
 import { createFixtureCertLookup } from "../cert/fixture-lookup";
 import { createFixturePriceLookup } from "../price/fixture-lookup";
 import { fakeClaude } from "../testing/fake-claude";
+import { fixtureQuestion } from "../testing/fixture-question";
 import { buildEvidencePack, createEvidencePackBuilder } from "./build-evidence-pack";
 import { deterministicSummary } from "./summary";
 
@@ -50,9 +51,10 @@ describe("buildEvidencePack", () => {
     expect(withPal.palMessage).toContain("4 shared chat messages and 2 pal messages,");
 
     // Scenario 3: the unanswered question and the ship-time flag are both in the pack and the summary.
-    expect(pack.unansweredQuestions).toEqual(["Can you add a close-up of the serial label on the console itself?"]);
+    const asked = fixtureQuestion(emptyBox.chat);
+    expect(pack.unansweredQuestions).toEqual([asked]);
     expect(pack.shipmentFlags).toEqual(emptyBox.shipment!.flags);
-    expect(pack.summary).toContain('The Buyer Pal asked the seller before payment: "Can you add a close-up of the serial label on the console itself?" The seller never answered.');
+    expect(pack.summary).toContain(`The Buyer Pal asked the seller before payment: "${asked}" The seller never answered.`);
     expect(pack.summary).toContain("At ship time the Buyer Pal raised MISSING_PACKING_PHOTO (caution): The seller shipped without the photo of the item going into the box, so there is no proof of what was packed.");
     expect(palMessage).toContain("The seller never answered one question the Buyer Pal asked before payment.");
     expect(palMessage).toContain("The seller shipped without the required packing photo.");
