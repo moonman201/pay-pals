@@ -1,18 +1,19 @@
 /**
  * Visual pass, Oct 9 (PLAN item 14): the landing page, the three finished
  * demo deals (buyer view) and both evidence pages at 1280 and 390 px,
- * against the baselines under tests/e2e/__screenshots__/. The baselines
- * come from the demo-only server, so they are deterministic once the parts
- * a fresh seed changes (times, deal ids, hashes) are masked and the clean
- * deal's evidence pack is built (the state the suite leaves it in). Refresh them
- * on purpose, from tests/e2e, and read the diff before committing:
+ * against the baselines under tests/e2e/__screenshots__/. They are taken
+ * from the demo-only server this config starts, where the seed is the same
+ * every time and the warm-up leaves every finished deal in one known state;
+ * the parts a fresh seed still changes (times, deal ids, hashes) are masked.
+ * A server we did not start is skipped: the baselines would not hold and
+ * these pages must not be written to. Refresh them on purpose, from
+ * tests/e2e, and read the diff before committing:
  *   npx playwright test src/visual.spec.ts --update-snapshots
  * Fixtures only, no keys.
  */
 import { expect, test, type Page } from "@playwright/test";
 import { ALL_FIXTURES, type ScenarioFixture } from "@pay-pals/contracts";
-import { WEB_PRESENT } from "./env";
-import { waitForHydration } from "./helpers";
+import { STARTS_SERVER, WEB_PRESENT } from "./env";
 import { finishedDeal, openSettled } from "./layout-helpers";
 
 const WIDTHS = [
@@ -22,39 +23,39 @@ const WIDTHS = [
 /** The two evidence pages the landing leads to: the clean deal's empty state and the empty box's built pack. */
 const EVIDENCE: ScenarioFixture["id"][] = ["clean-ps5", "empty-box"];
 
-/** What a fresh seed changes: times, deal ids, event hashes. Masked, so one baseline holds across servers. */
-function dynamic(page: Page) {
-  return [
-    page.getByText(/\d{4}-\d{2}-\d{2} \d{2}:\d{2} UTC/),
-    page.getByText(/Invoice [0-9a-f-]{36}/),
-    page.getByText(/^Deal [0-9a-f-]{36}\./),
-    page.getByTestId("summary-hash"),
-    page.locator("span", { hasText: /^#[0-9a-f]{8}$/ }),
-  ];
+/** What a fresh seed changes and a baseline cannot hold: times, deal ids and event hashes. */
+const DYNAMIC = /\d{4}-\d{2}-\d{2} \d{2}:\d{2} UTC|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|#[0-9a-f]{8}\b|\b[0-9a-f]{64}\b/;
+
+/**
+ * Tag the deepest element holding each of those, so the mask covers the
+ * date or the id and not the whole paragraph around it. Returns how many
+ * were tagged, which the caller asserts on so a page that stops showing
+ * them (or a pattern that stops matching) does not quietly pass.
+ */
+async function markDynamic(page: Page, pattern: string): Promise<number> {
+  return page.evaluate((source) => {
+    const re = new RegExp(source);
+    let marked = 0;
+    for (const el of Array.from(document.body.querySelectorAll<HTMLElement>("*"))) {
+      if (!re.test(el.textContent ?? "")) continue;
+      // Only the deepest match: if a child also matches, let the child carry the mask.
+      if (Array.from(el.children).some((child) => re.test(child.textContent ?? ""))) continue;
+      el.setAttribute("data-dynamic", "");
+      marked += 1;
+    }
+    return marked;
+  }, pattern);
 }
 
 async function expectPageToMatch(page: Page, name: string): Promise<void> {
-  await expect(page).toHaveScreenshot(name, { fullPage: true, mask: dynamic(page) });
-}
-
-/**
- * The clean deal is seeded without an evidence pack and other specs in the
- * same run build one (review-oct7, phone-width), which adds a pal message
- * and a timeline event. The baselines show the built state, so every run
- * converges on it here first. Nothing to do on the other two deals.
- */
-async function ensureEvidenceBuilt(page: Page, dealId: string): Promise<void> {
-  await page.goto(`/deals/${dealId}/evidence?as=buyer`);
-  await waitForHydration(page);
-  const build = page.getByRole("button", { name: "Build the evidence pack" });
-  if ((await build.count()) > 0) {
-    await build.click();
-    await expect(page.getByText("Pay Pals evidence pack")).toBeVisible({ timeout: 60_000 });
-  }
+  const marked = await markDynamic(page, DYNAMIC.source);
+  expect(marked, `${name}: elements masked as seed-dependent`).toBeGreaterThan(0);
+  await expect(page).toHaveScreenshot(name, { fullPage: true, mask: [page.locator("[data-dynamic]")] });
 }
 
 test.describe("visual baselines", () => {
   test.skip(!WEB_PRESENT, "apps/web is not on this branch yet, nothing to load");
+  test.skip(!STARTS_SERVER, "the baselines belong to the demo-only server this config starts");
 
   for (const size of WIDTHS) {
     test.describe(`${size.width} px`, () => {
@@ -67,8 +68,7 @@ test.describe("visual baselines", () => {
 
       for (const fixture of ALL_FIXTURES) {
         test(`${fixture.id} deal room`, async ({ page }) => {
-          const { href, dealId } = await finishedDeal(page, fixture);
-          if (fixture.deal.state === "COMPLETE") await ensureEvidenceBuilt(page, dealId);
+          const { href } = await finishedDeal(page, fixture);
           await openSettled(page, href);
           await expectPageToMatch(page, `${fixture.id}-room-${size.width}.png`);
         });
@@ -77,7 +77,6 @@ test.describe("visual baselines", () => {
       for (const fixture of ALL_FIXTURES.filter((f) => EVIDENCE.includes(f.id))) {
         test(`${fixture.id} evidence page`, async ({ page }) => {
           const { dealId } = await finishedDeal(page, fixture);
-          if (fixture.deal.state === "COMPLETE") await ensureEvidenceBuilt(page, dealId);
           await openSettled(page, `/deals/${dealId}/evidence?as=buyer`);
           await expectPageToMatch(page, `${fixture.id}-evidence-${size.width}.png`);
         });
