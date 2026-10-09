@@ -122,13 +122,13 @@ export function ActionBar({ state, role, verdict, dealId, busy, hasLockedCard, a
         <p className="mt-3 text-sm text-muted">
           {state === "INVITED" || (state === "REVIEWED" && cardVersion === 0) ? (
             <>Waiting for the seller to join and add photos. In demo mode you can open the{" "}
-              <Link href={`/deals/${dealId}/join?as=seller`} className="font-semibold text-[var(--accent-ink)] underline-offset-2 hover:underline">
+              <Link href={`/deals/${dealId}/join?as=seller`} className="inline-flex min-h-11 items-center font-semibold text-[var(--accent-ink)] underline-offset-2 hover:underline">
                 seller&apos;s join page
               </Link>{" "}
               yourself.</>
           ) : (
             <>Waiting for the {other}. In demo mode you can{" "}
-              <Link href={`/deals/${dealId}?as=${other}`} className="font-semibold text-[var(--accent-ink)] underline-offset-2 hover:underline">
+              <Link href={`/deals/${dealId}?as=${other}`} className="inline-flex min-h-11 items-center font-semibold text-[var(--accent-ink)] underline-offset-2 hover:underline">
                 switch to the {other} view
               </Link>{" "}
               and make that move yourself.</>

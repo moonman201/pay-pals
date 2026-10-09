@@ -72,7 +72,7 @@ export function SellerJoinForm({ deal, uploadsEnabled = false }: { deal: Deal; u
       {deal.listingUrl ? (
         <p className="text-sm">
           Listing:{" "}
-          <a href={deal.listingUrl} target="_blank" rel="noreferrer" className="break-all font-semibold text-[var(--accent-ink)] underline-offset-2 hover:underline">
+          <a href={deal.listingUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center break-all font-semibold text-[var(--accent-ink)] underline-offset-2 hover:underline">
             {deal.listingUrl}
           </a>
         </p>
