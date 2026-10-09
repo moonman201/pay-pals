@@ -12,7 +12,7 @@
  * under playwright.real.config.ts (`npm run e2e:real -w tests/e2e`).
  */
 import { defineConfig, devices } from "@playwright/test";
-import { BASE_URL, PORT, REPO_ROOT, STARTS_SERVER } from "./src/env";
+import { BASE_URL, E2E_SERVER_ENV, PORT, REPO_ROOT, STARTS_SERVER } from "./src/env";
 
 const PHONE = /phone-width\.spec\.ts$/;
 /** Real-mode specs run only under playwright.real.config.ts. */
@@ -56,11 +56,12 @@ export default defineConfig({
         url: BASE_URL,
         reuseExistingServer: !process.env.CI,
         timeout: 120_000,
-        // Demo-only mode: memory store, rules-only pals, fixture prices and the
-        // mock gateway, whatever keys the shell or .env.local carry. The suite
-        // never spends Claude or PayPal calls. A real-mode run is a manual job
-        // against a server you start yourself, through E2E_BASE_URL.
-        env: { ...process.env, PAY_PALS_DEMO_ONLY: "1" },
+        // Demo-only mode, on a pinned environment: memory store, rules-only
+        // pals, fixture prices and the mock gateway, and nothing a checkout's
+        // .env.local carries. The suite never spends Claude or PayPal calls,
+        // and it renders the same pages in every checkout. A real-mode run is
+        // a manual job against a server you start yourself, through E2E_BASE_URL.
+        env: E2E_SERVER_ENV,
       }
     : undefined,
 });

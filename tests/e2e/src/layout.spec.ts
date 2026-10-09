@@ -108,6 +108,25 @@ test.describe("new layout on the finished deals", () => {
     await expect(panel(page, "Item card").getByTestId("lock-badge")).toContainText("Locked");
   });
 
+  /**
+   * The pages must not depend on whether this checkout has a .env.local. The
+   * sandbox seller account is the one that reaches the rendered page: with it
+   * set, demo deals pay a longer address than the fixture's, which wraps
+   * differently and moves every visual baseline. The config pins the server's
+   * environment; this proves the server under test took the pinning.
+   */
+  test("the finished deals pay the fixture payee, not a sandbox account", async ({ page }) => {
+    for (const fixture of ALL_FIXTURES) {
+      const { href } = await finishedDeal(page, fixture);
+      await page.goto(href);
+      await waitForHydration(page);
+      const body = (await page.locator("body").textContent()) ?? "";
+      const payee = fixture.cards[fixture.cards.length - 1]!.sellerPaypalEmail;
+      expect(body, `${fixture.id}: the item card pays the fixture payee`).toContain(payee);
+      expect(body, `${fixture.id}: no sandbox account address on the page`).not.toMatch(/@personal\.example\.com|@business\.example\.com|\bsb-[a-z0-9]+@/i);
+    }
+  });
+
   test("landing cards: outcome mark and both pals on each, no scenario numbering", async ({ page }) => {
     await page.goto("/");
     const outcome: Record<ScenarioFixture["id"], string> = { "fake-slab": "blocked", "clean-ps5": "complete", "empty-box": "issue" };

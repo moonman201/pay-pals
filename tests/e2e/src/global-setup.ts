@@ -3,10 +3,12 @@
  * compiles each page and API route on its first hit; with several specs
  * starting at once those compiles pile up and a 15 s step wait runs out.
  * One clean deal through the API, plus a load of every page, pays each
- * route's compile ahead of time. Skipped against a remote server, where
- * nothing may be written.
+ * route's compile ahead of time. It works on deals of its own: the three
+ * seeded finished deals are what the visual baselines are taken from, so
+ * nothing here, and nothing in any spec, may change them. Skipped against a
+ * remote server, where nothing may be written.
  */
-import { cleanPs5 } from "@pay-pals/contracts";
+import { ALL_FIXTURES, cleanPs5 } from "@pay-pals/contracts";
 import { BASE_URL, STARTS_SERVER } from "./env";
 
 type Json = Record<string, unknown>;
@@ -21,6 +23,32 @@ async function post(path: string, body: Json): Promise<Json> {
 async function get(path: string): Promise<void> {
   const res = await fetch(`${BASE_URL}${path}`);
   if (!res.ok) throw new Error(`warm-up: GET ${path} -> ${res.status}`);
+}
+
+/**
+ * The three finished deals on the landing page are seeded once per server and
+ * no spec may change them: building an evidence pack on one, for example,
+ * appends a pal message and a timeline event, which moves the visual
+ * baselines. A dev server left running from an older run can still carry such
+ * a change, and that shows up as a puzzling pixel diff, so say it in words
+ * instead. Returns how many finished deals were found.
+ */
+async function checkSeededDealsArePristine(): Promise<number> {
+  const landing = await (await fetch(`${BASE_URL}/`)).text();
+  const ids = new Set([...landing.matchAll(/\/deals\/([0-9a-f-]{36})\?as=buyer/g)].map((m) => m[1]!));
+  for (const id of ids) {
+    const snap = (await (await fetch(`${BASE_URL}/api/deals/${id}`)).json()) as { deal?: { state: string }; hasEvidence?: boolean };
+    const fixture = ALL_FIXTURES.find((f) => f.deal.state === snap.deal?.state);
+    if (!fixture) continue;
+    const seededWithPack = fixture.timeline.some((e) => e.kind === "evidence_built");
+    if (Boolean(snap.hasEvidence) !== seededWithPack) {
+      throw new Error(
+        `warm-up: the seeded ${fixture.id} deal (${id}) is not as it was seeded: evidence pack ${snap.hasEvidence ? "built" : "missing"}, seeded ${seededWithPack ? "with one" : "without one"}. ` +
+          `A dev server from an earlier run is being reused. Stop whatever is serving ${BASE_URL} and run again.`,
+      );
+    }
+  }
+  return ids.size;
 }
 
 export default async function globalSetup(): Promise<void> {
@@ -87,15 +115,6 @@ export default async function globalSetup(): Promise<void> {
   await post(`/api/deals/${refused.dealId}/decline`, { by: "seller", reason: "Friends and Family only." });
   await post(`/api/deals/${refused.dealId}/review`, {});
 
-  // The seeded finished deals the landing page links to: the clean one ends without an evidence pack,
-  // and building one appends a pal message and a timeline event. Build it here, once, before any worker
-  // starts, so every spec sees the same room and the same evidence page however the run interleaves.
-  const landing = await (await fetch(`${BASE_URL}/`)).text();
-  const seeded = new Set([...landing.matchAll(/\/deals\/([0-9a-f-]{36})\?as=buyer/g)].map((m) => m[1]!));
-  for (const id of seeded) {
-    const snap = (await (await fetch(`${BASE_URL}/api/deals/${id}`)).json()) as { deal?: { lockedCardVersion: number | null }; hasEvidence?: boolean };
-    if (snap.deal?.lockedCardVersion && !snap.hasEvidence) await post(`/api/deals/${id}/evidence`, { by: "buyer" });
-  }
-
-  console.log(`[e2e] warm-up done in ${((Date.now() - started) / 1000).toFixed(1)}s, ${seeded.size} seeded finished deals ready`);
+  const seeded = await checkSeededDealsArePristine();
+  console.log(`[e2e] warm-up done in ${((Date.now() - started) / 1000).toFixed(1)}s, ${seeded} seeded finished deals as seeded`);
 }
