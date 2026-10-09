@@ -13,6 +13,7 @@
 import { mkdirSync, statSync } from "node:fs";
 import { resolve } from "node:path";
 import { chromium, type Browser } from "@playwright/test";
+import { ALL_FIXTURES } from "@pay-pals/contracts";
 
 const BASE = process.env.E2E_BASE_URL ?? "http://localhost:3100";
 const SET = process.argv[2] ?? "before";
@@ -26,20 +27,22 @@ interface Shot {
   path: string;
 }
 
-/** The finished deals the landing page links to, by scenario. */
+/**
+ * The finished deals the landing page links to, keyed by scenario id. The
+ * card is found by the fixture's own name, so renaming a scenario cannot
+ * quietly file one deal under another's name.
+ */
 async function finishedDeals(browser: Browser): Promise<Record<string, string>> {
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   const page = await context.newPage();
   await page.goto(`${BASE}/`, { waitUntil: "networkidle" });
-  const cards = page.getByRole("article");
   const out: Record<string, string> = {};
-  for (let i = 0; i < (await cards.count()); i++) {
-    const card = cards.nth(i);
-    const title = ((await card.getByRole("heading").first().textContent()) ?? "").toLowerCase();
+  for (const fixture of ALL_FIXTURES) {
+    const card = page.getByRole("article").filter({ has: page.getByRole("heading", { name: fixture.name }) });
     const href = await card.getByRole("link", { name: "See the finished deal" }).getAttribute("href");
     const id = href ? /\/deals\/([^/?]+)/.exec(href)?.[1] : null;
-    if (!id) continue;
-    out[title.includes("slab") ? "fake-slab" : title.includes("empty") ? "empty-box" : "clean-ps5"] = id;
+    if (!id) throw new Error(`No finished deal on the landing page for ${fixture.id} ("${fixture.name}")`);
+    out[fixture.id] = id;
   }
   await context.close();
   return out;
