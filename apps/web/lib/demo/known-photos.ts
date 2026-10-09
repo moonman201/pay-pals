@@ -1,10 +1,16 @@
 /**
  * Photos the Buyer Pal already knows, so a listing that reuses one of them
- * is caught by an image match: the finished demo deals' card photos, plus
- * any file under public/fixtures/reference (served at /fixtures/reference/).
- * URLs are made absolute so a pal on the server can fetch them.
+ * is caught by an image match. The list is the reference folder and nothing
+ * else: every file under public/fixtures/reference, served at
+ * /fixtures/reference/. URLs are made absolute so a pal on the server can
+ * fetch them.
+ *
+ * The demo deals' own card photos are deliberately not in here. The empty
+ * box deal reuses the clean deal's console and box pictures because it is
+ * the same physical console, so matching the demo deals against each other
+ * would raise a reused-photo flag on an honest deal. The scam listing's
+ * picture sits in the reference folder, so that deal still matches.
  */
-import { ALL_FIXTURES } from "@pay-pals/contracts";
 import { existsSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { absoluteUrl } from "../deal/photo-urls";
@@ -34,11 +40,6 @@ export function buildKnownPhotos(base: string | null, publicDir: string): KnownP
     seen.add(absolute);
     out.push({ url: absolute, source });
   };
-  for (const fixture of ALL_FIXTURES) {
-    for (const card of fixture.cards) {
-      for (const photo of card.photos) add(photo.url, `the ${fixture.id} demo deal`);
-    }
-  }
   for (const file of referencePhotoFiles(publicDir)) add(`/fixtures/reference/${file}`, `reference set: ${file}`);
   return out;
 }
