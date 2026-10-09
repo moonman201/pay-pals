@@ -130,10 +130,22 @@ textarea::placeholder {
   animation: reveal 360ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+@keyframes spin {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+/* The waiting ring. With reduced motion it stops as a still dot, which still reads as "working". */
+.motion-spin {
+  animation: spin 900ms linear infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .motion-lock,
   [aria-current="step"] .motion-step,
-  .motion-reveal {
+  .motion-reveal,
+  .motion-spin {
     animation: none;
   }
   * {

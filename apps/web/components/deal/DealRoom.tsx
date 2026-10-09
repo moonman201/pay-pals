@@ -138,6 +138,7 @@ export function DealRoom({ snapshot, role }: { snapshot: DealSnapshot; role: Rol
                 cardVersion={deal.currentCardVersion}
                 cardChangedSinceAgree={cardChangedSinceAgree}
                 refusalToReview={snapshot.inviteDeclined || shared.length > 0}
+                hasCert={Boolean(currentCard?.certNumber)}
                 onAction={onAction}
               />
               {error ? (
