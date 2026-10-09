@@ -16,10 +16,10 @@ export function createFixturePriceLookup(): MarketPriceLookup {
       const brand = normalize(query.brand);
       const model = normalize(query.model);
       const checkedAt = new Date().toISOString();
-      const isPs5 = /\b(?:playstation\s*5|ps5)\b/.test(model) || (brand.includes("sony") && /\bplaystation\b/.test(model));
-      const isCharizard = /\bcharizard\b/.test(model) || (brand.includes("pokemon") && /\bbase set\b/.test(model));
-      // The PS5 scenarios sell the same console, so they share one range. The slab has its own.
-      const base = isPs5 ? cleanPs5.marketPrice : isCharizard ? fakeSlab.marketPrice : null;
+      // The PS5 scenarios sell the same CFI-1015A disc edition, so they share one range. The slab has its own.
+      const isPs5 = /\b(?:playstation\s*5|ps5|cfi-?1015a)\b/.test(model) || (brand.includes("sony") && /\bplaystation\b/.test(model));
+      const isSlab = /\bgengar\b|\bmimikyu\b|\btag bolt\b/.test(model) || (brand.includes("pokemon") && /\bsun (?:&|and) moon\b/.test(model));
+      const base = isPs5 ? cleanPs5.marketPrice : isSlab ? fakeSlab.marketPrice : null;
       if (base) return { ...base, sources: base.sources.map((s) => ({ ...s })), checkedAt };
       return { marketLow: 0, marketHigh: 0, currency: "USD", sources: [], provider: "fixture", checkedAt };
     },

@@ -11,7 +11,7 @@
  *     plush, ...) are dropped;
  *   - a listing must name every required word of the model (set and
  *     character for a card, product name and edition for a console);
- *   - "same model" listings name the model code (CFI-1215A) or the exact
+ *   - "same model" listings name the model code (CFI-1015A) or the exact
  *     edition with no other variant word; "family" listings are the same
  *     product in another variant (Slim, Pro, Digital). The range uses the
  *     same-model listings and widens to the family only when fewer than
@@ -93,7 +93,7 @@ function squash(text: string): string {
   return text.toLowerCase().replace(/[^a-z0-9]/g, "");
 }
 
-/** Tokens that look like a model code: CFI-1215A, SM-G998U, 1TB stays out (too short a prefix). */
+/** Tokens that look like a model code: CFI-1015A, SM-G998U, 1TB stays out (too short a prefix). */
 export function modelCodes(model: string): string[] {
   return model
     .split(/[\s,]+/)
