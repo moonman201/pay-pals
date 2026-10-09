@@ -29,13 +29,13 @@ const KNOWN_FAMILIES: ReadonlyArray<[RegExp, string]> = [
 
 export type DeviceFamily = "console" | "phone" | "laptop" | "camera" | "wearable";
 
-/** Electronics families that have a system or settings screen showing the serial. */
+/** Electronics families that carry a serial label on the item itself. */
 const DEVICE_FAMILIES: ReadonlyArray<[RegExp, DeviceFamily]> = [
   [/\b(?:playstation|ps[345]|xbox|nintendo|switch|steam\s*deck|console)\b/i, "console"],
   [/\b(?:iphone|galaxy|pixel|android|smartphone|phone)\b/i, "phone"],
   [/\b(?:ipad|macbook|laptop|notebook|chromebook|thinkpad|surface|tablet)\b/i, "laptop"],
   [/\b(?:camera|canon|nikon|gopro|mirrorless|dslr)\b/i, "camera"],
-  [/\b(?:smartwatch|apple\s+watch|fitbit|wearable|garmin)\b/i, "wearable"],
+  [/\b(?:smartwatch|apple\s+watch|fitbit|wearable|fitness tracker)\b/i, "wearable"],
 ];
 
 /** Which kind of device the text names, or null for anything that is not one (a graded card, a chair). */
@@ -69,12 +69,18 @@ export function parseConditionGrade(text: string): ConditionGrade | null {
 }
 
 function tidy(item: string): string {
-  const cleaned = item.replace(/^(?:the|a|an)\s+/i, "").replace(/[.;:]+$/, "").trim();
+  const cleaned = item.trim().replace(/^(?:the|a|an)\s+/i, "").replace(/[.;:]+$/, "").trim();
   return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
 }
 
+/** "Comes with" wins over a bare "with", which often introduces the box rather than the contents. */
+const INCLUDED_PATTERNS: readonly RegExp[] = [
+  /\b(?:comes with|comes w\/|includes|including|included:?)\s+([^.!?\n]+)/i,
+  /\bwith\s+([^.!?\n]+)/i,
+];
+
 export function parseIncluded(text: string): string[] {
-  const match = text.match(/\b(?:comes with|includes|including|included:?|with)\s+([^.!?\n]+)/i);
+  const match = INCLUDED_PATTERNS.map((p) => text.match(p)).find((m) => m !== null) ?? null;
   if (!match) return [];
   return match[1]!
     .split(/,|\band\b|&|\+/)
