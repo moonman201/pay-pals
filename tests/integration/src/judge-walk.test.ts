@@ -33,12 +33,23 @@ describe("J2: cert check honesty with the fixture provider", () => {
     }
   });
 
-  it("the fake slab, whose cert the fixture record contradicts, still stops on CERT_MISMATCH", async () => {
+  it("the slab's cert is real, so the pal says so and stops for the other reasons", async () => {
     const card = fakeSlab.cards[0]!;
-    const { data: verdict } = await buyerPal.review(card, fakeSlab.chat, { dealId: card.dealId, seller: fakeSlab.seller, sellerJoined: true });
+    const { data: verdict, palMessage } = await buyerPal.review(card, fakeSlab.chat, { dealId: card.dealId, seller: fakeSlab.seller, sellerJoined: true });
+
+    // The cert number checks out: this scenario is a stolen photo, not a forged label.
+    expect(verdict.certCheck?.matches).toBe(true);
+    expect(verdict.certCheck?.record.certNumber).toBe(card.certNumber);
+    expect(verdict.flags.map((f) => f.code)).not.toContain("CERT_MISMATCH");
+
+    // A real cert is not a reason to trust the seller, and the pal must not let it read that way.
+    const words = [palMessage, verdict.palMessage, verdict.certCheck?.explanation ?? ""].join(" ");
+    expect(words).toMatch(/shows the slab exists, not that this seller is holding it/i);
+
+    // The stop stands on the payment method, the price and the pressure.
     expect(verdict.overall).toBe("stop");
-    expect(verdict.flags.map((f) => f.code)).toContain("CERT_MISMATCH");
-    expect(verdict.certCheck?.matches).toBe(false);
+    expect(verdict.flags.filter((f) => f.severity === "stop").map((f) => f.code)).toContain("FRIENDS_AND_FAMILY_REQUEST");
+    for (const required of fakeSlab.expectedVerdict.requiredFlags) expect(verdict.flags.map((f) => f.code)).toContain(required);
   });
 });
 
