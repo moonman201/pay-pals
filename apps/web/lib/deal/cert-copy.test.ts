@@ -8,13 +8,13 @@ describe("certSentence", () => {
   it("names the card's grade once and the record once on a mismatch", () => {
     const check: CertCheck = { record, matches: false, explanation: "x" };
     const { text, tone } = certSentence(check, "PSA 10");
-    expect(text).toBe("Card says PSA 10. PSA (demo record) record says 2016 Pokemon XY Evolutions Charizard Holo #11, grade 7.");
+    expect(text).toBe(`Card says PSA 10. PSA (demo record) record says ${record.subject}, grade ${record.grade}.`);
     expect(tone).toBe("stop");
     expect(text.match(/PSA 10/g)).toHaveLength(1);
   });
 
   it("says the record agrees, with the grade once, on a match", () => {
-    const check: CertCheck = { record: { ...record, provider: "psa", subject: "1999 Pokemon Game Charizard Holo #4", grade: "10" }, matches: true, explanation: "x" };
+    const check: CertCheck = { record: { ...record, provider: "psa", grade: "10" }, matches: true, explanation: "x" };
     const { text, tone } = certSentence(check, "PSA 10");
     expect(text).toBe("PSA record agrees: PSA 10");
     expect(tone).toBe("go");

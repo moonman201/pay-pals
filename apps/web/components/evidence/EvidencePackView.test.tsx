@@ -30,14 +30,14 @@ function pack(overrides: Partial<EvidencePack> = {}): EvidencePack {
 
 describe("EvidencePackView", () => {
   it("lists the box serial on the locked card and says it matches the console", () => {
-    render(<EvidencePackView pack={pack({ lockedCard: { ...lockedCard, serial: lockedCard.boxSerial } })} deal={emptyBox.deal} role="buyer" />);
+    render(<EvidencePackView pack={pack({ lockedCard: { ...lockedCard, serial: lockedCard.boxSerial ?? null } })} deal={emptyBox.deal} role="buyer" />);
     expect(screen.getByText("Box serial")).toBeInTheDocument();
     expect(screen.getAllByText(lockedCard.boxSerial!).length).toBeGreaterThanOrEqual(2);
     expect(screen.getByText("(matches the console)")).toBeInTheDocument();
   });
 
   it("says when the box serial does not match", () => {
-    render(<EvidencePackView pack={pack({ lockedCard: { ...lockedCard, serial: lockedCard.boxSerial, boxSerial: "ZZ000000000" } })} deal={emptyBox.deal} role="buyer" />);
+    render(<EvidencePackView pack={pack({ lockedCard: { ...lockedCard, serial: lockedCard.boxSerial ?? null, boxSerial: "ZZ000000000" } })} deal={emptyBox.deal} role="buyer" />);
     expect(screen.getByText("ZZ000000000")).toBeInTheDocument();
     expect(screen.getByText("(does not match)")).toBeInTheDocument();
   });
@@ -139,13 +139,13 @@ describe("EvidencePackView", () => {
   it("lists what the Buyer Pal asked and never got, and the ship-time flags under the shipment", () => {
     render(
       <EvidencePackView
-        pack={pack({ unansweredQuestions: ["Can you add a photo of the Console Information screen showing the serial?"], shipmentFlags: emptyBox.shipment!.flags })}
+        pack={pack({ unansweredQuestions: ["Can you add a close-up of the serial on the back of the console?"], shipmentFlags: emptyBox.shipment!.flags })}
         deal={emptyBox.deal}
         role="buyer"
       />,
     );
     expect(screen.getByText("What the Buyer Pal asked and never got")).toBeInTheDocument();
-    expect(within(screen.getByTestId("unanswered-questions")).getByText(/Console Information screen/)).toBeInTheDocument();
+    expect(within(screen.getByTestId("unanswered-questions")).getByText(/close-up of the serial/)).toBeInTheDocument();
     const flags = screen.getByTestId("shipment-flags");
     expect(within(flags).getByText("a packing photo the seller skipped")).toBeInTheDocument();
     expect(within(flags).getByText("caution")).toBeInTheDocument();

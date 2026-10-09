@@ -56,6 +56,6 @@ describe("PayStep", () => {
   it("names the payee and the locked card in the intro", () => {
     render(<PayStep dealId="d1" card={lockedCard} payMode="mock" onDone={() => {}} />);
     expect(screen.getByText(new RegExp(lockedCard.sellerPaypalEmail.replace(".", "\\.")))).toBeInTheDocument();
-    expect(screen.getByText(/serial AH912345678/)).toBeInTheDocument();
+    expect(screen.getByText(new RegExp(`serial ${lockedCard.serial}`))).toBeInTheDocument();
   });
 });

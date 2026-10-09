@@ -3,7 +3,8 @@ import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { ArrivalResult, arrivalRows } from "./ArrivalResult";
 
-const card = emptyBox.cards[0]!;
+// The locked card a buyer checks an arrival against carries the serial read off the item.
+const card = { ...emptyBox.cards[0]!, serial: emptyBox.cards[0]!.boxSerial ?? null };
 
 function check(overrides: Partial<ArrivalCheck> = {}): ArrivalCheck {
   return {

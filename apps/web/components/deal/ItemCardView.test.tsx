@@ -43,13 +43,13 @@ describe("ItemCardView", () => {
   });
 
   it("shows the box serial and whether it matches the console", () => {
-    render(<ItemCardView cards={[{ ...v1, serial: v1.boxSerial }]} currentVersion={1} lockedVersion={null} />);
+    render(<ItemCardView cards={[{ ...v1, serial: v1.boxSerial ?? null }]} currentVersion={1} lockedVersion={null} />);
     expect(screen.getByText("Box serial")).toBeInTheDocument();
     expect(screen.getByText("matches the console")).toBeInTheDocument();
   });
 
   it("says when the box serial does not match", () => {
-    render(<ItemCardView cards={[{ ...v1, serial: v1.boxSerial, boxSerial: "ZZ000000000" }]} currentVersion={1} lockedVersion={null} />);
+    render(<ItemCardView cards={[{ ...v1, serial: v1.boxSerial ?? null, boxSerial: "ZZ000000000" }]} currentVersion={1} lockedVersion={null} />);
     expect(screen.getByText("ZZ000000000")).toBeInTheDocument();
     expect(screen.getByText("does not match")).toBeInTheDocument();
   });
