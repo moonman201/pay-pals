@@ -2,8 +2,9 @@
  * Scenario 1: fake slab stopped. Buyer-started. The demo card replays the
  * invite and the seller's join, so the room opens at Listed with the invite
  * and the join on the timeline. The buyer asks for a review: the cert number
- * is registered as a different card, the seller asked for Friends and Family
- * and pushed for today, the price is far under market. Blocked, no override.
+ * is real and matches the card, which shows the slab exists and not that this
+ * seller has it, while the seller asked for Friends and Family, pushed for
+ * today and priced it far under market. Blocked, no override.
  * Fixtures only, no keys.
  */
 import { expect, test } from "@playwright/test";
@@ -14,7 +15,7 @@ import { expectState, expectStateAfterPal, panel, pressAction, snapshot, startDe
 test.describe("fake slab stopped", () => {
   test.skip(!WEB_PRESENT, "apps/web is not on this branch yet, nothing to load");
 
-  test("the review blocks the deal: cert mismatch, Friends and Family, pressure and price", async ({ page }) => {
+  test("the review blocks the deal: Friends and Family, pressure and price, with the cert honestly reported", async ({ page }) => {
     const dealId = await startDemo(page, fakeSlab, "buyer");
     await expectState(page, "Listed");
 
@@ -40,14 +41,23 @@ test.describe("fake slab stopped", () => {
     await expect(flags.filter({ hasText: /friends and family/i }).filter({ hasText: /no override/i })).toHaveCount(1);
     await expect(flags.filter({ hasText: /below market/i })).toHaveCount(1);
     await expect(flags.filter({ hasText: /pressure|urgen/i }).first()).toBeVisible();
-    // The reused-photo flag quotes the slab label too, so the cert flag is the one that says the record does not match.
-    const cert = flags.filter({ hasText: FAKE_SLAB_CERT }).filter({ hasText: "does not match the card" });
-    await expect(cert).toHaveCount(1);
-    await expect(cert).toContainText(/cert/i);
-    await expect(cert).toContainText(fakeSlab.certRecord!.subject!);
-    await expect(review.getByText("does not match the card").first()).toBeVisible();
-    // The cert row on the item card names what the grader's record says, next to the cert number (review item 12).
-    await expect(card.getByText(fakeSlab.certRecord!.subject!, { exact: false }).first()).toBeVisible();
+    // The cert is real and matches the card, so it raises nothing. The deal is stopped by the rest.
+    await expect(flags.filter({ hasText: /does not match the card/i })).toHaveCount(0);
+    const certCheck = review.getByTestId("cert-check");
+    await expect(certCheck).toContainText(FAKE_SLAB_CERT);
+    await expect(certCheck).toContainText("matches the card");
+    // A real cert is not a reason to trust the seller, and the panel says which of the two it is.
+    await expect(review).toContainText(/shows the slab exists, not that this seller is holding it/i);
+    // The cert row on the item card says what the grader's record did, next to the cert number (review item 12).
+    const certRow = card.locator("dd").filter({ hasText: FAKE_SLAB_CERT });
+    await expect(certRow).toHaveCount(1);
+    await expect(certRow).toContainText(/record agrees/i);
+    // The comparison in the review is where the record's own words belong.
+    await expect(certCheck).toContainText(fakeSlab.certRecord!.grade!);
+
+    // What the seller will not do is a question, not a flag: the slab photographed next to a dated note.
+    await expect(review.getByText("Asked of the seller", { exact: true })).toBeVisible();
+    await expect(review.getByRole("listitem").filter({ hasText: /handwritten note with your name and today'?s date/i })).toHaveCount(1);
 
     // J4: the page never shows a range with equal ends or zeros.
     await expect(page.getByText(/\$0 to \$0/)).toHaveCount(0);

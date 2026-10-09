@@ -10,18 +10,18 @@ import { WEB_PRESENT } from "./env";
 import { CONSOLE_PROOF_QUESTION, driveToDelivered, runArrivalCheck } from "./flows";
 import { expectState, openRoomAs, panel, pressAction, snapshot, startDemo } from "./helpers";
 
-/** Vision wording, once the photos exist and a key is present. */
-const NOT_PRESENT = "not present, box arrived empty";
-/** Keyless wording: the serial could not be read, still a mismatch (review item 2). */
-const NOT_READABLE = "not readable in the arrival photos";
-const MISSING = new RegExp(`${NOT_PRESENT}|${NOT_READABLE}`);
+/** How the row reads whether the pal saw the photos or went by their descriptions: no console arrived. */
+const MISSING = /nothing in the box|no console|not present|arrived empty/i;
 
 test.describe("empty box arrives", () => {
   test.skip(!WEB_PRESENT, "apps/web is not on this branch yet, nothing to load");
 
-  test("names the missing console against the locked serial, opens an issue and builds the evidence pack", async ({ page }) => {
+  test("names the missing console against the locked card, opens an issue and builds the evidence pack", async ({ page }) => {
     const dealId = await startDemo(page, emptyBox, "buyer");
-    await expect(panel(page, "Item card").getByText("matches the console")).toBeVisible();
+    // This seller never answers, so the card keeps the box label and never gains the console's own serial.
+    const card = panel(page, "Item card");
+    await expect(card.getByText(EMPTY_BOX_LOCKED_SERIAL).first()).toBeVisible();
+    await expect(card.getByText("matches the console")).toHaveCount(0);
 
     // The seller ships without the required photo of the item going into the box (contracts v1.6.0).
     // The live Seller Pal words that step "going into the shipping box"; the fixture says "going into the box".
@@ -41,23 +41,24 @@ test.describe("empty box arrives", () => {
     const shipped = await snapshot(page, dealId);
     expect(shipped.shipment?.flags?.map((f) => f.code)).toEqual(["MISSING_PACKING_PHOTO"]);
     expect(shipped.events.filter((e) => e.kind === "shipment_checked")).toHaveLength(1);
-    // The Buyer Pal always asks a used console's seller for the Console Information screen; this seller never answers.
+    // The Buyer Pal asks this seller for a close-up of the serial on the console; the seller never answers.
     const asked = shipped.verdict?.questionsForSeller ?? [];
     expect(asked.some((q) => CONSOLE_PROOF_QUESTION.test(q)), `asked: ${asked.join(" | ")}`).toBe(true);
 
     await runArrivalCheck(page, emptyBox);
     const result = panel(page, "Arrival check");
     await expect(result.getByText("does not match", { exact: true })).toBeVisible();
+    // The locked card has no console serial, so nothing arriving can contradict one: the mismatch is
+    // the item itself. The box label that did arrive is named and set aside, not counted as the console.
+    const missingRow = result.getByRole("row").filter({ hasText: "other" });
+    await expect(missingRow).toBeVisible();
+    await expect(missingRow).toContainText(MISSING);
+    // The serial row is still shown, as nothing to compare rather than as a contradiction.
     const serialRow = result.getByRole("row").filter({ hasText: "serial" });
-    await expect(serialRow).toContainText(EMPTY_BOX_LOCKED_SERIAL);
-    await expect(serialRow).toContainText(MISSING);
-    const sawEmptyBox = ((await serialRow.textContent()) ?? "").includes(NOT_PRESENT);
-    if (sawEmptyBox) {
-      await expect(result.getByRole("row").filter({ hasText: "other" })).toBeVisible();
-      await expect(result.getByText("without the item", { exact: false })).toBeVisible();
-    } else {
-      await expect(result.getByText("does not count", { exact: false })).toBeVisible();
-    }
+    await expect(serialRow).toHaveCount(1);
+    await expect(serialRow).not.toHaveAttribute("data-status", "mismatch");
+    await expect(result).toContainText(EMPTY_BOX_LOCKED_SERIAL);
+    await expect(result.getByText("does not count", { exact: false })).toBeVisible();
 
     // Open the issue. Today the room posts the arrival mismatch straight away after a failed
     // check; when the issue step opens instead, pick "The box arrived empty" (REVIEW.md 2026-10-07).
@@ -98,7 +99,7 @@ test.describe("empty box arrives", () => {
     await expect(arrivalCheck).toContainText(MISSING);
 
     // What the seller never answered, and the ship-time caution, both in the pack.
-    // Exactly one thing asked and never got: the screen photo. The seller's "I agree" line is not an answer.
+    // Exactly one thing asked and never got: the close-up. The seller's "I agree" line is not an answer.
     const unanswered = page.locator("section").filter({ has: page.getByRole("heading", { name: "What the Buyer Pal asked and never got" }) });
     await expect(unanswered).toBeVisible();
     const list = unanswered.getByTestId("unanswered-questions");

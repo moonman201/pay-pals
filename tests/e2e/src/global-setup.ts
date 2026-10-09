@@ -88,8 +88,10 @@ export default async function globalSetup(): Promise<void> {
     photos: [cleanPs5.cards[1]!.photos[cleanPs5.cards[1]!.photos.length - 1]!],
   });
   await api("review");
-  await api("agree", { by: "buyer", override: false });
-  await api("agree", { by: "seller", override: false });
+  // The warm-up exists to compile routes, not to judge a deal: whatever its own card draws from the
+  // pal, both sides say they have read it, so a caution cannot stop the compile pass.
+  await api("agree", { by: "buyer", override: true });
+  await api("agree", { by: "seller", override: true });
   const order = (await api("order", { method: "paypal" })) as { paypalOrderId: string };
   await api("capture", { orderId: order.paypalOrderId });
   const snapshot = (await (await fetch(`${BASE_URL}/api/deals/${dealId}`)).json()) as { checklist?: { id: string }[] };
