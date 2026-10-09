@@ -81,9 +81,11 @@ describe("clean-ps5", () => {
     const deal = await startDemoDeal(services, "clean-ps5");
 
     const v1 = await runReview(services, deal.id);
-    // Version 1 has the box label but no serial read off the console itself, so the pal asks before it says go.
-    expect(v1.overall).toBe("caution");
-    expect(v1.flags.map((f) => f.code)).toEqual(["MISSING_SERIAL"]);
+    // Version 1 carries the box label and no serial read off the console itself. That is not a flag:
+    // the number is there to check against, so the pal says go and asks for the close-up anyway.
+    expect(v1.overall).toBe("go");
+    expect(v1.flags).toEqual([]);
+    expect(v1.questionsForSeller).toContain("Can you send a close-up of the serial label on the console itself?");
     expect(v1.priceCheck?.marketLow).toBe(cleanPs5.marketPrice.marketLow);
 
     let snap = await loadSnapshot(services, deal.id);
@@ -171,7 +173,9 @@ describe("empty-box", () => {
     const opened = snap.events.find((e) => e.kind === "state_changed" && e.toState === "ISSUE");
     expect(opened?.summary).toContain("The box arrived empty.");
     const pack = await services.store.getEvidence(deal.id);
-    expect(pack?.lockedCard.serial).toBe(EMPTY_BOX_LOCKED_SERIAL);
+    // The seller never sent a close-up of the console's own label, which is the whole scenario:
+    // the locked card holds the box label and nothing read off the item.
+    expect(pack?.lockedCard.serial).toBeNull();
     expect(pack?.lockedCard.boxSerial).toBe(EMPTY_BOX_LOCKED_SERIAL);
     expect(pack?.arrivalCheck?.matches).toBe(false);
     for (const photo of arrivalPhotos) expect(pack?.photos.map((p) => p.url)).toContain(photo.url);
@@ -277,7 +281,9 @@ describe("buyer-first (PLAN.md Decision 7)", () => {
     expect(joined.seller.displayName).toBe("Matt M.");
     snap = await loadSnapshot(services, deal.id);
     expect(snap.events.map((e) => e.kind)).toContain("seller_joined");
-    expect(snap.currentCard?.serial).toBe(CLEAN_SERIAL);
+    // The seller joined with the wide back shot and the box label, so the number is the box label's.
+    expect(snap.currentCard?.serial).toBeNull();
+    expect(snap.currentCard?.boxSerial).toBe(CLEAN_SERIAL);
     expect(snap.currentCard?.askingPrice).toBe(420);
 
     const verdict = await runReview(services, deal.id);
