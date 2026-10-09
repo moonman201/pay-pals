@@ -2,6 +2,7 @@ import { CONDITION_LABELS, type Deal, type DealEvent, type EvidencePack, type Me
 import { boxSerialLabel, boxSerialMatches } from "@/lib/deal/box-serial";
 import { historyStatus } from "@/lib/deal/history-status";
 import { priceRangeLine, priceSourceNote } from "@/lib/deal/price-copy";
+import { summariseSources } from "@/lib/deal/price-sources";
 import { isExampleDeal } from "@/lib/deal/snapshot";
 import { FlagEvidence } from "../deal/FlagEvidence";
 import { HistoryBadge } from "../deal/HistoryBadge";
@@ -211,6 +212,7 @@ export function EvidencePackView({ pack, deal, role, events }: { pack: EvidenceP
               <p className="font-semibold">Card version {v.cardVersion}: {OVERALL_LABELS[v.overall]}</p>
               <p className="text-xs text-muted">
                 {priceRangeLine(v.priceCheck)}, {priceSourceNote(v.priceCheck)}
+                {summariseSources(v.priceCheck) ? `. ${summariseSources(v.priceCheck)!.line}` : ""}
               </p>
               <p>{v.palMessage}</p>
               {v.flags.length > 0 ? (

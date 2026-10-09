@@ -3,6 +3,7 @@ import { certRows } from "@/lib/deal/cert-compare";
 import { certSentence } from "@/lib/deal/cert-copy";
 import { FLAG_WORDS } from "@/lib/deal/override";
 import { hasUsableRange, priceRangeLine, priceSourceNote } from "@/lib/deal/price-copy";
+import { summariseSources } from "@/lib/deal/price-sources";
 import { OVERALL_LABELS } from "@/lib/labels";
 import { PalAvatar } from "../pal/PalAvatar";
 import { Badge, type Tone } from "../ui/Badge";
@@ -37,6 +38,8 @@ interface Props {
 
 export function VerdictPanel({ verdict, currentVersion, locked, cardTitle = null, cardGrade = null }: Props) {
   const stale = !locked && verdict.cardVersion > 0 && verdict.cardVersion !== currentVersion;
+  // Matt, Oct 9: the listings behind the range are a count, a split and prices. Never the shop names.
+  const sources = summariseSources(verdict.priceCheck);
   const style = VERDICT_STYLE[verdict.overall];
   return (
     <Panel title="Buyer Pal review">
@@ -62,15 +65,19 @@ export function VerdictPanel({ verdict, currentVersion, locked, cardTitle = null
           {priceRangeLine(verdict.priceCheck)}
           <span className="ml-2 text-xs font-normal text-muted">{priceSourceNote(verdict.priceCheck)}</span>
         </p>
-        {hasUsableRange(verdict.priceCheck) && verdict.priceCheck.sources.length > 0 ? (
-          <ul className="mt-1 space-y-0.5 text-xs text-muted">
-            {verdict.priceCheck.sources.map((s, i) => (
-              <li key={`${s.name}-${i}`}>
-                {s.name}
-                {s.price !== undefined ? `: $${s.price}` : ""}
-              </li>
-            ))}
-          </ul>
+        {hasUsableRange(verdict.priceCheck) && sources ? (
+          <div className="mt-1 text-xs text-muted" data-testid="price-sources">
+            <p>{sources.line}</p>
+            {sources.prices.length > 1 ? (
+              <ul className="mt-1.5 flex flex-wrap gap-1" aria-label="Listing prices">
+                {sources.prices.map((price, i) => (
+                  <li key={`${price}-${i}`} className="rounded-md border border-line bg-surface px-1.5 py-0.5 font-mono">
+                    ${price}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
         ) : null}
       </div>
 
