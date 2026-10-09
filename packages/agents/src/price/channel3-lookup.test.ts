@@ -6,6 +6,7 @@ import { PriceCheckSchema } from "@pay-pals/contracts";
 import { Channel3Error, channel3CallCount, type Channel3SearchResponse } from "./channel3-api";
 import {
   ESTIMATE_NOTE_PREFIX,
+  MAX_SOURCES,
   NO_RELIABLE_PRICE_NOTE,
   buildSearchRequest,
   classifyTitle,
@@ -17,6 +18,7 @@ import {
 } from "./channel3-lookup";
 import { createDiskCache, type DiskCache } from "../cache/disk-cache";
 import { createFixturePriceLookup } from "./fixture-lookup";
+import { listingCounts } from "../buyer/review";
 import { priceBelowMarketRule } from "../rules/price-below-market";
 import { card } from "../testing/builders";
 
@@ -105,7 +107,7 @@ describe("deriveRange on PS5 comps", () => {
   it("dedupes, drops bundles and accessories, widens to the Slim family with a note, and scales for a used card", () => {
     const range = deriveRange(livePs5, { brand: "Sony", model: PS5, condition: "good" });
     // Kept: walmart 914.99 (same); gamestop new 588.99, gamestop used 588.99 (one), dell 649.99, cdw 776.99, macys 858.99 (family).
-    // New listings sorted: 588.99, 649.99, 776.99, 858.99, 914.99 -> p20 588.99, p80 914.99, times 0.7.
+    // New listings sorted: 588.99, 649.99, 776.99, 858.99, 914.99 -> cheapest and dearest, times 0.7.
     expect(range.marketLow).toBeCloseTo(588.99 * 0.7, 2);
     expect(range.marketHigh).toBeCloseTo(914.99 * 0.7, 2);
     expect(range.sources[0]!.name).toContain("Widened to the playstation disc family because fewer than 3 listings named the same model (CFI1015A)");
@@ -153,6 +155,76 @@ describe("deriveRange on PS5 comps", () => {
     const range = deriveRange(usedOnly, { brand: "Sony", model: "PlayStation 5 disc edition", condition: "good" });
     expect(range).toMatchObject({ marketLow: 380, marketHigh: 440 });
     expect(range.sources[0]!.name).toBe(`${ESTIMATE_NOTE_PREFIX} from used offers only`);
+  });
+});
+
+/**
+ * Shaped like the live production result that put a headline on the panel no
+ * listing underneath it supported: mostly new stock, one used offer, and one
+ * entry Channel3 returned with no price at all.
+ */
+const liveProduction: Channel3SearchResponse = {
+  products: [
+    product("1", "PlayStation 5 Disc Edition", [offer("a.example", 588.99)]),
+    product("2", "PlayStation 5 Console Disc Edition", [offer("b.example", 629.99)]),
+    product("3", "PlayStation 5 Disc Edition", [offer("c.example", 649.99)]),
+    product("4", "PlayStation 5 Disc Edition Console", [offer("d.example", 776.99)]),
+    product("5", "PlayStation 5 Disc Edition", [offer("e.example", 799.99)]),
+    product("6", "PlayStation 5 Console Disc Edition", [offer("f.example", 858.99)]),
+    product("7", "PlayStation 5 Disc Edition", [offer("g.example", 914.99)]),
+    product("8", "PlayStation 5 Disc Edition", [offer("h.example", 449.99, "used")]),
+    product("9", "PlayStation 5 Disc Edition", [offer("i.example", 0)]),
+  ],
+  next_page_token: null,
+};
+
+describe("deriveRange keeps the headline checkable against the listings", () => {
+  const range = deriveRange(liveProduction, { brand: "Sony", model: PS5, condition: "good" });
+  const priced = range.sources.filter((s) => s.price !== undefined);
+  const prices = priced.map((s) => s.price!);
+  const newPrices = priced.filter((s) => s.condition !== "used").map((s) => s.price!);
+
+  it("counts only the listings that carry a price", () => {
+    // Nine entries came back, one with no price. That one is not a listing.
+    expect(liveProduction.products).toHaveLength(9);
+    expect(priced).toHaveLength(8);
+    expect(prices).not.toContain(0);
+    expect(listingCounts(at(range))).toBe("from 8 listings (7 new, 1 used)");
+    // The only entry without a price is the note that says how the range was reached.
+    expect(range.sources.filter((s) => s.price === undefined)).toEqual([{ name: range.sources[0]!.name }]);
+    expect(range.sources).toHaveLength(9);
+  });
+
+  it("draws the range from the listings it publishes, and says what it scaled from", () => {
+    // Cheapest first, so a reader can check the ends of the range against the ends of the list.
+    expect(prices).toEqual([...prices].sort((a, b) => a - b));
+    expect(Math.min(...newPrices)).toBe(588.99);
+    expect(Math.max(...newPrices)).toBe(914.99);
+    expect(range.marketLow).toBeCloseTo(588.99 * 0.7, 2);
+    expect(range.marketHigh).toBeCloseTo(914.99 * 0.7, 2);
+    expect(range.sources[0]!.name).toBe(`${ESTIMATE_NOTE_PREFIX} from new retail prices (good: 70% of new), scaled from 7 new listings priced $588.99 to $914.99`);
+    expect(PriceCheckSchema.safeParse(at(range)).success).toBe(true);
+  });
+
+  it("leaves a fair asking price alone", () => {
+    // $420 for a used console sits inside $412.29 to $640.49, so the clean deal gets no warning.
+    expect(range.marketLow).toBeLessThan(420);
+    expect(range.marketHigh).toBeGreaterThan(420);
+    expect(priceBelowMarketRule({ card: card({ askingPrice: 420 }), chat: [], priceCheck: at(range) })).toHaveLength(0);
+    expect(priceBelowMarketRule({ card: card({ askingPrice: 150 }), chat: [], priceCheck: at(range) })[0]!.severity).toBe("stop");
+  });
+
+  it("publishes every listing the range came from, and says so when it cannot", () => {
+    const many: Channel3SearchResponse = {
+      products: Array.from({ length: MAX_SOURCES + 3 }, (_, i) => product(`m${i}`, "PlayStation 5 Disc Edition", [offer(`m${i}.example`, 500 + i * 10)])),
+      next_page_token: null,
+    };
+    const capped = deriveRange(many, { brand: "Sony", model: PS5, condition: "new" });
+    const keptPrices = capped.sources.filter((s) => s.price !== undefined).map((s) => s.price!);
+    expect(keptPrices).toHaveLength(MAX_SOURCES);
+    expect(capped.marketLow).toBe(Math.min(...keptPrices));
+    expect(capped.marketHigh).toBe(Math.max(...keptPrices));
+    expect(capped.sources[0]!.name).toBe(`Showing the ${MAX_SOURCES} cheapest of ${MAX_SOURCES + 3} priced listings`);
   });
 });
 

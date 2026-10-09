@@ -21,11 +21,26 @@
  *   - fewer than three relevant listings, or a range whose low equals its
  *     high, returns the unknown range with the note "No reliable market
  *     price found". A range is never built from one listing.
- * Range maths: low = 20th percentile (rounded down), high = 80th percentile
- * (rounded up). For a used card the new offers are scaled by USED_FACTOR, a
- * genuinely cheaper used offer pulls the low end down (never up), and used
- * offers stand alone only when no new offers came back. The path taken is
- * recorded as the first sources entry so a judge can see it.
+ *
+ * Range maths, rewritten on 2026-10-09 after the live panel showed a headline
+ * no listing supported. The rule now is that the range is the range of the
+ * listings published beside it, so a reader can check one against the other:
+ *   - the listings the range is drawn from are exactly the listings in
+ *     sources, sorted cheapest first. Nothing is derived from a listing the
+ *     panel does not show, and no listing without a price is ever in there;
+ *   - low is the cheapest of those listings and high the dearest. No
+ *     percentile, because a percentile picks a number out of the middle and
+ *     the reader cannot see why;
+ *   - for a used card the new offers are scaled by USED_FACTOR, so the
+ *     headline is deliberately not a listing price. The note then says the
+ *     factor and the new-stock range it was scaled from, in the same breath,
+ *     so the arithmetic is there to check. A genuinely cheaper used offer
+ *     pulls the low end down (never up), and used offers stand alone only
+ *     when no new offers came back;
+ *   - MAX_SOURCES caps how many listings are published. When more come back
+ *     the dearest are dropped, the cheapest are kept, and the note says so.
+ * The path taken is recorded as the first sources entry, which is the only
+ * entry without a price, so a judge can see how the number was reached.
  */
 import type { MarketPriceLookup, PriceCheck, PriceSource } from "@pay-pals/contracts";
 import {
@@ -57,7 +72,8 @@ export const USED_FACTOR: Record<string, number> = {
 export const MIN_LISTINGS = 3;
 export const ESTIMATE_NOTE_PREFIX = "Estimated for a used unit";
 export const NO_RELIABLE_PRICE_NOTE = "No reliable market price found";
-export const MAX_SOURCES = 8;
+/** How many listings the panel publishes, and so how many the range may be drawn from. Twelve covers a full live PS5 result. */
+export const MAX_SOURCES = 12;
 
 const GRADER = /\b(psa|bgs|cgc|sgc)\s*-?\s*(10|[1-9](?:\.5)?)\b/i;
 const BUNDLE = /\bbundles?\b|\+|\bwith\s+(?:2|two|3|three|\d+)\s+controllers?\b|\band\s+games?\b|\bgames?\s+(?:bundle|included)\b|\blots?\s+of\b|\bset\s+of\s+\d|\bpack\s+of\s+\d|\bmystery\b/i;
@@ -164,16 +180,12 @@ export function relevantListings(products: Channel3Product[], model: string, gra
   return inStock.length > 0 ? inStock : listings;
 }
 
-/** Low end rounds down, high end rounds up, so a small sample gives a wider range rather than a narrower one. */
-function percentile(sorted: number[], p: number, edge: "low" | "high"): number {
-  if (sorted.length === 0) return 0;
-  const position = (sorted.length - 1) * p;
-  const index = edge === "low" ? Math.floor(position) : Math.ceil(position);
-  return sorted[Math.min(sorted.length - 1, Math.max(0, index))]!;
-}
-
 function round(value: number): number {
   return Math.round(value * 100) / 100;
+}
+
+function money(value: number): string {
+  return `$${round(value)}`;
 }
 
 /**
@@ -185,9 +197,14 @@ function sourceLabel(offer: Channel3Offer): string {
   return offer.condition === "used" ? "Used listing" : "Retail listing, new";
 }
 
+/** The cheapest and the dearest of these listings. Both numbers are prices the panel shows. */
 function rangeOf(listings: Listing[]): { low: number; high: number } {
   const prices = listings.map((l) => l.offer.price.price).sort((a, b) => a - b);
-  return { low: percentile(prices, 0.2, "low"), high: percentile(prices, 0.8, "high") };
+  return { low: prices[0] ?? 0, high: prices[prices.length - 1] ?? 0 };
+}
+
+function byPrice(a: Listing, b: Listing): number {
+  return a.offer.price.price - b.offer.price.price;
 }
 
 function unknown(note: string): Omit<PriceCheck, "checkedAt"> {
@@ -213,7 +230,16 @@ export function deriveRange(
     );
   } else return unknown(NO_RELIABLE_PRICE_NOTE);
 
-  const sources: PriceSource[] = pool.slice(0, MAX_SOURCES).map(({ offer }) => ({
+  // The range is drawn from exactly the listings the panel shows, so keep the pool and the
+  // published sources the same set. Cheapest first, and when there are more than the panel
+  // holds the dearest go, which leaves the low end of the range where the listings put it.
+  pool = [...pool].sort(byPrice);
+  if (pool.length > MAX_SOURCES) {
+    notes.push(`Showing the ${MAX_SOURCES} cheapest of ${pool.length} priced listings`);
+    pool = pool.slice(0, MAX_SOURCES);
+  }
+
+  const sources: PriceSource[] = pool.map(({ offer }) => ({
     name: sourceLabel(offer),
     url: offer.url,
     price: offer.price.price,
@@ -236,10 +262,12 @@ export function deriveRange(
     low = Math.min(scaled.low * factor, lowestUsed);
     high = scaled.high * factor;
     const grade = `${query.condition.replace("_", " ")}: ${Math.round(factor * 100)}% of new`;
+    // The headline is not a listing price here, so say what it was scaled from in the same breath.
+    const from = `scaled from ${newListings.length} new listing${newListings.length === 1 ? "" : "s"} priced ${money(scaled.low)} to ${money(scaled.high)}`;
     notes.push(
       lowestUsed < scaled.low * factor
-        ? `${ESTIMATE_NOTE_PREFIX} from new retail prices (${grade}); a cheaper used offer at $${lowestUsed} set the low end`
-        : `${ESTIMATE_NOTE_PREFIX} from new retail prices (${grade})`,
+        ? `${ESTIMATE_NOTE_PREFIX} from new retail prices (${grade}), ${from}; a cheaper used offer at ${money(lowestUsed)} set the low end`
+        : `${ESTIMATE_NOTE_PREFIX} from new retail prices (${grade}), ${from}`,
     );
   } else {
     ({ low, high } = rangeOf(usedListings));
