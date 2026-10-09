@@ -15,4 +15,11 @@ describe("PhotoInput upload control", () => {
     expect(screen.getByText(/Or upload a file/)).toBeInTheDocument();
     expect(screen.queryByText(/local dev only/i)).not.toBeInTheDocument();
   });
+  it("says how photos are added when the host cannot take uploads, and offers the file picker when it can", () => {
+    const { unmount } = render(<PhotoInput value={[]} onChange={() => {}} addedBy="seller" />);
+    expect(screen.getByText(/Photos are added by link here/)).toBeInTheDocument();
+    unmount();
+    render(<PhotoInput value={[]} onChange={() => {}} addedBy="seller" uploadsEnabled />);
+    expect(screen.queryByText(/Photos are added by link here/)).not.toBeInTheDocument();
+  });
 });

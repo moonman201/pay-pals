@@ -77,7 +77,7 @@ export function SellerJoinForm({ deal, uploadsEnabled = false }: { deal: Deal; u
           </a>
         </p>
       ) : null}
-      <form onSubmit={join} className="space-y-4 rounded-2xl border border-[var(--accent-line)] bg-surface p-5 shadow-sm">
+      <form onSubmit={join} className="space-y-4 rounded-2xl border border-[var(--accent-line)] bg-surface p-5 shadow-card">
         <h2 className="text-lg font-bold">Join and add your photos</h2>
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="text-sm">
@@ -112,29 +112,29 @@ export function SellerJoinForm({ deal, uploadsEnabled = false }: { deal: Deal; u
         ) : null}
       </form>
 
-      <div className="rounded-2xl border border-line bg-surface p-5">
-        {declining ? (
-          <div className="space-y-3">
-            <p className="text-sm font-semibold">You will not use Pay Pals for this deal.</p>
-            <label className="block text-sm">
-              <span className="text-muted">Tell the buyer why (optional)</span>
-              <textarea rows={2} value={reason} onChange={(e) => setReason(e.target.value)} maxLength={500} className={field} />
-            </label>
-            <div className="flex gap-2">
-              <Button variant="danger" disabled={busy} onClick={decline}>
-                Record that I will not use Pay Pals
-              </Button>
-              <Button variant="quiet" onClick={() => setDeclining(false)}>
-                Back
-              </Button>
-            </div>
+      {declining ? (
+        <div className="space-y-3 rounded-2xl border border-line bg-surface p-5">
+          <p className="text-sm font-semibold">You will not use Pay Pals for this deal.</p>
+          <label className="block text-sm">
+            <span className="text-muted">Tell the buyer why (optional)</span>
+            <textarea rows={2} value={reason} onChange={(e) => setReason(e.target.value)} maxLength={500} className={field} />
+          </label>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="danger" disabled={busy} onClick={decline}>
+              Record that I will not use Pay Pals
+            </Button>
+            <Button variant="quiet" onClick={() => setDeclining(false)}>
+              Back
+            </Button>
           </div>
-        ) : (
-          <button type="button" onClick={() => setDeclining(true)} className="text-sm text-muted underline-offset-2 hover:underline">
+        </div>
+      ) : (
+        <div className="text-center">
+          <Button variant="quiet" onClick={() => setDeclining(true)}>
             I will not use Pay Pals
-          </button>
-        )}
-      </div>
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
