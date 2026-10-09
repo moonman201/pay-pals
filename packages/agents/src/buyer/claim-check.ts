@@ -28,6 +28,9 @@ export interface ClaimContext {
 /** Generic commerce words that are somebody's domain label but also ordinary English. */
 const GENERIC_SHOP_WORDS = new Set(["retail", "store", "shop", "market", "online", "example", "listing", "auction", "cards", "deals", "price", "prices"]);
 
+/** Words Pay Pals never uses: a cert check and a serial read are not verification. */
+const OVERCLAIMS: readonly RegExp[] = [/\bverif(?:y|ies|ied|ying|ication)\b/i, /\bauthentic(?:ated|ation|ity)?\b/i];
+
 function shopPatterns(shops: string[]): RegExp[] {
   const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const out: RegExp[] = [];
@@ -78,7 +81,7 @@ const PSA_RESULT_CLAIMS: RegExp[] = [
 /** The phrases in the text that the context does not support. Empty means the text is honest. */
 export function unfoundedClaims(text: string, context: ClaimContext): string[] {
   const found: string[] = [];
-  const scan = (patterns: RegExp[]) => {
+  const scan = (patterns: readonly RegExp[]) => {
     for (const pattern of patterns) {
       const match = text.match(pattern);
       if (match) found.push(match[0]);
@@ -89,6 +92,7 @@ export function unfoundedClaims(text: string, context: ClaimContext): string[] {
   if (context.certCheck && context.certCheck.matches === null) scan(PSA_RESULT_CLAIMS);
   if (context.publicMode) scan(LOADING_TALK);
   if (context.shops && context.shops.length > 0) scan(shopPatterns(context.shops));
+  scan(OVERCLAIMS);
   return [...new Set(found)];
 }
 
@@ -100,5 +104,6 @@ export function reaskInstruction(claims: string[], context: ClaimContext): strin
   if (context.certCheck && context.certCheck.matches === null) reasons.push(`the cert was not checked; say exactly: ${context.certCheck.explanation}`);
   if (context.publicMode) reasons.push("do not mention whether photo files loaded, opened or could be viewed; say only what you checked from the card and the chat");
   if (context.shops && context.shops.length > 0) reasons.push("do not name a shop or website; the buyer sees the number of listings and the prices, not the retailers");
+  reasons.push("never write verified or authentic; say what a check showed and what it did not show");
   return `Your draft message contained claims that cannot be supported: ${claims.map((c) => `"${c}"`).join(", ")}. Reasons: ${reasons.join("; ")}. Rewrite the message without any such claim. State only what was actually examined.`;
 }

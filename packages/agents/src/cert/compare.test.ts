@@ -5,13 +5,15 @@ import { NOT_CHECKED_EXPLANATION, compareCertRecord, gradeNumber, subjectTokens 
 
 const card = fakeSlab.cards[0]!;
 const now = new Date().toISOString();
-const psaRecord = (overrides: Partial<CertRecord>): CertRecord => ({
+
+/** PSA's own spelling of the card on the slab, as the fixture record has it. */
+const psaRecord = (overrides: Partial<CertRecord> = {}): CertRecord => ({
   provider: "psa",
   certNumber: FAKE_SLAB_CERT,
-  subject: "1999 POKEMON GAME CHARIZARD-HOLO #4",
+  subject: "2018 P.M. JPN. SUN & MOON GENGAR & MIMIKYU GX TAG BOLT #038",
   grade: "GEM MT 10",
-  year: "1999",
-  brand: "POKEMON GAME",
+  year: "2018",
+  brand: "P.M. JPN. SUN & MOON",
   raw: null,
   checkedAt: now,
   ...overrides,
@@ -30,19 +32,37 @@ describe("gradeNumber", () => {
 
 describe("subjectTokens", () => {
   it("keeps set, character, year and card number but drops grade words", () => {
-    expect([...subjectTokens("1999 Pokemon Base Set Charizard Holo, PSA 10 #4", "PSA 10")].sort()).toEqual(["1999", "4", "base", "charizard", "holo", "pokemon", "set"]);
+    expect([...subjectTokens("2018 Pokemon Sun & Moon Gengar & Mimikyu GX #038, PSA 10", "PSA 10")].sort()).toEqual([
+      "038",
+      "2018",
+      "gengar",
+      "gx",
+      "mimikyu",
+      "moon",
+      "pokemon",
+      "sun",
+    ]);
   });
 });
 
 describe("compareCertRecord", () => {
-  it("fake-slab: a different card and grade is a mismatch, labelled a demo record", () => {
+  it("fake-slab: the record matches the card, and says what that does and does not show", () => {
     const result = compareCertRecord(card, fakeSlab.certRecord!);
-    expect(result.matches).toBe(false);
-    expect(result.explanation).toContain("PSA (demo record) cert");
-    expect(result.explanation).toContain("2016 Pokemon XY Evolutions Charizard Holo #11");
-    expect(result.explanation).toContain("grade 7, not 10");
+    expect(result.matches).toBe(true);
+    expect(result.explanation).toBe(
+      `PSA (demo record) has a record for cert ${FAKE_SLAB_CERT} that matches this card (2018 P.M. JPN. SUN & MOON GENGAR & MIMIKYU GX TAG BOLT #038, grade GEM MT 10). That shows the slab exists, not that this seller is holding it.`,
+    );
+    expect(result.explanation.length).toBeLessThanOrEqual(300);
+    expect(result.explanation).not.toMatch(/verif|authentic|confirms/i);
     expect(result.evidence).toContain(`Cert ${FAKE_SLAB_CERT} on the card`);
-    expect(result.evidence).toContain(card.title);
+    expect(result.overlap).toBeGreaterThanOrEqual(0.6);
+  });
+
+  it("a record for a different card and grade is a mismatch", () => {
+    const result = compareCertRecord(card, psaRecord({ subject: "2019 P.M. JPN. SUN & MOON PIKACHU & ZEKROM GX #054", grade: "7", year: "2019", brand: "Pokemon" }));
+    expect(result.matches).toBe(false);
+    expect(result.explanation).toContain("2019 P.M. JPN. SUN & MOON PIKACHU & ZEKROM GX #054");
+    expect(result.explanation).toContain("grade 7, not 10");
     expect(result.overlap).toBeLessThan(0.6);
   });
 
@@ -60,21 +80,13 @@ describe("compareCertRecord", () => {
     expect(result.explanation).toBe(NOT_CHECKED_EXPLANATION);
     expect(result.explanation).toBe("The cert number was not checked against PSA (no PSA access on this server).");
     expect(result.evidence).toContain("not checked");
-    const bareFixture = { ...unknown, raw: null };
-    expect(compareCertRecord({ ...card, certNumber: "49172834" }, bareFixture).matches).toBeNull();
-  });
-
-  it("a PSA record for the same card and grade matches, in PSA's own spelling", () => {
-    const result = compareCertRecord(card, psaRecord({}));
-    expect(result.matches).toBe(true);
-    expect(result.explanation).toBe(`PSA confirms cert ${FAKE_SLAB_CERT}: 1999 POKEMON GAME CHARIZARD-HOLO #4, grade GEM MT 10.`);
-    expect(result.overlap).toBeGreaterThanOrEqual(0.6);
+    expect(compareCertRecord({ ...card, certNumber: "49172834" }, { ...unknown, raw: null }).matches).toBeNull();
   });
 
   it("the right card at the wrong grade is a mismatch, and so is the wrong year", () => {
     expect(compareCertRecord(card, psaRecord({ grade: "MINT 9" })).matches).toBe(false);
     expect(compareCertRecord(card, psaRecord({ grade: "MINT 9" })).explanation).toContain("grade 9, not 10");
-    expect(compareCertRecord(card, psaRecord({ year: "2000", subject: "2000 POKEMON GAME CHARIZARD-HOLO #4" })).matches).toBe(false);
+    expect(compareCertRecord(card, psaRecord({ year: "2019", subject: "2019 P.M. JPN. SUN & MOON GENGAR & MIMIKYU GX TAG BOLT #038" })).matches).toBe(false);
   });
 
   it("does not compare grades when the card has none", () => {
