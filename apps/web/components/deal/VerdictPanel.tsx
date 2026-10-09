@@ -3,7 +3,7 @@ import { certRows } from "@/lib/deal/cert-compare";
 import { certSentence } from "@/lib/deal/cert-copy";
 import { FLAG_WORDS } from "@/lib/deal/override";
 import { hasUsableRange, priceRangeLine, priceSourceNote } from "@/lib/deal/price-copy";
-import { summariseSources } from "@/lib/deal/price-sources";
+import { methodNote, summariseSources } from "@/lib/deal/price-sources";
 import { OVERALL_LABELS } from "@/lib/labels";
 import { PalAvatar } from "../pal/PalAvatar";
 import { Badge, type Tone } from "../ui/Badge";
@@ -40,6 +40,8 @@ export function VerdictPanel({ verdict, currentVersion, locked, cardTitle = null
   const stale = !locked && verdict.cardVersion > 0 && verdict.cardVersion !== currentVersion;
   // Matt, Oct 9: the listings behind the range are a count, a split and prices. Never the shop names.
   const sources = summariseSources(verdict.priceCheck);
+  // The sentence that says how the range was reached, so a scaled figure can be checked against the listings under it.
+  const method = methodNote(verdict.priceCheck);
   const style = VERDICT_STYLE[verdict.overall];
   return (
     <Panel title="Buyer Pal review">
@@ -65,8 +67,13 @@ export function VerdictPanel({ verdict, currentVersion, locked, cardTitle = null
           {priceRangeLine(verdict.priceCheck)}
           <span className="ml-2 text-xs font-normal text-muted">{priceSourceNote(verdict.priceCheck)}</span>
         </p>
+        {method ? (
+          <p className="mt-1 text-xs leading-relaxed text-muted" data-testid="price-method">
+            {method}
+          </p>
+        ) : null}
         {hasUsableRange(verdict.priceCheck) && sources ? (
-          <div className="mt-1 text-xs text-muted" data-testid="price-sources">
+          <div className="mt-1.5 text-xs text-muted" data-testid="price-sources">
             <p>{sources.line}</p>
             {sources.prices.length > 1 ? (
               <ul className="mt-1.5 flex flex-wrap gap-1" aria-label="Listing prices">
