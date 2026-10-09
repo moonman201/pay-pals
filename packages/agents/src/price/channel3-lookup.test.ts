@@ -112,8 +112,10 @@ describe("deriveRange on PS5 comps", () => {
     expect(range.sources[0]!.name).toContain(`${ESTIMATE_NOTE_PREFIX} from new retail prices (good: 70% of new)`);
     const priced = range.sources.filter((s) => s.price !== undefined);
     expect(priced).toHaveLength(6);
-    expect(priced.map((s) => s.name)).not.toContain(expect.stringContaining("Controller"));
-    expect(priced.filter((s) => s.name.startsWith("gamestop.com") && s.condition === "used")).toHaveLength(1);
+    // The accessory and the bundle are out of the pool; the retailer lives in the url, not the label.
+    expect(priced.map((s) => s.price)).not.toContain(69.99);
+    expect(priced.map((s) => s.name).sort()).toEqual(["Retail listing, new", "Retail listing, new", "Retail listing, new", "Retail listing, new", "Retail listing, new", "Used listing"]);
+    expect(priced.filter((s) => s.url?.includes("gamestop.com") && s.condition === "used")).toHaveLength(1);
     expect(PriceCheckSchema.safeParse(at(range)).success).toBe(true);
     expect(priceBelowMarketRule({ card: card({ askingPrice: 420 }), chat: [], priceCheck: at(range) })).toHaveLength(0);
     expect(priceBelowMarketRule({ card: card({ askingPrice: 220 }), chat: [], priceCheck: at(range) })[0]!.severity).toBe("stop");

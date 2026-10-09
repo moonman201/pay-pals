@@ -53,11 +53,11 @@ export function StartDealForm({ uploadsEnabled = false }: { uploadsEnabled?: boo
   }
 
   return (
-    <form onSubmit={submit} className="theme-seller space-y-5 rounded-2xl border border-[var(--accent-line)] bg-white p-5 shadow-sm">
-      <div className="rounded-lg bg-wash p-3 text-xs text-muted">
-        <span className="font-semibold">Demo listings:</span>{" "}
+    <form onSubmit={submit} className="theme-seller space-y-5 rounded-2xl border border-[var(--accent-line)] bg-surface p-5 shadow-sm">
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg bg-wash px-3 py-1 text-xs text-muted">
+        <span className="font-semibold">Demo listings:</span>
         {ALL_FIXTURES.map((f) => (
-          <button key={f.id} type="button" onClick={() => fillFrom(f)} className="mr-2 underline-offset-2 hover:underline">
+          <button key={f.id} type="button" onClick={() => fillFrom(f)} className="inline-flex min-h-11 items-center underline-offset-2 hover:underline">
             {f.name}
           </button>
         ))}

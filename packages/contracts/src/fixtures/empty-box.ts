@@ -134,7 +134,7 @@ export const emptyBox: ScenarioFixture = {
       {
         code: "MISSING_PACKING_PHOTO",
         severity: "caution",
-        evidence: "checklist: Photo of the console, controller and cables going into the box: not done",
+        evidence: "Packing step not done: Photo of the console, controller and cables going into the box",
         explanation: "The seller shipped without the photo of the item going into the box, so there is no proof of what was packed.",
         raisedByRule: true,
       },

@@ -23,6 +23,8 @@ export interface ArrivalDeps {
   client: ClaudeClient | null;
   fetchImage?: ImageFetcher;
   photoBaseUrl?: string | null;
+  /** Presentation only: drop the sentences about photo files that could not be loaded. */
+  publicMode?: boolean;
 }
 
 export interface ArrivalEvidence {
@@ -122,7 +124,7 @@ export async function checkArrivalAgainstCard(card: ItemCard, arrivalPhotos: Pho
 
   const palMessage = sentences(
     arrivalPhotos.length === 0 ? "I have no arrival photos to check yet. Add a photo of the serial on the item itself." : null,
-    describeLooking(readings, "arrival photo"),
+    describeLooking(readings, "arrival photo", deps.publicMode === true),
     matches && observed.serial ? `What arrived matches the locked card. Serial ${observed.serial} confirmed on the item itself.` : null,
     matches && !observed.serial && arrivalPhotos.length > 0 ? "Nothing contradicts the card, but the card has no serial to confirm." : null,
     missing ? `The box arrived without the item. The locked card says serial ${card.serial ?? "unknown"} and there is no item in the photos to read it from.` : null,

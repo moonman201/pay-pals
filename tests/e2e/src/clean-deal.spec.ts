@@ -54,6 +54,17 @@ test.describe("clean deal", () => {
     await openRoomAs(page, dealId, "buyer");
     await expectState(page, "Agreed, card locked");
 
+    // The locked card wears its lock badge and the text the PayPal order will carry (visual pass, item 6).
+    const lockedCard = panel(page, "Item card");
+    await expect(lockedCard.getByTestId("lock-badge")).toHaveText(/Locked, version 2/);
+    await expect(lockedCard.getByTestId("order-text")).toContainText(cleanPs5.cards[0]!.title);
+    await expect(lockedCard.getByTestId("order-text")).toContainText(`Invoice ${dealId}`);
+    // The stepper ticks the step the state has finished and points at the next one: Agreed and locked is done, Paid is current.
+    const steps = page.getByTestId("progress-stepper").getByRole("listitem");
+    await expect(steps).toHaveCount(7);
+    const stepStatuses = () => steps.evaluateAll((items) => items.map((li) => li.getAttribute("data-status")));
+    expect(await stepStatuses()).toEqual(["done", "done", "done", "done", "current", "upcoming", "upcoming"]);
+
     // Pay by the capture button: the order is created, the buyer comes back approved, one press captures.
     const pay = panel(page, "Pay");
     await expect(pay).toBeVisible();
@@ -62,7 +73,12 @@ test.describe("clean deal", () => {
     await expect(page.getByTestId("sandbox-buyer")).toHaveCount(0);
     await payByCaptureButton(page, dealId);
     await expect(page.getByTestId("sandbox-buyer")).toHaveCount(0);
+    // Paid: the stepper ticks Paid and points at Shipped; the history chip becomes the verified seal (items 4 and 8).
+    expect(await stepStatuses()).toEqual(["done", "done", "done", "done", "done", "current", "upcoming"]);
+    await expect(page.getByTestId("history-badge").first()).toHaveAttribute("data-status", "verified");
     await shipAsSeller(page, dealId, cleanPs5);
+    // Shipped (the seller's room): the parcel is on its way, so Shipped is done and Arrived is what both sides wait for.
+    expect(await stepStatuses()).toEqual(["done", "done", "done", "done", "done", "done", "current"]);
     await confirmDelivery(page, dealId);
 
     // J6: a deal paid through the demo gateway is a real deal with a DEMO- order, not a seeded example.
@@ -81,6 +97,7 @@ test.describe("clean deal", () => {
     await pressAction(page, "Complete the deal");
     await expectState(page, "Complete");
     await expect(panel(page, "Next step").getByText("complete", { exact: false })).toBeVisible();
+    expect(await steps.evaluateAll((items) => items.map((li) => li.getAttribute("data-status")))).toEqual(Array(7).fill("done"));
 
     const snap = await snapshot(page, dealId);
     expect(snap.deal.state).toBe("COMPLETE");

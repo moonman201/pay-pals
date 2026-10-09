@@ -87,11 +87,12 @@ describe("ActionBar: buttons per state and role", () => {
     expect(screen.getByText(new RegExp(BLOCKED_SENTENCE.slice(0, 30)))).toBeInTheDocument();
   });
 
-  it("says the pal is thinking while a review runs", () => {
+  it("names the stage the pal is on while a review runs, so a long wait is not a frozen button", () => {
     renderBar({ state: "LISTED", role: "buyer", busy: "review" });
     expect(screen.getByRole("button", { name: "Working" })).toBeDisabled();
-    expect(screen.getByRole("status")).toHaveTextContent(/reading the chat and checking prices/);
+    expect(screen.getByTestId("working-status")).toHaveTextContent("Reading the chat");
   });
+
 
   it("calls onAction with the action id", async () => {
     const onAction = renderBar({ state: "LISTED", role: "buyer" });

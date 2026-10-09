@@ -1,10 +1,13 @@
-import { CONDITION_LABELS, type Deal, type EvidencePack, type Message } from "@pay-pals/contracts";
-import Link from "next/link";
+import { CONDITION_LABELS, type Deal, type DealEvent, type EvidencePack, type Message } from "@pay-pals/contracts";
 import { boxSerialLabel, boxSerialMatches } from "@/lib/deal/box-serial";
 import { historyStatus } from "@/lib/deal/history-status";
 import { priceRangeLine, priceSourceNote } from "@/lib/deal/price-copy";
+import { summariseSources } from "@/lib/deal/price-sources";
 import { isExampleDeal } from "@/lib/deal/snapshot";
+import { FlagEvidence } from "../deal/FlagEvidence";
 import { HistoryBadge } from "../deal/HistoryBadge";
+import { EvidenceHeader } from "./EvidenceHeader";
+import { PalAvatar } from "../pal/PalAvatar";
 import { ShipmentFlags } from "../deal/ShipmentFlags";
 
 /** A dealId#hash token (36 plus 64 characters) or a bare 64-hex hash, which no phone width can hold on one line. */
@@ -48,35 +51,42 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-/** The evidence pack, laid out plainly so it reads the same on screen and on paper. */
-export function EvidencePackView({ pack, deal, role }: { pack: EvidencePack; deal: Deal; role: Role }) {
+/**
+ * The evidence pack, laid out plainly so it reads the same on screen and on
+ * paper. `events` is the deal's timeline as it stands now, which runs on
+ * past the pack: building the pack is itself an event. The badge and the
+ * stepper read the live one, and the pack's own count is named as what it
+ * was when the pack was built.
+ */
+export function EvidencePackView({ pack, deal, role, events }: { pack: EvidencePack; deal: Deal; role: Role; events?: readonly DealEvent[] }) {
+  const live = events ?? pack.timeline;
   const card = pack.lockedCard;
   const sellerPhotos = pack.photos.filter((p) => p.addedBy === "seller");
   const buyerPhotos = pack.photos.filter((p) => p.addedBy === "buyer");
-  const example = isExampleDeal(pack.timeline, pack.payment);
+  const example = isExampleDeal(live, pack.payment);
   const shipmentFlags = pack.shipmentFlags ?? pack.shipment?.flags ?? [];
   const unanswered = pack.unansweredQuestions ?? [];
   return (
-    <main className="mx-auto max-w-3xl px-4 py-8 print:max-w-none print:px-0">
-      <header className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-widest text-blue">Pay Pals evidence pack</p>
-          <h1 className="mt-1 text-2xl font-black text-navy">{card.title}</h1>
-          <p className="mt-1 text-sm text-muted">
+    <main className={`theme-${role} mx-auto max-w-3xl px-4 py-8 print:max-w-none print:px-0`}>
+      <EvidenceHeader
+        dealId={deal.id}
+        role={role}
+        title={card.title}
+        meta={
+          <>
             Deal {pack.dealId}. Built {formatTime(pack.builtAt)} by {actorLabel(pack.builtBy, deal)}. Deal state: {STATE_LABELS[deal.state]}.
-          </p>
-        </div>
-        <div className="flex w-full flex-wrap gap-2">
-          {example ? <span className="inline-flex items-center rounded-full border border-line bg-wash px-2.5 py-0.5 text-xs text-muted">Example deal, seeded from a scenario</span> : null}
-          <HistoryBadge events={pack.timeline} historyHash={pack.historyHash ?? null} example={example} />
-        </div>
-        <div className="no-print flex gap-2">
-          <Link href={`/deals/${deal.id}?as=${role}`} className="text-sm font-semibold text-navy underline-offset-2 hover:underline">
-            Back to the deal
-          </Link>
-          <PrintButton />
-        </div>
-      </header>
+          </>
+        }
+        badges={
+          <>
+            {example ? <span className="inline-flex items-center rounded-full border border-line bg-wash px-2.5 py-0.5 text-xs text-muted">Example deal, seeded from a scenario</span> : null}
+            <HistoryBadge events={live} historyHash={pack.historyHash ?? null} example={example} />
+          </>
+        }
+        state={deal.state}
+        events={live}
+        actions={<PrintButton />}
+      />
 
       <div className="mt-6 space-y-6">
         <Section title="Summary">
@@ -118,12 +128,13 @@ export function EvidencePackView({ pack, deal, role }: { pack: EvidencePack; dea
 
         <Section title="Tamper-evident history">
           <div className="mb-3">
-            <HistoryBadge events={pack.timeline} historyHash={pack.historyHash ?? null} example={example} />
+            <HistoryBadge events={live} historyHash={pack.historyHash ?? null} example={example} />
           </div>
           {example ? (
             <p>
-              This is an example deal seeded from a scenario. Its {pack.timeline.length} events are hash-chained, so an edit would break the chain, but no PayPal order holds the
-              head: the payment ids are placeholders. A real deal writes the head into the PayPal order&apos;s custom_id.
+              This is an example deal seeded from a scenario. Its {live.length} events are hash-chained, so an edit would break the chain, but no PayPal order holds the head:
+              the payment ids are placeholders. A real deal writes the head into the PayPal order&apos;s custom_id. The pack was built from {pack.timeline.length} events at the
+              time the pack was built.
             </p>
           ) : pack.historyHash ? (
             <>
@@ -134,8 +145,8 @@ export function EvidencePackView({ pack, deal, role }: { pack: EvidencePack; dea
                 {pack.dealId}#{pack.historyHash}
               </p>
               <p className="mt-2">
-                {pack.timeline.length} events are stored.{" "}
-                {historyStatus(pack.timeline, pack.historyHash).kind === "verified" ? (
+                {live.length} events are stored, {pack.timeline.length} events at the time the pack was built.{" "}
+                {historyStatus(live, pack.historyHash).kind === "verified" ? (
                   <span className="font-semibold text-go">Verified: the stored events reproduce this hash.</span>
                 ) : (
                   <span className="font-semibold text-stop">Does not verify: the stored events do not reproduce this hash.</span>
@@ -195,19 +206,26 @@ export function EvidencePackView({ pack, deal, role }: { pack: EvidencePack; dea
         <Section title="Buyer Pal review">
           {pack.verdicts.length === 0 ? <p>No review on record.</p> : null}
           {pack.verdicts.map((v, i) => (
-            <div key={i} className="mb-3">
+            <div key={i} className="mb-3 flex gap-3">
+              <PalAvatar pal="buyer" size={28} className="mt-0.5" />
+              <div className="min-w-0">
               <p className="font-semibold">Card version {v.cardVersion}: {OVERALL_LABELS[v.overall]}</p>
               <p className="text-xs text-muted">
                 {priceRangeLine(v.priceCheck)}, {priceSourceNote(v.priceCheck)}
+                {summariseSources(v.priceCheck) ? `. ${summariseSources(v.priceCheck)!.line}` : ""}
               </p>
               <p>{v.palMessage}</p>
               {v.flags.length > 0 ? (
                 <ul className="mt-1 list-disc pl-5">
                   {v.flags.map((f, j) => (
-                    <li key={j}>{f.severity}: {f.explanation} ({f.evidence})</li>
+                    <li key={j}>
+                      {f.severity}: {f.explanation}
+                      <FlagEvidence evidence={f.evidence} always />
+                    </li>
                   ))}
                 </ul>
               ) : null}
+              </div>
             </div>
           ))}
         </Section>

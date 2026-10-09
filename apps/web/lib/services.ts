@@ -28,6 +28,7 @@ import { photoBase } from "./deal/photo-urls";
 import { buildKnownPhotos } from "./demo/known-photos";
 import { asDealFinder, seedFixtureDeals, seedFixtureDealsIfMissing } from "./demo/seed-fixtures";
 import { loadRootEnvLocal } from "./env";
+import { isPublicMode, publicModeLine } from "./public-mode";
 import { detectUploadsEnabled } from "./uploads";
 import { createMockPayPalGateway } from "./mocks/paypal-gateway";
 
@@ -61,6 +62,8 @@ export interface Services {
   /**
    * Payee used for deals started from demo mode, from SANDBOX_SELLER_PERSONAL_EMAIL.
    * Fixture payees have no sandbox account, so a capture to them never moves a balance.
+   * Null in demo-only mode, which keeps the fixture payee so the pages render the
+   * same everywhere.
    */
   demoPayee: string | null;
   /** Resolves once migration (Postgres) or seeding (memory) has finished. */
@@ -76,8 +79,9 @@ const has = (env: Env, key: string) => Boolean(env[key]?.trim());
 
 /**
  * PAY_PALS_DEMO_ONLY=1 (or true) is a test knob: memory store, rules-only
- * pals, fixture prices and the mock gateway no matter which keys are
- * present, so an e2e run never calls Claude or the PayPal sandbox.
+ * pals, fixture prices, the mock gateway and the fixture payee no matter
+ * which keys are present, so an e2e run never calls Claude or the PayPal
+ * sandbox and renders the same page on every machine.
  */
 export function isDemoOnly(env: Env): boolean {
   const value = env.PAY_PALS_DEMO_ONLY?.trim().toLowerCase();
@@ -103,11 +107,14 @@ export function createServices(env: Env = process.env, log: Log = (line) => cons
   const certLookup = modes.certs === "psa" ? createPsaCertLookup(env.PSA_API_TOKEN!.trim()) : createFixtureCertLookup();
   // Photo URLs for the pals: absolute against the public URL when it is known; the pals also get it as a second safety net.
   const photoBaseUrl = photoBase(env);
-  const knownPhotos = buildKnownPhotos(photoBaseUrl, path.resolve(process.cwd(), "public"));
-  const sellerPal = createSellerPal({ anthropic, photoBaseUrl });
-  const buyerPal = createBuyerPal({ anthropic, priceLookup, certLookup, knownPhotos, photoBaseUrl });
+  const publicDir = path.resolve(process.cwd(), "public");
+  const knownPhotos = buildKnownPhotos(photoBaseUrl, publicDir);
+  const publicMode = isPublicMode(env, publicDir);
+  log(publicModeLine(publicMode, env));
+  const sellerPal = createSellerPal({ anthropic, photoBaseUrl, publicMode });
+  const buyerPal = createBuyerPal({ anthropic, priceLookup, certLookup, knownPhotos, photoBaseUrl, publicMode });
   log(`[pay-pals] photos: ${knownPhotos.length} known photos for the reused-photo check, base URL ${photoBaseUrl ? "configured" : "from each request"}`);
-  const buildEvidencePack = createEvidencePackBuilder({ anthropic });
+  const buildEvidencePack = createEvidencePackBuilder({ anthropic, publicMode });
   const paypal = modes.paypal === "sandbox" ? createPayPalGateway(loadPayPalConfig(env)) : createMockPayPalGateway();
 
   log(`[pay-pals] pals: real Seller Pal and Buyer Pal, ${modes.claude ? "Claude on" : "rules only (ANTHROPIC_API_KEY not set)"}`);
@@ -115,8 +122,13 @@ export function createServices(env: Env = process.env, log: Log = (line) => cons
   log(`[pay-pals] certs: ${modes.certs === "psa" ? "PSA cert lookup" : "fixture cert records (PSA_API_TOKEN not set)"}`);
   log(`[pay-pals] paypal: ${modes.paypal === "sandbox" ? "sandbox gateway" : "mock gateway, no network (PAYPAL_CLIENT_ID not set)"}`);
 
-  const demoPayee = env.SANDBOX_SELLER_PERSONAL_EMAIL?.trim() || null;
+  // Demo-only pins every choice, so it pins the payee too: the same build has to render the same
+  // page whether or not an .env.local happens to sit on disk, and a sandbox address is a different
+  // length from the fixture one. Real mode keeps the substitution, which is what makes a hosted
+  // demo payment land in an account someone can look at.
+  const demoPayee = demoOnly ? null : env.SANDBOX_SELLER_PERSONAL_EMAIL?.trim() || null;
   if (demoPayee) log("[pay-pals] demo payee: sandbox seller account (SANDBOX_SELLER_PERSONAL_EMAIL) replaces the fixture payee on demo deals");
+  else if (demoOnly && env.SANDBOX_SELLER_PERSONAL_EMAIL?.trim()) log("[pay-pals] demo payee: fixture payee kept (demo-only mode ignores SANDBOX_SELLER_PERSONAL_EMAIL)");
 
   let store: PayPalsStore;
   let ready: Promise<void>;

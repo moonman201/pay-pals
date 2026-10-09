@@ -166,6 +166,70 @@ Branch `judge-walk`, merged to main caf27aa on Oct 8, stale seeds deleted from N
 | J11 | Matt (product) | Scenario 3 is unplayable on the hosted site past payment: it needs a real sandbox capture and the page offers no buyer login. Options in BLOCKERS. |
 | J12 | qa | Tests for J2 to J6 and J8; re-run the finished-deal screenshot pass after the re-seed. |
 
+## Visual pass, Oct 9 (Matt). Lane assignments
+Branch `visual`, Vercel preview deploy only. Nothing merges to main and production is untouched until Matt approves the screenshots. Stop only for a contract or schema change or a change to the product copy's meaning. Goal: the site looks like a product a judge remembers, built around the two Pals (blue Buyer Pal, gold Seller Pal) from `assets/pay-pals-hero.jpg`. Design is one of five judging criteria.
+
+| # | Lane | Work |
+|---|---|---|
+| 1 | builder-web | Hero: the Pals above the fold next to "Two AI agents. One safe deal." Hero copied into apps/web/public, optimized with next/image and sizes for phone and desktop. No PayPal logo artwork outside the official buttons. |
+| 2 | builder-web | Pal avatars (blue Buyer Pal, gold Seller Pal) in the hero's style, used wherever a pal speaks: review, private pal messages, timeline, flag cards, the landing steps. |
+| 3 | builder-web | Color system in one token file: buyer blue, seller gold, stop red, caution amber, go green; light and dark; WCAG AA contrast. |
+| 4 | builder-web | Deal progress stepper on every deal page: Invited, Card built, Reviewed, Agreed and locked, Paid, Shipped, Arrived; current step highlighted; blocked and issue states clear. |
+| 5 | builder-web | The Buyer Pal's Stop / Go / Caution is the loudest thing on the review, avatar beside it. |
+| 6 | builder-web | Locked item card styled like a physical card or receipt: visible lock state and version; the "this is the text of the PayPal order" line feels official. |
+| 7 | builder-web | Side-by-side comparisons: cert check (card says vs PSA record says) and arrival check (locked card vs what arrived), mismatches highlighted. |
+| 8 | builder-web | "History unchanged since PayPal order" as a proper verified seal. |
+| 9 | builder-web | Scenario cards with their outcome visual (blocked shield, green check, open issue) and the pal avatars. |
+| 10 | builder-web | Subtle motion only (card lock, stepper advance, flag reveal), prefers-reduced-motion respected. |
+| 11 | builder-web | Phone first: no horizontal scroll, 16 px gutters, tap targets at least 44 px. |
+| 12 | builder-agents | Until real photos exist, do not render the "could not be loaded" photo sentences on the hosted site; keep the logic. |
+| 13 | builder-agents | `assets/demo-photos/SHOTLIST.md`: the 13 photos plus the reference folder, exact filename, what the shot must show, what the pal reads from it. |
+| 14 | qa | Playwright for the new layout; visual checks at 1280 and 390 px for the landing, the three finished deals and both evidence packs. Before screenshots from production, after screenshots from the preview, committed under docs/visual-pass/ on the branch. |
+| 15 | qa | gitleaks or trufflehog over the full git history before the repo goes public. Report; never rewrite history without Matt. |
+| 16 | reality-check | Review the preview as a first-time judge on a phone: confusing, cluttered, forgettable. Done; notes in docs/visual-pass/README.md. |
+
+**Matt's decisions, Oct 9.** (1) Price panel shows the count and the prices only, no retailer names, with "via Channel3" still visible. Not yet built; it waits with everything else. (2) The hero keeps the PayPal badges as supplied. (3) Re-seeding the demo deals is approved, but only after Matt approves the merge to main. Polish is stopped until Matt replies.
+
+## Next: candidate features (recorded Oct 9, not built)
+
+The pitch these serve: anywhere people can pay with PayPal, Pay Pals gives them a reason to choose Goods and Services. Wording rule for all of these, in code, copy and video: never "verified" and never "authentic". Say what was checked and against what.
+
+### A. "Pay Pals Protected" listing link (hackathon candidate)
+The seller builds and locks the card first, then pastes a public link into a listing anywhere. Two paths behind one link:
+- **Direct PayPal sale** (online marketplace, groups, forums): today's flow. The locked card text and the history hash go into our own PayPal order, payee is the seller.
+- **Platform checkout with PayPal as the payment method** (eBay): we keep the card, the packing photos, the tracking, the arrival check and the evidence pack, plus the platform's own order reference. We do not create the order, so no payee of ours, no card text on the order, no hash in custom_id.
+- The Buyer Pal flags a "Pay Pals Protected" claim whose link does not resolve to a locked card.
+
+What changes: `Deal` gains a listing mode, a public link id, an external order reference and a platform name; a `PUBLISHED` state for a locked card with no buyer yet; `lockCard` becomes legal with one side in that state; `PaymentRecord` gains a source and an external reference and its PayPal order id becomes nullable; one red flag code; two event kinds. Schema: four deal columns, three payment columns, one state enum value, one unique index.
+
+**How a dispute works on an eBay purchase paid with PayPal.** Two independent paths, and the buyer picks one:
+- eBay's Money Back Guarantee, opened on eBay, decided by eBay. Seller response window about three business days.
+- A PayPal payment dispute, opened with PayPal, decided by PayPal under its own terms, not eBay's. Seller response window about five calendar days for an external payment dispute.
+Since late 2021 eBay processes payments itself (Adyen) and sellers are not paid into PayPal, so on that path the money never lands in a PayPal account we control. Our evidence pack is useful to either process as attachable proof, and that is all we should claim for it. Sources: eBay's "Handling payment disputes" help page and PayPal's Purchase Protection program page.
+
+### B. Local pickup (hackathon candidate)
+At the meetup the buyer points a phone at the item, the Buyer Pal reads the serial against the locked card, and Pay unlocks only on a match.
+
+**What PayPal's protection actually covers in person, checked Oct 9 against PayPal's Purchase Protection program page (policy current as of Jan 26, 2026).** For a non-QR-code payment, a purchase is **not** eligible for an Item Not Received claim if the buyer paid in person, or ordered online and collected the item in person. It **may** be eligible if the item picked up is Significantly Not as Described. The exception is paying in person by scanning a PayPal **goods and services QR code**: that may be eligible for Purchase Protection, and the seller handing over in person may be eligible for Seller Protection, though PayPal can ask for other evidence of delivery. So:
+- Copy may say the pickup flow helps with an item that is not as described. It must never say it covers an item that never arrived, because for a pickup that claim is not available.
+- If we want the strongest protection story for pickup, the payment should be a PayPal goods and services QR code, which PayPal's own app creates. We cannot attach our card text or history hash to a QR code payment, so the card and the hash stay on our side and the pack is the link between them.
+
+What changes: `Deal` gains a handoff mode; the state table gains PAID to DELIVERED so a pickup skips shipping; the verdict kind enum gains a pickup check and the store must hold more than one check per deal; anything that assumes an arrival check exists only after delivery.
+
+### C. Venmo purchase protection nudge (roadmap)
+Venmo's protected path for buying from a stranger, surfaced the same way: the pal explains which Venmo option carries protection and which does not, before the money moves.
+
+### D. Tickets (roadmap)
+The card is section, row and seat. Arrival is the transfer being accepted in the ticket account rather than a package. The same lock, the same evidence pack, the same hash.
+
+### E. Seller track record on the link (roadmap)
+Computed only from completed deals: how many, over what period, how many ended in an issue. No stars, no badges, no claim about the person. Just counted history.
+
+### F. "Already scammed" triage (roadmap)
+Someone who already sent Friends and Family: what is still possible, what is not, what to gather, where to report. Honest about the fact that Friends and Family has no purchase protection.
+
+Explicitly out: deposits on cars, pets and rentals.
+
 ## Status (Lead keeps this current)
 | Lane | Status | Last merge |
 |---|---|---|

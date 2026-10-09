@@ -12,7 +12,7 @@
  * under playwright.real.config.ts (`npm run e2e:real -w tests/e2e`).
  */
 import { defineConfig, devices } from "@playwright/test";
-import { BASE_URL, PORT, REPO_ROOT, STARTS_SERVER } from "./src/env";
+import { BASE_URL, E2E_SERVER_ENV, PORT, REPO_ROOT, STARTS_SERVER } from "./src/env";
 
 const PHONE = /phone-width\.spec\.ts$/;
 /** Real-mode specs run only under playwright.real.config.ts. */
@@ -28,7 +28,12 @@ export default defineConfig({
   workers: 3,
   // A whole scenario, with the dev server compiling routes as it goes; each step keeps its own shorter wait.
   timeout: 300_000,
-  expect: { timeout: 15_000 },
+  expect: {
+    timeout: 15_000,
+    // visual.spec.ts: a restyle is a deliberate baseline refresh; a font hint or an antialias wobble is not a failure.
+    toHaveScreenshot: { maxDiffPixelRatio: 0.02, animations: "disabled", caret: "hide" },
+  },
+  snapshotPathTemplate: "{testDir}/../__screenshots__/{testFileName}/{arg}{ext}",
   retries: 0,
   reporter: [["list"]],
   use: {
@@ -51,11 +56,12 @@ export default defineConfig({
         url: BASE_URL,
         reuseExistingServer: !process.env.CI,
         timeout: 120_000,
-        // Demo-only mode: memory store, rules-only pals, fixture prices and the
-        // mock gateway, whatever keys the shell or .env.local carry. The suite
-        // never spends Claude or PayPal calls. A real-mode run is a manual job
-        // against a server you start yourself, through E2E_BASE_URL.
-        env: { ...process.env, PAY_PALS_DEMO_ONLY: "1" },
+        // Demo-only mode, on a pinned environment: memory store, rules-only
+        // pals, fixture prices and the mock gateway, and nothing a checkout's
+        // .env.local carries. The suite never spends Claude or PayPal calls,
+        // and it renders the same pages in every checkout. A real-mode run is
+        // a manual job against a server you start yourself, through E2E_BASE_URL.
+        env: E2E_SERVER_ENV,
       }
     : undefined,
 });

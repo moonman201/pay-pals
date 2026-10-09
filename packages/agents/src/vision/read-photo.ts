@@ -134,14 +134,23 @@ export async function readPhotos(photos: Photo[], deps: ReadPhotoDeps): Promise<
   return readings;
 }
 
-/** One plain sentence on what was looked at. Empty when there were no photos. */
-export function describeLooking(readings: PhotoReading[], noun: string): string | null {
+/**
+ * One plain sentence on what was looked at. Empty when there were no photos.
+ * In public mode (a presentation flag, see presentation.ts) only the part
+ * about photos that were read is kept; nothing is said about files that
+ * could not be loaded, and nothing at all when nothing was read.
+ */
+export function describeLooking(readings: PhotoReading[], noun: string, publicMode = false): string | null {
   const n = readings.length;
   if (n === 0) return null;
   const plural = (count: number) => (count === 1 ? noun : `${noun}s`);
   const read = readings.filter((r) => r.imageStatus === "read").length;
   const notLoaded = readings.filter((r) => r.imageStatus === "not_loaded").length;
   const failed = readings.filter((r) => r.imageStatus === "model_failed").length;
+  if (publicMode) {
+    if (read === 0) return null;
+    return read === n ? `I looked at the ${n === 1 ? noun : `${n} ${noun}s`}.` : `I looked at ${read} of the ${n} ${noun}s.`;
+  }
   if (readings.every((r) => r.imageStatus === "no_model")) {
     return `The vision model was not available, so this check used the ${plural(n)}'s description${n === 1 ? "" : "s"}.`.replace(`${noun}s's`, `${noun}s'`);
   }

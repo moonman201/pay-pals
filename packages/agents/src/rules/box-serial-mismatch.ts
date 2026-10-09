@@ -17,7 +17,7 @@ export const boxSerialMismatchRule: Rule = ({ card }) => {
     flag(
       "OTHER",
       "caution",
-      `serial: ${card.serial}, boxSerial: ${card.boxSerial}`,
+      `Serial on the item ${card.serial}; serial on the box label ${card.boxSerial}`,
       "The serial on the item does not match the serial on its box label, so ask the seller why before you pay.",
     ),
   ];

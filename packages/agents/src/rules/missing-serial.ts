@@ -15,7 +15,7 @@ export const missingSerialRule: Rule = ({ card }) => {
     flag(
       "MISSING_SERIAL",
       "caution",
-      "serial: none on the card",
+      "No serial number on the card",
       "There is no serial number on the card, so there is no way to prove the item that arrives is the one you paid for.",
     ),
   ];

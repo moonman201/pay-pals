@@ -16,7 +16,7 @@ export function Panel({
   accent?: boolean;
 }) {
   return (
-    <section className={`rounded-xl border border-line bg-white shadow-sm ${className}`}>
+    <section className={`rounded-xl border border-line bg-surface shadow-sm ${className}`}>
       {title ? (
         <header
           className={`flex items-center justify-between gap-3 rounded-t-xl border-b px-4 py-3 ${

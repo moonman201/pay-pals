@@ -5,6 +5,7 @@ import { useState } from "react";
 import { formatTime } from "@/lib/format";
 import { actorLabel } from "@/lib/labels";
 import type { Role } from "@/lib/role";
+import { PalAvatar } from "../pal/PalAvatar";
 import { PhotoGrid } from "../photos/PhotoGrid";
 import { Button } from "../ui/Button";
 import { Panel } from "../ui/Panel";
@@ -29,8 +30,9 @@ export function SharedChat({ deal, role, messages, onSend }: Props) {
           const mine = m.author === role;
           const pal = m.author === "buyer_pal" || m.author === "seller_pal";
           return (
-            <li key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
-              <div className={`max-w-[85%] rounded-xl px-3 py-2 ${mine ? "bg-[var(--accent)] text-[var(--accent-contrast)]" : pal ? "border border-dashed border-line bg-wash" : "bg-wash"}`}>
+            <li key={m.id} className={`flex gap-2 `}>
+              {pal ? <PalAvatar pal={m.author === "buyer_pal" ? "buyer" : "seller"} size={24} className="mt-1.5" /> : null}
+              <div className={`max-w-[85%] rounded-xl px-3 py-2 `}>
                 <p className={`text-[11px] font-semibold ${mine ? "opacity-80" : "text-muted"}`}>{actorLabel(m.author, deal)}</p>
                 <p className="text-sm leading-relaxed">{m.text}</p>
                 {m.photos.length > 0 ? (

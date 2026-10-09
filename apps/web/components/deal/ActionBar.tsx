@@ -5,8 +5,10 @@ import Link from "next/link";
 import { useState } from "react";
 import { agreeLabel, allowedActions, hasAgreed, isWaitingOnOther, type ActionId, type Agreement } from "@/lib/deal/actions";
 import { BLOCKED_SENTENCE, CAUTION_CHECKBOX, gateFor, STOP_CHECKBOX, stopWarning } from "@/lib/deal/override";
+import { reviewStages } from "@/lib/deal/working-stages";
 import { otherRole, type Role } from "@/lib/role";
 import { Button, type ButtonVariant } from "../ui/Button";
+import { WorkingStatus } from "../ui/WorkingStatus";
 import { Panel } from "../ui/Panel";
 
 interface Props {
@@ -22,14 +24,15 @@ interface Props {
   cardChangedSinceAgree: boolean;
   /** In INVITED: there is a refusal or a pasted reply for the Buyer Pal to review. */
   refusalToReview?: boolean;
+  /** The card carries a cert number, so the pal has a cert to check while the buyer waits. */
+  hasCert?: boolean;
   onAction: (id: ActionId, opts?: { override?: boolean }) => void;
 }
 
 const VARIANT: Partial<Record<ActionId, ButtonVariant>> = { cancel: "danger", report_issue: "danger", complete: "primary" };
 
-/** What to say under the buttons while a slow move runs. Claude reviews can take ten seconds or more. */
+/** What to say under the buttons while a quick move runs. The review has staged lines of its own. */
 const WORKING_NOTES: Partial<Record<ActionId, string>> = {
-  review: "Your pal is reading the chat and checking prices. This can take a few seconds.",
   agree: "Recording your agreement.",
   report_issue: "Opening the issue and building the evidence pack.",
 };
@@ -42,7 +45,7 @@ const ENDINGS: Partial<Record<DealState, string>> = {
 };
 
 /** The moves this side can make right now, straight from the transition table. */
-export function ActionBar({ state, role, verdict, dealId, busy, hasLockedCard, agreement, cardVersion, cardChangedSinceAgree, refusalToReview = false, onAction }: Props) {
+export function ActionBar({ state, role, verdict, dealId, busy, hasLockedCard, agreement, cardVersion, cardChangedSinceAgree, refusalToReview = false, hasCert = false, onAction }: Props) {
   const [understood, setUnderstood] = useState(false);
   const other = otherRole(role);
   const agreeing = state === "REVIEWED" && cardVersion > 0;
@@ -63,7 +66,7 @@ export function ActionBar({ state, role, verdict, dealId, busy, hasLockedCard, a
       <Panel title="Next step" accent>
         <p className="text-sm">{ENDINGS[state]}</p>
         {hasLockedCard ? (
-          <Link href={`/deals/${dealId}/evidence?as=${role}`} className="mt-2 inline-block text-sm font-semibold text-[var(--accent-ink)] underline-offset-2 hover:underline">
+          <Link href={`/deals/${dealId}/evidence?as=${role}`} className="mt-1 inline-flex min-h-11 items-center text-sm font-semibold text-[var(--accent-ink)] underline-offset-2 hover:underline">
             Open the evidence pack
           </Link>
         ) : null}
@@ -75,7 +78,7 @@ export function ActionBar({ state, role, verdict, dealId, busy, hasLockedCard, a
     <Panel title="Next step" accent>
       {gate === "blocked" ? <p className="mb-3 text-sm font-semibold text-stop">{BLOCKED_SENTENCE}</p> : null}
       {gate === "stop_override" && verdict ? (
-        <div role="alert" className="mb-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-ink">
+        <div role="alert" className="mb-3 rounded-lg border border-stop-line bg-stop-soft p-3 text-sm text-ink">
           {stopWarning(verdict).map((line) => (
             <p key={line} className="mb-1 last:mb-0">
               {line}
@@ -108,6 +111,7 @@ export function ActionBar({ state, role, verdict, dealId, busy, hasLockedCard, a
           );
         })}
       </div>
+      {busy === "review" ? <WorkingStatus stages={reviewStages(hasCert)} /> : null}
       {busy && WORKING_NOTES[busy as ActionId] ? (
         <p role="status" aria-live="polite" className="mt-3 text-sm text-[var(--accent-ink)]">
           {WORKING_NOTES[busy as ActionId]}
@@ -118,13 +122,13 @@ export function ActionBar({ state, role, verdict, dealId, busy, hasLockedCard, a
         <p className="mt-3 text-sm text-muted">
           {state === "INVITED" || (state === "REVIEWED" && cardVersion === 0) ? (
             <>Waiting for the seller to join and add photos. In demo mode you can open the{" "}
-              <Link href={`/deals/${dealId}/join?as=seller`} className="font-semibold text-[var(--accent-ink)] underline-offset-2 hover:underline">
+              <Link href={`/deals/${dealId}/join?as=seller`} className="inline-flex min-h-11 items-center font-semibold text-[var(--accent-ink)] underline-offset-2 hover:underline">
                 seller&apos;s join page
               </Link>{" "}
               yourself.</>
           ) : (
             <>Waiting for the {other}. In demo mode you can{" "}
-              <Link href={`/deals/${dealId}?as=${other}`} className="font-semibold text-[var(--accent-ink)] underline-offset-2 hover:underline">
+              <Link href={`/deals/${dealId}?as=${other}`} className="inline-flex min-h-11 items-center font-semibold text-[var(--accent-ink)] underline-offset-2 hover:underline">
                 switch to the {other} view
               </Link>{" "}
               and make that move yourself.</>
