@@ -97,7 +97,14 @@ export function compareCertRecord(card: ItemCard, record: CertRecord): CertCompa
   const evidence = `Cert ${cert} on the card for ${cardLabel}; ${grader} says ${recordLabel}`;
 
   if (!gradeDiffers && !yearDiffers && !subjectDiffers) {
-    return { matches: true, explanation: `${grader} confirms cert ${cert}: ${record.subject}, grade ${record.grade ?? "not stated"}.`, evidence, overlap };
+    const subject = record.subject.slice(0, 90);
+    return {
+      matches: true,
+      explanation:
+        `${grader} has a record for cert ${cert} that matches this card (${subject}, grade ${record.grade ?? "not stated"}). That shows the slab exists, not that this seller is holding it.`.slice(0, 300),
+      evidence,
+      overlap,
+    };
   }
 
   const reasons: string[] = [];

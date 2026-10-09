@@ -31,7 +31,7 @@ import { buildGroundingCorpus } from "./grounding";
 import { mergeModelReview } from "./merge-flags";
 import { photoFactsBlock } from "./photo-facts";
 import { findReusedPhotos, type PhotoMatchDeps } from "./photo-match";
-import { proofQuestion, withProofQuestion } from "./proof-question";
+import { datedNoteQuestion, serialCloseUpQuestion, withProofQuestions } from "./proof-question";
 import { ModelReviewSchema, REVIEW_TOOL, type ModelReview } from "./review-tool";
 
 export const MAX_QUESTIONS = 3;
@@ -83,7 +83,8 @@ const SYSTEM = [
   "Say only what was examined. The photo block tells you which photos were read by the vision model; a caption is the seller's claim, not something you saw. The cert block tells you whether PSA was contacted; never say PSA's database was checked unless it says so.",
   "When the rules raised nothing and the price sits in the market range, the verdict is go unless the chat itself contains something the rules missed. Do not add a flag to justify caution.",
   "Questions for the seller: at most three, and prefer things the buyer can act on, such as a photo of a specific part, the serial, or a receipt. If the card already answers it, do not ask.",
-  "For used electronics, proof that it powers on and a system or settings screen that shows the serial are fair things to ask for when the card does not show them (for a wearable, battery health). For a graded collectible, the cert check below is the proof; repeat its result in your message.",
+  "For used electronics, a close-up of the serial label on the item itself is a fair thing to ask for when the card has no serial of its own; a serial on the box is not the item's serial.",
+  "For a graded item, a cert that matches means the grader has a record for that slab. It does not mean this seller is holding it, and it says nothing about the seller. Say both halves. The photo that settles it is the slab next to a handwritten note with the seller's name and today's date. Never write the words verified or authentic.",
   "A seller who refuses the Pay Pals invite or will only take Friends and Family has shown you the strongest scam sign there is. Say so plainly.",
   "Pay Pals only ever pays through a PayPal Goods and Services checkout. Any request to pay another way ends the deal.",
   "Writing rules: plain words, short sentences, no em dashes, no exclamation marks, no marketing voice. Say what to do next.",
@@ -149,14 +150,16 @@ function certLine(card: ItemCard | null, certCheck: CertCheck | null, lookupFail
     return `Cert check (fixed fact): ${certCheck.explanation} PSA was not contacted. Say exactly that in your message; do not say PSA was checked, do not mention PSA's database, and do not say what PSA found.`;
   }
   const source = certCheck.record.provider === "psa" ? "PSA was contacted for this record." : "This is a demo record standing in for PSA, not a live lookup. Say demo record; never say PSA's database.";
-  return `Cert check (fixed fact): ${certCheck.explanation} ${source}${certCheck.matches ? " Include the confirmation sentence in your message." : ""}`;
+  const matched = certCheck.matches
+    ? " Put that sentence in your message, both halves of it: the record matches the card, and that does not show this seller has the slab."
+    : "";
+  return `Cert check (fixed fact): ${certCheck.explanation} ${source}${matched}`;
 }
 
 function fallbackQuestions(card: ItemCard | null, flags: RedFlag[]): string[] {
   if (!card || overallFromFlags(flags) === "stop") return [];
   const questions: string[] = [];
-  if (!card.serial && !card.certNumber) questions.push("Please add a clear photo of the serial on the item itself.");
-  if (flags.some((f) => f.code === "STOCK_OR_REUSED_PHOTO")) questions.push("Please add a photo of the actual item next to a note with today's date.");
+  if (flags.some((f) => f.code === "STOCK_OR_REUSED_PHOTO")) questions.push("Please add a photo of the item itself, in your own hands, taken today.");
   return questions;
 }
 
@@ -293,10 +296,11 @@ export async function reviewCard(card: ItemCard | null, chat: Message[], context
   // Collapse again after the merge: the model may have added a payment code of its own.
   const flags = collapsePaymentFlags(mergeModelReview(ruleFlags, review, buildGroundingCorpus(card, chat)));
   const overall = overallFromFlags(flags);
-  // The proof question is deterministic and comes first; the model's questions, or the rules-only ones, follow.
-  const proof = overall === "stop" ? null : proofQuestion(card);
+  // Our own questions are deterministic and come first; the model's, or the rules-only ones, follow.
+  // The dated-note ask stands even on a stop: it is the one answer that would change the verdict.
+  const ours = [datedNoteQuestion(card), overall === "stop" ? null : serialCloseUpQuestion(card)];
   const modelQuestions = review?.questions_for_seller ?? [];
-  const questionsForSeller = pickQuestions(withProofQuestion(proof, modelQuestions.length > 0 ? modelQuestions : fallbackQuestions(card, flags)));
+  const questionsForSeller = pickQuestions(withProofQuestions(ours, modelQuestions.length > 0 ? modelQuestions : fallbackQuestions(card, flags)));
   const body = pass.message ? plainCopy(pass.message) : fallbackMessage(card, flags, priceCheck, certCheck, certLookupFailed);
   const palMessage = sentences(describeLooking(readings, "card photo", deps.publicMode === true), body);
 

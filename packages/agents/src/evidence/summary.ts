@@ -111,7 +111,7 @@ const SYSTEM = [
   "State what was agreed, what was paid, what was shipped and what arrived, in that order, using only the facts given. Keep every identifier (serials, order ids, tracking numbers) exactly as written.",
   "Write short paragraphs separated by a blank line, two or three sentences each, in this order: the deal and the item card; the Buyer Pal's review and anything the seller never answered; the payment; the shipping; what arrived; the history check. Leave out a paragraph when there is nothing to say for it.",
   "No title, no heading, no markdown of any kind: no stars, no hashes, no backticks, no bullet or numbered lists. Plain sentences only.",
-  "Plain words, short sentences, no em dashes, no exclamation marks, no opinion about who is at fault.",
+  "Plain words, short sentences, no em dashes, no exclamation marks, no opinion about who is at fault. Never write the words verified or authentic: say what a check showed and what it did not show.",
 ].join("\n");
 
 export async function writeSummary(input: EvidenceInput, client: ClaudeClient | null, publicMode = false): Promise<string> {

@@ -98,7 +98,7 @@ describe("mergeModelReview grounding", () => {
   it("keeps a model-added flag that quotes a real seller line, and still applies the cap", () => {
     const flags = mergeModelReview([], {
       ...empty,
-      additional_flags: [{ code: "OTHER", severity: "stop", evidence: 'Seller wrote: "Everything is on the card my pal built. Ask away."', explanation: "The seller will not answer directly." }],
+      additional_flags: [{ code: "OTHER", severity: "stop", evidence: 'Seller wrote: "Yes it is. Card is filled in, ask me anything."', explanation: "The seller points at the card instead of answering." }],
     }, corpus);
     expect(flags).toHaveLength(1);
     expect(flags[0]).toMatchObject({ code: "OTHER", severity: "caution", raisedByRule: false });

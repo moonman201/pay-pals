@@ -11,7 +11,7 @@ export const DEFAULT_MAX_LENGTH = 900;
 /**
  * Removes the markdown a model reaches for even when told not to: bold and
  * italic stars, underscores, headings, backticks, list bullets, block quotes.
- * A hash that is part of a card number ("Charizard Holo #4") is left alone,
+ * A hash that is part of a card number ("Gengar & Mimikyu GX #038") is left alone,
  * because a heading marker is always followed by a space.
  */
 export function stripMarkdown(text: string): string {

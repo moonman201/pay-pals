@@ -5,10 +5,13 @@
  *   - the serial must be read off the item itself. A serial on a box label or
  *     any packaging never satisfies the item serial on the locked card;
  *   - a different item serial or model number means matches false;
- *   - when the card has a serial and none can be read off the item, matches
- *     is false. If the photos show the item is not there (vision's
- *     item_present false), the serial mismatch reads "not present" and a
- *     second mismatch on "other" quotes the photo.
+ *   - when the photos show no item at all, that is one mismatch on "other":
+ *     the card describes an item and the box arrived without it. There is
+ *     nothing to read a serial from, and the number on the box label does
+ *     not stand in for the item;
+ *   - when something did arrive but no serial can be read off the item,
+ *     matches is false on "serial". The expectation is the card's own serial,
+ *     or the box label's number when the card never carried the item's.
  * The pal message always says what was looked at: the images themselves, or
  * the photo descriptions when an image could not be loaded.
  */
@@ -46,22 +49,38 @@ function first<T>(readings: PhotoReading[], pick: (r: PhotoReading) => T | null)
 export function compareToCard(card: ItemCard, observed: ArrivalCheck["observed"], evidence: ArrivalEvidence): Mismatch[] {
   const mismatches: Mismatch[] = [];
 
-  if (card.serial && observed.serial && normalizeSerial(card.serial) !== normalizeSerial(observed.serial)) {
+  // An empty box is a missing item, not a serial that differs: there is nothing there to read a serial from,
+  // so the card's own description is what the arrival contradicts. The number on the box label does not stand in.
+  if (evidence.missing) {
+    const caption = evidence.missing.photo.whatItShows;
+    mismatches.push({
+      field: "other",
+      expected: card.title,
+      observed: `nothing in the box but packaging: "${caption}"`,
+      explanation: `The locked card describes ${card.title}, and the box arrived without it: "${caption}"`.slice(0, 300),
+    });
+    return mismatches;
+  }
+
+  // The number to match against is the one on the item when the card has it, otherwise the one off the box label.
+  const expectedSerial = card.serial ?? card.boxSerial ?? null;
+  const fromBoxLabel = !card.serial && card.boxSerial !== null && card.boxSerial !== undefined;
+  const expectedLabel = expectedSerial !== null && fromBoxLabel ? `${expectedSerial} (box label; the card never carried the console's own serial)` : expectedSerial;
+
+  if (expectedSerial && observed.serial && normalizeSerial(expectedSerial) !== normalizeSerial(observed.serial)) {
     mismatches.push({
       field: "serial",
-      expected: card.serial,
+      expected: expectedLabel!,
       observed: observed.serial,
-      explanation: `The serial on the item that arrived is ${observed.serial}. The locked card says ${card.serial}. This is a different unit.`,
+      explanation: `The serial on the item that arrived is ${observed.serial}. The locked card says ${expectedSerial}. This is a different unit.`,
     });
-  } else if (card.serial && !observed.serial && evidence.photosProvided) {
+  } else if (expectedSerial && !observed.serial && evidence.photosProvided) {
     const labelNote = evidence.packagingSerial ? ` The box label reads ${evidence.packagingSerial}, but a label is not the item and does not count.` : "";
     mismatches.push({
       field: "serial",
-      expected: card.serial,
-      observed: evidence.missing ? "not present, box arrived empty" : "not readable in the arrival photos",
-      explanation: evidence.missing
-        ? `The photos show the item is not there, so there is no serial to compare against ${card.serial}.${labelNote}`
-        : `No serial could be read off the item itself, so it cannot be matched to ${card.serial}.${labelNote}`,
+      expected: expectedLabel!,
+      observed: "not readable in the arrival photos",
+      explanation: `No serial could be read off the item itself, so it cannot be matched to ${expectedSerial}.${labelNote}`,
     });
   }
 
@@ -87,15 +106,6 @@ export function compareToCard(card: ItemCard, observed: ArrivalCheck["observed"]
       expected: card.brand,
       observed: observed.brand,
       explanation: `The item that arrived is branded ${observed.brand}. The locked card says ${card.brand}.`,
-    });
-  }
-
-  if (evidence.missing) {
-    mismatches.push({
-      field: "other",
-      expected: `${card.title} in the box`,
-      observed: `"${evidence.missing.photo.whatItShows}"`,
-      explanation: "The arrival photo shows the box without the item in it.",
     });
   }
 
@@ -127,7 +137,7 @@ export async function checkArrivalAgainstCard(card: ItemCard, arrivalPhotos: Pho
     describeLooking(readings, "arrival photo", deps.publicMode === true),
     matches && observed.serial ? `What arrived matches the locked card. Serial ${observed.serial} confirmed on the item itself.` : null,
     matches && !observed.serial && arrivalPhotos.length > 0 ? "Nothing contradicts the card, but the card has no serial to confirm." : null,
-    missing ? `The box arrived without the item. The locked card says serial ${card.serial ?? "unknown"} and there is no item in the photos to read it from.` : null,
+    missing ? `The box arrived without the item. The locked card describes ${card.title}, and there is no item in the photos.` : null,
     missing && box ? `The box label shows ${box.serial}, which does not count. A label is not the item.` : null,
     missing ? "I will build the evidence pack so you can open a PayPal dispute." : null,
     unreadable ? `I could not find a serial on the item itself, so I cannot confirm this is the unit on the card${box ? `. The box label shows ${box.serial}, which does not count` : ""}. Add a clear photo of the serial on the item.` : null,

@@ -1,8 +1,8 @@
 /**
  * Questions the Buyer Pal asked the seller that never got an answer before
  * payment. Deterministic. A question is any entry in a verdict's
- * questionsForSeller, or a buyer_pal line on the shared deal channel that
- * ends with a question mark. It counts as answered when, before the
+ * questionsForSeller, or the question sentence in a buyer_pal line on the
+ * shared deal channel. It counts as answered when, before the
  * payment_created event, the seller wrote anything on the deal channel, a
  * card_updated event happened, or the locked card is newer than the card
  * version the verdict reviewed.
@@ -33,6 +33,13 @@ function cleanQuestion(text: string): string {
   return text.replace(/^\s*buyer pal(?:\s+to\s+(?:the\s+)?seller)?\s*:\s*/i, "").trim();
 }
 
+/** The question in a buyer_pal line: the first sentence that ends in a question mark, without the prefix. */
+export function askedQuestion(text: string): string | null {
+  const cleaned = cleanQuestion(text);
+  const match = cleaned.match(/^[^?]*\?/);
+  return match ? match[0].trim() : null;
+}
+
 export function unansweredQuestions(input: EvidenceInput): string[] {
   const paymentAt = input.timeline.find((e) => e.kind === "payment_created")?.at ?? null;
   const beforePayment = (at: string) => paymentAt === null || at < paymentAt;
@@ -42,9 +49,9 @@ export function unansweredQuestions(input: EvidenceInput): string[] {
     for (const question of verdict.questionsForSeller) asked.push({ text: question, askedAt: verdict.createdAt, cardVersion: verdict.cardVersion });
   }
   for (const message of input.messages) {
-    if (message.channel === "deal" && message.author === "buyer_pal" && message.text.trim().endsWith("?")) {
-      asked.push({ text: cleanQuestion(message.text), askedAt: message.at, cardVersion: null });
-    }
+    if (message.channel !== "deal" || message.author !== "buyer_pal") continue;
+    const question = askedQuestion(message.text);
+    if (question) asked.push({ text: question, askedAt: message.at, cardVersion: null });
   }
 
   const sellerReplies = input.messages.filter((m) => m.channel === "deal" && m.author === "seller" && answersSomething(m)).map((m) => m.at);

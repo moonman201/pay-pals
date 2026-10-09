@@ -57,7 +57,7 @@ function expectNoRetailer(label: string, text: string): void {
 }
 
 async function priceCheck(): Promise<PriceCheck> {
-  return priceLookup.priceRange({ brand: "Sony", model: "PlayStation 5 disc edition, CFI-1215A", condition: "good" });
+  return priceLookup.priceRange({ brand: "Sony", model: "PlayStation 5 disc edition, CFI-1015A", condition: "good" });
 }
 
 describe("Channel3 sources", () => {

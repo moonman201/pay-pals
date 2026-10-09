@@ -22,11 +22,11 @@ const psaBody = {
     CertNumber: "12345678",
     SpecID: 1,
     LabelType: "with fugitive ink technology",
-    Year: "1999",
-    Brand: "POKEMON GAME",
+    Year: "2018",
+    Brand: "P.M. JPN. SUN & MOON",
     Category: "TCG Cards",
-    CardNumber: "4",
-    Subject: "CHARIZARD-HOLO",
+    CardNumber: "038",
+    Subject: "GENGAR & MIMIKYU GX TAG BOLT",
     Variety: "",
     GradeDescription: "GEM MT",
     CardGrade: "GEM MT 10",
@@ -40,7 +40,7 @@ describe("toCertRecord", () => {
   it("maps a PSA record to the contract", () => {
     const record = toCertRecord("12345678", psaBody, new Date().toISOString());
     expect(CertRecordSchema.safeParse(record).success).toBe(true);
-    expect(record).toMatchObject({ provider: "psa", certNumber: "12345678", subject: "1999 POKEMON GAME CHARIZARD-HOLO #4", grade: "GEM MT 10", year: "1999", brand: "POKEMON GAME" });
+    expect(record).toMatchObject({ provider: "psa", certNumber: "12345678", subject: "2018 P.M. JPN. SUN & MOON GENGAR & MIMIKYU GX TAG BOLT #038", grade: "GEM MT 10", year: "2018", brand: "P.M. JPN. SUN & MOON" });
     expect(record.raw).toEqual(psaBody);
   });
   it("maps no data to subject null", () => {
@@ -66,7 +66,7 @@ describe("createPsaCertLookup", () => {
     expect(psaCallCount() - before).toBe(1);
     expect(calls[0]!.url).toBe("https://api.psacard.com/publicapi/cert/GetByCertNumber/12345678");
     expect((calls[0]!.init!.headers as Record<string, string>).authorization).toBe("bearer secret-token");
-    expect(first.subject).toBe("1999 POKEMON GAME CHARIZARD-HOLO #4");
+    expect(first.subject).toBe("2018 P.M. JPN. SUN & MOON GENGAR & MIMIKYU GX TAG BOLT #038");
     expect(second.subject).toBe(first.subject);
   });
 
@@ -98,8 +98,8 @@ describe("createFixtureCertLookup", () => {
   it("answers the fixture cert and says not found otherwise", async () => {
     const lookup = createFixtureCertLookup();
     const known = await lookup.lookup(FAKE_SLAB_CERT);
-    expect(known.subject).toBe("2016 Pokemon XY Evolutions Charizard Holo #11");
-    expect(known.grade).toBe("7");
+    expect(known.subject).toBe("2018 P.M. JPN. SUN & MOON GENGAR & MIMIKYU GX TAG BOLT #038");
+    expect(known.grade).toBe("GEM MT 10");
     const unknown = await lookup.lookup("49172834");
     expect(unknown).toMatchObject({ provider: "fixture", certNumber: "49172834", subject: null, grade: null, raw: { notChecked: true } });
     expect(isNotChecked(unknown)).toBe(true);

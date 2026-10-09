@@ -8,13 +8,13 @@ const chatOnly = buildGroundingCorpus(null, fakeSlab.chat);
 
 describe("isGrounded", () => {
   it("accepts a quote from the chat, even with different quoting and case", () => {
-    expect(isGrounded('Seller wrote: "Everything is on the card my pal built."', clean)).toBe(true);
-    expect(isGrounded("seller said “IN THE NEXT HOUR OR IT GOES TO THE NEXT PERSON”", slab)).toBe(true);
-    expect(isGrounded("seller said “first to send Friends & Family gets it”", chatOnly)).toBe(true);
+    expect(isGrounded('Seller wrote: "Yes it is. Card is filled in, ask me anything."', clean)).toBe(true);
+    expect(isGrounded("seller said “I JUST DO FRIENDS AND FAMILY, IT'S QUICKER”", slab)).toBe(true);
+    expect(isGrounded("seller said “I just do Friends and Family, it's quicker”", chatOnly)).toBe(true);
   });
   it("accepts a card field quoted in plain words", () => {
-    expect(isGrounded("The PayPal account quickcash.deals.2026@example.com is not the seller", slab)).toBe(true);
-    expect(isGrounded("Asking price $750", slab)).toBe(true);
+    expect(isGrounded("The PayPal account cashdeals.quick2026@example.com is not the seller", slab)).toBe(true);
+    expect(isGrounded("Asking price $140", slab)).toBe(true);
     expect(isGrounded('The only caption is "Front of a PSA slab on a wooden table"', slab)).toBe(true);
     expect(isGrounded(`certNumber ${FAKE_SLAB_CERT}`, slab)).toBe(true);
     expect(isGrounded(`serial ${CLEAN_SERIAL}`, clean)).toBe(true);
@@ -25,7 +25,7 @@ describe("isGrounded", () => {
     expect(isGrounded("Seller has not said where it ships from.", clean)).toBe(false);
     expect(isGrounded("chat", clean)).toBe(false);
     expect(isGrounded("", clean)).toBe(false);
-    expect(isGrounded("Asking price $750", chatOnly)).toBe(false);
+    expect(isGrounded("Asking price $140", chatOnly)).toBe(false);
   });
   it("rejects evidence copied out of the prompt instead of the deal", () => {
     expect(isGrounded(`Photo block: all four photos, including "console-back-serial.jpg", are marked "Not looked at (the file could not be loaded)"`, clean)).toBe(false);
@@ -45,6 +45,6 @@ describe("isGrounded", () => {
     expect(isGrounded("I am sure that is all it takes to be good to go", clean)).toBe(false);
   });
   it("accepts a verbatim seller line even when it is short", () => {
-    expect(isGrounded('Seller wrote: "Sure, one second."', clean)).toBe(true);
+    expect(isGrounded('Seller wrote: "Sure, give me a second."', clean)).toBe(true);
   });
 });

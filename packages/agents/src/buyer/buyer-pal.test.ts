@@ -6,6 +6,7 @@ import { fakeClaude, promptText } from "../testing/fake-claude";
 import { says } from "../testing/builders";
 import { asFetched, pictureA, pictureANearDuplicate, pictureC } from "../testing/images";
 import { createBuyerPal } from "./buyer-pal";
+import { CONSOLE_SERIAL_QUESTION, DATED_NOTE_QUESTION } from "./proof-question";
 import { REFERENCE_RANGE_NOTE } from "./review";
 
 const priceLookup = createFixturePriceLookup();
@@ -16,7 +17,7 @@ const FORBIDDEN = "could not open the photo files";
 describe("BuyerPal.review on fake-slab", () => {
   const card = fakeSlab.cards.at(-1)!;
 
-  it("stops with the required flags, one payment flag and CERT_MISMATCH, even when the model returns no flags", async () => {
+  it("stops with the required flags, one payment flag and a cert that matches the card, even when the model returns no flags", async () => {
     const pal = createBuyerPal({ anthropic: fakeClaude(quietModel), priceLookup, certLookup });
     const { data: verdict, palMessage } = await pal.review(card, fakeSlab.chat, { seller: fakeSlab.seller });
     expect(VerdictSchema.safeParse(verdict).success).toBe(true);
@@ -26,8 +27,9 @@ describe("BuyerPal.review on fake-slab", () => {
     expect(codes).not.toContain("STOCK_OR_REUSED_PHOTO");
     expect(codes).not.toContain("MISSING_SERIAL");
     expect(verdict.overall).toBe("stop");
-    expect(verdict.priceCheck?.marketLow).toBe(3000);
-    expect(verdict.certCheck?.matches).toBe(false);
+    expect(verdict.priceCheck?.marketLow).toBe(305);
+    expect(codes).not.toContain("CERT_MISMATCH");
+    expect(verdict.certCheck?.matches).toBe(true);
     expect(verdict.certCheck?.record.certNumber).toBe(FAKE_SLAB_CERT);
     expect(palMessage).toBe(verdict.palMessage);
     expect(palMessage).not.toMatch(/[—!]/);
@@ -40,7 +42,6 @@ describe("BuyerPal.review on fake-slab", () => {
         { code: "FRIENDS_AND_FAMILY_REQUEST", severity: "info" },
         { code: "PRICE_FAR_BELOW_MARKET", severity: "info" },
         { code: "URGENCY_PRESSURE", severity: "info" },
-        { code: "CERT_MISMATCH", severity: "info" },
       ],
       explanations: [],
       questions_for_seller: ["Can you ship today?"],
@@ -54,7 +55,6 @@ describe("BuyerPal.review on fake-slab", () => {
     expect(codes).not.toContain("INVITE_REFUSED");
     expect(verdict.flags.find((f) => f.code === "FRIENDS_AND_FAMILY_REQUEST")!.severity).toBe("stop");
     expect(verdict.flags.find((f) => f.code === "PRICE_FAR_BELOW_MARKET")!.severity).toBe("stop");
-    expect(verdict.flags.find((f) => f.code === "CERT_MISMATCH")!.severity).toBe("stop");
     expect(verdict.flags.find((f) => f.code === "URGENCY_PRESSURE")!.severity).toBe("caution");
     expect(verdict.palMessage).toContain("Great deal, pay now.");
     expect(verdict.palMessage).toContain("The card photo could not be loaded, so this check used the photo description.");
@@ -64,16 +64,17 @@ describe("BuyerPal.review on fake-slab", () => {
     const offline = createBuyerPal({ anthropic: null, priceLookup, certLookup });
     const { data: verdict } = await offline.review(card, fakeSlab.chat);
     expect(verdict.overall).toBe("stop");
-    expect(verdict.questionsForSeller).toEqual([]);
-    expect(verdict.palMessage).toContain("a grading cert that does not match the card");
+    expect(verdict.questionsForSeller).toEqual([DATED_NOTE_QUESTION]);
+    expect(verdict.palMessage).toContain("That shows the slab exists, not that this seller is holding it.");
+    expect(verdict.palMessage).not.toMatch(/verif|authentic/i);
     expect(verdict.palMessage).toContain(REFERENCE_RANGE_NOTE);
 
     const model = fakeClaude(quietModel);
     await createBuyerPal({ anthropic: model, priceLookup, certLookup }).review(card, fakeSlab.chat);
     const shown = promptText(model.calls[0]!);
     expect(shown).toContain("Fixed facts");
-    expect(shown).toContain("CERT_MISMATCH");
     expect(shown).toContain("Cert check (fixed fact)");
+    expect(shown).toContain("that does not show this seller has the slab");
     expect(shown).toContain(REFERENCE_RANGE_NOTE);
   });
 
@@ -84,19 +85,21 @@ describe("BuyerPal.review on fake-slab", () => {
     expect(verdict.overall).toBe("stop");
   });
 
-  it("a matching PSA record adds no flag and the pal message says PSA confirms the cert", async () => {
+  it("a matching PSA record adds no flag and the pal message says what it does and does not show", async () => {
     const matching = {
       async lookup(certNumber: string) {
-        return { provider: "psa" as const, certNumber, subject: "1999 POKEMON GAME CHARIZARD-HOLO #4", grade: "GEM MT 10", year: "1999", brand: "POKEMON GAME", raw: null, checkedAt: new Date().toISOString() };
+        return { provider: "psa" as const, certNumber, subject: "2018 P.M. JPN. SUN & MOON GENGAR & MIMIKYU GX TAG BOLT #038", grade: "GEM MT 10", year: "2018", brand: "P.M. JPN. SUN & MOON", raw: null, checkedAt: new Date().toISOString() };
       },
     };
-    const honest = { ...card, askingPrice: 3400 };
+    const honest = { ...card, askingPrice: 420 };
     const chat = [says("buyer", "Hi, I sent the invite."), says("seller", "Joined. Photos are up.")];
     const { data: verdict, palMessage } = await createBuyerPal({ anthropic: null, priceLookup, certLookup: matching }).review(honest, chat);
     expect(verdict.overall).toBe("go");
     expect(verdict.flags).toEqual([]);
     expect(verdict.certCheck?.matches).toBe(true);
-    expect(palMessage).toContain(`PSA confirms cert ${FAKE_SLAB_CERT}: 1999 POKEMON GAME CHARIZARD-HOLO #4, grade GEM MT 10.`);
+    expect(palMessage).toContain(`PSA has a record for cert ${FAKE_SLAB_CERT} that matches this card`);
+    expect(palMessage).toContain("That shows the slab exists, not that this seller is holding it.");
+    expect(palMessage).not.toMatch(/verif|authentic/i);
   });
 
   it("J2: an unknown cert with the fixture lookup is not checked, raises no flag, and never claims a PSA lookup", async () => {
@@ -129,14 +132,15 @@ describe("BuyerPal.review on fake-slab", () => {
   });
 
   it("J2: the demo record for the fake slab still stops and says demo record; a real PSA not-found still stops", async () => {
-    const { data: demo } = await createBuyerPal({ anthropic: null, priceLookup, certLookup }).review(card, fakeSlab.chat);
+    const differentCard = { async lookup(certNumber: string) { return { ...fakeSlab.certRecord!, certNumber, subject: "2019 P.M. JPN. SUN & MOON PIKACHU & ZEKROM GX #054", grade: "7", year: "2019" }; } };
+    const { data: demo } = await createBuyerPal({ anthropic: null, priceLookup, certLookup: differentCard }).review(card, fakeSlab.chat);
     const demoFlag = demo.flags.find((f) => f.code === "CERT_MISMATCH")!;
     expect(demoFlag.severity).toBe("stop");
     expect(demoFlag.explanation).toContain("PSA (demo record) cert");
     expect(demo.certCheck?.explanation).toContain("demo record");
 
     const psaNotFound = { async lookup(certNumber: string) { return { provider: "psa" as const, certNumber, subject: null, grade: null, year: null, brand: null, raw: { IsValidRequest: true, ServerMessage: "No data found" }, checkedAt: new Date().toISOString() }; } };
-    const { data: real } = await createBuyerPal({ anthropic: null, priceLookup, certLookup: psaNotFound }).review({ ...card, askingPrice: 3400 }, fakeSlab.chat.slice(0, 2));
+    const { data: real } = await createBuyerPal({ anthropic: null, priceLookup, certLookup: psaNotFound }).review({ ...card, askingPrice: 420 }, fakeSlab.chat.slice(0, 2));
     const realFlag = real.flags.find((f) => f.code === "CERT_MISMATCH")!;
     expect(realFlag.severity).toBe("stop");
     expect(realFlag.explanation).toBe(`PSA has no record for cert ${FAKE_SLAB_CERT}, so the slab label cannot be trusted.`);
@@ -320,7 +324,7 @@ describe("BuyerPal.review on clean-ps5", () => {
 
   it("keeps a model flag that quotes a real seller line, at the severity it chose", async () => {
     const model = fakeClaude(() => ({
-      additional_flags: [{ code: "OTHER", severity: "caution", evidence: 'Seller wrote: "Everything is on the card my pal built. Ask away."', explanation: "The seller points at the card instead of answering." }],
+      additional_flags: [{ code: "OTHER", severity: "caution", evidence: 'Seller wrote: "Yes it is. Card is filled in, ask me anything."', explanation: "The seller points at the card instead of answering." }],
       severity_raises: [],
       explanations: [],
       questions_for_seller: ["Where will it ship from?", "How long have you owned it?", "Can you add a photo of the HDMI port?", "Any warranty left?", "Do you have the receipt?"],
@@ -334,52 +338,60 @@ describe("BuyerPal.review on clean-ps5", () => {
   });
 
   it("raises a grounded caution when the item serial and the box label serial differ", async () => {
-    const card = { ...cleanPs5.cards[0]!, boxSerial: "AH900000001" };
+    const card = { ...cleanPs5.cards[1]!, boxSerial: "AJ100000001" };
     const { data: verdict } = await createBuyerPal({ anthropic: null, priceLookup }).review(card, cleanPs5.chat.slice(0, 2));
     expect(verdict.overall).toBe("caution");
     expect(verdict.flags).toHaveLength(1);
     expect(verdict.flags[0]).toMatchObject({ code: "OTHER", severity: "caution", raisedByRule: true });
     expect(verdict.flags[0]!.evidence).toContain(CLEAN_SERIAL);
-    expect(verdict.flags[0]!.evidence).toContain("AH900000001");
+    expect(verdict.flags[0]!.evidence).toContain("AJ100000001");
   });
 
   it("tells the model what is fair to ask for with used electronics", async () => {
     const model = fakeClaude(quietModel);
     await createBuyerPal({ anthropic: model, priceLookup }).review(cleanPs5.cards[0]!, cleanPs5.chat.slice(0, 2));
     const shown = promptText(model.calls[0]!);
-    expect(shown).toContain("proof that it powers on and a system or settings screen that shows the serial are fair things to ask for when the card does not show them");
+    expect(shown).toContain("a close-up of the serial label on the item itself is a fair thing to ask for");
     expect(shown).toContain("A missing answer, an unasked question or something you merely wish you knew is never a flag.");
   });
 
-  it("clean-ps5 v1 with rules only is go and asks only for the Console Information screen", async () => {
+  it("clean-ps5 v1 with rules only is go and asks only for the serial close-up", async () => {
     const { data: verdict } = await createBuyerPal({ anthropic: null, priceLookup }).review(cleanPs5.cards[0]!, cleanPs5.chat.slice(0, 2));
     expect(verdict.overall).toBe("go");
-    expect(verdict.questionsForSeller).toEqual(["Can you add a photo of the Console Information screen showing the serial?"]);
+    expect(verdict.questionsForSeller).toEqual([CONSOLE_SERIAL_QUESTION]);
   });
 });
 
 describe("BuyerPal.checkArrival", () => {
-  it("empty-box from captions alone: matches false because no serial is visible on an item, the box label does not count, and it says the vision model was not available", async () => {
+  it("empty-box from captions alone: an empty box is a missing item, and the box label does not stand in for it", async () => {
     const pal = createBuyerPal({ anthropic: null, priceLookup });
-    const { data: check, palMessage } = await pal.checkArrival(emptyBox.cards[0]!, emptyBox.arrivalPhotos);
+    const card = emptyBox.cards[0]!;
+    const { data: check, palMessage } = await pal.checkArrival(card, emptyBox.arrivalPhotos);
     expect(ArrivalCheckSchema.safeParse(check).success).toBe(true);
     expect(check.matches).toBe(false);
-    expect(check.mismatches.map((m) => m.field)).toEqual(["serial"]);
-    const serial = check.mismatches[0]!;
-    expect(serial.expected).toBe(EMPTY_BOX_LOCKED_SERIAL);
-    expect(serial.observed).toBe("not readable in the arrival photos");
-    expect(serial.explanation).toContain(`box label reads ${EMPTY_BOX_LOCKED_SERIAL}`);
+    expect(check.mismatches.map((m) => m.field)).toEqual(["other"]);
+    expect(emptyBox.expectedArrival!.mismatchFields).toEqual(["other"]);
     for (const field of emptyBox.expectedArrival!.mismatchFields) expect(check.mismatches.map((m) => m.field)).toContain(field);
+    const missing = check.mismatches[0]!;
+    expect(missing.expected).toBe(card.title);
+    expect(missing.observed).toContain("Two white foam inserts and a crumpled clear plastic bag. Nothing between them.");
+    expect(missing.explanation).toContain(`The locked card describes ${card.title}`);
+    expect(missing.explanation).toContain("the box arrived without it");
+    // The card never carried the console's own serial, so nothing claims one arrived.
+    expect(card.serial).toBeNull();
     expect(check.observed.serial).toBeNull();
+    expect(JSON.stringify(check.mismatches)).not.toContain(EMPTY_BOX_LOCKED_SERIAL);
     expect(palMessage).toContain("The vision model was not available, so this check used the arrival photos' descriptions.");
+    expect(palMessage).toContain("The box arrived without the item.");
     expect(palMessage).toContain(`The box label shows ${EMPTY_BOX_LOCKED_SERIAL}, which does not count`);
+    expect(palMessage).toContain("dispute");
     expect(palMessage).not.toContain(FORBIDDEN);
   });
 
-  it("empty-box with vision: item_present false drives not present and a second mismatch quoting the photo", async () => {
+  it("empty-box with vision: item_present false drives the missing-item mismatch", async () => {
     const model = fakeClaude((params) => {
       const shown = promptText(params);
-      if (shown.includes("Barcode label on the box that arrived")) return { brand: "Sony", model: "PlayStation 5", serial: EMPTY_BOX_LOCKED_SERIAL, serial_on: "packaging", item_present: null };
+      if (shown.includes("Registration label on the box that arrived")) return { brand: "Sony", model: "PlayStation 5", serial: EMPTY_BOX_LOCKED_SERIAL, serial_on: "packaging", item_present: null };
       return { brand: null, model: null, serial: null, serial_on: null, item_present: false };
     });
     const fetched: string[] = [];
@@ -394,9 +406,9 @@ describe("BuyerPal.checkArrival", () => {
     expect(model.calls[0]!.messages[0]!.content[0]).toMatchObject({ type: "image" });
     expect(check.matches).toBe(false);
     expect(check.observed.serial).toBeNull();
-    expect(check.mismatches.map((m) => m.field)).toEqual(["serial", "other"]);
-    expect(check.mismatches[0]!.observed).toBe("not present, box arrived empty");
-    expect(check.mismatches[1]!.observed).toContain("Grey foam insert inside");
+    expect(check.mismatches.map((m) => m.field)).toEqual(["other"]);
+    expect(check.mismatches[0]!.observed).toContain("Two white foam inserts");
+    expect(check.mismatches[0]!.explanation).toContain("the box arrived without it");
     expect(palMessage).toContain("I looked at the 2 arrival photos.");
     expect(palMessage).toContain("The box arrived without the item.");
     expect(palMessage).not.toContain("description");
@@ -446,9 +458,9 @@ describe("BuyerPal.checkArrival", () => {
 
   it("a different serial on the item is named as a different unit", async () => {
     const pal = createBuyerPal({ anthropic: null, priceLookup });
-    const photos = [{ ...cleanPs5.arrivalPhotos[0]!, whatItShows: "Back of a white PlayStation 5 console. The label shows serial AJ204567113." }];
+    const photos = [{ ...cleanPs5.arrivalPhotos[0]!, whatItShows: "Back of a white PlayStation 5 console. The label shows serial AJ100000001." }];
     const { data: check } = await pal.checkArrival(cleanPs5.cards.at(-1)!, photos);
     expect(check.matches).toBe(false);
-    expect(check.mismatches[0]).toMatchObject({ field: "serial", expected: CLEAN_SERIAL, observed: "AJ204567113" });
+    expect(check.mismatches[0]).toMatchObject({ field: "serial", expected: CLEAN_SERIAL, observed: "AJ100000001" });
   });
 });

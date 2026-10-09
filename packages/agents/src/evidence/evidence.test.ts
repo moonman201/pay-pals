@@ -40,8 +40,9 @@ describe("buildEvidencePack", () => {
     ]);
     expect(pack.summary).toContain("2 arrival photos taken by the buyer");
     expect(pack.summary).toContain(emptyBox.arrivalPhotos[0]!.whatItShows);
-    expect(pack.summary).toContain(`serial ${EMPTY_BOX_LOCKED_SERIAL}, box label serial ${EMPTY_BOX_LOCKED_SERIAL}`);
-    expect(pack.summary).toContain("not readable in the arrival photos");
+    expect(pack.summary).toContain(`serial none recorded, box label serial ${EMPTY_BOX_LOCKED_SERIAL}`);
+    expect(pack.summary).toContain("other: card says Sony PlayStation 5 disc edition");
+    expect(pack.summary).toContain("nothing in the box but packaging");
     expect(pack.summary).toContain("4 shared chat messages, 0 pal messages and");
     expect(palMessage).toContain("4 shared chat messages,");
     const withPal = await buildEvidencePack({ ...input, messages: [...input.messages, { ...input.messages[0]!, id: "p1", channel: "buyer_pal", author: "buyer_pal", text: "Looks fine." }, { ...input.messages[0]!, id: "p2", channel: "seller_pal", author: "seller_pal", text: "Card built." }] }, { anthropic: null });
@@ -49,9 +50,9 @@ describe("buildEvidencePack", () => {
     expect(withPal.palMessage).toContain("4 shared chat messages and 2 pal messages,");
 
     // Scenario 3: the unanswered question and the ship-time flag are both in the pack and the summary.
-    expect(pack.unansweredQuestions).toEqual(["Can you add a photo of the Console Information screen showing the serial?"]);
+    expect(pack.unansweredQuestions).toEqual(["Can you add a close-up of the serial label on the console itself?"]);
     expect(pack.shipmentFlags).toEqual(emptyBox.shipment!.flags);
-    expect(pack.summary).toContain('The Buyer Pal asked the seller before payment: "Can you add a photo of the Console Information screen showing the serial?" The seller never answered.');
+    expect(pack.summary).toContain('The Buyer Pal asked the seller before payment: "Can you add a close-up of the serial label on the console itself?" The seller never answered.');
     expect(pack.summary).toContain("At ship time the Buyer Pal raised MISSING_PACKING_PHOTO (caution): The seller shipped without the photo of the item going into the box, so there is no proof of what was packed.");
     expect(palMessage).toContain("The seller never answered one question the Buyer Pal asked before payment.");
     expect(palMessage).toContain("The seller shipped without the required packing photo.");
@@ -127,8 +128,8 @@ describe("buildEvidencePack", () => {
     };
     const { data: pack } = await buildEvidencePack(input, { anthropic: null });
     expect(pack.summary).toContain(`The card carries grading cert ${FAKE_SLAB_CERT}, grade PSA 10.`);
-    expect(pack.summary).toContain("Grading cert check: PSA (demo record) cert");
-    expect(pack.summary).toContain("2016 Pokemon XY Evolutions Charizard Holo #11");
+    expect(pack.summary).toContain("Grading cert check: PSA (demo record) has a record for cert");
+    expect(pack.summary).toContain("2018 P.M. JPN. SUN & MOON GENGAR & MIMIKYU GX TAG BOLT #038");
   });
 
   it("handles a clean deal with no arrival problems", async () => {
