@@ -2,9 +2,9 @@
  * Visual pass, Oct 9 (PLAN item 14): the landing page, the three finished
  * demo deals (buyer view) and both evidence pages at 1280 and 390 px,
  * against the baselines under tests/e2e/__screenshots__/. They are taken
- * from the demo-only server this config starts, where the seed is the same
- * every time and the warm-up leaves every finished deal in one known state;
- * the parts a fresh seed still changes (times, deal ids, hashes) are masked.
+ * from the demo-only server this config starts, on a pinned environment and
+ * on the three seeded finished deals, which no spec changes; the parts a
+ * fresh seed still changes (times, deal ids, hashes) are masked.
  * A server we did not start is skipped: the baselines would not hold and
  * these pages must not be written to. Refresh them on purpose, from
  * tests/e2e, and read the diff before committing:
