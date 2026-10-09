@@ -28,7 +28,12 @@ export default defineConfig({
   workers: 3,
   // A whole scenario, with the dev server compiling routes as it goes; each step keeps its own shorter wait.
   timeout: 300_000,
-  expect: { timeout: 15_000 },
+  expect: {
+    timeout: 15_000,
+    // visual.spec.ts: a restyle is a deliberate baseline refresh; a font hint or an antialias wobble is not a failure.
+    toHaveScreenshot: { maxDiffPixelRatio: 0.02, animations: "disabled", caret: "hide" },
+  },
+  snapshotPathTemplate: "{testDir}/../__screenshots__/{testFileName}/{arg}{ext}",
   retries: 0,
   reporter: [["list"]],
   use: {
