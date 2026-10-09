@@ -3,6 +3,7 @@ import { boxSerialLabel, boxSerialMatches } from "@/lib/deal/box-serial";
 import { historyStatus } from "@/lib/deal/history-status";
 import { priceRangeLine, priceSourceNote } from "@/lib/deal/price-copy";
 import { isExampleDeal } from "@/lib/deal/snapshot";
+import { FlagEvidence } from "../deal/FlagEvidence";
 import { HistoryBadge } from "../deal/HistoryBadge";
 import { EvidenceHeader } from "./EvidenceHeader";
 import { PalAvatar } from "../pal/PalAvatar";
@@ -215,7 +216,10 @@ export function EvidencePackView({ pack, deal, role, events }: { pack: EvidenceP
               {v.flags.length > 0 ? (
                 <ul className="mt-1 list-disc pl-5">
                   {v.flags.map((f, j) => (
-                    <li key={j}>{f.severity}: {f.explanation} ({f.evidence})</li>
+                    <li key={j}>
+                      {f.severity}: {f.explanation}
+                      <FlagEvidence evidence={f.evidence} always />
+                    </li>
                   ))}
                 </ul>
               ) : null}

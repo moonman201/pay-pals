@@ -161,6 +161,24 @@ textarea::placeholder {
   }
 }
 
+/* A flag's evidence sits behind a Why toggle on a phone and is simply shown from 640 px up. */
+.why-body {
+  display: none;
+}
+
+.why:has(input:checked) .why-body {
+  display: block;
+}
+
+@media (min-width: 640px) {
+  .why-toggle {
+    display: none;
+  }
+  .why-body {
+    display: block;
+  }
+}
+
 /* The hero art is painted on white. In dark it sits in a wash frame and is eased down a little so it does not glare. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) .hero-art {
