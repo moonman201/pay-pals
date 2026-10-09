@@ -1,11 +1,10 @@
 import { CONDITION_LABELS, type Deal, type EvidencePack, type Message } from "@pay-pals/contracts";
-import Link from "next/link";
 import { boxSerialLabel, boxSerialMatches } from "@/lib/deal/box-serial";
 import { historyStatus } from "@/lib/deal/history-status";
 import { priceRangeLine, priceSourceNote } from "@/lib/deal/price-copy";
 import { isExampleDeal } from "@/lib/deal/snapshot";
 import { HistoryBadge } from "../deal/HistoryBadge";
-import { ProgressStepper } from "../deal/ProgressStepper";
+import { EvidenceHeader } from "./EvidenceHeader";
 import { PalAvatar } from "../pal/PalAvatar";
 import { ShipmentFlags } from "../deal/ShipmentFlags";
 
@@ -59,33 +58,26 @@ export function EvidencePackView({ pack, deal, role }: { pack: EvidencePack; dea
   const shipmentFlags = pack.shipmentFlags ?? pack.shipment?.flags ?? [];
   const unanswered = pack.unansweredQuestions ?? [];
   return (
-    <main className="mx-auto max-w-3xl px-4 py-8 print:max-w-none print:px-0">
-      <header className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <p className="inline-flex items-center gap-2 text-sm font-black tracking-tight text-navy">
-            <PalAvatar pal="buyer" size={20} />
-            <PalAvatar pal="seller" size={20} className="-ml-4" />
-            Pay Pals evidence pack
-          </p>
-          <h1 className="mt-1 text-2xl font-black text-navy">{card.title}</h1>
-          <p className="mt-1 text-sm text-muted">
+    <main className={`theme-${role} mx-auto max-w-3xl px-4 py-8 print:max-w-none print:px-0`}>
+      <EvidenceHeader
+        dealId={deal.id}
+        role={role}
+        title={card.title}
+        meta={
+          <>
             Deal {pack.dealId}. Built {formatTime(pack.builtAt)} by {actorLabel(pack.builtBy, deal)}. Deal state: {STATE_LABELS[deal.state]}.
-          </p>
-        </div>
-        <div className="flex w-full flex-wrap gap-2">
-          {example ? <span className="inline-flex items-center rounded-full border border-line bg-wash px-2.5 py-0.5 text-xs text-muted">Example deal, seeded from a scenario</span> : null}
-          <HistoryBadge events={pack.timeline} historyHash={pack.historyHash ?? null} example={example} />
-        </div>
-        <div className={`theme- w-full`}>
-          <ProgressStepper state={deal.state} events={pack.timeline} />
-        </div>
-        <div className="no-print flex gap-2">
-          <Link href={`/deals/${deal.id}?as=${role}`} className="text-sm font-semibold text-navy underline-offset-2 hover:underline">
-            Back to the deal
-          </Link>
-          <PrintButton />
-        </div>
-      </header>
+          </>
+        }
+        badges={
+          <>
+            {example ? <span className="inline-flex items-center rounded-full border border-line bg-wash px-2.5 py-0.5 text-xs text-muted">Example deal, seeded from a scenario</span> : null}
+            <HistoryBadge events={pack.timeline} historyHash={pack.historyHash ?? null} example={example} />
+          </>
+        }
+        state={deal.state}
+        events={pack.timeline}
+        actions={<PrintButton />}
+      />
 
       <div className="mt-6 space-y-6">
         <Section title="Summary">
