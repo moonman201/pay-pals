@@ -22,7 +22,7 @@ export default async function EvidencePage({ params, searchParams }: Props) {
   try {
     const snapshot = await loadSnapshot(services, id);
     const pack = await services.store.getEvidence(id);
-    if (pack) return <EvidencePackView pack={pack} deal={snapshot.deal} role={role} />;
+    if (pack) return <EvidencePackView pack={pack} deal={snapshot.deal} role={role} events={snapshot.events} />;
     const locked = snapshot.lockedCard;
     return (
       <main className={`theme-${role} mx-auto max-w-3xl px-4 py-8`}>
