@@ -35,7 +35,7 @@ export const nameMismatchRule: Rule = ({ card, seller }) => {
     flag(
       "NAME_MISMATCH",
       "caution",
-      `seller: ${seller.displayName} <${seller.email}>, sellerPaypalEmail: ${card.sellerPaypalEmail}`,
+      `Seller ${seller.displayName} (${seller.email}) but the PayPal account that gets paid is ${card.sellerPaypalEmail}`,
       "The PayPal account that would get paid does not match the seller's name, so ask whose account it is before you pay.",
     ),
   ];
