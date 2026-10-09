@@ -115,7 +115,11 @@ export function listingCounts(priceCheck: PriceCheck): string | null {
     const key = (source.condition ?? "unstated").replace(/_/g, " ");
     byCondition.set(key, (byCondition.get(key) ?? 0) + 1);
   }
-  const parts = [...byCondition.entries()].map(([condition, count]) => `${count} ${condition}`);
+  // New first, then used, then anything else, so the line reads the same whatever order the listings arrived in.
+  const rank = (condition: string): number => (condition === "new" ? 0 : condition === "used" ? 1 : 2);
+  const parts = [...byCondition.entries()]
+    .sort(([a], [b]) => rank(a) - rank(b) || a.localeCompare(b))
+    .map(([condition, count]) => `${count} ${condition}`);
   return `from ${priced.length} listing${priced.length === 1 ? "" : "s"} (${parts.join(", ")})`;
 }
 

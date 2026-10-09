@@ -68,13 +68,14 @@ describe("Channel3 sources", () => {
     expect(priced.map((s) => s.name).sort()).toEqual(["Retail listing, new", "Retail listing, new", "Retail listing, new", "Used listing"]);
     for (const source of priced) expectNoRetailer("source name", source.name);
     // The url and the price are still there for the evidence pack and for our own debugging.
+    // Cheapest first, so the panel's list reads in the same order as the range it sits under.
     expect(priced.map((s) => s.url)).toEqual([
+      "https://dell.com/item/ps5",
       "https://walmart.com/item/ps5",
       "https://gamestop.com/item/ps5",
       "https://bestbuy.com/item/ps5",
-      "https://dell.com/item/ps5",
     ]);
-    expect(priced.map((s) => s.price)).toEqual([499.99, 519.99, 549.99, 470]);
+    expect(priced.map((s) => s.price)).toEqual([470, 499.99, 519.99, 549.99]);
     expect(priced.filter((s) => s.condition === "used")).toHaveLength(1);
     expect(shopNames(check).sort()).toEqual(["bestbuy.com", "dell.com", "gamestop.com", "walmart.com"]);
   });
@@ -95,7 +96,7 @@ describe("no retailer reaches the model or the buyer", () => {
     const { data: verdict, palMessage } = await createBuyerPal({ anthropic: model, priceLookup }).review(card, chat);
     const shown = promptText(model.calls.find((c) => c.tools?.[0]?.name === "submit_review")!);
     expectNoRetailer("the model prompt", shown);
-    expect(shown).toContain("Market range $349.99 to $384.99 (channel3, from 4 listings (3 new, 1 used); estimated for a used unit from new retail prices (good: 70% of new))");
+    expect(shown).toContain("Market range $349.99 to $384.99 (channel3, from 4 listings (3 new, 1 used); estimated for a used unit from new retail prices (good: 70% of new), scaled from 3 new listings priced $499.99 to $549.99)");
     expect(shown).toContain("Name no shop or website in your message");
 
     expect(verdict.overall).toBe("stop");
