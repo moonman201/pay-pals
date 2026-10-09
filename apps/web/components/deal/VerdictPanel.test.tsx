@@ -65,6 +65,29 @@ describe("VerdictPanel", () => {
     expect(screen.getByTestId("price-check")).toHaveTextContent("No reliable market price found");
   });
 
+  it("shows the listings as a count, a split and prices, and never a shop name", () => {
+    const v = verdict({
+      overall: "go",
+      priceCheck: {
+        marketLow: 588,
+        marketHigh: 915,
+        currency: "USD",
+        provider: "channel3",
+        checkedAt: new Date().toISOString(),
+        sources: [
+          { name: "gamestop.com", price: 588.99, condition: "new" },
+          { name: "A marketplace listing", price: 914.99, condition: "used" },
+        ],
+      },
+    });
+    render(<VerdictPanel verdict={v} currentVersion={1} locked={false} />);
+    const block = screen.getByTestId("price-check");
+    expect(screen.getByTestId("price-sources")).toHaveTextContent("From 2 listings: 1 new, 1 used, $588.99 to $914.99");
+    expect(block).toHaveTextContent("via Channel3");
+    expect(block.textContent).not.toMatch(/gamestop|marketplace listing/i);
+    expect(within(screen.getByRole("list", { name: "Listing prices" })).getAllByRole("listitem").map((li) => li.textContent)).toEqual(["$588.99", "$914.99"]);
+  });
+
   it("renders a real range with its sources", () => {
     const real = verdict({ overall: "go", priceCheck: fakeSlab.marketPrice });
     render(<VerdictPanel verdict={real} currentVersion={1} locked={false} />);
