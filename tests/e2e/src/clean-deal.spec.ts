@@ -46,10 +46,12 @@ test.describe("clean deal", () => {
     await answerPalWithDemoPhoto(page, dealId, "Added. Here is the sticker on the console itself.", CONSOLE_PROOF_QUESTION);
     await openRoomAs(page, dealId, "buyer");
     await expectState(page, "Listed");
-    // Version 2 carries the close-up the pal asked for, and the fresh review asks nothing more.
+    // Version 2 carries the close-up the pal asked for, the serial read off it, and the box label that agrees.
     const cardV2 = panel(page, "Item card");
     await expect(cardV2.getByRole("tab", { name: "Version 2", selected: true })).toBeVisible();
     await expect(cardV2.getByText(/close-up of the label on the back of the console/i).first()).toBeVisible();
+    await expect(cardV2.getByText(cleanPs5.cards.at(-1)!.serial!).first()).toBeVisible();
+    await expect(cardV2.getByText("matches the console")).toBeVisible();
     await reviewAsBuyer(page);
     await expectAskedQuestion(page, null);
     await agreeAsBuyer(page, 2);
@@ -104,9 +106,6 @@ test.describe("clean deal", () => {
 
     const snap = await snapshot(page, dealId);
     expect(snap.deal.state).toBe("COMPLETE");
-    // The seeded example shows the console serial on the locked card; a deal played here does not yet,
-    // because answering a photo request adds the photo without reading a serial off it. See the skipped
-    // test below and the REVIEW.md entry of 2026-10-09.
     expect(snap.deal.lockedCardVersion).toBe(2);
     expect(snap.deal.startedBy).toBe("buyer");
     expect(snap.payment?.historyHash).toMatch(/^[0-9a-f]{64}$/);
@@ -129,9 +128,9 @@ test.describe("clean deal", () => {
     await expect(page.getByRole("list", { name: "Buyer Pal shipment check" })).toHaveCount(0);
   });
 
-  // Red until the REVIEW.md entry of 2026-10-09 is closed: answering a photo request adds the photo
-  // but reads no serial off it, so a deal played on the site never reaches the card the fixture shows.
-  test.skip("the answered close-up puts the console serial on card version 2", async ({ page }) => {
+  // A deal played on the site reaches the same card the fixture shows: the photo the seller adds in
+  // answer carries its number onto the card, and the box label then has something to agree with.
+  test("the answered close-up puts the console serial on card version 2", async ({ page }) => {
     const dealId = await startDemo(page, cleanPs5, "buyer");
     await reviewAsBuyer(page);
     await expectAskedQuestion(page, CONSOLE_PROOF_QUESTION);
