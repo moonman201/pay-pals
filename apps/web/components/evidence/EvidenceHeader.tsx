@@ -12,6 +12,7 @@ import type { Role } from "@/lib/role";
 export function EvidenceHeader({
   dealId,
   role,
+  wordmark = "Pay Pals evidence pack",
   title,
   meta,
   badges,
@@ -21,6 +22,8 @@ export function EvidenceHeader({
 }: {
   dealId: string;
   role: Role;
+  /** "Pay Pals evidence pack" once there is a pack. Before that there is none, so the page says only Pay Pals. */
+  wordmark?: string;
   title: string;
   meta?: React.ReactNode;
   badges?: React.ReactNode;
@@ -34,7 +37,7 @@ export function EvidenceHeader({
         <p className="inline-flex items-center gap-2 text-sm font-black tracking-tight text-navy">
           <PalAvatar pal="buyer" size={20} />
           <PalAvatar pal="seller" size={20} className="-ml-4" />
-          Pay Pals evidence pack
+          {wordmark}
         </p>
         <h1 className="mt-1 text-2xl font-black text-navy">{title}</h1>
         {meta ? <p className="mt-1 text-sm text-muted">{meta}</p> : null}

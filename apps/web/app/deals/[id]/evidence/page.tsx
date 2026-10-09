@@ -29,6 +29,7 @@ export default async function EvidencePage({ params, searchParams }: Props) {
         <EvidenceHeader
           dealId={id}
           role={role}
+          wordmark="Pay Pals"
           title="No evidence pack yet"
           meta={
             <>
