@@ -47,7 +47,8 @@ export function PlaceholderPayButtons({ createOrder, onApproved, onError }: Prop
           type="button"
           disabled={busy !== null}
           onClick={() => pay("venmo")}
-          className="rounded-full bg-[#008cff] px-6 py-2.5 text-sm font-bold text-white disabled:opacity-50"
+          // Venmo blue, a shade down from #008cff so white on it clears AA (4.55) on the navy page.
+          className="rounded-full bg-[#0074e4] px-6 py-2.5 text-sm font-bold text-white disabled:opacity-50"
         >
           {busy === "venmo" ? "Paying" : "Pay with Venmo (demo)"}
         </button>

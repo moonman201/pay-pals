@@ -8,8 +8,12 @@
  * ink (text on a light surface), a soft fill and a line. The side in
  * play sets --accent and friends through .theme-buyer / .theme-seller.
  *
- * Dark follows prefers-color-scheme unless <html data-theme="light">;
- * <html data-theme="dark"> forces it.
+ * Dark navy is the site. <html data-theme="dark"> is set in layout.tsx, so
+ * every visitor gets it whatever their device is set to, and the
+ * prefers-color-scheme block below cannot overrule the attribute: it is
+ * scoped to :root:not([data-theme="light"]) and the attribute block that
+ * follows it is more specific than :root. The light tokens stay in the
+ * file, unused for now, so a light theme is one attribute away.
  *
  * WCAG contrast, computed from these values (AA is 4.5:1 for body text,
  * 3:1 for large text and UI parts):
@@ -36,6 +40,10 @@
  *   stop chip ink on stop chip     5.13    7.35
  *   caution chip ink on chip       5.03    6.92
  *   go chip ink on go chip         4.75    6.06
+ *   PayPal demo button, navy on gold       7.45   (both themes)
+ *   PayPal demo button on the surface     10.36
+ *   Venmo demo button, white on blue       4.55
+ *   Venmo demo button on the surface       3.62
  *
  * A chip on a panel of its own hue has to read as its own block, so in
  * dark the chip fill is darker than the panel under it: stop 1.40,

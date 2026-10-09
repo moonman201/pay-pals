@@ -11,9 +11,10 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
+/** Dark navy is the site, for every visitor, whatever their device is set to. See app/tokens.css. */
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" data-theme="dark">
       <body className="min-h-screen">{children}</body>
     </html>
   );
