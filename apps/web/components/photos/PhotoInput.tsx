@@ -66,9 +66,12 @@ export function PhotoInput({ value, onChange, addedBy, suggestions = [], label =
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <span className="text-sm font-semibold">{label}</span>
-        <span className="text-xs text-muted">{value.length} added</span>
+      <div>
+        <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+          <span className="min-w-0 text-sm font-semibold">{label}</span>
+          <span className="shrink-0 text-xs text-muted">{value.length} added</span>
+        </div>
+        {uploadsEnabled ? null : <p className="mt-1 text-xs text-muted">Photos are added by link here. Paste the address of a photo and say what it shows.</p>}
       </div>
       {value.length > 0 ? (
         <ul className="flex flex-wrap gap-2">

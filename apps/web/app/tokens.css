@@ -28,13 +28,19 @@
  *   seller contrast on seller fill 6.74    8.74   (primary button)
  *   go on surface                  5.38    8.81
  *   go on go soft                  4.75    6.79
- *   caution on surface             5.67    9.08
- *   caution on caution soft        5.03    7.34
+ *   caution on surface             5.67   10.55
+ *   caution on caution soft        5.03    9.15
  *   stop on surface                5.90    6.81
  *   stop on stop soft              5.13    6.49
  *   ink on go, caution, stop soft 14.04+  10.91+
- *   go contrast on go (seal)       5.38    8.81
- *   stop contrast on stop (seal)   5.90    6.81
+ *   stop chip ink on stop chip     5.13    7.35
+ *   caution chip ink on chip       5.03    6.92
+ *   go chip ink on go chip         4.75    6.06
+ *
+ * A chip on a panel of its own hue has to read as its own block, so in
+ * dark the chip fill is darker than the panel under it: stop 1.40,
+ * caution 1.53, go 1.43 against their soft panels. In light the two share
+ * a fill, where the chip's border already separates them.
  */
 
 :root {
@@ -47,8 +53,9 @@
   --muted: #4f5f78;
   --line: #d9e1ec;
   --shadow: 0 1px 2px rgb(16 33 58 / 0.06), 0 6px 18px -8px rgb(16 33 58 / 0.18);
-  /* The hero picture and the Pal avatars are painted on white; their frames stay white in both themes. */
+  /* The hero picture and the Pal avatars are painted on white. In light the frame is white too, so only the picture shows. */
   --hero-bg: #ffffff;
+  --hero-frame: #ffffff;
 
   --buyer: #0070e0;
   --buyer-ink: #003087;
@@ -68,16 +75,22 @@
   --go-soft: #e4f5ea;
   --go-line: #a7dbbd;
   --go-contrast: #ffffff;
+  --chip-go: #e4f5ea;
+  --chip-go-ink: #157a45;
 
   --caution: #9a5600;
   --caution-soft: #fdf0d9;
   --caution-line: #efcc84;
   --caution-contrast: #ffffff;
+  --chip-caution: #fdf0d9;
+  --chip-caution-ink: #9a5600;
 
   --stop: #c0262d;
   --stop-soft: #fdebeb;
   --stop-line: #f2b3b6;
   --stop-contrast: #ffffff;
+  --chip-stop: #fdebeb;
+  --chip-stop-ink: #c0262d;
 
   /* The viewer's side. Buyer by default. */
   --accent: var(--buyer);
@@ -117,6 +130,8 @@
     --muted: #a6b3c8;
     --line: #2c3c58;
     --shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 8px 20px -8px rgb(0 0 0 / 0.5);
+    /* The hero picture stays white, so in dark it sits in a wash frame instead of butting onto the page. */
+    --hero-frame: #1a2a45;
 
     --buyer: #4d9ff5;
     --buyer-ink: #a9ccff;
@@ -136,16 +151,23 @@
     --go-soft: #0f3a26;
     --go-line: #1f6a44;
     --go-contrast: #0b1322;
+    --chip-go: #15543a;
+    --chip-go-ink: #8ce8b4;
 
-    --caution: #f2b64d;
-    --caution-soft: #3f2c0a;
-    --caution-line: #7c5a17;
+    /* A low-chroma warm wash, not a saturated olive block, with a lighter amber ink on it. */
+    --caution: #f7c86f;
+    --caution-soft: #2f2a1d;
+    --caution-line: #6b561f;
     --caution-contrast: #0b1322;
+    --chip-caution: #5a4312;
+    --chip-caution-ink: #ffd98a;
 
     --stop: #ff8085;
     --stop-soft: #421317;
     --stop-line: #86303a;
     --stop-contrast: #0b1322;
+    --chip-stop: #6d1f26;
+    --chip-stop-ink: #ffc2c5;
   }
 }
 
@@ -159,6 +181,8 @@
   --muted: #a6b3c8;
   --line: #2c3c58;
   --shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 8px 20px -8px rgb(0 0 0 / 0.5);
+  /* The hero picture stays white, so in dark it sits in a wash frame instead of butting onto the page. */
+  --hero-frame: #1a2a45;
 
   --buyer: #4d9ff5;
   --buyer-ink: #a9ccff;
@@ -178,14 +202,21 @@
   --go-soft: #0f3a26;
   --go-line: #1f6a44;
   --go-contrast: #0b1322;
+  --chip-go: #15543a;
+  --chip-go-ink: #8ce8b4;
 
-  --caution: #f2b64d;
-  --caution-soft: #3f2c0a;
-  --caution-line: #7c5a17;
+  /* A low-chroma warm wash, not a saturated olive block, with a lighter amber ink on it. */
+  --caution: #f7c86f;
+  --caution-soft: #2f2a1d;
+  --caution-line: #6b561f;
   --caution-contrast: #0b1322;
+  --chip-caution: #5a4312;
+  --chip-caution-ink: #ffd98a;
 
   --stop: #ff8085;
   --stop-soft: #421317;
   --stop-line: #86303a;
   --stop-contrast: #0b1322;
+  --chip-stop: #6d1f26;
+  --chip-stop-ink: #ffc2c5;
 }

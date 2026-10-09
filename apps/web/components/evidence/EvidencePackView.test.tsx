@@ -1,4 +1,4 @@
-import { emptyBox, type EvidencePack } from "@pay-pals/contracts";
+import { chainEvents, emptyBox, type EvidencePack } from "@pay-pals/contracts";
 import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { EvidencePackView, messageCounts, summaryParts } from "./EvidencePackView";
@@ -155,5 +155,23 @@ describe("EvidencePackView", () => {
     render(<EvidencePackView pack={pack({ lockedCard: { ...lockedCard, boxSerial: null } })} deal={emptyBox.deal} role="buyer" />);
     expect(screen.queryByText("Box serial")).not.toBeInTheDocument();
     expect(screen.getByText("Pay Pals evidence pack")).toBeInTheDocument();
+  });
+
+  it("counts the live timeline on the badge and names the pack's own count as what it was at build time", () => {
+    // Building the pack is itself an event, so the deal has one more than the pack snapshot.
+    const last = emptyBox.timeline[emptyBox.timeline.length - 1]!;
+    const built = { ...last, id: "evidence-built", kind: "evidence_built" as const, summary: "Evidence pack built." };
+    const live = chainEvents([...emptyBox.timeline, built].map(({ prevHash: _p, hash: _h, ...rest }) => rest));
+    render(<EvidencePackView pack={pack({ historyHash: null, historyVerified: null })} deal={emptyBox.deal} role="buyer" events={live} />);
+    for (const badge of screen.getAllByTestId("history-badge")) {
+      expect(badge).toHaveTextContent(`${live.length} events`);
+      expect(badge).not.toHaveTextContent(`${emptyBox.timeline.length} events`);
+    }
+  });
+
+  it("says the pack's count as a build-time count, never as a second total", () => {
+    const head = emptyBox.timeline.find((e) => e.kind === "payment_created")?.hash ?? null;
+    render(<EvidencePackView pack={pack({ historyHash: head, historyVerified: true })} deal={emptyBox.deal} role="buyer" events={emptyBox.timeline} />);
+    expect(screen.getByText(/events at the time the pack was built/)).toBeInTheDocument();
   });
 });

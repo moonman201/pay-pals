@@ -16,25 +16,30 @@ function EndIcon({ kind }: { kind: NonNullable<ProgressEnd>["kind"] }) {
 
 /**
  * Where the deal stands, as seven steps. Done steps fill with the side's
- * colour, the current one pulses once, and a deal that ended early carries
- * its end badge right after the last step it reached.
+ * colour, the current one lights up once, and a deal that ended early
+ * carries its end badge right after the last step it reached.
+ *
+ * Every step is on the page at every width: the row wraps onto two or three
+ * lines on a phone, where the joining lines between steps are dropped, and
+ * sits on one line with them from 640 px up. Nothing scrolls sideways and
+ * nothing is clipped.
  */
 export function ProgressStepper({ state, events, className = "" }: { state: DealState; events: readonly DealEvent[]; className?: string }) {
   const progress = dealProgress(state, events);
   const lastDone = progress.steps.reduce((acc, s, i) => (s.status === "done" ? i : acc), -1);
   return (
-    <nav aria-label="Deal progress" className={`-mx-4 overflow-x-auto px-4 ${className}`} data-testid="progress-stepper">
-      <ol className="flex min-w-max items-center sm:min-w-0 sm:flex-wrap sm:gap-y-1">
+    <nav aria-label="Deal progress" className={className} data-testid="progress-stepper">
+      <ol className="flex flex-wrap items-center gap-y-1">
         {progress.steps.map((step, i) => {
           const done = step.status === "done";
           const current = step.status === "current";
           return (
             <li key={step.id} className="flex items-center" aria-current={current ? "step" : undefined} data-status={step.status}>
-              {i > 0 ? <span aria-hidden className={`h-0.5 w-5 sm:w-8 ${done || current ? "bg-[var(--accent)]" : "bg-line"}`} /> : null}
-              <span className="flex items-center gap-2 py-2">
+              {i > 0 ? <span aria-hidden className={`hidden h-0.5 w-5 sm:inline-block sm:w-6 lg:w-8 ${done || current ? "bg-[var(--accent)]" : "bg-line"}`} /> : null}
+              <span className={`mr-1 flex items-center gap-1.5 rounded-full py-1 pl-1 pr-2 sm:mr-0 sm:bg-transparent ${current ? "bg-[var(--accent-soft)]" : done ? "bg-wash" : ""}`}>
                 <span
                   aria-hidden
-                  className={`motion-step flex h-6 w-6 items-center justify-center rounded-full border-2 text-[11px] font-bold ${
+                  className={`motion-step flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 text-[11px] font-bold ${
                     done
                       ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)]"
                       : current
@@ -48,7 +53,7 @@ export function ProgressStepper({ state, events, className = "" }: { state: Deal
               </span>
               {progress.end && i === Math.max(lastDone, 0) ? (
                 <>
-                  <span aria-hidden className="h-0.5 w-5 bg-line sm:w-8" />
+                  <span aria-hidden className="hidden h-0.5 w-5 bg-line sm:inline-block sm:w-6 lg:w-8" />
                   <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-bold ${END_STYLE[progress.end.kind]}`} data-testid="progress-end">
                     <EndIcon kind={progress.end.kind} />
                     {progress.end.label}

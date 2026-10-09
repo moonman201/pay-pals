@@ -2,6 +2,7 @@ import type { RedFlag } from "@pay-pals/contracts";
 import { FLAG_WORDS } from "@/lib/deal/override";
 import { PalAvatar } from "../pal/PalAvatar";
 import { Badge, type Tone } from "../ui/Badge";
+import { FlagEvidence } from "./FlagEvidence";
 
 const FLAG_TONE: Record<RedFlag["severity"], Tone> = { info: "neutral", caution: "caution", stop: "stop" };
 
@@ -19,7 +20,7 @@ export function ShipmentFlags({ flags }: { flags: readonly RedFlag[] }) {
               <span className="rounded-md border border-line bg-surface px-2 py-0.5 font-semibold">{FLAG_WORDS[f.code]}</span>
             </div>
             <p className="mt-1">{f.explanation}</p>
-            <p className="mt-1 text-xs text-muted">{f.evidence}</p>
+            <FlagEvidence evidence={f.evidence} />
           </div>
         </li>
       ))}

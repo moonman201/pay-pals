@@ -79,4 +79,19 @@ describe("VerdictPanel", () => {
     expect(within(row).getByText("caution")).toBeInTheDocument();
     expect(within(row).getByText("pressure to pay now")).toBeInTheDocument();
   });
+  it("quotes the rule's evidence under its own label, behind a Why toggle", () => {
+    const v = verdict({ flags: [{ ...flag("URGENCY_PRESSURE", "caution"), evidence: 'Seller wrote: "today only"' }] });
+    render(<VerdictPanel verdict={v} currentVersion={1} locked={false} />);
+    const block = screen.getByTestId("flag-evidence");
+    expect(block).toHaveTextContent("Evidence");
+    expect(block).toHaveTextContent('Seller wrote: "today only"');
+    expect(screen.getByText("Why")).toBeInTheDocument();
+  });
+
+  it("never prints a photo-handling artifact as evidence", () => {
+    const v = verdict({ flags: [{ ...flag("URGENCY_PRESSURE", "caution"), evidence: "Photo block 2 of 4" }] });
+    render(<VerdictPanel verdict={v} currentVersion={1} locked={false} />);
+    expect(screen.queryByTestId("flag-evidence")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Photo block/)).not.toBeInTheDocument();
+  });
 });

@@ -36,7 +36,7 @@ export function InvitePanel({ deal }: { deal: Deal }) {
       {deal.listingUrl ? (
         <p className="mt-3 text-sm text-muted">
           Listing:{" "}
-          <a href={deal.listingUrl} target="_blank" rel="noreferrer" className="break-all underline-offset-2 hover:underline">
+          <a href={deal.listingUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center break-all underline-offset-2 hover:underline">
             {deal.listingUrl}
           </a>
         </p>

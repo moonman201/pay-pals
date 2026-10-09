@@ -3,8 +3,10 @@
 import type { Photo } from "@pay-pals/contracts";
 import { useState } from "react";
 import { dealApi, postJson } from "@/lib/client/api";
+import { ARRIVAL_STAGES } from "@/lib/deal/working-stages";
 import { PhotoInput } from "../../photos/PhotoInput";
 import { Button } from "../../ui/Button";
+import { WorkingStatus } from "../../ui/WorkingStatus";
 import { StepError, StepPanel } from "./StepPanel";
 
 /** The buyer shows the Buyer Pal what arrived. The pal compares it to the locked card. */
@@ -34,6 +36,7 @@ export function ArrivalStep({ dealId, suggestions, uploadsEnabled = false, onDon
         <Button type="submit" disabled={busy || photos.length === 0}>
           {busy ? "Checking" : "Ask my pal to check"}
         </Button>
+        {busy ? <WorkingStatus stages={ARRIVAL_STAGES} /> : null}
         <StepError error={error} />
       </form>
     </StepPanel>

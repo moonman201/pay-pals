@@ -11,9 +11,9 @@ describe("ProgressStepper", () => {
     const nav = screen.getByRole("navigation", { name: "Deal progress" });
     const items = within(nav).getAllByRole("listitem");
     expect(items).toHaveLength(7);
-    expect(items.map((li) => li.getAttribute("data-status"))).toEqual(["done", "done", "current", "upcoming", "upcoming", "upcoming", "upcoming"]);
-    expect(items[2]).toHaveAttribute("aria-current", "step");
-    expect(within(items[2]!).getByText("Reviewed")).toBeInTheDocument();
+    expect(items.map((li) => li.getAttribute("data-status"))).toEqual(["done", "done", "done", "current", "upcoming", "upcoming", "upcoming"]);
+    expect(items[3]).toHaveAttribute("aria-current", "step");
+    expect(within(items[3]!).getByText("Agreed and locked")).toBeInTheDocument();
     expect(screen.queryByTestId("progress-end")).not.toBeInTheDocument();
   });
 
@@ -22,6 +22,15 @@ describe("ProgressStepper", () => {
     const items = screen.getAllByRole("listitem");
     expect(within(items[2]!).getByTestId("progress-end")).toHaveTextContent("Blocked");
     expect(items.some((li) => li.getAttribute("aria-current") === "step")).toBe(false);
+  });
+
+  it("wraps instead of scrolling, so no step is clipped on a phone", () => {
+    render(<ProgressStepper state="PAID" events={[]} />);
+    const nav = screen.getByTestId("progress-stepper");
+    expect(nav.className).not.toContain("overflow-x");
+    expect(nav.querySelector("ol")?.className).toContain("flex-wrap");
+    expect(nav.querySelector("ol")?.className).not.toContain("min-w-max");
+    expect(screen.getAllByRole("listitem")).toHaveLength(7);
   });
 
   it("shows Issue open after Arrived when the issue came after delivery", () => {

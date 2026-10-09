@@ -11,8 +11,9 @@ export function BuildEvidenceButton({ dealId, role }: { dealId: string; role: Ro
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   return (
-    <div className="mt-6">
+    <div className="mt-5">
       <Button
+        className="w-full sm:w-auto"
         disabled={busy}
         onClick={async () => {
           setBusy(true);

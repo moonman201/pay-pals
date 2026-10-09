@@ -9,6 +9,7 @@ import { Badge, type Tone } from "../ui/Badge";
 import { CautionIcon, CheckIcon, StopIcon } from "../ui/icons";
 import { Panel } from "../ui/Panel";
 import { Comparison } from "./Comparison";
+import { FlagEvidence } from "./FlagEvidence";
 
 const FLAG_TONE: Record<RedFlag["severity"], Tone> = { info: "neutral", caution: "caution", stop: "stop" };
 
@@ -104,7 +105,7 @@ export function VerdictPanel({ verdict, currentVersion, locked, cardTitle = null
                   {isPaymentMethodFlag(f) ? <Badge tone="stop">no override</Badge> : null}
                 </div>
                 <p className="mt-1">{f.explanation}</p>
-                <p className="mt-1 text-xs text-muted">{f.evidence}</p>
+                <FlagEvidence evidence={f.evidence} />
               </div>
             </li>
           ))}

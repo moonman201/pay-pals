@@ -25,6 +25,13 @@
   --color-stop-soft: var(--stop-soft);
   --color-stop-line: var(--stop-line);
 
+  --color-chip-go: var(--chip-go);
+  --color-chip-go-ink: var(--chip-go-ink);
+  --color-chip-caution: var(--chip-caution);
+  --color-chip-caution-ink: var(--chip-caution-ink);
+  --color-chip-stop: var(--chip-stop);
+  --color-chip-stop-ink: var(--chip-stop-ink);
+
   --shadow-card: var(--shadow);
 }
 
@@ -130,16 +137,57 @@ textarea::placeholder {
   animation: reveal 360ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+@keyframes spin {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+/* The waiting ring. With reduced motion it stops as a still dot, which still reads as "working". */
+.motion-spin {
+  animation: spin 900ms linear infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .motion-lock,
   [aria-current="step"] .motion-step,
-  .motion-reveal {
+  .motion-reveal,
+  .motion-spin {
     animation: none;
   }
   * {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* A flag's evidence sits behind a Why toggle on a phone and is simply shown from 640 px up. */
+.why-body {
+  display: none;
+}
+
+.why:has(input:checked) .why-body {
+  display: block;
+}
+
+@media (min-width: 640px) {
+  .why-toggle {
+    display: none;
+  }
+  .why-body {
+    display: block;
+  }
+}
+
+/* The hero art is painted on white. In dark it sits in a wash frame and is eased down a little so it does not glare. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .hero-art {
+    filter: brightness(0.93) saturate(0.97);
+  }
+}
+
+:root[data-theme="dark"] .hero-art {
+  filter: brightness(0.93) saturate(0.97);
 }
 
 @media print {
