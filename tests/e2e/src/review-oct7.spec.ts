@@ -94,13 +94,26 @@ async function expectSeparateFlagBadges(list: Locator, where: string): Promise<v
   }
 }
 
-/** J8: a photo frame shows its caption once, whether the image loaded (figcaption) or not (the placeholder's text). */
+/**
+ * J8: a photo shows its description once. A loaded photo carries it in a
+ * figcaption, a thumbnail too small for one carries it in the image's alt
+ * text, and a photo that did not load carries it in the placeholder. Never
+ * twice, and never nowhere.
+ */
 async function expectCaptionsOnce(page: Page, where: string): Promise<void> {
   const figures = page.locator("figure");
   for (let i = 0; i < (await figures.count()); i++) {
     const figure = figures.nth(i);
-    const caption = ((await figure.locator("figcaption").first().textContent()) ?? "").trim();
-    await expect(figure.locator("figcaption"), `${where}: figure ${i + 1} has one caption`).toHaveCount(caption ? 1 : 0);
+    const captions = figure.locator("figcaption");
+    const count = await captions.count();
+    expect(count, `${where}: figure ${i + 1} has at most one caption`).toBeLessThanOrEqual(1);
+    if (count === 0) {
+      // A thumbnail: the description must still be there for a screen reader.
+      const alt = await figure.locator("img").first().getAttribute("alt");
+      expect((alt ?? "").trim().length, `${where}: figure ${i + 1} has no caption, so its image needs alt text`).toBeGreaterThan(0);
+      continue;
+    }
+    const caption = ((await captions.first().textContent()) ?? "").trim();
     if (caption) expect(((await figure.textContent()) ?? "").trim(), `${where}: figure ${i + 1} caption appears once`).toBe(caption);
   }
   const placeholders = page.getByTestId("photo-placeholder");

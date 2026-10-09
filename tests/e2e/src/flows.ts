@@ -43,8 +43,8 @@ export async function reviewAsBuyer(page: Page): Promise<void> {
   await expect(panel(page, "Buyer Pal review")).toBeVisible();
 }
 
-/** The Buyer Pal always asks a used console's seller for this before it will say go. */
-export const CONSOLE_PROOF_QUESTION = /Console Information screen showing the serial/;
+/** The Buyer Pal asks a used console's seller for this whenever the card carries a box label but no serial read off the console. */
+export const CONSOLE_PROOF_QUESTION = /close-up of the serial label on the console itself/i;
 
 /** The verdict panel lists what the pal asked of the seller, or lists nothing when `question` is null. */
 export async function expectAskedQuestion(page: Page, question: RegExp | null): Promise<void> {
@@ -73,10 +73,10 @@ export async function answerPalWithDemoPhoto(page: Page, dealId: string, reply: 
   if ((await open.count()) > 0) await open.click();
   await expect(step.getByText(/The buyer's pal asked:/)).toContainText(question);
 
-  // The hint row shows the photo's caption (the screen page with the serial), not the question itself.
+  // The hint row shows the photo's caption (the close-up of the label on the console), not the question.
   const hintRow = step.locator("li").filter({ has: page.getByRole("button", { name: "Add", exact: true }) });
   await expect(hintRow).toHaveCount(1);
-  await expect(hintRow).toContainText(/Console Information/);
+  await expect(hintRow).toContainText(/close-up of the label on the back of the console/i);
   expect(await addAllDemoPhotos(step)).toBe(1);
   await step.getByLabel("Your reply").fill(reply);
   await step.getByRole("button", { name: "Save a new card version" }).click();

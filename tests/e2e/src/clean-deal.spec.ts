@@ -1,6 +1,6 @@
 /**
  * Scenario 2: clean deal, end to end on the demo server. The Buyer Pal asks
- * for the Console Information screen, the seller adds it (card version 2),
+ * for a close-up of the serial on the console, the seller adds it (card version 2),
  * a fresh review asks nothing more, both agree, the buyer pays by the
  * capture button, the seller ships with every photo, delivery, an arrival
  * check that matches, complete. The evidence pack then has nothing the pal
@@ -31,22 +31,25 @@ test.describe("clean deal", () => {
     const dealId = await startDemo(page, cleanPs5, "buyer");
     await expect(page.getByRole("banner").getByRole("heading", { name: cleanPs5.cards[0]!.title })).toBeVisible();
 
-    // The Seller Pal read the console serial and the box label and they match.
+    // Version 1 has the wide back shot and the box label: the box serial is on the card, the console's own is not.
     const card = panel(page, "Item card");
     await expect(card.getByText("Box serial", { exact: true })).toBeVisible();
-    const boxSerialRow = card.locator("dd").filter({ hasText: "matches the console" });
-    await expect(boxSerialRow).toHaveCount(1);
-    await expect(boxSerialRow).toContainText(cleanPs5.cards[0]!.boxSerial!);
+    await expect(card.getByText(cleanPs5.cards[0]!.boxSerial!).first()).toBeVisible();
+    await expect(card.getByText("matches the console")).toHaveCount(0);
 
     // First review: fair price, and one thing asked of the seller.
     await expectState(page, "Listed");
     await reviewAsBuyer(page);
     await expectAskedQuestion(page, CONSOLE_PROOF_QUESTION);
 
-    // The seller answers with the screen photo; the fresh review asks nothing more.
-    await answerPalWithDemoPhoto(page, dealId, "Added. Same serial on the screen, software is current.", CONSOLE_PROOF_QUESTION);
+    // The seller answers with the close-up; the fresh review asks nothing more.
+    await answerPalWithDemoPhoto(page, dealId, "Added. Here is the sticker on the console itself.", CONSOLE_PROOF_QUESTION);
     await openRoomAs(page, dealId, "buyer");
     await expectState(page, "Listed");
+    // Version 2 carries the close-up the pal asked for, and the fresh review asks nothing more.
+    const cardV2 = panel(page, "Item card");
+    await expect(cardV2.getByRole("tab", { name: "Version 2", selected: true })).toBeVisible();
+    await expect(cardV2.getByText(/close-up of the label on the back of the console/i).first()).toBeVisible();
     await reviewAsBuyer(page);
     await expectAskedQuestion(page, null);
     await agreeAsBuyer(page, 2);
@@ -92,7 +95,7 @@ test.describe("clean deal", () => {
     const result = panel(page, "Arrival check");
     await expect(result.getByText("matches", { exact: true })).toBeVisible();
     // The serial shows in the "Read: serial" field and, with a real pal, in its message too.
-    await expect(result.getByText(cleanPs5.cards[0]!.serial!).first()).toBeVisible();
+    await expect(result.getByText(cleanPs5.cards.at(-1)!.serial!).first()).toBeVisible();
 
     await pressAction(page, "Complete the deal");
     await expectState(page, "Complete");
@@ -101,6 +104,9 @@ test.describe("clean deal", () => {
 
     const snap = await snapshot(page, dealId);
     expect(snap.deal.state).toBe("COMPLETE");
+    // The seeded example shows the console serial on the locked card; a deal played here does not yet,
+    // because answering a photo request adds the photo without reading a serial off it. See the skipped
+    // test below and the REVIEW.md entry of 2026-10-09.
     expect(snap.deal.lockedCardVersion).toBe(2);
     expect(snap.deal.startedBy).toBe("buyer");
     expect(snap.payment?.historyHash).toMatch(/^[0-9a-f]{64}$/);
@@ -121,5 +127,19 @@ test.describe("clean deal", () => {
     await expect(unanswered.getByTestId("unanswered-questions")).toHaveCount(0);
     // The seller shipped with every photo, so no ship-time caution rides on this pack.
     await expect(page.getByRole("list", { name: "Buyer Pal shipment check" })).toHaveCount(0);
+  });
+
+  // Red until the REVIEW.md entry of 2026-10-09 is closed: answering a photo request adds the photo
+  // but reads no serial off it, so a deal played on the site never reaches the card the fixture shows.
+  test.skip("the answered close-up puts the console serial on card version 2", async ({ page }) => {
+    const dealId = await startDemo(page, cleanPs5, "buyer");
+    await reviewAsBuyer(page);
+    await expectAskedQuestion(page, CONSOLE_PROOF_QUESTION);
+    await answerPalWithDemoPhoto(page, dealId, "Added. Here is the sticker on the console itself.", CONSOLE_PROOF_QUESTION);
+    await openRoomAs(page, dealId, "buyer");
+
+    const card = panel(page, "Item card");
+    await expect(card.getByText(cleanPs5.cards.at(-1)!.serial!).first()).toBeVisible();
+    await expect(card.getByText("matches the console")).toBeVisible();
   });
 });

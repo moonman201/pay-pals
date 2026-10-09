@@ -22,11 +22,6 @@ import type { SeededDeal } from "./seed";
 
 const buyerPal = createBuyerPal({ anthropic: null, priceLookup: createFixturePriceLookup() });
 
-/** What the keyless pal says when it cannot open the photos: the serial could not be read, which is still a mismatch. */
-const NOT_READABLE = "not readable in the arrival photos";
-/** What vision says when it sees the foam insert and no console. */
-const NOT_PRESENT = "not present, box arrived empty";
-
 const PUBLIC_FIXTURES = resolve(fileURLToPath(import.meta.url), "..", "..", "..", "..", "apps", "web", "public");
 const photoFilesPresent = emptyBox.arrivalPhotos.every((p) => existsSync(resolve(PUBLIC_FIXTURES, `.${p.url}`)));
 const visionClient = process.env.SKIP_REAL_TESTS ? null : createAnthropicClientFromEnv();
@@ -94,13 +89,20 @@ describe("empty-box: arrival check to evidence pack", () => {
     const fields = check.mismatches.map((m) => m.field);
     for (const field of emptyBox.expectedArrival!.mismatchFields) expect(fields).toContain(field);
 
-    const serial = check.mismatches.find((m) => m.field === "serial")!;
-    expect(serial.expected).toBe(EMPTY_BOX_LOCKED_SERIAL);
-    // Without a loadable image the pal reports the serial as unreadable; vision would say the box is empty.
-    expect([NOT_READABLE, NOT_PRESENT]).toContain(serial.observed);
-    expect(serial.explanation).toContain(EMPTY_BOX_LOCKED_SERIAL);
-    expect(serial.explanation).toContain("box label");
+    // The locked card never got a console serial, so there is nothing for an arriving serial to contradict.
+    // The mismatch is the item itself: the box came with packaging and no console.
+    expect(delivered.lockedCard.serial).toBeNull();
+    expect(delivered.lockedCard.boxSerial).toBe(EMPTY_BOX_LOCKED_SERIAL);
+    expect(check.mismatches).toHaveLength(1);
+    expect(fields, "no serial row: the card has no serial to be wrong about").not.toContain("serial");
+
+    const missing = check.mismatches.find((m) => m.field === "other")!;
+    expect(missing.expected).toContain(delivered.lockedCard.model!);
+    expect(missing.observed).toMatch(/nothing in the box|no console|not present/i);
+    expect(missing.explanation).toContain(delivered.lockedCard.model!);
     expect(check.observed.serial).toBeNull();
+    // The box label that did arrive is not the item, and the pal says so rather than counting it.
+    expect(check.palMessage).toContain(EMPTY_BOX_LOCKED_SERIAL);
     expect(check.palMessage).toContain("does not count");
 
     const { store, dealId } = delivered.seeded;
@@ -120,7 +122,8 @@ describe("empty-box: arrival check to evidence pack", () => {
 
     expect(pack.lockedCard.lockedAt).not.toBeNull();
     expect(pack.lockedCard.version).toBe(delivered.lockedCard.version);
-    expect(pack.lockedCard.serial).toBe(EMPTY_BOX_LOCKED_SERIAL);
+    // The seller never answered, so the card that locked still has only the box label.
+    expect(pack.lockedCard.serial).toBeNull();
     expect(pack.lockedCard.boxSerial).toBe(EMPTY_BOX_LOCKED_SERIAL);
 
     const urls = pack.photos.map((p) => p.url);
@@ -128,9 +131,9 @@ describe("empty-box: arrival check to evidence pack", () => {
     for (const photo of delivered.lockedCard.photos) expect(urls).toContain(photo.url);
     expect(new Set(urls).size).toBe(urls.length);
 
-    const serial = check.mismatches.find((m) => m.field === "serial")!;
+    const missing = check.mismatches.find((m) => m.field === "other")!;
     expect(pack.summary).toContain(EMPTY_BOX_LOCKED_SERIAL);
-    expect(pack.summary).toContain(serial.observed);
+    expect(pack.summary).toContain(missing.observed);
     expect(pack.summary).toContain(emptyBox.payment!.paypalOrderId);
     expect(pack.summary).toContain(emptyBox.shipment!.trackingNumber);
     expect(pack.summary).toContain(emptyBox.arrivalPhotos[0]!.whatItShows);
@@ -160,10 +163,12 @@ describe("empty-box: arrival check to evidence pack", () => {
     const { data: check } = await vision.checkArrival(delivered.lockedCard, absolute);
 
     expect(check.matches).toBe(false);
-    const serial = check.mismatches.find((m) => m.field === "serial")!;
-    expect(serial.observed).toBe(NOT_PRESENT);
+    // Vision sees foam and a bag and no console. The locked card has no console serial, so the
+    // mismatch is the item, not a serial: the same single "other" row the keyless path produces.
     const other = check.mismatches.find((m) => m.field === "other")!;
     expect(other).toBeDefined();
+    expect(other.observed).toMatch(/nothing in the box|no console|not present|empty/i);
+    expect(check.mismatches.map((m) => m.field)).not.toContain("serial");
     expect(check.palMessage).toContain("without the item");
     expect(check.palMessage).not.toMatch(/photo description/i);
   });

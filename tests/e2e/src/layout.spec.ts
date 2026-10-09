@@ -44,21 +44,23 @@ async function expectVerdictBlock(page: Page, overall: keyof typeof OVERALL_WORD
 test.describe("new layout on the finished deals", () => {
   test.skip(!WEB_PRESENT, "apps/web is not on this branch yet, nothing to load");
 
-  test("fake slab: three steps done, Blocked end badge, Stop verdict, cert rows that do not match, no lock", async ({ page }) => {
+  test("fake slab: three steps done, Blocked end badge, Stop verdict, cert rows that match, no lock", async ({ page }) => {
     await openFinished(page, fakeSlab);
     expect(await stepStatuses(page)).toEqual(["done", "done", "done", "upcoming", "upcoming", "upcoming", "upcoming"]);
     await expect(page.getByTestId("progress-stepper").locator("[aria-current='step']")).toHaveCount(0);
     await expect(page.getByTestId("progress-end")).toHaveText("Blocked");
 
     const review = await expectVerdictBlock(page, fakeSlab.expectedVerdict.overall);
+    // The cert is real: the comparison agrees row by row, and the stop stands on the other flags.
     const cert = review.getByTestId("cert-check");
-    await expect(cert).toContainText("does not match the card");
+    await expect(cert).toContainText("matches the card");
     const rows = cert.getByTestId("comparison").locator("tbody").getByRole("row");
     expect(await rows.count()).toBeGreaterThan(0);
     await expect(cert.getByTestId("comparison").getByRole("columnheader", { name: "Card says" })).toBeVisible();
     await expect(cert.getByTestId("comparison").getByRole("columnheader", { name: /PSA.*says/ })).toBeVisible();
     const statuses = await rows.evaluateAll((trs) => trs.map((tr) => tr.getAttribute("data-status")));
-    expect(statuses, "at least one cert row is marked as a mismatch").toContain("mismatch");
+    expect(statuses, "no cert row is a mismatch").not.toContain("mismatch");
+    expect(statuses, "the cert rows are compared, not left unknown").toContain("match");
 
     await expect(page.getByTestId("lock-badge")).toHaveCount(0);
     await expect(page.getByTestId("order-text")).toHaveCount(0);
@@ -79,7 +81,11 @@ test.describe("new layout on the finished deals", () => {
     const statuses = await table.locator("tbody tr").evaluateAll((trs) => trs.map((tr) => tr.getAttribute("data-status")));
     expect(statuses.length).toBeGreaterThanOrEqual(3);
     expect(statuses.filter((s) => s === "mismatch")).toEqual([]);
-    expect(statuses.filter((s) => s === "match").length).toBeGreaterThanOrEqual(2);
+    // What the pal could read off the arrival photos matches; what it could not stays neutral, never red.
+    expect(statuses.filter((s) => s === "match").length).toBeGreaterThanOrEqual(1);
+    const serialRow = table.locator("tbody tr").filter({ hasText: "serial" }).first();
+    await expect(serialRow).toHaveAttribute("data-status", "match");
+    await expect(serialRow).toContainText(cleanPs5.cards.at(-1)!.serial!);
 
     const card = panel(page, "Item card");
     await expect(card.getByTestId("lock-badge")).toHaveText(new RegExp(`Locked, version ${cleanPs5.deal.lockedCardVersion}`));
@@ -92,19 +98,21 @@ test.describe("new layout on the finished deals", () => {
     await expect(page.getByTestId("history-badge").first()).toHaveAttribute("data-status", "unanchored");
   });
 
-  test("empty box: every step done, Issue open end badge, serial row marked as a mismatch", async ({ page }) => {
+  test("empty box: every step done, Issue open end badge, the missing item marked as the mismatch", async ({ page }) => {
     await openFinished(page, emptyBox);
     expect(await stepStatuses(page)).toEqual(Array(7).fill("done"));
     await expect(page.getByTestId("progress-end")).toHaveText("Issue open");
 
     await expectVerdictBlock(page, emptyBox.expectedVerdict.overall);
 
+    // The locked card never gained a console serial, so no serial row can be wrong: what is missing is the item.
     const table = panel(page, "Arrival check").getByTestId("comparison");
-    const serialRow = table.locator("tbody tr").filter({ hasText: "serial" }).first();
-    await expect(serialRow).toHaveAttribute("data-status", "mismatch");
     for (const field of emptyBox.expectedArrival!.mismatchFields) {
       await expect(table.locator(`tbody tr[data-status='mismatch']`).filter({ hasText: field })).not.toHaveCount(0);
     }
+    await expect(table.locator("tbody tr[data-status='mismatch']").filter({ hasText: "other" })).toHaveCount(1);
+    // The serial row still shows, as nothing to compare rather than as a contradiction.
+    await expect(table.locator("tbody tr").filter({ hasText: "serial" })).toHaveAttribute("data-status", "unknown");
     await expect(panel(page, "Item card").getByTestId("lock-badge")).toContainText("Locked");
   });
 

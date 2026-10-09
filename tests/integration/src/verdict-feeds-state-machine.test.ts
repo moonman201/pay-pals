@@ -38,16 +38,14 @@ describe("fake-slab: a payment-method flag blocks the deal", () => {
     expect(hasStop(verdict.flags)).toBe(true);
     expect(verdict.flags.some(isPaymentMethodFlag)).toBe(true);
 
-    // The slab's cert number is registered with PSA as a different card and grade.
-    const cert = verdict.flags.find((f) => f.code === "CERT_MISMATCH")!;
-    expect(cert.severity).toBe("stop");
-    expect(cert.raisedByRule).toBe(true);
-    expect(cert.evidence).toContain(FAKE_SLAB_CERT);
-    expect(cert.evidence).toContain(fakeSlab.certRecord!.subject!);
-    expect(verdict.certCheck?.matches).toBe(false);
+    // The cert is real and matches the card: this seller stole a photo of someone else's slab.
+    // So the cert raises no flag, and what the seller will not photograph rides the question path.
+    expect(codes).not.toContain("CERT_MISMATCH");
+    expect(verdict.certCheck?.matches).toBe(true);
     expect(verdict.certCheck?.record.certNumber).toBe(FAKE_SLAB_CERT);
     expect(verdict.certCheck?.record.subject).toBe(fakeSlab.certRecord!.subject);
     expect(verdict.certCheck?.explanation).toContain(FAKE_SLAB_CERT);
+    expect(verdict.questionsForSeller.join(" "), "the pal asks for the slab next to a dated note").toMatch(/handwritten note with your name and today'?s date/i);
 
     const saved = await seeded.store.listVerdicts(seeded.dealId);
     expect(saved).toHaveLength(1);
@@ -147,11 +145,14 @@ describe("clean-ps5: go ends AGREED with the card locked", () => {
     expect((await store.listCards(dealId)).map((c) => c.version)).toEqual([1, 2]);
   });
 
-  it("keeps the box serial equal to the console serial through the store, on every version and after the lock", async () => {
-    for (const fixtureCard of cleanPs5.cards) {
-      expect(fixtureCard.boxSerial).toBe(fixtureCard.serial);
-      expect(fixtureCard.serial).toBe(CLEAN_SERIAL);
-    }
+  it("carries the box serial on every version and gains the matching console serial at version 2, which is what locks", async () => {
+    // Version 1 has the wide back shot and the box label, so the console's own serial is not readable yet.
+    // Version 2 adds the close-up the Buyer Pal asked for, and the two serials then agree.
+    const [first, last] = [cleanPs5.cards[0]!, cleanPs5.cards.at(-1)!];
+    expect(first.serial).toBeNull();
+    expect(first.boxSerial).toBe(CLEAN_SERIAL);
+    expect(last.serial).toBe(CLEAN_SERIAL);
+    expect(last.boxSerial).toBe(last.serial);
 
     const seeded = await seedFixture(cleanPs5);
     const { store, dealId } = seeded;
@@ -163,8 +164,8 @@ describe("clean-ps5: go ends AGREED with the card locked", () => {
     await reviewAndSave(seeded);
     await store.transition(dealId, "AGREED", "buyer", "Both sides agreed.");
     const locked = await store.lockCard(dealId, cleanPs5.cards.length);
+    expect(locked.serial, "the locked version is the one with the close-up").toBe(CLEAN_SERIAL);
     expect(locked.boxSerial).toBe(locked.serial);
-    expect(locked.boxSerial).toBe(CLEAN_SERIAL);
     expect((await store.getCurrentCard(dealId))!.boxSerial).toBe(CLEAN_SERIAL);
   });
 });

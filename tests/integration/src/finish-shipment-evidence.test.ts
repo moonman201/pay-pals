@@ -15,8 +15,19 @@ import type { SeededDeal } from "./seed";
 
 const buyerPal = createBuyerPal({ anthropic: null, priceLookup: createFixturePriceLookup(), certLookup: createFixtureCertLookup() });
 
-/** The question the fixture's Buyer Pal asked on the deal channel, as the pack reports it (the "Buyer Pal to seller:" prefix dropped). */
-const EMPTY_BOX_QUESTION = "Can you add a photo of the Console Information screen showing the serial?";
+/**
+ * The question the fixture's Buyer Pal asked on the deal channel, as the pack
+ * reports it: the "Buyer Pal to seller:" prefix dropped and the question
+ * itself kept, without the sentence of reasoning that follows it. Read from
+ * the fixture rather than copied, so a reworded scenario still has to come
+ * through the pack word for word.
+ */
+const EMPTY_BOX_QUESTION = `${
+  emptyBox.chat
+    .find((m) => m.author === "buyer_pal" && /close-up of the serial label/i.test(m.text))!
+    .text.replace(/^Buyer Pal to seller:\s*/, "")
+    .split("?")[0]
+}?`;
 
 interface Delivered {
   seeded: SeededDeal;
