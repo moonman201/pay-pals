@@ -129,6 +129,6 @@ describe("scenario fixtures", () => {
     // captions describe what is visible, never the conclusion
     for (const photo of [...fx.listingPhotos, ...fx.arrivalPhotos]) expect(photo.whatItShows).not.toMatch(/reused|no console|empty|scam|fake/i);
     expect(fx.expectedArrival?.matches).toBe(false);
-    expect(fx.expectedArrival?.mismatchFields).toContain("serial");
+    expect(fx.expectedArrival?.mismatchFields).toContain("other");
   });
 });
