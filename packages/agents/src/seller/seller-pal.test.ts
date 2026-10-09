@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { CLEAN_SERIAL, EMPTY_BOX_LOCKED_SERIAL, FAKE_SLAB_CERT, ItemCardSchema, cleanPs5, emptyBox, fakeSlab } from "@pay-pals/contracts";
+import { CONSOLE_SERIAL_QUESTION } from "../buyer/proof-question";
 import { fakeClaude, promptText } from "../testing/fake-claude";
 import { CardLockedError } from "./apply-request";
 import { MissingPriceError } from "./build-card";
@@ -180,7 +181,7 @@ describe("SellerPal.applyRequest", () => {
     const pal = createSellerPal({ anthropic: null });
     const { data: v2, palMessage } = await pal.applyRequest(
       v1,
-      { field: "photos", request: "Can you send a close-up of the serial label on the console itself?" },
+      { field: "photos", request: CONSOLE_SERIAL_QUESTION },
       "Here you go, that is the sticker on the back.",
       [serialCloseUp],
     );
@@ -218,7 +219,7 @@ describe("SellerPal.applyRequest", () => {
     expect(v1.serial).toBeNull();
     const { data: v2, palMessage } = await pal.applyRequest(
       v1,
-      { field: "photos", request: "Can you send a close-up of the serial label on the console itself?" },
+      { field: "photos", request: CONSOLE_SERIAL_QUESTION },
       "Here you go, that is the sticker on the back.",
       [serialCloseUp],
     );
