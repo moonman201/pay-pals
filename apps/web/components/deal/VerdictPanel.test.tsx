@@ -17,23 +17,24 @@ describe("VerdictPanel", () => {
     });
     render(<VerdictPanel verdict={v} currentVersion={1} locked={false} cardTitle={fakeSlab.cards[0]!.title} cardGrade="PSA 10" />);
     const block = screen.getByTestId("cert-check");
-    expect(block).toHaveTextContent(/Cert 81234567/);
+    expect(block).toHaveTextContent(`Cert ${fakeSlab.certRecord!.certNumber}`);
     expect(block).toHaveTextContent(/does not match the card/);
-    expect(block).toHaveTextContent("Card says PSA 10. PSA (demo record) record says 2016 Pokemon XY Evolutions Charizard Holo #11, grade 7.");
+    expect(block).toHaveTextContent(`Card says PSA 10. PSA (demo record) record says ${fakeSlab.certRecord!.subject}, grade ${fakeSlab.certRecord!.grade}.`);
     // Once in the sentence, once in the card title cell, once in the card grade cell of the comparison.
     expect(block.textContent?.match(/PSA 10/g)?.length).toBe(3);
     expect(block).not.toHaveTextContent("PSA 10, PSA 10");
     const rows = within(block).getAllByRole("row").slice(1);
-    // Item, grade and year (1999 on the card, 2016 in the record) differ; the cert number itself is the one thing both sides share.
-    expect(rows.map((r) => r.getAttribute("data-status"))).toEqual(["mismatch", "mismatch", "mismatch", "match"]);
+    const record = fakeSlab.certRecord!;
+    // The item and the grade are written differently on each side; the year and the cert number are the same.
+    expect(rows.map((r) => r.getAttribute("data-status"))).toEqual(["mismatch", "mismatch", "match", "match"]);
     expect(within(rows[0]!).getByRole("rowheader")).toHaveTextContent("Item");
-    expect(rows[1]).toHaveTextContent("7");
-    expect(rows[2]).toHaveTextContent("2016");
+    expect(rows[1]).toHaveTextContent(record.grade!);
+    expect(rows[2]).toHaveTextContent(record.year!);
     expect(screen.getByText("a grading cert that does not match PSA's record")).toBeInTheDocument();
   });
 
   it("says the record agrees on a match", () => {
-    const v = verdict({ overall: "go", certCheck: { record: { ...fakeSlab.certRecord!, provider: "psa", subject: "1999 Pokemon Game Charizard Holo #4", grade: "10" }, matches: true, explanation: "Matches." } });
+    const v = verdict({ overall: "go", certCheck: { record: { ...fakeSlab.certRecord!, provider: "psa", grade: "10" }, matches: true, explanation: "Matches." } });
     render(<VerdictPanel verdict={v} currentVersion={1} locked={false} cardGrade="PSA 10" />);
     expect(screen.getByTestId("cert-check")).toHaveTextContent("PSA record agrees: PSA 10");
   });

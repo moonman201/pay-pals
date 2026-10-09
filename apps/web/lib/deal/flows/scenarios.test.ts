@@ -48,8 +48,11 @@ describe("fake-slab", () => {
     const verdict = await runReview(services, deal.id);
     expect(verdict.overall).toBe("stop");
     const codes = verdict.flags.map((f) => f.code);
-    expect(codes).toEqual(expect.arrayContaining(fakeSlab.expectedVerdict.requiredFlags));
-    expect(verdict.certCheck?.matches).toBe(false);
+    // The payment-method flag is what stops this deal, and it is the one the room must never let a buyer override.
+    expect(codes).toContain("FRIENDS_AND_FAMILY_REQUEST");
+    expect(codes.every((c) => fakeSlab.expectedVerdict.requiredFlags.includes(c) || fakeSlab.expectedVerdict.optionalFlags.includes(c))).toBe(true);
+    // The cert on this listing is real: the card is someone else's, taken from the listing photo.
+    expect(verdict.certCheck?.matches).toBe(true);
     // The reused-photo flag comes from an image match. With no photo files served, it must stay silent.
     expect(codes).not.toContain("STOCK_OR_REUSED_PHOTO");
 
@@ -78,14 +81,15 @@ describe("clean-ps5", () => {
     const deal = await startDemoDeal(services, "clean-ps5");
 
     const v1 = await runReview(services, deal.id);
-    expect(v1.overall).toBe("go");
-    expect(v1.flags).toEqual([]);
+    // Version 1 has the box label but no serial read off the console itself, so the pal asks before it says go.
+    expect(v1.overall).toBe("caution");
+    expect(v1.flags.map((f) => f.code)).toEqual(["MISSING_SERIAL"]);
     expect(v1.priceCheck?.marketLow).toBe(cleanPs5.marketPrice.marketLow);
 
     let snap = await loadSnapshot(services, deal.id);
     const photo = snap.demo?.requestPhotos[0];
     if (!photo) throw new Error("expected a demo photo to add");
-    const card2 = await applyBuyerRequest(services, deal.id, { request: { field: "photos", request: "Console Information screen" }, sellerReply: "Added. Same serial on the screen, software is current.", photos: [photo] });
+    const card2 = await applyBuyerRequest(services, deal.id, { request: { field: "photos", request: "a close-up of the serial on the console" }, sellerReply: "Added. Close-up of the label on the back, same serial.", photos: [photo] });
     expect(card2.version).toBe(2);
     expect(card2.photos.map((p) => p.url)).toContain(photo.url);
     snap = await loadSnapshot(services, deal.id);
@@ -371,7 +375,7 @@ describe("two-sided agreement", () => {
 
     const photo = snap.demo?.requestPhotos[0];
     if (!photo) throw new Error("expected a demo photo to add");
-    await applyBuyerRequest(services, deal.id, { request: { field: "photos", request: "Console Information screen" }, sellerReply: "Added the Console Information screen.", photos: [photo] });
+    await applyBuyerRequest(services, deal.id, { request: { field: "photos", request: "a close-up of the serial on the console" }, sellerReply: "Added the close-up of the serial.", photos: [photo] });
     snap = await loadSnapshot(services, deal.id);
     expect(snap.deal.state).toBe("LISTED");
     expect(snap.deal.buyerAgreedAt).toBeNull();

@@ -1,6 +1,6 @@
 /**
  * Replays each scenario fixture through the store's public interface so the
- * store holds the three finished demo deals (fake slab blocked, clean
+ * store holds the three finished demo deals (stolen photo blocked, clean
  * complete, empty box in issue). The fixture timeline drives the replay:
  * state_changed events become transitions, the rest become data writes.
  * The store assigns fresh ids, so the result maps scenario id to deal id.

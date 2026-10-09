@@ -6,7 +6,9 @@ const record = fakeSlab.certRecord!;
 
 describe("certRows", () => {
   it("puts the card on the left and the grader's record on the right, mismatched rows marked", () => {
-    const rows = certRows({ record, matches: false, explanation: "x" }, "1999 Pokemon Base Set Charizard Holo, PSA 10", "PSA 10");
+    // A card from a different year, with a different grade on it: every row the record covers should differ.
+    const otherYear = String(Number(record.year) - 3);
+    const rows = certRows({ record, matches: false, explanation: "x" }, `${otherYear} A different card, PSA 10`, "PSA 10");
     expect(rows.map((r) => [r.label, r.status])).toEqual([
       ["Item", "mismatch"],
       ["Grade", "mismatch"],
@@ -15,12 +17,13 @@ describe("certRows", () => {
     ]);
     expect(rows[0]!.right).toBe(record.subject);
     expect(rows[1]!.left).toBe("PSA 10");
-    expect(rows[1]!.right).toBe("7");
-    expect(rows[2]!.left).toBe("1999");
+    expect(rows[1]!.right).toBe(record.grade);
+    expect(rows[2]!.left).toBe(otherYear);
+    expect(rows[2]!.right).toBe(record.year);
   });
 
   it("reads the grade from the title when the card has no grade field", () => {
-    const rows = certRows({ record, matches: false, explanation: "x" }, "Charizard Holo, PSA 10", null);
+    const rows = certRows({ record, matches: false, explanation: "x" }, "A graded card, PSA 10", null);
     expect(rows[1]!.left).toBe("PSA 10");
   });
 

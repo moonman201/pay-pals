@@ -84,7 +84,7 @@ export function RequestStep({ dealId, questions, suggestions, uploadsEnabled = f
         </label>
         <label className="block text-sm">
           <span className="font-semibold">Your reply</span>
-          <textarea value={reply} onChange={(e) => setReply(e.target.value)} rows={2} placeholder="For example: Added. Same serial on the Console Information screen." className="mt-1 block w-full rounded-lg border border-line px-3 py-2 text-sm" />
+          <textarea value={reply} onChange={(e) => setReply(e.target.value)} rows={2} placeholder="For example: Added. Close-up of the label on the back, same serial." className="mt-1 block w-full rounded-lg border border-line px-3 py-2 text-sm" />
         </label>
         <PhotoInput value={photos} onChange={setPhotos} addedBy="seller" suggestions={suggestions} label="New photos" uploadsEnabled={uploadsEnabled} />
         <div className="flex gap-2">
