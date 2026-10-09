@@ -17,6 +17,27 @@ export interface ClaimContext {
   certCheck: CertCheck | null;
   /** Presentation only: in public mode the message may not talk about photo files loading. */
   publicMode?: boolean;
+  /**
+   * Retailers named in the price check's urls. Matt's call on 2026-10-09: the
+   * price panel shows counts and prices only, so no shop may appear in the
+   * pal's words. These are the only shops the pal could know about.
+   */
+  shops?: string[];
+}
+
+/** Generic commerce words that are somebody's domain label but also ordinary English. */
+const GENERIC_SHOP_WORDS = new Set(["retail", "store", "shop", "market", "online", "example", "listing", "auction", "cards", "deals", "price", "prices"]);
+
+function shopPatterns(shops: string[]): RegExp[] {
+  const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const out: RegExp[] = [];
+  for (const shop of shops) {
+    const host = shop.toLowerCase();
+    out.push(new RegExp(`\\b${escape(host)}\\b`, "i"));
+    const label = host.split(".")[0] ?? "";
+    if (label.length >= 5 && !GENERIC_SHOP_WORDS.has(label)) out.push(new RegExp(`\\b${escape(label)}\\b`, "i"));
+  }
+  return out;
 }
 
 const LOADING_TALK: RegExp[] = [
@@ -67,6 +88,7 @@ export function unfoundedClaims(text: string, context: ClaimContext): string[] {
   if (!context.psaContacted) scan(PSA_CONTACT_CLAIMS);
   if (context.certCheck && context.certCheck.matches === null) scan(PSA_RESULT_CLAIMS);
   if (context.publicMode) scan(LOADING_TALK);
+  if (context.shops && context.shops.length > 0) scan(shopPatterns(context.shops));
   return [...new Set(found)];
 }
 
@@ -77,5 +99,6 @@ export function reaskInstruction(claims: string[], context: ClaimContext): strin
   if (!context.psaContacted) reasons.push("PSA was not contacted, so do not mention PSA's database or say PSA was checked");
   if (context.certCheck && context.certCheck.matches === null) reasons.push(`the cert was not checked; say exactly: ${context.certCheck.explanation}`);
   if (context.publicMode) reasons.push("do not mention whether photo files loaded, opened or could be viewed; say only what you checked from the card and the chat");
+  if (context.shops && context.shops.length > 0) reasons.push("do not name a shop or website; the buyer sees the number of listings and the prices, not the retailers");
   return `Your draft message contained claims that cannot be supported: ${claims.map((c) => `"${c}"`).join(", ")}. Reasons: ${reasons.join("; ")}. Rewrite the message without any such claim. State only what was actually examined.`;
 }

@@ -102,13 +102,44 @@ function priceNote(priceCheck: PriceCheck | null): string | null {
   return first && first.price === undefined && first.url === undefined ? first.name : null;
 }
 
+/**
+ * How many listings the range came from, by condition. Counts only, never a
+ * shop: the retailer stays in the source's url and out of the model's sight.
+ */
+export function listingCounts(priceCheck: PriceCheck): string | null {
+  const priced = priceCheck.sources.filter((s) => s.price !== undefined);
+  if (priced.length === 0) return null;
+  const byCondition = new Map<string, number>();
+  for (const source of priced) {
+    const key = (source.condition ?? "unstated").replace(/_/g, " ");
+    byCondition.set(key, (byCondition.get(key) ?? 0) + 1);
+  }
+  const parts = [...byCondition.entries()].map(([condition, count]) => `${count} ${condition}`);
+  return `from ${priced.length} listing${priced.length === 1 ? "" : "s"} (${parts.join(", ")})`;
+}
+
+/** The retailers behind the price check, from the source urls. Used only to keep them out of the pal's words. */
+export function shopNames(priceCheck: PriceCheck | null): string[] {
+  const names = new Set<string>();
+  for (const source of priceCheck?.sources ?? []) {
+    if (!source.url) continue;
+    try {
+      names.add(new URL(source.url).hostname.replace(/^www\./, "").toLowerCase());
+    } catch {
+      // Not a url we can parse; there is no retailer to hide.
+    }
+  }
+  return [...names];
+}
+
 function priceLine(priceCheck: PriceCheck | null): string {
   if (!priceCheck || priceCheck.marketLow <= 0) {
     return `No reliable market price was found${priceNote(priceCheck) ? ` (${priceNote(priceCheck)!.toLowerCase()})` : ""}. Say so plainly; do not invent a range.`;
   }
   const note = priceNote(priceCheck);
+  const counts = listingCounts(priceCheck);
   const reference = priceCheck.provider === "fixture" ? ` ${REFERENCE_RANGE_NOTE} Say that in your message.` : "";
-  return `Market range $${priceCheck.marketLow} to $${priceCheck.marketHigh} (${priceCheck.provider}${note ? `; ${note.toLowerCase()}` : ""}).${reference}`;
+  return `Market range $${priceCheck.marketLow} to $${priceCheck.marketHigh} (${priceCheck.provider}${counts ? `, ${counts}` : ""}${note ? `; ${note.toLowerCase()}` : ""}). Name no shop or website in your message; the buyer sees the listing count and the prices.${reference}`;
 }
 
 function certLine(card: ItemCard | null, certCheck: CertCheck | null, lookupFailed: boolean): string | null {
@@ -230,7 +261,13 @@ export async function reviewCard(card: ItemCard | null, chat: Message[], context
       readings = await readPhotos(card.photos, { client: deps.client, fetchImage: deps.fetchImage, photoBaseUrl: deps.photoBaseUrl, hints: { brand: card.brand, model: card.model } });
     }
     const publicMode = deps.publicMode === true;
-    const claims: ClaimContext = { imagesRead: readings.some((r) => r.imageStatus === "read"), psaContacted: certRecord?.provider === "psa", certCheck, publicMode };
+    const claims: ClaimContext = {
+      imagesRead: readings.some((r) => r.imageStatus === "read"),
+      psaContacted: certRecord?.provider === "psa",
+      certCheck,
+      publicMode,
+      shops: shopNames(priceCheck),
+    };
     const facts = ruleFlags.length === 0 ? "The rules raised no flags." : JSON.stringify(ruleFlags, null, 2);
     const cert = certLine(card, certCheck, certLookupFailed);
     pass = await askModel(

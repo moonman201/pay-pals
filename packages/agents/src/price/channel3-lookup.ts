@@ -176,6 +176,15 @@ function round(value: number): number {
   return Math.round(value * 100) / 100;
 }
 
+/**
+ * A neutral label for one listing. Matt's call on 2026-10-09: the price panel
+ * shows counts and prices with "via Channel3" and no retailer names, so the
+ * shop stays in the url and never reaches the model or any pal text.
+ */
+function sourceLabel(offer: Channel3Offer): string {
+  return offer.condition === "used" ? "Used listing" : "Retail listing, new";
+}
+
 function rangeOf(listings: Listing[]): { low: number; high: number } {
   const prices = listings.map((l) => l.offer.price.price).sort((a, b) => a - b);
   return { low: percentile(prices, 0.2, "low"), high: percentile(prices, 0.8, "high") };
@@ -204,8 +213,8 @@ export function deriveRange(
     );
   } else return unknown(NO_RELIABLE_PRICE_NOTE);
 
-  const sources: PriceSource[] = pool.slice(0, MAX_SOURCES).map(({ product, offer }) => ({
-    name: `${offer.domain}: ${product.title}`.slice(0, 120),
+  const sources: PriceSource[] = pool.slice(0, MAX_SOURCES).map(({ offer }) => ({
+    name: sourceLabel(offer),
     url: offer.url,
     price: offer.price.price,
     condition: offer.condition ?? "new",
