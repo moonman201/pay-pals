@@ -269,6 +269,15 @@ function evidenceGroup(input: StatusInput): StatusGroup {
 
 // --------------------------------------------------------------- the payment
 
+/**
+ * The group's own title is a claim, so it carries the same rule as the
+ * lines: it says "confirmed by PayPal" only when a live read confirmed
+ * something.
+ */
+function paymentTitle(items: readonly StatusItem[]): string {
+  return items.some((i) => i.status === "verified") ? "Payment confirmed by PayPal" : "Payment, not confirmed by PayPal";
+}
+
 function paymentGroup(input: StatusInput): StatusGroup {
   const items: StatusItem[] = [];
   const read = input.paypalRead;
@@ -277,7 +286,7 @@ function paymentGroup(input: StatusInput): StatusGroup {
   if (!input.payment) {
     items.push({ id: "order", label: "Order at PayPal", status: "missing", detail: "No PayPal order has been created for this deal." });
     items.push({ id: "capture", label: "Capture at PayPal", status: "missing", detail: "No money has moved." });
-    return { id: "payment", title: "Payment confirmed by PayPal", items };
+    return { id: "payment", title: paymentTitle(items), items };
   }
   const payment = input.payment;
 
@@ -300,7 +309,7 @@ function paymentGroup(input: StatusInput): StatusGroup {
     );
     items.push(amountAndPayeeItem(input, read));
     items.push(hashItem(input, read));
-    return { id: "payment", title: "Payment confirmed by PayPal", items };
+    return { id: "payment", title: paymentTitle(items), items };
   }
 
   items.push({ id: "order", label: "Order at PayPal", status: "unverified", detail: `Pay Pals recorded order ${payment.paypalOrderId}, status ${payment.status.toLowerCase()}. ${why}` });
@@ -312,7 +321,7 @@ function paymentGroup(input: StatusInput): StatusGroup {
   });
   items.push(amountAndPayeeItem(input, read));
   items.push(hashItem(input, read));
-  return { id: "payment", title: "Payment confirmed by PayPal", items };
+  return { id: "payment", title: paymentTitle(items), items };
 }
 
 function amountAndPayeeItem(input: StatusInput, read: PayPalReadResult): StatusItem {

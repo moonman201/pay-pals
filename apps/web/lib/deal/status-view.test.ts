@@ -214,6 +214,14 @@ describe("the payment", () => {
     expect(item(groups, "payment", "history-hash").detail).toMatch(/reproduces from the \d+ events stored here/);
   });
 
+  it("titles the group a confirmation only when a live read confirmed something", () => {
+    expect(group(dealStatusView(input({ payment: cleanPs5.payment, paypalRead: { kind: "confirmed", order: liveOrder() } })), "payment").title).toBe("Payment confirmed by PayPal");
+    for (const read of [{ kind: "example" }, { kind: "mock" }, { kind: "failed" }, { kind: "none" }] as const) {
+      expect(group(dealStatusView(input({ payment: cleanPs5.payment, paypalRead: read })), "payment").title, read.kind).toBe("Payment, not confirmed by PayPal");
+    }
+    expect(group(dealStatusView(input()), "payment").title).toBe("Payment, not confirmed by PayPal");
+  });
+
   it("verifies nothing about a seeded example deal's payment", () => {
     const groups = dealStatusView(input({ payment: cleanPs5.payment, paypalRead: { kind: "example" } }));
     for (const line of group(groups, "payment").items) expect(line.status, line.id).not.toBe("verified");
