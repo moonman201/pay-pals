@@ -2,8 +2,9 @@
  * INVITE_REFUSED: the seller turned down the Pay Pals invite, either on the
  * record (context.inviteDeclined) or in their own words: Friends and Family
  * only, not doing that app, I only take F&F or Zelle, no need for protection.
- * Stop, and a payment-method flag, so nothing can override it. The strongest
- * scam sign there is: a real seller has nothing to lose by joining.
+ * Stop, and a payment-method flag, so nothing can override it. A refusal is a
+ * risk signal, not proof of fraud: a real seller has nothing to lose by
+ * joining, so we say what the seller refused and what we will not do.
  */
 import type { Rule } from "./types";
 import { findMatch, flag, quoted, sellerPassages } from "./text";
@@ -30,7 +31,7 @@ export const inviteRefusedRule: Rule = (input) => {
       "INVITE_REFUSED",
       "stop",
       match ? quoted(match.quote) : "The seller declined the Pay Pals invite",
-      "The seller refused Pay Pals protection and wants an unprotected payment, which is the strongest sign of a scam. Pay Pals cannot pay this seller.",
+      "The seller refused Pay Pals protection and wants an unprotected payment, which is a risk signal. Pay Pals cannot pay this seller.",
     ),
   ];
 };

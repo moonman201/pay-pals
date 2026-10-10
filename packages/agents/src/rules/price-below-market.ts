@@ -24,7 +24,7 @@ export const priceBelowMarketRule: Rule = ({ card, priceCheck }) => {
         "PRICE_FAR_BELOW_MARKET",
         "stop",
         evidence,
-        `This is priced at about ${percent}% of the lowest real listings, which is the pattern of a listing that will never ship.`,
+        `This is priced at about ${percent}% of the lowest real listings. A price that far below the market is a risk signal, so ask the seller why before you pay.`,
       ),
     ];
   }

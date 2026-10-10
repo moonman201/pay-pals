@@ -63,10 +63,16 @@ export async function buildEvidencePack(input: EvidenceInput, options?: Evidence
     input.payment ? `PayPal order ${input.payment.paypalOrderId},` : "no PayPal order,",
     input.shipment ? `${input.shipment.carrier} tracking ${input.shipment.trackingNumber},` : "no shipment,",
     input.arrivalCheck ? `and the arrival check (${input.arrivalCheck.matches ? "matched" : "did not match"}).` : "and the full timeline.",
-    history ? (history.historyVerified ? "The history hash on the PayPal order matches the stored events." : "The stored events do not reproduce the history hash on the PayPal order.") : null,
+    history
+      ? history.historyVerified
+        ? "The deal history hash recorded on the PayPal order matches the stored events, so this is the official record of the deal that PayPal can check first."
+        : "The stored events do not reproduce the history hash on the PayPal order, so the stored history differs from what PayPal holds."
+      : null,
     unanswered.length > 0 ? `The seller never answered ${unanswered.length === 1 ? "one question" : `${unanswered.length} questions`} the Buyer Pal asked before payment.` : null,
     shipmentFlags.length > 0 ? "The seller shipped without the required packing photo." : null,
-    input.arrivalCheck && !input.arrivalCheck.matches ? "Open a dispute in PayPal for this order and attach this pack." : "Keep this in case either side needs it.",
+    input.arrivalCheck && !input.arrivalCheck.matches
+      ? "You can open a dispute in PayPal for this order and attach this pack. It is useful context for whoever reviews it; it does not decide the outcome."
+      : "Keep this in case either side needs it.",
   );
   return { data: pack, palMessage };
 }

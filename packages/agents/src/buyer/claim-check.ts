@@ -28,8 +28,28 @@ export interface ClaimContext {
 /** Generic commerce words that are somebody's domain label but also ordinary English. */
 const GENERIC_SHOP_WORDS = new Set(["retail", "store", "shop", "market", "online", "example", "listing", "auction", "cards", "deals", "price", "prices"]);
 
-/** Words Pay Pals never uses: a cert check and a serial read are not verification. */
-const OVERCLAIMS: readonly RegExp[] = [/\bverif(?:y|ies|ied|ying|ication)\b/i, /\bauthentic(?:ated|ation|ity)?\b/i];
+/**
+ * Words Pay Pals never uses, whatever the context:
+ *   - a cert check and a serial read are not verification, and nothing we do
+ *     makes an item authentic;
+ *   - a refused invite is a risk signal, never the strongest sign and never
+ *     proof of fraud;
+ *   - the evidence pack is useful context for a dispute, never a guaranteed
+ *     or likely outcome, and no refund or dispute requires it.
+ */
+const OVERCLAIMS: readonly RegExp[] = [
+  /\bverif(?:y|ies|ied|ying|ication)\b/i,
+  /\bauthentic(?:ated|ation|ity)?\b/i,
+  /\bstrongest\b/i,
+  /\bproof of (?:fraud|a scam|ownership|authenticity)\b/i,
+  /\bprove[sdn]?\s+(?:ownership|authenticity|who owns|that the seller owns|it is genuine)\b/i,
+  /\bguaranteed\b/i,
+  /\bguarantees?\s+(?:a\s+)?(?:refund|your money|the outcome|you)\b/i,
+  /\b(?:get|getting|receive) your money back\b/i,
+  /\bwill\s+(?:win|be refunded|get (?:a refund|your money))\b/i,
+  /\b(?:dispute|refund|claim|chargeback)s?\s+(?:requires?|needs?|depends? on)\b/i,
+  /\b(?:required|needed)\s+(?:to open|to get|for)\s+(?:a\s+)?(?:dispute|refund|claim|chargeback)\b/i,
+];
 
 function shopPatterns(shops: string[]): RegExp[] {
   const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -105,5 +125,7 @@ export function reaskInstruction(claims: string[], context: ClaimContext): strin
   if (context.publicMode) reasons.push("do not mention whether photo files loaded, opened or could be viewed; say only what you checked from the card and the chat");
   if (context.shops && context.shops.length > 0) reasons.push("do not name a shop or website; the buyer sees the number of listings and the prices, not the retailers");
   reasons.push("never write verified or authentic; say what a check showed and what it did not show");
+  reasons.push("a refused invite or a Friends and Family demand is a risk signal, never the strongest sign and never proof of fraud");
+  reasons.push("the evidence pack is useful context for a PayPal dispute; never promise an outcome and never say a refund or a dispute requires it");
   return `Your draft message contained claims that cannot be supported: ${claims.map((c) => `"${c}"`).join(", ")}. Reasons: ${reasons.join("; ")}. Rewrite the message without any such claim. State only what was actually examined.`;
 }

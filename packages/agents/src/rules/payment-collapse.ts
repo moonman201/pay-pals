@@ -1,7 +1,7 @@
 /**
  * One payment flag per review. A seller who refuses the invite, wants Friends
  * and Family and mentions Zelle has made one demand, not three, so the three
- * payment codes collapse into the strongest: INVITE_REFUSED over
+ * payment codes collapse into the most serious: INVITE_REFUSED over
  * FRIENDS_AND_FAMILY_REQUEST over OFF_PLATFORM_PAYMENT. The kept flag quotes
  * the seller once and its explanation covers every method that was asked for.
  * A rule-raised payment flag outranks a model-added one, whatever the code,
@@ -29,7 +29,7 @@ export function collapsePaymentFlags(flags: readonly RedFlag[]): RedFlag[] {
   const demand = demandWords(codes);
   const explanation =
     kept.code === "INVITE_REFUSED"
-      ? `The seller refused Pay Pals protection and wants ${demand}, which is the strongest sign of a scam. Pay Pals cannot pay this seller.`
+      ? `The seller refused Pay Pals protection and wants ${demand}, which is a risk signal. Pay Pals cannot pay this seller.`
       : `The seller wants ${demand}, which has no buyer protection, so Pay Pals will not move money this way.`;
   const merged: RedFlag = { ...kept, severity: "stop", explanation: explanation.slice(0, 300) };
 

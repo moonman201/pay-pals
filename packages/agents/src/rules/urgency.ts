@@ -32,7 +32,7 @@ export const urgencyRule: Rule = (input) => {
       "URGENCY_PRESSURE",
       "caution",
       `Seller wrote: ${quotes.map((q) => `"${q}"`).join(" and ")}`,
-      "The seller is pushing you to pay before you can check anything, which is how rushed buyers get burned.",
+      "The seller is pushing you to pay before you can check anything, which is a risk signal.",
     ),
   ];
 };

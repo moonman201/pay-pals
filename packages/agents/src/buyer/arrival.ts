@@ -139,7 +139,7 @@ export async function checkArrivalAgainstCard(card: ItemCard, arrivalPhotos: Pho
     matches && !observed.serial && arrivalPhotos.length > 0 ? "Nothing contradicts the card, but the card has no serial to confirm." : null,
     missing ? `The box arrived without the item. The locked card describes ${card.title}, and there is no item in the photos.` : null,
     missing && box ? `The box label shows ${box.serial}, which does not count. A label is not the item.` : null,
-    missing ? "I will build the evidence pack so you can open a PayPal dispute." : null,
+    missing ? "I will build the evidence pack. It is useful context if you open a PayPal dispute." : null,
     unreadable ? `I could not find a serial on the item itself, so I cannot confirm this is the unit on the card${box ? `. The box label shows ${box.serial}, which does not count` : ""}. Add a clear photo of the serial on the item.` : null,
     differs ? "This is not the item on the card." : null,
     differs
@@ -148,7 +148,7 @@ export async function checkArrivalAgainstCard(card: ItemCard, arrivalPhotos: Pho
           .map((m) => `${m.field === "serial" ? "Serial" : m.field === "model" ? "Model" : "Brand"}: card says ${m.expected}, arrival shows ${m.observed}.`)
           .join(" ")
       : null,
-    differs ? "I will build the evidence pack so you can open a PayPal dispute." : null,
+    differs ? "I will build the evidence pack. It is useful context if you open a PayPal dispute." : null,
   );
 
   const check: ArrivalCheck = {
