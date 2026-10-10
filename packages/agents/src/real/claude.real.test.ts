@@ -1,12 +1,18 @@
 /**
  * Real Claude calls. Skipped unless ANTHROPIC_API_KEY is set (in the
  * environment or in .env.local at the repo root) and SKIP_REAL_TESTS is not.
- * Four calls total. Verdicts are printed so a reviewer can read them.
+ * Nine calls total. Verdicts and photo reads are printed so a reviewer can
+ * read them.
  */
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import Anthropic from "@anthropic-ai/sdk";
-import type { Verdict } from "@pay-pals/contracts";
-import { CLEAN_SERIAL, cleanPs5, hasStop, fakeSlab } from "@pay-pals/contracts";
+import type { Photo, Verdict } from "@pay-pals/contracts";
+import { CLEAN_MODEL, CLEAN_SERIAL, cleanPs5, hasStop, fakeSlab } from "@pay-pals/contracts";
+import type { ImageFetcher } from "../vision/fetch-image";
+import { readPhoto } from "../vision/read-photo";
 import { createBuyerPal } from "../buyer/buyer-pal";
 import { createFixtureCertLookup } from "../cert/fixture-lookup";
 import { createSellerPal } from "../seller/seller-pal";
@@ -74,5 +80,47 @@ describe.skipIf(!enabled)("real Claude (needs ANTHROPIC_API_KEY)", () => {
     expect(card.boxSerial).toBe(CLEAN_SERIAL);
     expect(palMessage).toContain("A box label is not the item");
     expect(card.askingPrice).toBe(420);
+  }, 60_000);
+});
+
+/**
+ * The clean deal's wide shot of the console back, read with the real model.
+ * The sticker is in frame and a few pixels tall, and the scenario depends on
+ * it reading as unreadable so the Buyer Pal asks for the close-up instead of
+ * arguing with the box label about one character. Run twice, because the
+ * failure this guards against was intermittent: before the legibility gate the
+ * same photo came back AJ164952580 five times in six and AJ16495258Q once.
+ */
+describe.skipIf(!enabled)("real Claude vision on the demo photos", () => {
+  const anthropic = new Anthropic();
+  const photosDir = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "..", "assets", "demo-photos");
+  const fromDisk: ImageFetcher = async (url) => ({
+    data: readFileSync(join(photosDir, new URL(url).pathname.replace("/fixtures/", ""))).toString("base64"),
+    mediaType: "image/jpeg",
+  });
+  const read = (photo: Photo) =>
+    readPhoto(photo, { client: anthropic, fetchImage: fromDisk, photoBaseUrl: "https://demo.invalid", hints: { brand: "Sony", model: `PlayStation 5 disc edition, ${CLEAN_MODEL}` } });
+
+  it.each([1, 2])("the wide console back reads as unreadable, not as a serial (run %i)", async () => {
+    const reading = await read(cleanPs5.cards[0]!.photos[0]!);
+    console.log(`console-back: serial=${reading.serial} illegible=${reading.serialIllegible} reason=${reading.serialIllegibleReason}`);
+    expect(reading.serial).toBeNull();
+    // Model and brand are large print and must still come through.
+    expect(reading.model).toMatch(/CFI-1015A/i);
+  }, 60_000);
+
+  it("the serial close-up still reads, so the gate did not just turn every serial off", async () => {
+    const reading = await read(cleanPs5.cards[1]!.photos[3]!);
+    console.log(`console-serial-closeup: serial=${reading.serial} illegible=${reading.serialIllegible}`);
+    expect(reading.serial).toBe(CLEAN_SERIAL);
+    expect(reading.serialOn).toBe("item");
+    expect(reading.serialIllegible).toBe(false);
+  }, 60_000);
+
+  it("the arrival close-up reads, so the arrival check can still confirm the unit", async () => {
+    const reading = await read(cleanPs5.arrivalPhotos[0]!);
+    console.log(`arrival-console-serial: serial=${reading.serial} illegible=${reading.serialIllegible}`);
+    expect(reading.serial).toBe(CLEAN_SERIAL);
+    expect(reading.serialOn).toBe("item");
   }, 60_000);
 });
