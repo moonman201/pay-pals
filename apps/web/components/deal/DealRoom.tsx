@@ -123,6 +123,8 @@ export function DealRoom({ snapshot, role }: { snapshot: DealSnapshot; role: Rol
             <PaymentSummary
               payment={snapshot.payment}
               read={snapshot.paypalRead}
+              dealId={deal.id}
+              events={snapshot.events}
               record={{
                 cards: snapshot.cards,
                 lockedVersion: deal.lockedCardVersion,

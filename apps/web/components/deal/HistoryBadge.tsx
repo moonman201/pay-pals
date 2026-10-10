@@ -6,7 +6,22 @@ interface Props {
   historyHash: string | null | undefined;
   /** A seeded example deal: its "order" is a fixture id, so PayPal holds nothing. Chained, not anchored. */
   example?: boolean;
+  /**
+   * Where `historyHash` came from. "payment_record" is our own copy, written
+   * when the order was created. "live_order" is PayPal's custom_id, read back
+   * from PayPal in this render, which is the stronger of the two.
+   */
+  source?: "payment_record" | "live_order";
+  /** The order the hash was read from, for the tooltip. Only with source "live_order". */
+  orderId?: string | null;
   className?: string;
+}
+
+function titleFor(source: "payment_record" | "live_order", historyHash: string | null | undefined, example: boolean, orderId: string | null): string {
+  if (example) return "Example deal seeded from a scenario: no PayPal order holds this hash";
+  if (!historyHash) return "No PayPal order yet";
+  if (source === "live_order") return `Read from PayPal's custom_id on order ${orderId ?? "just now"}: ${historyHash}`;
+  return `Hash on the PayPal order: ${historyHash}`;
 }
 
 /** A round seal: a ring of ticks with a check inside when the history verifies, a broken ring with a mark when it does not. */
@@ -30,7 +45,7 @@ function Seal({ verified }: { verified: boolean }) {
  * recorded on the PayPal order: a green seal when it verifies, a red seal
  * when it does not, a plain chip before any order or on an example deal.
  */
-export function HistoryBadge({ events, historyHash, example = false, className = "" }: Props) {
+export function HistoryBadge({ events, historyHash, example = false, source = "payment_record", orderId = null, className = "" }: Props) {
   const status = historyStatus(events, example ? null : historyHash);
   const line = example && status.kind === "unanchored" && status.chainOk ? `${historyLine(status)} (example deal, no PayPal order)` : historyLine(status);
   const bad = status.kind === "mismatch" || (status.kind === "unanchored" && !status.chainOk);
@@ -40,7 +55,7 @@ export function HistoryBadge({ events, historyHash, example = false, className =
       role={status.kind === "mismatch" ? "alert" : undefined}
       data-testid="history-badge"
       data-status={status.kind}
-      title={example ? "Example deal seeded from a scenario: no PayPal order holds this hash" : historyHash ? `Hash on the PayPal order: ${historyHash}` : "No PayPal order yet"}
+      title={titleFor(source, example ? null : historyHash, example, orderId)}
       className={`inline-flex min-h-8 items-center gap-1.5 rounded-full border py-0.5 pl-1 pr-2.5 text-xs font-semibold ${tone} ${className}`}
     >
       {status.kind === "verified" || bad ? (

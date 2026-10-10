@@ -1,9 +1,9 @@
-import type { PaymentRecord } from "@pay-pals/contracts";
+import type { DealEvent, PaymentRecord } from "@pay-pals/contracts";
 import type { PayPalReadResult } from "@/lib/deal/paypal-confirmation";
 import type { RecordedInput } from "@/lib/deal/recorded";
 import { Badge } from "../ui/Badge";
 import { Panel } from "../ui/Panel";
-import { ConfirmedByPayPal } from "./ConfirmedByPayPal";
+import { PayPalConfirmation } from "./PayPalConfirmation";
 import { RecordedByPayPals } from "./RecordedByPayPals";
 
 /** PayPal's approval link from the saved order body, when the order is still waiting for the buyer. */
@@ -23,15 +23,16 @@ interface Props {
   read: PayPalReadResult;
   /** What Pay Pals holds itself, for the second half of the panel. */
   record: RecordedInput;
-  /** The hash check on the live order, when there is one. */
-  historyCheck?: React.ReactNode;
+  dealId: string;
+  /** The stored timeline, for the hash check against PayPal's custom_id. */
+  events: readonly DealEvent[];
 }
 
 /**
  * The payment panel, in two labelled halves: what PayPal confirms when we
  * read the order back, and what Pay Pals recorded on its own.
  */
-export function PaymentSummary({ payment, read, record, historyCheck }: Props) {
+export function PaymentSummary({ payment, read, record, dealId, events }: Props) {
   const captured = payment.status === "CAPTURED";
   const approve = approveLink(payment);
   return (
@@ -46,8 +47,7 @@ export function PaymentSummary({ payment, read, record, historyCheck }: Props) {
         </p>
       ) : null}
       <div className="space-y-3">
-        <ConfirmedByPayPal result={read} payment={payment} />
-        {historyCheck}
+        <PayPalConfirmation read={read} payment={payment} dealId={dealId} events={events} />
         <RecordedByPayPals input={record} />
       </div>
     </Panel>

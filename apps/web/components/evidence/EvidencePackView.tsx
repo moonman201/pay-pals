@@ -5,7 +5,7 @@ import { priceRangeLine, priceSourceNote } from "@/lib/deal/price-copy";
 import { summariseSources } from "@/lib/deal/price-sources";
 import { isExampleDeal } from "@/lib/deal/snapshot";
 import type { PayPalReadResult } from "@/lib/deal/paypal-confirmation";
-import { ConfirmedByPayPal } from "../deal/ConfirmedByPayPal";
+import { PayPalConfirmation } from "../deal/PayPalConfirmation";
 import { FlagEvidence } from "../deal/FlagEvidence";
 import { HistoryBadge } from "../deal/HistoryBadge";
 import { EvidenceHeader } from "./EvidenceHeader";
@@ -122,7 +122,7 @@ export function EvidencePackView({
         </Section>
 
         {pack.payment ? (
-          <ConfirmedByPayPal result={read} payment={pack.payment} fallbackFields={false} />
+          <PayPalConfirmation read={read} payment={pack.payment} dealId={pack.dealId} events={live} fallbackFields={false} />
         ) : (
           <Section title="Confirmed by PayPal">
             <p>No payment was made, so there is no PayPal order to read back.</p>
