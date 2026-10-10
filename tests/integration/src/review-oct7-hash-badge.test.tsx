@@ -82,17 +82,32 @@ describe("hash badge: contracts", () => {
 });
 
 describe("hash badge: evidence pack builder", () => {
-  it("marks the pack verified on the stored events and not verified on an edited copy", async () => {
+  /**
+   * Corrected 2026-10-10. This case used to require the words "matches the
+   * stored events", from the sentence "The deal history hash recorded on the
+   * PayPal order matches the stored events, so this is the official record of
+   * the deal that PayPal can check first." The sentence was an overclaim:
+   * nothing in the pack had read PayPal's copy of the hash, and on a seeded
+   * example deal there is no PayPal order holding one. builder-agents removed
+   * it (326ad36). The test was wrong, not the code, and it could never have
+   * caught the overclaim because the two were written together. What the pack
+   * can say, and what is asserted now, is that our own stored events
+   * reproduce the hash we recorded with the payment.
+   */
+  it("says the stored events reproduce the recorded hash, and says the opposite on an edited copy", async () => {
     const { input, pack, head } = await builtPack();
     expect(pack.historyHash).toBe(head);
     expect(pack.historyVerified).toBe(true);
     const { palMessage: cleanMessage } = await buildEvidencePack(input, { anthropic: null });
-    expect(`${pack.summary} ${cleanMessage}`).toContain("matches the stored events");
+    expect(`${pack.summary} ${cleanMessage}`).toContain("reproduce the hash recorded with this payment");
+    // The claim that came out: PayPal's own copy was never read, so the pack may not invoke it.
+    expect(`${pack.summary} ${cleanMessage}`).not.toMatch(/matches the stored events|PayPal can check first/);
 
     const { data: edited, palMessage: editedMessage } = await buildEvidencePack({ ...input, timeline: tamper(input.timeline, head) }, { anthropic: null });
     expect(edited.historyHash).toBe(head);
     expect(edited.historyVerified).toBe(false);
-    expect(`${edited.summary} ${editedMessage}`).not.toContain("matches the stored events");
+    // Not a vacuous negative: the phrase this asserts against is the one a verified pack really does carry.
+    expect(`${edited.summary} ${editedMessage}`).not.toMatch(/\bare hash-chained and reproduce the hash recorded with this payment/);
     expect(`${edited.summary} ${editedMessage}`).toMatch(/do not reproduce/);
   });
 });

@@ -9,7 +9,7 @@
  * remote server, where nothing may be written.
  */
 import { ALL_FIXTURES, cleanPs5 } from "@pay-pals/contracts";
-import { BASE_URL, STARTS_SERVER } from "./env";
+import { BASE_URL, PORT_PINNED, STARTS_SERVER } from "./env";
 import { announceServer } from "./server-mode";
 
 type Json = Record<string, unknown>;
@@ -75,7 +75,7 @@ async function checkServerIsPinnedToDemoMode(): Promise<void> {
 }
 
 export default async function globalSetup(): Promise<void> {
-  announceServer({ label: "demo server", baseUrl: BASE_URL, startsServer: STARTS_SERVER });
+  announceServer({ label: "demo server", baseUrl: BASE_URL, startsServer: STARTS_SERVER, portPinned: PORT_PINNED });
   if (!STARTS_SERVER) return;
   const started = Date.now();
   await checkServerIsPinnedToDemoMode();

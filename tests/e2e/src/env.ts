@@ -6,6 +6,7 @@
 import { existsSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { choosePort } from "./port";
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -27,8 +28,16 @@ if (!WEB_PRESENT && !process.env.E2E_BASE_URL) {
   );
 }
 
-/** 3100 by default so a dev server already on 3000 is left alone. */
-export const PORT = Number(process.env.E2E_PORT ?? 3100);
+/**
+ * A port of this worktree's own, so two lanes can run at once without being
+ * told to. `E2E_PORT` pins one exactly. The choice is written back into the
+ * environment, so the worker processes that re-import this module, and
+ * anything else the run starts, agree on it.
+ */
+const chosen = choosePort(process.env.E2E_PORT, REPO_ROOT, 3300, 300);
+export const PORT = chosen.port;
+export const PORT_PINNED = chosen.pinned;
+process.env.E2E_PORT = String(PORT);
 /** Set E2E_BASE_URL to run against a server you started yourself, or a deployed app. */
 export const BASE_URL = process.env.E2E_BASE_URL ?? `http://localhost:${PORT}`;
 export const STARTS_SERVER = WEB_PRESENT && !process.env.E2E_BASE_URL;

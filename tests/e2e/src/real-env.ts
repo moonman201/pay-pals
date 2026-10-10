@@ -8,13 +8,21 @@
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { REPO_ROOT } from "./env";
+import { choosePort } from "./port";
 
 const ENV_LOCAL = resolve(REPO_ROOT, ".env.local");
 if (existsSync(ENV_LOCAL)) process.loadEnvFile(ENV_LOCAL);
 delete process.env.PAY_PALS_DEMO_ONLY;
 
-/** 3200 so it never collides with the demo suite on 3100 or a dev server on 3000. */
-export const REAL_PORT = Number(process.env.E2E_REAL_PORT ?? 3200);
+/**
+ * A port of this worktree's own, from a range above the demo suite's, so a
+ * real run and a demo run in the same checkout never meet. `E2E_REAL_PORT`
+ * pins one exactly.
+ */
+const chosenReal = choosePort(process.env.E2E_REAL_PORT, REPO_ROOT, 3700, 200);
+export const REAL_PORT = chosenReal.port;
+export const REAL_PORT_PINNED = chosenReal.pinned;
+process.env.E2E_REAL_PORT = String(REAL_PORT);
 export const REAL_BASE_URL = process.env.E2E_BASE_URL ?? `http://localhost:${REAL_PORT}`;
 export const REAL_STARTS_SERVER = !process.env.E2E_BASE_URL;
 /** Set E2E_REAL_HEADED=1 to watch the run, or when PayPal refuses the headless popup. */

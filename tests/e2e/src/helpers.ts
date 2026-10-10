@@ -2,7 +2,7 @@
  * Small page helpers shared by the scenario specs. Selectors are roles and
  * visible text only, never class names, so a restyle does not break them.
  */
-import { expect, type Locator, type Page } from "@playwright/test";
+import { expect, type APIResponse, type Locator, type Page } from "@playwright/test";
 import type { ScenarioFixture } from "@pay-pals/contracts";
 
 export type Side = "buyer" | "seller";
@@ -172,9 +172,47 @@ export interface Snapshot {
   payment: { historyHash?: string | null; createdAt?: string; capturedAt?: string | null } | null;
 }
 
+/** A GET of an API route may not sit behind the 300 s test timeout; a hung one should say so itself. */
+const API_TIMEOUT = 20_000;
+
+/**
+ * A GET that survives one transport failure and nothing else.
+ *
+ * `page.request` throws, rather than returning a response, when the
+ * connection is reset, refused or aborted. One of those (`read ECONNRESET`
+ * on an established connection, with no matching line in the dev server's
+ * own log) turned up once in a full run on 2026-10-10 and could not be
+ * reproduced afterwards; see REVIEW.md for what was ruled out. A dropped
+ * connection is not the app answering, and a bare "read ECONNRESET" reads
+ * like an API failure, so the request is made once more.
+ *
+ * What is deliberately not retried: any response the server actually sent.
+ * A 500 is the server answering and the answer is the test's business. If
+ * the second attempt also fails the test fails, with both transport errors
+ * named, so a server that has genuinely gone away still goes red.
+ *
+ * Only `snapshot` uses this. The POST in `payByCaptureButton` is left alone
+ * because it creates a PayPal order and is not safe to send twice, and the
+ * two real-mode specs run one worker against a production build, where a
+ * raw transport error is the more useful signal.
+ */
+async function getWithOneRetry(page: Page, path: string): Promise<APIResponse> {
+  try {
+    return await page.request.get(path, { timeout: API_TIMEOUT });
+  } catch (first) {
+    await page.waitForTimeout(250);
+    try {
+      return await page.request.get(path, { timeout: API_TIMEOUT });
+    } catch (second) {
+      const line = (err: unknown) => String(err instanceof Error ? err.message : err).split("\n")[0];
+      throw new Error(`GET ${path} never reached the server, twice: ${line(first)}, then ${line(second)}.`);
+    }
+  }
+}
+
 /** GET /api/deals/[id], the full snapshot, for the few checks that are awkward on the page. */
 export async function snapshot(page: Page, dealId: string): Promise<Snapshot> {
-  const res = await page.request.get(`/api/deals/${dealId}`);
+  const res = await getWithOneRetry(page, `/api/deals/${dealId}`);
   expect(res.ok(), `GET /api/deals/${dealId} -> ${res.status()}`).toBe(true);
   return (await res.json()) as Snapshot;
 }
