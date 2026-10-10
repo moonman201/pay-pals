@@ -1,4 +1,4 @@
-import { cleanPs5, type PriceCheck } from "@pay-pals/contracts";
+import { cleanPs5, fakeSlab, type PriceCheck } from "@pay-pals/contracts";
 import { describe, expect, it } from "vitest";
 import { conditionBucket, methodNote, summariseSources } from "./price-sources";
 
@@ -72,10 +72,34 @@ describe("methodNote", () => {
     expect(methodNote(check([{ name: note }, { name: "a listing", url: "https://shop.example/1", price: 589 }]))).toBe(note);
   });
 
-  it("is nothing when the first source is a listing", () => {
-    expect(methodNote(check([{ name: "a listing", url: "https://shop.example/1", price: 589 }, { name: note }]))).toBeNull();
+  it("takes the first note that exists, not the note on the first source", () => {
+    // The slab fixture's shape: the reference sentence is the last source, after the graded sales.
+    const reference = "Reference range from recent PSA 10 sold prices for this card, October 2026.";
+    const sources = [
+      { name: "Graded sale, PSA 10", price: 418, condition: "like_new" },
+      { name: "Graded sale, PSA 10", price: 305, condition: "like_new" },
+      { name: reference },
+    ];
+    expect(methodNote(check(sources))).toBe(reference);
+  });
+
+  it("renders the slab fixture's own reference sentence", () => {
+    expect(methodNote(fakeSlab.marketPrice)).toBe(fakeSlab.marketPrice.sources[fakeSlab.marketPrice.sources.length - 1]!.name);
+  });
+
+  it("takes the earlier of two notes", () => {
+    expect(methodNote(check([{ name: "first note" }, { name: "a listing", price: 1 }, { name: "second note" }]))).toBe("first note");
+  });
+
+  it("is nothing when every source is a listing", () => {
+    expect(methodNote(check([{ name: "a listing", url: "https://shop.example/1", price: 589 }]))).toBeNull();
     expect(methodNote(check([{ name: "a listing", price: 589 }]))).toBeNull();
+    expect(methodNote(check([{ name: "a shop", url: "https://shop.example/1" }]))).toBeNull();
     expect(methodNote(check([]))).toBeNull();
     expect(methodNote(null)).toBeNull();
+  });
+
+  it("is nothing for a blank name", () => {
+    expect(methodNote(check([{ name: "   " }]))).toBeNull();
   });
 });
