@@ -1,7 +1,10 @@
-import type { PaymentRecord } from "@pay-pals/contracts";
-import { formatMoney, formatTime } from "@/lib/format";
+import type { DealEvent, PaymentRecord } from "@pay-pals/contracts";
+import type { PayPalReadResult } from "@/lib/deal/paypal-confirmation";
+import type { RecordedInput } from "@/lib/deal/recorded";
 import { Badge } from "../ui/Badge";
 import { Panel } from "../ui/Panel";
+import { PayPalConfirmation } from "./PayPalConfirmation";
+import { RecordedByPayPals } from "./RecordedByPayPals";
 
 /** PayPal's approval link from the saved order body, when the order is still waiting for the buyer. */
 function approveLink(payment: PaymentRecord): string | null {
@@ -14,19 +17,26 @@ function approveLink(payment: PaymentRecord): string | null {
   return null;
 }
 
-/** A fixture payment on a seeded example deal: there is no PayPal order behind it. */
-export function isExamplePayment(payment: PaymentRecord): boolean {
-  return payment.paypalOrderId.startsWith("FIXTURE-");
+interface Props {
+  payment: PaymentRecord;
+  /** The live GET order for this payment, done while the page rendered. */
+  read: PayPalReadResult;
+  /** What Pay Pals holds itself, for the second half of the panel. */
+  record: RecordedInput;
+  dealId: string;
+  /** The stored timeline, for the hash check against PayPal's custom_id. */
+  events: readonly DealEvent[];
 }
 
-/** The PayPal order for this deal: who got paid, how much, which capture. */
-export function PaymentSummary({ payment }: { payment: PaymentRecord }) {
+/**
+ * The payment panel, in two labelled halves: what PayPal confirms when we
+ * read the order back, and what Pay Pals recorded on its own.
+ */
+export function PaymentSummary({ payment, read, record, dealId, events }: Props) {
   const captured = payment.status === "CAPTURED";
   const approve = approveLink(payment);
-  const example = isExamplePayment(payment);
   return (
     <Panel title="Payment" aside={<Badge tone={captured ? "go" : payment.status === "FAILED" ? "stop" : "neutral"}>{payment.status.toLowerCase()}</Badge>}>
-      {example ? <p className="mb-3 text-xs text-muted">Example deal seeded from a scenario. These ids are placeholders; no PayPal order was created.</p> : null}
       {approve ? (
         <p className="mb-3 text-sm">
           The order is waiting for the buyer&apos;s approval.{" "}
@@ -36,32 +46,10 @@ export function PaymentSummary({ payment }: { payment: PaymentRecord }) {
           , then press &quot;I approved in PayPal, capture now&quot; in the pay panel.
         </p>
       ) : null}
-      <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
-        <div>
-          <dt className="text-xs font-semibold uppercase tracking-wide text-muted">Amount</dt>
-          <dd className="font-semibold">{formatMoney(payment.amount, payment.currency)}</dd>
-        </div>
-        <div>
-          <dt className="text-xs font-semibold uppercase tracking-wide text-muted">Paid to</dt>
-          <dd className="break-all">{payment.payeeEmail}</dd>
-        </div>
-        <div>
-          <dt className="text-xs font-semibold uppercase tracking-wide text-muted">{example ? "Example order id" : "PayPal order"}</dt>
-          <dd className="font-mono text-xs">{payment.paypalOrderId}</dd>
-        </div>
-        <div>
-          <dt className="text-xs font-semibold uppercase tracking-wide text-muted">{example ? "Example capture id" : "Capture"}</dt>
-          <dd className="font-mono text-xs">{payment.captureId ?? "pending"}</dd>
-        </div>
-        <div>
-          <dt className="text-xs font-semibold uppercase tracking-wide text-muted">Method</dt>
-          <dd>{payment.method === "venmo" ? "Venmo" : "PayPal"}, Goods and Services</dd>
-        </div>
-        <div>
-          <dt className="text-xs font-semibold uppercase tracking-wide text-muted">{captured ? "Captured" : "Created"}</dt>
-          <dd>{formatTime(payment.capturedAt ?? payment.createdAt)}</dd>
-        </div>
-      </dl>
+      <div className="space-y-3">
+        <PayPalConfirmation read={read} payment={payment} dealId={dealId} events={events} />
+        <RecordedByPayPals input={record} />
+      </div>
     </Panel>
   );
 }

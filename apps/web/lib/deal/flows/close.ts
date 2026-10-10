@@ -27,12 +27,18 @@ export async function reportIssue(services: Services, dealId: string, reason: Is
   const summary = `Issue opened: ${label.toLowerCase()}.${details ? ` ${details}` : ""}`.slice(0, 300);
   const updated = await services.store.transition(dealId, "ISSUE", "buyer", summary);
   await buildEvidence(services, dealId, "buyer");
-  await say(services, dealId, "deal", "buyer_pal", `The buyer opened an issue: ${label.toLowerCase()}. An evidence pack has been built for a PayPal dispute.`);
+  await say(services, dealId, "deal", "buyer_pal", `The buyer opened an issue: ${label.toLowerCase()}. An evidence pack has been built; it is useful context for a PayPal dispute.`);
   const tip =
     reason === "arrival_mismatch"
       ? "Open the dispute as \"significantly not as described\"."
       : "Open the dispute as \"item not received\". The tracking number and timeline are in the pack.";
-  await say(services, dealId, "buyer_pal", "buyer_pal", `Issue opened. ${tip} Your payment was a Goods and Services payment, so PayPal purchase protection applies.`);
+  await say(
+    services,
+    dealId,
+    "buyer_pal",
+    "buyer_pal",
+    `Issue opened. ${tip} Your payment was a Goods and Services payment, so PayPal purchase protection can apply; PayPal decides a dispute under its own terms.`,
+  );
   return updated;
 }
 

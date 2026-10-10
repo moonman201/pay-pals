@@ -6,6 +6,8 @@ import { useState } from "react";
 import type { ActionId } from "@/lib/deal/actions";
 import { canStillPay } from "@/lib/deal/actions";
 import type { DealSnapshot } from "@/lib/deal/snapshot";
+import { dealStatusView } from "@/lib/deal/status-view";
+import { diffVerdicts, lastTwoVerdicts } from "@/lib/deal/verdict-diff";
 import { dealApi, postJson } from "@/lib/client/api";
 import { palChannel, type Role } from "@/lib/role";
 import { ActionBar } from "./ActionBar";
@@ -15,8 +17,10 @@ import { ItemCardView } from "./ItemCardView";
 import { PalPane } from "./PalPane";
 import { PaymentSummary } from "./PaymentSummary";
 import { SharedChat } from "./SharedChat";
+import { StatusView } from "./StatusView";
 import { ShipmentSummary } from "./ShipmentSummary";
 import { Timeline } from "./Timeline";
+import { VerdictDiffPanel } from "./VerdictDiffPanel";
 import { VerdictPanel } from "./VerdictPanel";
 import Link from "next/link";
 import { Panel } from "../ui/Panel";
@@ -88,6 +92,22 @@ export function DealRoom({ snapshot, role }: { snapshot: DealSnapshot; role: Rol
   // This side agreed to an earlier version and the store cleared it when the card changed.
   const agreedEarlier = snapshot.events.some((e) => e.kind === "agreed" && e.actor === role);
   const cardChangedSinceAgree = agreedEarlier && (role === "buyer" ? deal.buyerAgreedAt : deal.sellerAgreedAt) === null;
+  // The pal looked again after new evidence: both reviews stay on the page (C6).
+  const pair = lastTwoVerdicts(snapshot.verdicts);
+  const verdictDiff = pair ? diffVerdicts(pair.previous, pair.current) : null;
+  // One status view per deal (E12). Everything in it comes off the snapshot.
+  const statusGroups = dealStatusView({
+    deal,
+    cards: snapshot.cards,
+    lockedCard: snapshot.lockedCard,
+    verdicts: snapshot.verdicts,
+    arrivalCheck: snapshot.arrivalCheck,
+    payment: snapshot.payment,
+    paypalRead: snapshot.paypalRead,
+    shipment: snapshot.shipment,
+    events: snapshot.events,
+    hasEvidence: snapshot.hasEvidence,
+  });
 
   return (
     <div className={`theme-${role} min-h-screen bg-wash`}>
@@ -119,7 +139,25 @@ export function DealRoom({ snapshot, role }: { snapshot: DealSnapshot; role: Rol
               cardGrade={currentCard?.grade ?? null}
             />
           ) : null}
-          {snapshot.payment ? <PaymentSummary payment={snapshot.payment} /> : null}
+          {verdictDiff ? <VerdictDiffPanel diff={verdictDiff} /> : null}
+          <StatusView groups={statusGroups} />
+          {snapshot.payment ? (
+            <PaymentSummary
+              payment={snapshot.payment}
+              read={snapshot.paypalRead}
+              dealId={deal.id}
+              events={snapshot.events}
+              record={{
+                cards: snapshot.cards,
+                lockedVersion: deal.lockedCardVersion,
+                messages: snapshot.messages,
+                verdicts: snapshot.verdicts,
+                arrivalCheck: snapshot.arrivalCheck,
+                shipment: snapshot.shipment,
+                method: snapshot.payment.method,
+              }}
+            />
+          ) : null}
           {snapshot.shipment ? <ShipmentSummary shipment={snapshot.shipment} /> : null}
           {snapshot.arrivalCheck ? <ArrivalResult check={snapshot.arrivalCheck} lockedCard={snapshot.lockedCard} /> : null}
 

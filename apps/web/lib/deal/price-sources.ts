@@ -16,17 +16,25 @@ export interface SourceSummary {
   prices: number[];
 }
 
+/** A source that is a sentence about the range rather than a listing: no price and no url. */
+function isNote(source: PriceSource): boolean {
+  return source.price === undefined && source.url === undefined && source.name.trim() !== "";
+}
+
 /**
- * The first source can be the lookup's note on how the range was reached
+ * One of the sources can be the lookup's note on how the range was reached
  * rather than a listing: it carries a sentence and neither a price nor a
  * url. That sentence is what lets a reader check a scaled figure against
  * the listings under it, so the panel shows it, and it is never counted as
  * a listing.
+ *
+ * Take the first note that exists, not the note on the first source. The
+ * live Channel3 lookup puts its note first, but the slab fixture carries its
+ * reference sentence last, and reading only position 0 meant that sentence
+ * never rendered (REVIEW, Oct 9).
  */
 export function methodNote(check: PriceCheck | null | undefined): string | null {
-  const first = check?.sources[0];
-  if (!first || first.price !== undefined || first.url !== undefined) return null;
-  return first.name.trim() || null;
+  return check?.sources.find(isNote)?.name.trim() ?? null;
 }
 
 /** The sources that are listings: the ones with a price on them. */

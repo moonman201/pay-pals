@@ -14,7 +14,7 @@ export function certSentence(check: CertCheck, cardGrade: string | null | undefi
   const grader = graderName(check);
   const card = cardGrade?.trim() || "no grade on the card";
   if (check.matches === true) {
-    return { text: `${grader} record agrees: ${check.record.grade ? `${card}` : card}`, tone: "go" };
+    return { text: `${grader} record agrees: ${card}`, tone: "go" };
   }
   if (check.matches === false) {
     if (!check.record.subject && !check.record.grade) return { text: `Card says ${card}. ${grader} has no record for this cert number.`, tone: "stop" };

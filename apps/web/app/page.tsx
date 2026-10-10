@@ -5,6 +5,8 @@ import { ProtectionPanel } from "@/components/landing/ProtectionPanel";
 import { ScenarioCard } from "@/components/landing/ScenarioCard";
 import { PalAvatar } from "@/components/pal/PalAvatar";
 import { LinkIcon, LockIcon } from "@/components/ui/icons";
+import { resolveSeededDeals } from "@/lib/demo/live-seeded";
+import { asDealFinder } from "@/lib/demo/seed-fixtures";
 import { getServices } from "@/lib/services";
 import type { Role } from "@/lib/role";
 
@@ -13,7 +15,7 @@ type Step = { who: string; what: string; tone: "theme-seller" | "theme-buyer"; p
 const STEPS: Step[] = [
   { who: "You invite the seller", what: "with their PayPal email and the listing link. They get a link to join.", tone: "theme-buyer", pal: null },
   { who: "Seller Pal", what: "turns their photos into an item card with the serial or cert number on it.", tone: "theme-seller", pal: "seller" },
-  { who: "Buyer Pal", what: "checks the price, the cert and the chat. A refusal to use Pay Pals is the strongest warning sign.", tone: "theme-buyer", pal: "buyer" },
+  { who: "Buyer Pal", what: "checks the price, the cert and the chat. A refusal to use Pay Pals is a risk signal.", tone: "theme-buyer", pal: "buyer" },
   { who: "Both agree, then proof", what: "the card locks into a PayPal Goods and Services order; packing photos, tracking and an arrival check follow.", tone: "theme-seller", pal: null },
 ];
 
@@ -30,7 +32,10 @@ function StepMark({ step }: { step: Step }) {
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
-  const seeded = await getServices().seededDeals;
+  const services = getServices();
+  // The ids resolve once per server process; a re-seed can delete the deals behind them, so check
+  // they are still there before a scenario card offers one (REVIEW, Oct 9). Three lookups, in parallel.
+  const seeded = await resolveSeededDeals(await services.seededDeals, services.store, asDealFinder(services.store));
   return (
     <main className="mx-auto max-w-6xl px-4 pb-16">
       <nav className="flex min-h-14 items-center justify-between gap-4 py-2" aria-label="Site">

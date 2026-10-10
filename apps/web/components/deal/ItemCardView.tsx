@@ -130,6 +130,13 @@ export function ItemCardView({ cards, currentVersion, lockedVersion, certCheck =
         </Field>
       </dl>
 
+      {card.serial || card.certNumber ? (
+        // D9: say what a number on the card does and does not stand for, right where the number is.
+        <p className="mt-3 text-xs leading-relaxed text-muted" data-testid="number-caveat">
+          A matching serial or cert number supports the listing. It is not a check that the seller owns the item, and not a check that the item is genuine.
+        </p>
+      ) : null}
+
       <div className="mt-4">
         <p className="mb-2 text-xs font-semibold text-muted">Photos ({card.photos.length})</p>
         <PhotoGrid photos={card.photos} />

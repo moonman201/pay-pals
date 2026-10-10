@@ -67,7 +67,7 @@ export async function buildEvidenceFor(services: EvidenceServices, deal: Deal, r
     historyHash,
     historyVerified,
   });
-  await note(services, deal.id, "evidence_built", pack.builtBy, "Evidence pack built for a PayPal dispute.");
+  await note(services, deal.id, "evidence_built", pack.builtBy, "Evidence pack built: useful context for a PayPal dispute.");
   await say(services, deal.id, requestedBy === "buyer" ? "buyer_pal" : "seller_pal", pack.builtBy, result.palMessage);
   return pack;
 }
