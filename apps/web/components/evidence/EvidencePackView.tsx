@@ -1,5 +1,6 @@
 import { CONDITION_LABELS, type Deal, type DealEvent, type EvidencePack, type Message } from "@pay-pals/contracts";
 import { boxSerialLabel, boxSerialStatus } from "@/lib/deal/box-serial";
+import { anchorCopy, anchorOf } from "@/lib/deal/history-anchor";
 import { historyStatus } from "@/lib/deal/history-status";
 import { priceRangeLine, priceSourceNote } from "@/lib/deal/price-copy";
 import { summariseSources } from "@/lib/deal/price-sources";
@@ -83,6 +84,7 @@ export function EvidencePackView({
   const example = isExampleDeal(live, pack.payment);
   const shipmentFlags = pack.shipmentFlags ?? pack.shipment?.flags ?? [];
   const unanswered = pack.unansweredQuestions ?? [];
+  const anchor = anchorCopy(pack.historyAnchor, pack.payment?.paypalOrderId ?? null);
   return (
     <main className={`theme-${role} mx-auto max-w-3xl px-4 py-8 print:max-w-none print:px-0`}>
       <EvidenceHeader
@@ -156,17 +158,18 @@ export function EvidencePackView({
           <div className="mb-3">
             <HistoryBadge events={live} historyHash={pack.historyHash ?? null} example={example} />
           </div>
-          {example ? (
-            <p>
-              This is an example deal seeded from a scenario. Its {live.length} events are hash-chained, so an edit would break the chain, but no PayPal order holds the head:
-              the payment ids are placeholders. A real deal writes the head into the PayPal order&apos;s custom_id. The pack was built from {pack.timeline.length} events at the
-              time the pack was built.
-            </p>
-          ) : pack.historyHash ? (
+          {/*
+            Where the hash stands comes from pack.historyAnchor, one value decided where the live
+            read is (Decision 17). This used to be worked out again here from the order id's shape,
+            which agreed with isExampleDeal only because both looked at the same FIXTURE- prefix.
+            Absent reads as recorded_only, which never claims corroboration.
+          */}
+          <p data-testid="history-anchor" data-anchor={anchorOf(pack.historyAnchor)}>
+            {anchor.text}
+          </p>
+          {pack.historyHash ? (
             <>
-              <p>
-                When the PayPal order was created, the head of this deal&apos;s event chain was written into the order&apos;s custom_id, so PayPal&apos;s own record holds it:
-              </p>
+              <p className="mt-2">The chain head recorded with the order, as it is written into custom_id:</p>
               <p className="mt-1 break-all font-mono text-xs">
                 {pack.dealId}#{pack.historyHash}
               </p>
@@ -181,14 +184,18 @@ export function EvidencePackView({
                   <span className="text-muted"> (Checked again now; the builder recorded {pack.historyVerified ? "verified" : "not verified"} when the pack was built.)</span>
                 ) : null}
               </p>
-              <p className="mt-2">
-                This chain is the official record of the deal, and it is the thing PayPal can check first, because the head of it sits on PayPal&apos;s own order. A dispute or
-                a refund does not depend on it.
-              </p>
             </>
           ) : (
-            <p>No PayPal order was created, so no history hash was recorded with PayPal. Each stored event still carries the hash of the one before it.</p>
+            <p className="mt-2">
+              No hash was recorded with an order for this deal. Each stored event still carries the hash of the one before it, so the chain itself is intact.
+            </p>
           )}
+          {anchor.corroborated ? (
+            <p className="mt-2">
+              This chain is the official record of the deal, and it is the thing PayPal can check first, because the head of it sits on PayPal&apos;s own order. A dispute or
+              a refund does not depend on it.
+            </p>
+          ) : null}
         </Section>
 
         <Section title="Payment">
