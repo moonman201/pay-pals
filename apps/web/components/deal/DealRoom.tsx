@@ -90,7 +90,7 @@ export function DealRoom({ snapshot, role }: { snapshot: DealSnapshot; role: Rol
   const cardChangedSinceAgree = agreedEarlier && (role === "buyer" ? deal.buyerAgreedAt : deal.sellerAgreedAt) === null;
 
   return (
-    <div className={`theme-${role} min-h-screen bg-wash`}>
+    <div className={`theme-${role} min-h-screen bg-[var(--bg-room)]`}>
       <DealHeader snapshot={snapshot} role={role} />
       <main className="mx-auto grid max-w-6xl gap-4 px-4 py-4 md:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] md:py-6">
         <div className="min-w-0 space-y-4">

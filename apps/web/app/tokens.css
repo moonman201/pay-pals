@@ -8,188 +8,140 @@
  * ink (text on a light surface), a soft fill and a line. The side in
  * play sets --accent and friends through .theme-buyer / .theme-seller.
  *
- * Dark navy is the site. <html data-theme="dark"> is set in layout.tsx, so
- * every visitor gets it whatever their device is set to, and the
- * prefers-color-scheme block below cannot overrule the attribute: it is
- * scoped to :root:not([data-theme="light"]) and the attribute block that
- * follows it is more specific than :root. The light tokens stay in the
- * file, unused for now, so a light theme is one attribute away.
+ * TWO LAYERS, NOT TWO THEMES. The boxes are navy in both modes: panels,
+ * cards, forms, the deal header banner and the chat bubbles keep the same
+ * navy fill, light ink, accent tints and borders whatever the device says.
+ * Only the page layer behind them swaps. Night is a navy page, which is
+ * the site as it shipped. Day is a white page with the navy boxes on it.
  *
- * WCAG contrast, computed from these values (AA is 4.5:1 for body text,
- * 3:1 for large text and UI parts):
+ * So the split is:
  *
- *   pair                          light   dark
- *   ink on surface                16.15   14.15
- *   ink on wash                   14.90   12.35
- *   muted on surface               6.48    7.77
- *   muted on wash                  5.98    6.78
- *   buyer ink (navy) on surface   11.85   10.01
- *   buyer ink on buyer soft       10.31    7.95
- *   buyer contrast on buyer fill   4.78    6.89   (primary button)
- *   buyer fill on surface          4.78    5.96   (large text, icons)
- *   seller ink on surface          8.06   10.61
- *   seller ink on seller soft      7.28    8.76
- *   seller contrast on seller fill 6.74    8.74   (primary button)
- *   go on surface                  5.38    8.81
- *   go on go soft                  4.75    6.79
- *   caution on surface             5.67   10.55
- *   caution on caution soft        5.03    9.15
- *   stop on surface                5.90    6.81
- *   stop on stop soft              5.13    6.49
- *   ink on go, caution, stop soft 14.04+  10.91+
- *   stop chip ink on stop chip     5.13    7.35
- *   caution chip ink on chip       5.03    6.92
- *   go chip ink on go chip         4.75    6.06
- *   PayPal demo button, navy on gold       7.45   (both themes)
- *   PayPal demo button on the surface     10.36
- *   Venmo demo button, white on blue       4.55
- *   Venmo demo button on the surface       3.62
+ *   box palette   every colour read inside a box. Constant across modes.
+ *                 It sits on :root, so a box needs no class, and .in-box
+ *                 puts it back for a box inside a page region.
+ *   page layer    --bg (html and body), --bg-room (the page behind the
+ *                 deal room's panels) and color-scheme, which swap by
+ *                 mode on :root; plus the whole page palette under
+ *                 .on-page, for a subtree sitting on the page. That is
+ *                 the landing between its boxes, and the evidence page,
+ *                 which is all text and rules and has no boxes at all.
  *
- * A chip on a panel of its own hue has to read as its own block, so in
- * dark the chip fill is darker than the panel under it: stop 1.40,
- * caution 1.53, go 1.43 against their soft panels. In light the two share
- * a fill, where the chip's border already separates them.
+ * --ink, --muted, --line, --wash and the hue inks are read in both places
+ * and want opposite values in day, which is what the two region classes
+ * are for. Custom properties inherit, so a declaration on a descendant
+ * beats the one on :root whatever the specificity, and .in-box inside
+ * .on-page nests cleanly. Each region class re-anchors `color` too,
+ * because body's `color: var(--ink)` resolves at body and everything
+ * below inherits the resulting colour, not the variable.
+ *
+ * Keep .theme-buyer / .theme-seller on the same element as a region
+ * class wherever both apply. `--accent: var(--buyer)` substitutes where
+ * it is declared, so a theme class takes the hues of its own element: on
+ * the page layer it reads the page's blue, on a box the box's blue.
+ *
+ * The day page palette is the old light theme. Its --surface stays white,
+ * which now means a small raised chip sitting on the white page, such as
+ * a stepper circle, a flag word or a secondary button, and no longer a
+ * box fill: a box takes its navy --surface from the box palette. Day's
+ * gold fill is a shade down from the old light gold so that a gold focus
+ * ring or a gold stepper circle clears 3:1 on white.
+ *
+ * Which mode is on:
+ *   nothing stored    the device setting, through prefers-color-scheme
+ *   data-theme=light  day, whatever the device says
+ *   data-theme=dark   night, whatever the device says
+ * The day blocks carry :not([data-theme="dark"]), so a stored night
+ * choice cannot be overruled by a device set to light, and they need
+ * [data-theme="light"] to apply against a device set to dark, so neither
+ * choice can be overruled by the other. layout.tsx forces nothing; the
+ * attribute is only ever written by the visitor's own choice.
+ *
+ * WCAG contrast, computed from these values. AA is 4.5:1 for body text,
+ * 3:1 for large text and UI parts. The box column is both modes, because
+ * a box does not change.
+ *
+ *   inside a box (both modes)
+ *     ink on surface                  14.15
+ *     ink on wash                     12.35
+ *     muted on surface                 7.77
+ *     muted on wash                    6.78
+ *     buyer ink (navy) on surface     10.01
+ *     buyer ink on buyer soft          7.95
+ *     buyer contrast on buyer fill     6.89   (primary button)
+ *     buyer fill on surface            5.96   (large text, icons)
+ *     seller ink on surface           10.61
+ *     seller ink on seller soft        8.76
+ *     seller contrast on seller fill   8.74   (primary button)
+ *     go on surface                    8.81
+ *     go on go soft                    6.79
+ *     caution on surface              10.55
+ *     caution on caution soft          9.15
+ *     stop on surface                  6.81
+ *     stop on stop soft                6.49
+ *     ink on go, caution, stop soft   10.91+
+ *     stop chip ink on stop chip       7.35
+ *     caution chip ink on chip         6.92
+ *     go chip ink on go chip           6.06
+ *     PayPal demo button, navy on gold 7.45
+ *     PayPal demo button on surface   10.36
+ *     Venmo demo button, white on blue 4.55
+ *     Venmo demo button on surface     3.62
+ *
+ *   on the page layer                  day    night
+ *     ink on the page                 16.15   15.96
+ *     muted on the page                6.48    8.76
+ *     navy heading on the page        11.85   11.29
+ *     gold deep on the page            8.06   11.97
+ *     go on the page                   5.38    9.94
+ *     caution on the page              5.67   11.89
+ *     stop on the page                 5.90    7.68
+ *     buyer fill on the page           4.78    6.72   (button, focus ring)
+ *     seller fill on the page          3.30    9.01   (button, focus ring)
+ *     buyer contrast on buyer fill     4.78    6.89
+ *     seller contrast on seller fill   5.46    8.74
+ *     buyer ink on buyer soft          10.31    7.95  (pal chip)
+ *     seller ink on seller soft        7.28    8.76   (pal chip)
+ *     muted on wash                    5.98    6.78   (neutral chip)
+ *     muted on surface                 6.48    7.77   (stepper circle)
+ *     ink on surface                  16.15   14.15   (chip on the page)
+ *     stop chip ink on stop chip       5.13    7.35
+ *     caution chip ink on chip         5.03    6.92
+ *     go chip ink on go chip           4.75    6.06
+ *     go on go soft                    4.75    6.79
+ *     caution on caution soft          5.03    9.15
+ *     stop on stop soft                5.13    6.49
+ *     ink on go, caution, stop soft   14.04+  10.91+
+ *
+ * Rules and chip borders are not in the table because they carry no
+ * information of their own: a divider on the page is 1.32 in day and
+ * 1.68 in night, a chip border 1.58 and 2.41, and in every case the text
+ * or the fill beside it is what has to be read, and it clears AA above.
+ * Input borders sit inside boxes and are unchanged.
+ *
+ * A chip on a panel of its own hue has to read as its own block, so in a
+ * box the chip fill is darker than the panel under it: stop 1.40,
+ * caution 1.53, go 1.43 against their soft panels. On the day page layer
+ * the two share a fill, where the chip's border already separates them.
  */
 
-:root {
-  color-scheme: light;
-
-  --bg: #ffffff;
-  --surface: #ffffff;
-  --wash: #f3f6fb;
-  --ink: #10213a;
-  --muted: #4f5f78;
-  --line: #d9e1ec;
-  --shadow: 0 1px 2px rgb(16 33 58 / 0.06), 0 6px 18px -8px rgb(16 33 58 / 0.18);
-  /* The hero picture and the Pal avatars are painted on white. In light the frame is white too, so only the picture shows. */
-  --hero-bg: #ffffff;
-  --hero-frame: #ffffff;
-
-  --buyer: #0070e0;
-  --buyer-ink: #003087;
-  --buyer-soft: #e7f0fc;
-  --buyer-line: #b5d0f3;
-  --buyer-contrast: #ffffff;
-  --buyer-glow: #7ec4ff;
-
-  --seller: #c9960c;
-  --seller-ink: #6b4a00;
-  --seller-soft: #fbf3dc;
-  --seller-line: #e8d28f;
-  --seller-contrast: #1f1500;
-  --seller-glow: #ffd36a;
-
-  --go: #157a45;
-  --go-soft: #e4f5ea;
-  --go-line: #a7dbbd;
-  --go-contrast: #ffffff;
-  --chip-go: #e4f5ea;
-  --chip-go-ink: #157a45;
-
-  --caution: #9a5600;
-  --caution-soft: #fdf0d9;
-  --caution-line: #efcc84;
-  --caution-contrast: #ffffff;
-  --chip-caution: #fdf0d9;
-  --chip-caution-ink: #9a5600;
-
-  --stop: #c0262d;
-  --stop-soft: #fdebeb;
-  --stop-line: #f2b3b6;
-  --stop-contrast: #ffffff;
-  --chip-stop: #fdebeb;
-  --chip-stop-ink: #c0262d;
-
-  /* The viewer's side. Buyer by default. */
-  --accent: var(--buyer);
-  --accent-ink: var(--buyer-ink);
-  --accent-soft: var(--buyer-soft);
-  --accent-line: var(--buyer-line);
-  --accent-contrast: var(--buyer-contrast);
-  --accent-glow: var(--buyer-glow);
-}
-
-.theme-buyer {
-  --accent: var(--buyer);
-  --accent-ink: var(--buyer-ink);
-  --accent-soft: var(--buyer-soft);
-  --accent-line: var(--buyer-line);
-  --accent-contrast: var(--buyer-contrast);
-  --accent-glow: var(--buyer-glow);
-}
-
-.theme-seller {
-  --accent: var(--seller);
-  --accent-ink: var(--seller-ink);
-  --accent-soft: var(--seller-soft);
-  --accent-line: var(--seller-line);
-  --accent-contrast: var(--seller-contrast);
-  --accent-glow: var(--seller-glow);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    color-scheme: dark;
-
-    --bg: #0b1322;
-    --surface: #131f35;
-    --wash: #1a2a45;
-    --ink: #e9eef7;
-    --muted: #a6b3c8;
-    --line: #2c3c58;
-    --shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 8px 20px -8px rgb(0 0 0 / 0.5);
-    /* The hero picture stays white, so in dark it sits in a wash frame instead of butting onto the page. */
-    --hero-frame: #1a2a45;
-
-    --buyer: #4d9ff5;
-    --buyer-ink: #a9ccff;
-    --buyer-soft: #17305a;
-    --buyer-line: #2d5290;
-    --buyer-contrast: #06101f;
-    --buyer-glow: #7ec4ff;
-
-    --seller: #e0ad2e;
-    --seller-ink: #f3cb63;
-    --seller-soft: #3a2c0b;
-    --seller-line: #6e5416;
-    --seller-contrast: #1f1500;
-    --seller-glow: #ffd36a;
-
-    --go: #5fd394;
-    --go-soft: #0f3a26;
-    --go-line: #1f6a44;
-    --go-contrast: #0b1322;
-    --chip-go: #15543a;
-    --chip-go-ink: #8ce8b4;
-
-    /* A low-chroma warm wash, not a saturated olive block, with a lighter amber ink on it. */
-    --caution: #f7c86f;
-    --caution-soft: #2f2a1d;
-    --caution-line: #6b561f;
-    --caution-contrast: #0b1322;
-    --chip-caution: #5a4312;
-    --chip-caution-ink: #ffd98a;
-
-    --stop: #ff8085;
-    --stop-soft: #421317;
-    --stop-line: #86303a;
-    --stop-contrast: #0b1322;
-    --chip-stop: #6d1f26;
-    --chip-stop-ink: #ffc2c5;
-  }
-}
-
-:root[data-theme="dark"] {
+/*
+ * The box palette. Constant in both modes. On :root so that a box needs
+ * no class at all, and on .in-box so a box inside a page region gets it
+ * back.
+ */
+:root,
+.in-box {
   color-scheme: dark;
 
-  --bg: #0b1322;
   --surface: #131f35;
   --wash: #1a2a45;
   --ink: #e9eef7;
   --muted: #a6b3c8;
   --line: #2c3c58;
   --shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 8px 20px -8px rgb(0 0 0 / 0.5);
-  /* The hero picture stays white, so in dark it sits in a wash frame instead of butting onto the page. */
+  /* The hero picture and the Pal avatars are painted on white, so the disc behind an avatar is white in both modes. */
+  --hero-bg: #ffffff;
+  /* The hero picture stays white, so in night it sits in a wash frame instead of butting onto the page. */
   --hero-frame: #1a2a45;
 
   --buyer: #4d9ff5;
@@ -227,4 +179,156 @@
   --stop-contrast: #0b1322;
   --chip-stop: #6d1f26;
   --chip-stop-ink: #ffc2c5;
+}
+
+/* The page behind the boxes. These three are the mode. Night is the default. */
+:root {
+  --bg: #0b1322;
+  --bg-room: #1a2a45;
+
+  /* The viewer's side. Buyer by default. */
+  --accent: var(--buyer);
+  --accent-ink: var(--buyer-ink);
+  --accent-soft: var(--buyer-soft);
+  --accent-line: var(--buyer-line);
+  --accent-contrast: var(--buyer-contrast);
+  --accent-glow: var(--buyer-glow);
+}
+
+/* Both region classes re-anchor the text colour, which body resolved once. */
+.on-page,
+.in-box {
+  color: var(--ink);
+}
+
+.theme-buyer {
+  --accent: var(--buyer);
+  --accent-ink: var(--buyer-ink);
+  --accent-soft: var(--buyer-soft);
+  --accent-line: var(--buyer-line);
+  --accent-contrast: var(--buyer-contrast);
+  --accent-glow: var(--buyer-glow);
+}
+
+.theme-seller {
+  --accent: var(--seller);
+  --accent-ink: var(--seller-ink);
+  --accent-soft: var(--seller-soft);
+  --accent-line: var(--seller-line);
+  --accent-contrast: var(--seller-contrast);
+  --accent-glow: var(--seller-glow);
+}
+
+/*
+ * Day, from the device setting. The guard means a visitor who chose night
+ * keeps night on a device set to light.
+ */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    color-scheme: light;
+
+    --bg: #ffffff;
+    --bg-room: #ffffff;
+  }
+
+  :root:not([data-theme="dark"]) .on-page {
+    --surface: #ffffff;
+    --wash: #f3f6fb;
+    --ink: #10213a;
+    --muted: #4f5f78;
+    --line: #d9e1ec;
+    --shadow: 0 1px 2px rgb(16 33 58 / 0.06), 0 6px 18px -8px rgb(16 33 58 / 0.18);
+    --hero-frame: #ffffff;
+
+    --buyer: #0070e0;
+    --buyer-ink: #003087;
+    --buyer-soft: #e7f0fc;
+    --buyer-line: #b5d0f3;
+    --buyer-contrast: #ffffff;
+    --buyer-glow: #7ec4ff;
+
+    --seller: #b78500;
+    --seller-ink: #6b4a00;
+    --seller-soft: #fbf3dc;
+    --seller-line: #e8d28f;
+    --seller-contrast: #1f1500;
+    --seller-glow: #ffd36a;
+
+    --go: #157a45;
+    --go-soft: #e4f5ea;
+    --go-line: #a7dbbd;
+    --go-contrast: #ffffff;
+    --chip-go: #e4f5ea;
+    --chip-go-ink: #157a45;
+
+    --caution: #9a5600;
+    --caution-soft: #fdf0d9;
+    --caution-line: #efcc84;
+    --caution-contrast: #ffffff;
+    --chip-caution: #fdf0d9;
+    --chip-caution-ink: #9a5600;
+
+    --stop: #c0262d;
+    --stop-soft: #fdebeb;
+    --stop-line: #f2b3b6;
+    --stop-contrast: #ffffff;
+    --chip-stop: #fdebeb;
+    --chip-stop-ink: #c0262d;
+  }
+}
+
+/*
+ * Day, chosen by the visitor. Same values, and it applies on a device set
+ * to dark, which the media query above cannot do.
+ */
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  --bg: #ffffff;
+  --bg-room: #ffffff;
+}
+
+:root[data-theme="light"] .on-page {
+  --surface: #ffffff;
+  --wash: #f3f6fb;
+  --ink: #10213a;
+  --muted: #4f5f78;
+  --line: #d9e1ec;
+  --shadow: 0 1px 2px rgb(16 33 58 / 0.06), 0 6px 18px -8px rgb(16 33 58 / 0.18);
+  --hero-frame: #ffffff;
+
+  --buyer: #0070e0;
+  --buyer-ink: #003087;
+  --buyer-soft: #e7f0fc;
+  --buyer-line: #b5d0f3;
+  --buyer-contrast: #ffffff;
+  --buyer-glow: #7ec4ff;
+
+  --seller: #b78500;
+  --seller-ink: #6b4a00;
+  --seller-soft: #fbf3dc;
+  --seller-line: #e8d28f;
+  --seller-contrast: #1f1500;
+  --seller-glow: #ffd36a;
+
+  --go: #157a45;
+  --go-soft: #e4f5ea;
+  --go-line: #a7dbbd;
+  --go-contrast: #ffffff;
+  --chip-go: #e4f5ea;
+  --chip-go-ink: #157a45;
+
+  --caution: #9a5600;
+  --caution-soft: #fdf0d9;
+  --caution-line: #efcc84;
+  --caution-contrast: #ffffff;
+  --chip-caution: #fdf0d9;
+  --chip-caution-ink: #9a5600;
+
+  --stop: #c0262d;
+  --stop-soft: #fdebeb;
+  --stop-line: #f2b3b6;
+  --stop-contrast: #ffffff;
+  --chip-stop: #fdebeb;
+  --chip-stop-ink: #c0262d;
 }

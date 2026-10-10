@@ -179,15 +179,27 @@ textarea::placeholder {
   }
 }
 
-/* The hero art is painted on white. In dark it sits in a wash frame and is eased down a little so it does not glare. */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .hero-art {
-    filter: brightness(0.93) saturate(0.97);
+/*
+ * The one rule that depends on the colour mode rather than on a token.
+ * Night is the default, as in tokens.css, so day is the only case spelled
+ * out, under its two guards.
+ *
+ * The hero art is painted on white. On the navy page it sits in a wash
+ * frame and is eased down a little so it does not glare; on the white page
+ * it is left alone.
+ */
+.hero-art {
+  filter: brightness(0.93) saturate(0.97);
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) .hero-art {
+    filter: none;
   }
 }
 
-:root[data-theme="dark"] .hero-art {
-  filter: brightness(0.93) saturate(0.97);
+:root[data-theme="light"] .hero-art {
+  filter: none;
 }
 
 @media print {

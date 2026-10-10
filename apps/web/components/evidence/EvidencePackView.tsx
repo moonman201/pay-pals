@@ -67,7 +67,7 @@ export function EvidencePackView({ pack, deal, role, events }: { pack: EvidenceP
   const shipmentFlags = pack.shipmentFlags ?? pack.shipment?.flags ?? [];
   const unanswered = pack.unansweredQuestions ?? [];
   return (
-    <main className={`theme-${role} mx-auto max-w-3xl px-4 py-8 print:max-w-none print:px-0`}>
+    <main className={`on-page theme-${role} mx-auto max-w-3xl px-4 py-8 print:max-w-none print:px-0`}>
       <EvidenceHeader
         dealId={deal.id}
         role={role}

@@ -34,7 +34,7 @@ function OutcomeMark({ kind }: { kind: Outcome["kind"] }) {
 export function ScenarioCard({ fixture, finishedDealId }: { fixture: ScenarioFixture; finishedDealId: string | null }) {
   const ending = ENDINGS[fixture.id];
   return (
-    <article className="flex flex-col rounded-2xl border border-line bg-surface p-5 shadow-card">
+    <article className="theme-buyer in-box flex flex-col rounded-2xl border border-line bg-surface p-5 shadow-card">
       <div className="flex items-start justify-between gap-3">
         <div className="flex -space-x-2">
           <PalAvatar pal="buyer" size={36} />

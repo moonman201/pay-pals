@@ -25,7 +25,7 @@ export default async function EvidencePage({ params, searchParams }: Props) {
     if (pack) return <EvidencePackView pack={pack} deal={snapshot.deal} role={role} events={snapshot.events} />;
     const locked = snapshot.lockedCard;
     return (
-      <main className={`theme-${role} mx-auto max-w-3xl px-4 py-8`}>
+      <main className={`on-page theme-${role} mx-auto max-w-3xl px-4 py-8`}>
         <EvidenceHeader
           dealId={id}
           role={role}
