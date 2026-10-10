@@ -5,7 +5,7 @@
  * nothing is forced on the document and that neither mode's block in the
  * stylesheet can be overruled by the other.
  */
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { THEME_ATTRIBUTE, THEME_BOOT_SCRIPT, THEME_STORAGE_KEY } from "@/lib/theme";
@@ -37,6 +37,16 @@ function block(css: string, selector: string): string {
 }
 
 const declarations = (body: string) => new Map([...body.matchAll(/^\s*(--[a-z0-9-]+):\s*([^;]+);/gm)].map((m) => [m[1], m[2].trim()] as const));
+
+/** Every .tsx under apps/web, so a new page region cannot be added without a side on it. */
+function sources(dir: string): string[] {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    if (entry.name === "node_modules" || entry.name === ".next") return [];
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) return sources(full);
+    return entry.name.endsWith(".tsx") && !entry.name.endsWith(".test.tsx") ? [full] : [];
+  });
+}
 
 describe("the shipped theme", () => {
   it("forces no mode on the document, so the device setting decides", () => {
@@ -102,6 +112,25 @@ describe("the shipped theme", () => {
     for (const name of ["--surface", "--wash", "--ink", "--muted", "--line", "--buyer", "--buyer-ink", "--seller", "--go", "--caution", "--stop"]) {
       expect(day.get(name), `${name} is read on the page and must differ by mode`).not.toBe(night.get(name));
     }
+  });
+
+  it("keeps a side on every page region, so the accent agrees with the palette it reads", () => {
+    const regions = sources(path.join(here, "..")).flatMap((file) =>
+      readFileSync(file, "utf8")
+        .split("\n")
+        .filter((line) => line.includes("on-page"))
+        .map((line) => [path.basename(file), line] as const),
+    );
+    expect(regions.length).toBeGreaterThan(4);
+    for (const [file, line] of regions) expect(line, file).toMatch(/theme-(buyer|seller|\$\{role\})/);
+  });
+
+  it("gives the seller's start page the same blue chrome as every other page", () => {
+    // The gold belongs to StartDealForm, which carries its own theme-seller. A gold focus
+    // ring on this white page would be 3.30:1 where the blue one is 4.78:1.
+    const page = read("deals/new/page.tsx");
+    expect(page).toMatch(/<main className="on-page theme-buyer /);
+    expect(page).not.toContain("theme-seller");
   });
 
   it("swaps the page background and the deal room shell on :root, and nothing else there", () => {
