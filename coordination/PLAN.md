@@ -186,6 +186,67 @@ Save every working call as a Postman collection in `docs/postman/`.
     green. A `.not.toContain` left pointing at a phrase that no longer exists
     passes vacuously, which is worse than failing, because it reads as coverage.
 
+17. **Contracts v1.8.0 approved (Oct 10, Matt).** Both additive optional fields
+    from `coordination/PROPOSAL-contracts-v1.8.0.md`. `EvidenceInput.historyAnchor`
+    and the same field on `EvidencePackSchema`: `corroborated` when PayPal's order
+    was read for this pack and its `custom_id` carries the same hash,
+    `recorded_only` when a real order holds it but it was not read back,
+    `not_anchored` when no PayPal order holds it at all. Absent is read as
+    `recorded_only`, the conservative case, so it never claims corroboration.
+    `ArrivalCheck.observed.serialSource`: `photo` or `description`, set from
+    `PhotoReading.source` where the check is built, read by both ends.
+    No migration either side: both round-trip as jsonb. The prompt at
+    `summary.ts` must stay conditioned on the same field, because it previously
+    told the model PayPal holds the hash and the model put the claim back on its
+    own after the deterministic prose was fixed.
+
+18. **The serial near-miss band approved (Oct 10, Matt), both stages.** The model
+    misreads the box label about 1 run in 5, in three observed ways: `O` for `0`,
+    `Q` for `0`, and a dropped digit. After `normalizeSerial`, compare by
+    Levenshtein distance: **0 is a match**, **1 is inconclusive**, **2 or more is a
+    mismatch**. Distance 1 covers one substitution, insertion or deletion, which
+    is what makes it cover all three faults; a confusable-pair fold would not have
+    caught the dropped digit at all, which is why that option was rejected.
+    Inconclusive means **claim neither**: name both numbers, say where they differ,
+    ask for a clearer photo of the label, and put it in `couldNotVerify`. Two
+    scoping conditions, which matter as much as the rule: only when **at least one
+    side came from an OCR read**, because the band exists for lossy vision reading
+    and must not soften a comparison between two typed numbers, and only when the
+    longer serial is **8 characters or more**, since on a short identifier one edit
+    is too large a fraction. Accepted cost, stated before approval: two consoles
+    off one production line can be a digit apart, so a genuinely wrong item can
+    land in the band. It is accepted because the pal does not say "matches"
+    either; it withholds and asks, failing toward asking. It does not weaken the
+    empty-box scenario, whose mismatch is an absent serial, not a near miss.
+    Ships in two stages: `rules/box-serial-mismatch.ts` needs no contract change,
+    and `arrival.ts` waits on a third state because `ArrivalCheck.matches` is a
+    boolean today and reporting inconclusive as `false` would be wrong in exactly
+    the way this rule exists to stop. Test the fix on the real-photos review,
+    which is the only test that actually fetches the file; the Seller Pal test
+    reads captions.
+
+19. **Reviews run concurrently and stream their findings (Oct 10, Matt).** A real
+    review takes 18 to 65 seconds measured, and the slowest is fake-slab, the
+    scenario the landing recommends first. The cert lookup, the price lookup and
+    the photo reads are to run **concurrently**, and **each finding streams to the
+    page the moment it lands**: a stop flag shows as soon as it comes back, not
+    after the full review. The staged status line stays, for whatever is still
+    running. Measure review time before and after on all three scenarios and
+    record the numbers. Two rules that come with it:
+    - **Agree stays locked until the review is complete.** A buyer must never be
+      able to agree on partial findings. The status line says why it is locked.
+      A test must try to agree mid-stream and fail.
+    - **Findings arrive in a different order every run.** Playwright visual
+      baselines snapshot the **finished** review only, never mid-stream.
+      Streaming tests assert on content (each finding appears; a stop flag shows
+      before completion when there is one), never on order.
+
+20. **The honesty rule, generalised (Oct 10, Matt).** When anything is missing,
+    failed or still running, the pal says so plainly and never fills the gap with
+    a reassuring claim. This is the rule behind the serial band, `historyAnchor`,
+    the streaming status line and every fix in the Oct 10 batch's section D. It is
+    the one to apply when a new case appears that no decision here covers.
+
 13. **"Verified" on an evidence item (Oct 10, Lead, reconciling the Oct 9 rule).**
     The Oct 9 wording rule below says never "verified" and never "authentic". Batch
     item E12 asks for every item in the deal status view to be labelled Verified,
@@ -276,6 +337,22 @@ the end, and deploy and smoke production once per section.
 Stop rule for this batch: a contract change past v1.6.0 earns a stop with the
 proposed change written out. Two items hit it, see
 `coordination/PROPOSAL-contracts-v1.7.0.md`. Everything else keeps moving.
+
+**Sequencing, confirmed by Matt Oct 10.** Sections A to F and H landed on `main`
+in 48a640a and were pushed. Then: one more round on `main` (contracts v1.8.0,
+builder-agents, builder-web), then the theme branch rebases **once** onto final
+`main`, then G16 and Matt's preview screenshots, then baselines refreshed
+**once**, then deploy and smoke. Matt does not want the preview sooner at the
+cost of a second rebase. Baselines refresh once for the whole batch; production
+deploy and smoke once per section, not per fix.
+
+**Two loose ends from the batch instruction itself.** Item H18 arrived truncated
+mid-sentence after "how to log into the sandbox test buyer," and the full text
+has not been supplied, so the README section covers what was legible and the
+rest is still missing. Item G17 asks the Lead to repeat "your open deal room
+question" in the preview report; no such question is recorded anywhere in
+`coordination/` or `docs/`, and Matt will answer it when he sees the preview at
+the end of Section 2.
 
 | # | Item | Lane | Status |
 |---|---|---|---|
