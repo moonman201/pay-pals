@@ -115,6 +115,14 @@ export const ArrivalCheckSchema = z.object({
     brand: z.string().nullable(),
     model: z.string().nullable(),
     serial: z.string().nullable(),
+    /**
+     * Where `serial` came from. "photo" means the pal read it off the picture.
+     * "description" means it came out of the caption filed with the photo, which
+     * is the buyer's word and not something the pal saw. Absent means unknown,
+     * and a reader must not assume either. Set from PhotoReading.source where the
+     * check is built, so the agents and the UI cannot drift (PLAN.md Decision 15).
+     */
+    serialSource: z.enum(["photo", "description"]).nullable().optional(),
   }),
   /** The arrival photos the check was made from, kept with the result for the evidence pack. */
   photos: z.array(PhotoSchema).optional(),

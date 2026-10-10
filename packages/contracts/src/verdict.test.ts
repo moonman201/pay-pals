@@ -61,3 +61,38 @@ describe("the reasons are optional on both pal results", () => {
     expect(ArrivalCheckSchema.parse(check).reasoning).toEqual(reasoning);
   });
 });
+
+/**
+ * Contracts v1.8.0: a serial carries where it came from, so the agents and the
+ * UI cannot each decide separately and drift (PLAN.md Decision 15). Absent must
+ * stay legal, because every arrival check stored before today has no such field.
+ */
+describe("where an arrival serial came from", () => {
+  const base = {
+    dealId: "d1",
+    cardVersion: 1,
+    matches: true,
+    mismatches: [],
+    palMessage: "That is the console on the card.",
+    createdAt: "2026-10-10T12:00:00.000Z",
+  };
+
+  it("parses a check stored before v1.8.0, and says nothing about the source", () => {
+    const parsed = ArrivalCheckSchema.parse({ ...base, observed: { brand: "Sony", model: "CFI-1015A", serial: "AJ164952580" } });
+    expect(parsed.observed.serialSource).toBeUndefined();
+  });
+
+  it("carries a serial the pal read off the picture", () => {
+    const parsed = ArrivalCheckSchema.parse({ ...base, observed: { brand: "Sony", model: "CFI-1015A", serial: "AJ164952580", serialSource: "photo" } });
+    expect(parsed.observed.serialSource).toBe("photo");
+  });
+
+  it("carries a serial that only came out of the caption", () => {
+    const parsed = ArrivalCheckSchema.parse({ ...base, observed: { brand: "Sony", model: null, serial: "AJ164952580", serialSource: "description" } });
+    expect(parsed.observed.serialSource).toBe("description");
+  });
+
+  it("refuses a source it does not know, so a third case cannot be invented in passing", () => {
+    expect(ArrivalCheckSchema.safeParse({ ...base, observed: { brand: null, model: null, serial: "X", serialSource: "guess" } }).success).toBe(false);
+  });
+});

@@ -24,7 +24,7 @@ tests/e2e            Playwright runs of the three demo scenarios                
 ```
 Modules talk only through `packages/contracts` interfaces. apps/web is the only place modules are wired together.
 
-## Contracts (v1.7.0, Oct 10. Frozen at v1.6.0 on Oct 8; Matt approved two additive changes on Oct 10, see `coordination/PROPOSAL-contracts-v1.7.0.md`)
+## Contracts (v1.8.0, Oct 10. Frozen at v1.6.0 on Oct 8; Matt approved v1.7.0 and v1.8.0 on Oct 10, see the two PROPOSAL files in `coordination/`)
 
 The TypeScript in `packages/contracts/src` is the contract. This section is the summary. Where they differ, the code wins and the Lead fixes this file.
 
@@ -32,6 +32,14 @@ The TypeScript in `packages/contracts/src` is the contract. This section is the 
 Both additive. Nothing existing changed shape, so every v1.6.0 consumer still compiles and every stored row still parses.
 - **`DEAL_EVENT_KINDS` gains `off_platform_chosen`**, between `state_changed` and `payment_created`. The buyer told Pay Pals they will pay outside Goods and Services; Pay Pals warned them, wrote the line, and stepped back. It is the end of Pay Pals' part, not the start of one. Needs migration 0005 and a re-bundle of `migrations.generated.ts`, because the Postgres enum is generated from this constant.
 - **`PalReasoning`**, optional on `Verdict` and `ArrivalCheck`: `checked`, `found`, `couldNotVerify`, `wouldChangeMyMind`. Four lists of short plain sentences, so a pal's reasons can be laid out, tested and checked one claim at a time. No migration: verdicts round-trip as a single jsonb payload. A group may be empty but not absent, so a pal cannot quietly omit what it could not verify.
+
+### Changes in v1.8.0 (Matt approved, Oct 10)
+All additive and optional. No migration: an evidence pack and an arrival check
+each round-trip as a single jsonb payload, and nothing in the repo parses either
+strictly, so every pack and check stored before today still parses.
+- **`HISTORY_ANCHORS` and `historyAnchor`**, on `EvidencePackSchema` and on `EvidenceInput`: `corroborated`, `recorded_only`, `not_anchored`. Absent reads as `recorded_only`, which never claims corroboration. Nothing may infer the case from an order id's shape; a `FIXTURE-` prefix is a convention, not a contract.
+- **`ArrivalCheck.observed.serialSource`**, `photo` or `description`, set from `PhotoReading.source` where the check is built so both ends read one value.
+- **`ReviewProgress` and `ReviewOptions.onProgress`**, a fourth optional argument to `BuyerPal.review`. **This is a third change, not in the v1.8.0 proposal Matt approved.** Streaming findings to the page needs the agents package to emit while it works, and `review` was a single awaited call, so there was no non-contract way to do it short of moving the orchestration into the UI layer, which the module rules forbid. Events: `stage` for the staged status line, `flag` for a finding (a stop flag must reach the page as soon as it is raised), `priceCheck`, `certCheck`, `photoRead`. The lookups run concurrently, so these arrive in a different order every run and nothing may depend on the order. A throw from `onProgress` must not fail the review. The final `Verdict` stays the only authority; progress is never the record.
 
 ### Deal states
 `DRAFT -> LISTED -> REVIEWED -> AGREED -> PAYMENT_PENDING -> PAID -> SHIPPED -> DELIVERED -> COMPLETE`
