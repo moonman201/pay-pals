@@ -37,6 +37,13 @@ export const DEAL_EVENT_KINDS = [
   "agreed",
   "card_locked",
   "state_changed",
+  /**
+   * The buyer told Pay Pals they will pay outside Goods and Services. Pay Pals
+   * warned them that they have no PayPal protection and no dispute path, wrote
+   * this line, and stepped back. It never processes that payment itself, so this
+   * event is the end of Pay Pals' part, not the start of one.
+   */
+  "off_platform_chosen",
   "payment_created",
   "payment_captured",
   "shipped",

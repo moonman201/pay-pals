@@ -24,9 +24,14 @@ tests/e2e            Playwright runs of the three demo scenarios                
 ```
 Modules talk only through `packages/contracts` interfaces. apps/web is the only place modules are wired together.
 
-## Contracts (v1.6.0, frozen Oct 8, a day ahead of the Fri Oct 9 date in `packages/contracts`, frozen Fri Oct 9)
+## Contracts (v1.7.0, Oct 10. Frozen at v1.6.0 on Oct 8; Matt approved two additive changes on Oct 10, see `coordination/PROPOSAL-contracts-v1.7.0.md`)
 
 The TypeScript in `packages/contracts/src` is the contract. This section is the summary. Where they differ, the code wins and the Lead fixes this file.
+
+### Changes in v1.7.0 (Matt approved, Oct 10)
+Both additive. Nothing existing changed shape, so every v1.6.0 consumer still compiles and every stored row still parses.
+- **`DEAL_EVENT_KINDS` gains `off_platform_chosen`**, between `state_changed` and `payment_created`. The buyer told Pay Pals they will pay outside Goods and Services; Pay Pals warned them, wrote the line, and stepped back. It is the end of Pay Pals' part, not the start of one. Needs migration 0005 and a re-bundle of `migrations.generated.ts`, because the Postgres enum is generated from this constant.
+- **`PalReasoning`**, optional on `Verdict` and `ArrivalCheck`: `checked`, `found`, `couldNotVerify`, `wouldChangeMyMind`. Four lists of short plain sentences, so a pal's reasons can be laid out, tested and checked one claim at a time. No migration: verdicts round-trip as a single jsonb payload. A group may be empty but not absent, so a pal cannot quietly omit what it could not verify.
 
 ### Deal states
 `DRAFT -> LISTED -> REVIEWED -> AGREED -> PAYMENT_PENDING -> PAID -> SHIPPED -> DELIVERED -> COMPLETE`
@@ -135,6 +140,51 @@ Save every working call as a Postman collection in `docs/postman/`.
     Recording it on the timeline needs one new event kind, which is a contract and
     schema change, so that half is **parked on `coordination/PROPOSAL-contracts-v1.7.0.md`**
     pending Matt. The rest of the decision needs no contract change.
+
+14. **A reason group may be empty; it may never be padded (Oct 10, Lead).**
+    `PalReasoning`'s four groups exist so a pal's reasons can be checked one claim
+    at a time, which only works if each line is a thing that actually happened.
+    An empty group is a true statement about a pal that checked nothing in that
+    category. A group filled with work that was not done is a lie in the one field
+    built to prevent lying. Two cases decided today: an arrival check with no
+    photos returns an empty `checked` rather than "Nothing yet, no arrival photos
+    have been added", and the empty-box arrival no longer lists a serial
+    comparison it could not make while `couldNotVerify` on the same page says
+    there was nothing to read. `couldNotVerify` remains the exception in the
+    other direction: it always renders, printing "Nothing. Everything I set out
+    to check, I could check." when empty, so a pal cannot hide behind a blank.
+
+15. **Where one end can carry a value, the other reads it (Oct 10, Lead).**
+    Two of reality-check's six findings were the same defect: `packages/agents`
+    and `apps/web` each deriving the same fact separately and drifting. The
+    tamper-check sentence claimed PayPal corroboration while `HistoryBadge`
+    correctly said no order held the hash; the status view said the pal read a
+    serial off a photo while the pal's own reasons said it did not. Both ends
+    were reasonable alone. When a fact is known where a value is produced, it
+    gets carried on the contract rather than re-derived by each reader, even
+    when re-deriving looks easy. Pattern-matching a convention, such as a
+    `FIXTURE-` id prefix, is re-deriving. See `coordination/PROPOSAL-contracts-v1.8.0.md`.
+
+16. **A test written beside a claim cannot check it (Oct 10, Lead).**
+    Three tests were found today asserting things the product could not support:
+    `packages/agents/src/buyer/buyer-pal.test.ts:441` required "confirmed on the
+    item itself" on a path that read a caption rather than a photo;
+    `packages/agents/src/evidence/evidence.test.ts` required the pack to say
+    PayPal corroborated the history hash; and
+    `tests/integration/src/review-oct7-hash-badge.test.tsx:90` required the same
+    phrase one layer down. In each case the sentence and the test asserting it
+    were written in the same change and reviewed together, so the test could
+    never have caught the overclaim; it pinned it. None of them was found by the
+    suite. All three were found by reading the product's own output, two by
+    `reality-check` and one by the lane that removed the claim.
+    **What follows:** a test that asserts a claim about the world (what a pal
+    saw, what PayPal holds, what was checked against what) is worth no more than
+    the claim was when it was written, so it earns a second pair of eyes on the
+    claim and not just on the test. When such an assertion has to change, it is
+    corrected with a dated reason saying the expectation was wrong rather than
+    the code, so the record shows a correction and not a test weakened to go
+    green. A `.not.toContain` left pointing at a phrase that no longer exists
+    passes vacuously, which is worse than failing, because it reads as coverage.
 
 13. **"Verified" on an evidence item (Oct 10, Lead, reconciling the Oct 9 rule).**
     The Oct 9 wording rule below says never "verified" and never "authentic". Batch

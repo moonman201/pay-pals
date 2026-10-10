@@ -1,0 +1,86 @@
+{
+  "id": "WH-2K820509XY442320B-2X675859T8400442R",
+  "create_time": "2026-10-10T16:52:03.317Z",
+  "resource_type": "dispute",
+  "event_type": "CUSTOMER.DISPUTE.CREATED",
+  "summary": "A new dispute opened with case # PP-R-BWV-10190936",
+  "resource": {
+    "reason": "MERCHANDISE_OR_SERVICE_NOT_AS_DESCRIBED",
+    "dispute_channel": "INTERNAL",
+    "create_time": "2026-10-10T16:48:47.674Z",
+    "dispute_id": "PP-R-BWV-10190936",
+    "dispute_life_cycle_stage": "INQUIRY",
+    "refund_details": {
+      "allowed_refund_amount": {
+        "currency_code": "USD",
+        "value": "420.00"
+      }
+    },
+    "offer": {
+      "buyer_requested_amount": {
+        "currency_code": "USD",
+        "value": "420.00"
+      }
+    },
+    "disputed_transactions": [
+      {
+        "buyer_transaction_id": "8Y700853H3509722W",
+        "seller_transaction_id": "35F21684R9839603W",
+        "transaction_status": "COMPLETED",
+        "invoice_number": "bf917430-ca61-4f55-98cf-7a95bcf8a49f",
+        "custom": "bf917430-ca61-4f55-98cf-7a95bcf8a49f#fa0f41fcb7169fa959d94ee7e5c9cbb1e2830fc24a02130cf2d0385950d56305",
+        "seller": {
+          "merchant_id": "REDACTEDMRCH1",
+          "name": "John Doe"
+        },
+        "items": [
+          {
+            "item_id": "AJ164952580",
+            "item_name": "Sony PlayStation 5 disc edition, CFI-1015A, with the original box",
+            "item_quantity": "1",
+            "reason": "MERCHANDISE_OR_SERVICE_NOT_AS_DESCRIBED",
+            "notes": "The box arrived sealed but there was no console inside it, only the cables and the paper insert. The locked Pay Pals item card for this order lists the serial AJ164952580, and the arrival photos show an empty tray. I asked the seller twice and had no reply.",
+            "item_type": "PRODUCT"
+          }
+        ],
+        "seller_protection_eligible": true,
+        "seller_protection_type": "EXPANDED_SELLER_PROTECTION"
+      }
+    ],
+    "update_time": "2026-10-10T16:51:43.459Z",
+    "messages": [
+      {
+        "posted_by": "BUYER",
+        "time_posted": "2026-10-10T16:48:47.674Z",
+        "content": "There is nothing to send back. The box arrived with no console inside it."
+      }
+    ],
+    "links": [
+      {
+        "href": "https://api.sandbox.paypal.com/v1/customer/disputes/PP-R-BWV-10190936",
+        "rel": "self",
+        "method": "GET"
+      }
+    ],
+    "dispute_amount": {
+      "currency_code": "USD",
+      "value": "420.00"
+    },
+    "status": "UNDER_REVIEW"
+  },
+  "links": [
+    {
+      "href": "https://api.sandbox.paypal.com/v1/notifications/webhooks-events/WH-2K820509XY442320B-2X675859T8400442R",
+      "rel": "self",
+      "method": "GET",
+      "encType": "application/json"
+    },
+    {
+      "href": "https://api.sandbox.paypal.com/v1/notifications/webhooks-events/WH-2K820509XY442320B-2X675859T8400442R/resend",
+      "rel": "resend",
+      "method": "POST",
+      "encType": "application/json"
+    }
+  ],
+  "event_version": "1.0"
+}

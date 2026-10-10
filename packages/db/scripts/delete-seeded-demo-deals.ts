@@ -1,11 +1,13 @@
 /**
- * Deletes finished demo deals from DATABASE_URL so a redeploy can re-seed
- * them. Lists what it would delete and does nothing unless --yes is given.
- * Seeds stamped with the current seed version are kept when the version is
- * passed with --keep-seed.
+ * Deletes seeded demo deals from DATABASE_URL so a redeploy can re-seed
+ * them. Only deals carrying our seed stamp are touched, so a judge's own
+ * run stays. Lists what it would delete and does nothing unless --yes is
+ * given. Seeds stamped with the current seed version are kept when the
+ * version is passed with --keep-seed.
  *   npm run db:delete-seeded-demo-deals -w packages/db -- --keep-seed 2026-10-08.1            (list only)
  *   npm run db:delete-seeded-demo-deals -w packages/db -- --keep-seed 2026-10-08.1 --yes      (delete)
- * Without --keep-seed every finished scenario deal that qualifies is listed, stamped or not.
+ *   npm run db:delete-seeded-demo-deals -w packages/db -- --explain <dealId>                  (one deal, every factor)
+ * Without --keep-seed every finished stamped scenario deal is listed, the current seeds included.
  */
 import { loadEnvLocal } from "../src/load-env";
 import { connectPostgres } from "../src/postgres/db";
@@ -46,14 +48,14 @@ const connection = connectPostgres(url);
     return;
   }
   const preview = await deleteSeededDemoDeals(connection.db, { ...options, dryRun: true });
-  console.log(keepSeedVersion ? `Keeping seeds stamped ${keepSeedVersion}.` : "No --keep-seed given: stamped seeds are not kept.");
+  console.log(keepSeedVersion ? `Keeping seeds stamped ${keepSeedVersion}.` : "No --keep-seed given: the current seeds go too.");
   if (preview.candidates.length === 0) {
     console.log("No finished demo deals to delete.");
     return;
   }
   console.log(`${preview.candidates.length} finished demo deal(s)${yes ? " to delete" : " would be deleted (add --yes to delete)"}:`);
   for (const c of preview.candidates) {
-    console.log(`  ${c.id}  ${c.scenario}  ${c.state}  created ${c.createdAt}  seed ${c.seedVersion ?? "none"}  (${c.reason})`);
+    console.log(`  ${c.id}  ${c.scenario}  ${c.state}  created ${c.createdAt}  seed ${c.seedVersion}  (payment: ${c.payment})`);
   }
   if (!yes) return;
   const result = await deleteSeededDemoDeals(connection.db, { ...options, dryRun: false });

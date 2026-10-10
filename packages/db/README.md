@@ -51,14 +51,24 @@ npm run db:delete-seeded-demo-deals -w packages/db -- --keep-seed 2026-10-08.1  
 npm run db:delete-seeded-demo-deals -w packages/db -- --keep-seed 2026-10-08.1 --yes  # deletes
 ```
 
-A candidate is a deal with a scenario set, in COMPLETE, BLOCKED or ISSUE,
-that either has a payment whose `paypal_order_id` starts with `FIXTURE-`
-or has no payment and no locked card, and whose `deal_created` event does
-not carry `data.seedVersion` equal to the `--keep-seed` version. So the
-current seeds stay and every other finished scenario deal goes, including
-a judge's own run that ended in BLOCKED. Real deals in flight have real
-PayPal order ids or are not finished and stay. Children are removed by the
-schema's cascades. The same logic is exported as
+What selects a deal is our seed stamp: the `data.seedVersion` the seeder
+writes on the `deal_created` event. A stamped deal is ours to delete, an
+unstamped one is not, so a judge's own run through the demo always stays.
+Two more conditions ride along as a safety net, so a stamp alone is not
+enough: the deal must have a scenario set and must be in COMPLETE, BLOCKED
+or ISSUE. A stamped deal still in flight is never touched. Seeds stamped
+with the `--keep-seed` version are kept, so the current seeds stay and only
+stale ones go.
+
+The stamp replaced an earlier rule that read the payment (`paypal_order_id`
+starting with `FIXTURE-`, or no payment and no locked card). That rule
+stopped matching our own seeds as soon as a re-seed gave them real sandbox
+order ids, which left them undeletable. Each candidate still reports its
+payment as `fixture order`, `real order` or `none`, but the payment no
+longer decides anything.
+
+Children are removed by the schema's cascades. `--explain <dealId>` prints
+every factor for one deal. The same logic is exported as
 `deleteSeededDemoDeals(db, { dryRun, keepSeedVersion })`.
 
 ## Tests

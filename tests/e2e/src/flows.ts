@@ -46,7 +46,15 @@ export async function reviewAsBuyer(page: Page): Promise<void> {
 /** The Buyer Pal asks a used console's seller for this whenever the card carries a box label but no serial read off the console. */
 export const CONSOLE_PROOF_QUESTION = /close-up of the serial label on the console itself/i;
 
-/** The verdict panel lists what the pal asked of the seller, or lists nothing when `question` is null. */
+/**
+ * The verdict panel lists what the pal asked of the seller, or lists nothing
+ * when `question` is null.
+ *
+ * Scoped to the list under "Asked of the seller" and not to every list in
+ * the panel: the pal's reasons now include a "What would change my mind"
+ * list that names the same evidence in its own words, and the point here is
+ * what was asked, not how many times the panel mentions it.
+ */
 export async function expectAskedQuestion(page: Page, question: RegExp | null): Promise<void> {
   const review = panel(page, "Buyer Pal review");
   const asked = review.getByText("Asked of the seller", { exact: true });
@@ -55,7 +63,8 @@ export async function expectAskedQuestion(page: Page, question: RegExp | null): 
     return;
   }
   await expect(asked).toBeVisible();
-  await expect(review.locator("ul").filter({ has: page.getByRole("listitem").filter({ hasText: question }) }).getByRole("listitem").filter({ hasText: question })).toHaveCount(1);
+  const askedList = review.locator("p:text-is('Asked of the seller') + ul");
+  await expect(askedList.getByRole("listitem").filter({ hasText: question })).toHaveCount(1);
 }
 
 /**

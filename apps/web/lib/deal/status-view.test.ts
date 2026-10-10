@@ -193,6 +193,25 @@ describe("the evidence", () => {
     expect(line.detail).toContain("Can you send a close-up of the serial label?");
   });
 
+  it("lists each thing the pal said it could not check as its own Unverified line", () => {
+    const reasoning = {
+      checked: ["The serial against the box label."],
+      found: ["Both read the same number."],
+      couldNotVerify: ["Whether the seller owns the console.", "Whether the console powers on."],
+      wouldChangeMyMind: ["A photo of it powered on."],
+    };
+    const items = group(dealStatusView(input({ verdicts: [verdict({ reasoning })] })), "evidence").items.filter((i) => i.id.startsWith("could-not-verify-"));
+    expect(items).toHaveLength(2);
+    expect(items[0]!.status).toBe("unverified");
+    expect(items[0]!.detail).toContain("Whether the seller owns the console.");
+    expect(items[0]!.detail).toMatch(new RegExp(`card version ${lockedCard.version}`));
+  });
+
+  it("adds no lines for a verdict stored before the pal had reasons", () => {
+    const items = group(dealStatusView(input()), "evidence").items;
+    expect(items.some((i) => i.id.startsWith("could-not-verify-"))).toBe(false);
+  });
+
   it("lists an open flag as unresolved and unverified, and leaves info flags out", () => {
     const flags = [
       { code: "URGENCY_PRESSURE" as const, severity: "caution" as const, evidence: "pay today", explanation: "The seller is pushing for a fast payment.", raisedByRule: true },
@@ -326,7 +345,26 @@ describe("the delivery", () => {
     const line = item(dealStatusView(input({ arrivalCheck: check })), "delivery", "arrival-check");
     expect(line.status).toBe("verified");
     expect(line.detail).toMatch(new RegExp(`locked card version ${lockedCard.version}`));
-    expect(line.detail).toContain("AJ164952580");
+    expect(line.detail).toMatch(/compared the arrival photos against/);
+  });
+
+  it("never says where the serial came from, because the arrival check does not carry that", () => {
+    // In demo-only mode the number comes out of the photo's description, not out of the picture,
+    // and the pal's own "could not check" line on the same page says so. This line must not
+    // contradict it. Drop the guard only when observed carries a source and this reads it.
+    const check = {
+      dealId: cleanPs5.deal.id,
+      cardVersion: lockedCard.version,
+      matches: true,
+      mismatches: [],
+      observed: { brand: "Sony", model: "PlayStation 5", serial: "AJ164952580" },
+      palMessage: "It is the same console.",
+      createdAt: "2026-10-09T12:30:00.000Z",
+    };
+    const line = item(dealStatusView(input({ arrivalCheck: check })), "delivery", "arrival-check");
+    expect(line.detail).not.toMatch(/read .{0,30}off (them|it|the)/i);
+    expect(line.detail).not.toContain("AJ164952580");
+    expect(line.detail.toLowerCase()).not.toMatch(/\bread\b/);
   });
 
   it("does not verify an arrival check that found a difference, and names it", () => {

@@ -23,7 +23,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import type { EvidenceInput, ScenarioFixture } from "@pay-pals/contracts";
+import type { EvidenceInput, PalReasoning, ScenarioFixture } from "@pay-pals/contracts";
 import { ALL_FIXTURES } from "@pay-pals/contracts";
 import { createBuyerPal } from "./buyer/buyer-pal";
 import { shipmentFlags } from "./buyer/shipment";
@@ -59,7 +59,21 @@ function breachesIn(strings: ReadonlyArray<string | null | undefined>): string[]
   return strings.flatMap((text) => (typeof text === "string" && text.length > 0 ? breaches(text) : []));
 }
 
-/** Every string a human reads out of one scenario: pal messages, flag explanations, questions, the evidence summary. */
+/**
+ * The pal's four groups of reasons, flattened. They are sentences a human
+ * reads on the deal page, so D8 to D11 bind them exactly as they bind the pal
+ * message. This is also where a group that went missing would show up: the
+ * contract says a group may be empty but not absent.
+ */
+function reasonStrings(reasoning: PalReasoning | undefined, where: string): string[] {
+  expect(reasoning, `${where} has no reasoning`).toBeDefined();
+  for (const group of ["checked", "found", "couldNotVerify", "wouldChangeMyMind"] as const) {
+    expect(Array.isArray(reasoning![group]), `${where} is missing the ${group} group`).toBe(true);
+  }
+  return [...reasoning!.checked, ...reasoning!.found, ...reasoning!.couldNotVerify, ...reasoning!.wouldChangeMyMind];
+}
+
+/** Every string a human reads out of one scenario: pal messages, flag explanations, questions, the reasons, the evidence summary. */
 async function scenarioStrings(fixture: ScenarioFixture): Promise<string[]> {
   const buyerPal = createBuyerPal({ anthropic: null, priceLookup: createFixturePriceLookup(), certLookup: createFixtureCertLookup() });
   const sellerPal = createSellerPal({ anthropic: null });
@@ -78,6 +92,7 @@ async function scenarioStrings(fixture: ScenarioFixture): Promise<string[]> {
   for (const card of fixture.cards) {
     const { data: verdict, palMessage } = await buyerPal.review(card, fixture.chat, context);
     out.push(palMessage, verdict.palMessage, ...verdict.questionsForSeller, verdict.certCheck?.explanation ?? null as never);
+    out.push(...reasonStrings(verdict.reasoning, `${fixture.id} review of card v${card.version}`));
     for (const flag of verdict.flags) out.push(flag.explanation, flag.evidence);
   }
 
@@ -88,6 +103,7 @@ async function scenarioStrings(fixture: ScenarioFixture): Promise<string[]> {
 
   const arrival = await buyerPal.checkArrival(lockedCard, fixture.arrivalPhotos);
   out.push(arrival.palMessage, arrival.data.palMessage, ...arrival.data.mismatches.map((m) => m.explanation));
+  out.push(...reasonStrings(arrival.data.reasoning, `${fixture.id} arrival check`));
 
   const verdicts = [(await buyerPal.review(lockedCard, fixture.chat, context)).data];
   const input: EvidenceInput = {

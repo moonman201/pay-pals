@@ -34,8 +34,19 @@ describe("stopWarning", () => {
     const lines = stopWarning(verdict("stop", [flag("PRICE_FAR_BELOW_MARKET", "stop"), flag("SHIP_BEFORE_PAY_TRICK", "stop")]));
     expect(lines).toHaveLength(3);
     expect(lines[0]).toContain("a price far below market and a trick to get money before shipping");
-    expect(lines[1]).toMatch(/never ships/);
+    expect(lines[1]).toBe("Those are risk signals, so ask the seller about it before you pay.");
     expect(lines[2]).toMatch(/Goods and Services/);
     for (const line of lines) expect(line).not.toMatch(/[!]/);
+  });
+
+  it("calls one stop a risk signal in the singular", () => {
+    const lines = stopWarning(verdict("stop", [flag("PRICE_FAR_BELOW_MARKET", "stop")]));
+    expect(lines[1]).toBe("That is a risk signal, so ask the seller about it before you pay.");
+  });
+
+  it("never tells the buyer what the seller is going to do with their money", () => {
+    for (const line of stopWarning(verdict("stop", [flag("PRICE_FAR_BELOW_MARKET", "stop"), flag("SHIP_BEFORE_PAY_TRICK", "stop")]))) {
+      expect(line).not.toMatch(/never ships|pattern of|trick to get your money/i);
+    }
   });
 });

@@ -52,4 +52,24 @@ describe("ArrivalResult", () => {
     expect(serialRow).toHaveAttribute("data-status", "mismatch");
     expect(within(serialRow).getByText(card.serial!)).toBeInTheDocument();
   });
+
+  it("renders all four of the pal's reason groups under the comparison", () => {
+    const withReasons = {
+      ...check(),
+      reasoning: {
+        checked: ["The arrival photos against locked card version 1."],
+        found: ["The box is there and the console is not."],
+        couldNotVerify: ["What was in the box when it left the seller."],
+        wouldChangeMyMind: ["A packing photo showing the console inside the box."],
+      },
+    };
+    render(<ArrivalResult check={withReasons} lockedCard={card} />);
+    expect(screen.getAllByTestId("pal-reason-group").map((g) => g.getAttribute("data-group"))).toEqual(["checked", "found", "couldNotVerify", "wouldChangeMyMind"]);
+    expect(screen.getByText("What was in the box when it left the seller.")).toBeInTheDocument();
+  });
+
+  it("renders exactly as it did for an arrival check with no reasons on it", () => {
+    render(<ArrivalResult check={check()} lockedCard={card} />);
+    expect(screen.queryByTestId("pal-reasons")).not.toBeInTheDocument();
+  });
 });

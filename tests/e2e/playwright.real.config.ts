@@ -12,10 +12,17 @@
  * PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET, NEXT_PUBLIC_PAYPAL_CLIENT_ID (also
  * in apps/web/.env.local), SANDBOX_BUYER_EMAIL and SANDBOX_BUYER_PASSWORD.
  * Only *.real.spec.ts files run here; the default config ignores them.
+ *
+ * It starts its own server and reuses nothing unless `E2E_REUSE_SERVER=1`
+ * says so. This config used to reuse whatever was listening on the port
+ * without asking, which also skipped the build, so a sandbox run could spend
+ * real calls against an old compile and say nothing about it. The first line
+ * of the run now names the server and whether this run started it.
  */
 import { defineConfig, devices } from "@playwright/test";
 import { REPO_ROOT } from "./src/env";
 import { REAL_BASE_URL, REAL_HEADED, REAL_PORT, REAL_SKIP_BUILD, REAL_STARTS_SERVER } from "./src/real-env";
+import { REUSE_SERVER } from "./src/server-mode";
 
 const start = `npm run start -w apps/web -- --port ${REAL_PORT}`;
 const command = REAL_SKIP_BUILD ? start : `npm run build -w apps/web && ${start}`;
@@ -23,6 +30,7 @@ const command = REAL_SKIP_BUILD ? start : `npm run build -w apps/web && ${start}
 export default defineConfig({
   testDir: "./src",
   testMatch: /.*\.real\.spec\.ts/,
+  globalSetup: "./src/real-global-setup.ts",
   // Real Claude review, a sandbox login and a capture, one after another.
   timeout: 360_000,
   expect: { timeout: 15_000 },
@@ -41,9 +49,14 @@ export default defineConfig({
         command,
         cwd: REPO_ROOT,
         url: REAL_BASE_URL,
-        reuseExistingServer: true,
+        // Opt-in only. Reusing a server here also skips the build above, so a run could
+        // spend sandbox and Claude calls proving something about an old compile.
+        reuseExistingServer: REUSE_SERVER,
         // Production build plus start.
         timeout: 420_000,
+        // Same reason as the demo config: a build or a server that dies should say why.
+        stdout: "pipe",
+        stderr: "pipe",
         env: process.env as Record<string, string>,
       }
     : undefined,

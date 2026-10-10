@@ -35,9 +35,15 @@ const RULES: Rule[] = [
   { rule: "D8", pattern: /strongest (warning )?sign/i, instead: 'say a refusal is "a risk signal"' },
   { rule: "D8", pattern: /proof of (fraud|a scam)/i, instead: "a refusal is a risk signal, not proof of anything" },
   { rule: "D8", pattern: /(is|means) (a )?(scam|fraud)\b/i, instead: "name what was seen, not what the person is" },
+  // What Pay Pals inferred is a risk signal, never a fact about what the seller is going to do.
+  { rule: "D8", pattern: /(this|that) is the pattern of/i, instead: 'say the flags are "a risk signal", and what to ask' },
+  { rule: "D8", pattern: /\b(never ships|a trick to get your money)\b/i, instead: "name the flag, not what you think the seller will do" },
   { rule: "D9", pattern: /prove[sd]? (the )?(ownership|authenticity|it is genuine)/i, instead: 'say the number "supports the listing"' },
   { rule: "D9", pattern: /\b(item|console|card|slab) is (authentic|genuine)\b/i, instead: "say what was checked and against what", unless: NEGATED },
   { rule: "D9", pattern: /\bauthenticated\b/i, instead: "say what was compared" },
+  // Provenance: ArrivalCheck.observed carries no source for the serial, so nothing in apps/web
+  // may say a number was read off a picture. In demo-only mode it came from the caption.
+  { rule: "D9", pattern: /read\b[^.]{0,40}\boff (the |these )?(arrival )?(photos|pictures|them|it)\b/i, instead: "say what was compared, not where the number came from" },
   { rule: "D10", pattern: /\bguarantee[sd]?\b/i, instead: 'say the pack is "useful context for a PayPal dispute"' },
   { rule: "D10", pattern: /(win|wins|winning) (the |a )?dispute/i, instead: "PayPal decides a dispute under its own terms" },
   { rule: "D10", pattern: /(get|gets) your money back/i, instead: "say what protection covers and who decides" },

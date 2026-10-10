@@ -11,6 +11,7 @@ import { HistoryBadge } from "../deal/HistoryBadge";
 import { EvidenceHeader } from "./EvidenceHeader";
 import { RecordedPartHeading } from "./RecordedPartHeading";
 import { PalAvatar } from "../pal/PalAvatar";
+import { PalReasons } from "../pal/PalReasons";
 import { ShipmentFlags } from "../deal/ShipmentFlags";
 
 /** A dealId#hash token (36 plus 64 characters) or a bare 64-hex hash, which no phone width can hold on one line. */
@@ -121,13 +122,12 @@ export function EvidencePackView({
           ))}
         </Section>
 
-        {pack.payment ? (
-          <PayPalConfirmation read={read} payment={pack.payment} dealId={pack.dealId} events={live} fallbackFields={false} prominent />
-        ) : (
-          <Section title="Confirmed by PayPal">
-            <p>No payment was made, so there is no PayPal order to read back.</p>
-          </Section>
-        )}
+        {/*
+          One producer for this heading, always. A deal with no payment used to take a branch of its
+          own here with the words hard-coded, which printed "Confirmed by PayPal" over a deal PayPal
+          had never heard of. The component takes a null payment and says so itself.
+        */}
+        <PayPalConfirmation read={read} payment={pack.payment ?? null} dealId={pack.dealId} events={live} fallbackFields={false} prominent />
 
         <RecordedPartHeading />
 
@@ -256,6 +256,7 @@ export function EvidencePackView({
                   ))}
                 </ul>
               ) : null}
+              <PalReasons reasoning={v.reasoning} pal="buyer" className="mt-3" />
               </div>
             </div>
           ))}
@@ -272,6 +273,7 @@ export function EvidencePackView({
                   ))}
                 </ul>
               ) : null}
+              <PalReasons reasoning={pack.arrivalCheck.reasoning} pal="buyer" className="mt-3" />
             </>
           ) : (
             <p>No arrival check on record.</p>

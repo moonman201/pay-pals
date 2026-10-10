@@ -9,7 +9,8 @@
  * remote server, where nothing may be written.
  */
 import { ALL_FIXTURES, cleanPs5 } from "@pay-pals/contracts";
-import { BASE_URL, STARTS_SERVER } from "./env";
+import { BASE_URL, PORT_PINNED, STARTS_SERVER } from "./env";
+import { announceServer } from "./server-mode";
 
 type Json = Record<string, unknown>;
 
@@ -51,9 +52,33 @@ async function checkSeededDealsArePristine(): Promise<number> {
   return ids.size;
 }
 
+/**
+ * The server this config starts is pinned to demo-only mode by
+ * E2E_SERVER_ENV: the mock gateway, the memory store, keyless pals. A server
+ * this run reused, or someone's own `npm run dev` on the same port, is not,
+ * and the difference shows up later as puzzling pixel diffs or, worse, as a
+ * warm-up that spends real PayPal and Claude calls. Say it in words first,
+ * before anything is created. Two reads, no writes.
+ */
+async function checkServerIsPinnedToDemoMode(): Promise<void> {
+  const landing = await (await fetch(`${BASE_URL}/`)).text();
+  const id = /\/deals\/([0-9a-f-]{36})\?as=buyer/.exec(landing)?.[1];
+  if (!id) return; // Nothing seeded yet; the warm-up below creates what it needs.
+  const snap = (await (await fetch(`${BASE_URL}/api/deals/${id}`)).json()) as { payMode?: string; sandboxBuyer?: unknown };
+  if (snap.payMode !== "mock" || snap.sandboxBuyer) {
+    throw new Error(
+      `warm-up: the server on ${BASE_URL} is not the pinned demo server this suite starts (payMode ${snap.payMode ?? "unknown"}, ` +
+        `sandbox buyer ${snap.sandboxBuyer ? "present" : "absent"}). Something else is listening on that port, or a server was reused. ` +
+        `Stop it and run again, and do not set E2E_REUSE_SERVER unless you know what that server is serving.`,
+    );
+  }
+}
+
 export default async function globalSetup(): Promise<void> {
+  announceServer({ label: "demo server", baseUrl: BASE_URL, startsServer: STARTS_SERVER, portPinned: PORT_PINNED });
   if (!STARTS_SERVER) return;
   const started = Date.now();
+  await checkServerIsPinnedToDemoMode();
   const card = cleanPs5.cards[0]!;
   const photo = card.photos[0]!;
 

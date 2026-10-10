@@ -13,7 +13,12 @@
  *     matches is false on "serial". The expectation is the card's own serial,
  *     or the box label's number when the card never carried the item's.
  * The pal message always says what was looked at: the images themselves, or
- * the photo descriptions when an image could not be loaded.
+ * the photo descriptions when an image could not be loaded. It also says
+ * which of the two a serial came from. A number lifted out of the buyer's
+ * caption is the buyer's word, which is evidence, but it is not something the
+ * pal saw, so only a number read off the picture is called confirmed on the
+ * item itself. In demo-only mode nothing is read, so that distinction is the
+ * difference between an honest page and a claim with nothing behind it.
  */
 import type { ArrivalCheck, ItemCard, Mismatch, PalResult, Photo } from "@pay-pals/contracts";
 import type { ClaudeClient } from "../claude/client";
@@ -21,6 +26,7 @@ import { sentences } from "../copy";
 import { modelFamily, normalizeSerial } from "../vision/description";
 import type { ImageFetcher } from "../vision/fetch-image";
 import { describeLooking, itemMissing, itemSerial, packagingSerial, readPhotos, type PhotoReading } from "../vision/read-photo";
+import { arrivalReasoning } from "./arrival-reasons";
 
 export interface ArrivalDeps {
   client: ClaudeClient | null;
@@ -131,11 +137,17 @@ export async function checkArrivalAgainstCard(card: ItemCard, arrivalPhotos: Pho
   const matches = mismatches.length === 0;
   const differs = mismatches.some((m) => (m.field === "serial" && observed.serial !== null) || m.field === "model" || m.field === "brand");
   const unreadable = mismatches.some((m) => m.field === "serial") && observed.serial === null && !missing;
+  // Where the number came from. A serial lifted out of the buyer's caption is the buyer's word: it is
+  // evidence, but the pal did not see it, so it may not be called confirmed on the item itself.
+  const serialSeen = item?.reading.source === "vision";
 
   const palMessage = sentences(
     arrivalPhotos.length === 0 ? "I have no arrival photos to check yet. Add a photo of the serial on the item itself." : null,
     describeLooking(readings, "arrival photo", deps.publicMode === true),
-    matches && observed.serial ? `What arrived matches the locked card. Serial ${observed.serial} confirmed on the item itself.` : null,
+    matches && observed.serial && serialSeen ? `What arrived matches the locked card. Serial ${observed.serial} confirmed on the item itself.` : null,
+    matches && observed.serial && !serialSeen
+      ? `Nothing contradicts the locked card. The serial ${observed.serial} comes from the description filed with the photo, not from the picture, so it is the buyer's word and not a number I read.`
+      : null,
     matches && !observed.serial && arrivalPhotos.length > 0 ? "Nothing contradicts the card, but the card has no serial to confirm." : null,
     missing ? `The box arrived without the item. The locked card describes ${card.title}, and there is no item in the photos.` : null,
     missing && box ? `The box label shows ${box.serial}, which does not count. A label is not the item.` : null,
@@ -158,6 +170,7 @@ export async function checkArrivalAgainstCard(card: ItemCard, arrivalPhotos: Pho
     mismatches,
     observed,
     palMessage,
+    reasoning: arrivalReasoning({ card, readings, observed, mismatches, missing }),
     createdAt: new Date().toISOString(),
   };
   return { data: check, palMessage };

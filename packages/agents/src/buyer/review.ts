@@ -32,6 +32,8 @@ import { mergeModelReview } from "./merge-flags";
 import { photoFactsBlock } from "./photo-facts";
 import { findReusedPhotos, type PhotoMatchDeps } from "./photo-match";
 import { datedNoteQuestion, serialCloseUpQuestion, withProofQuestions } from "./proof-question";
+import { mergeReasoning } from "./reasoning";
+import { reviewReasoning } from "./review-reasons";
 import { ModelReviewSchema, REVIEW_TOOL, type ModelReview } from "./review-tool";
 
 export const MAX_QUESTIONS = 3;
@@ -262,9 +264,11 @@ export async function reviewCard(card: ItemCard | null, chat: Message[], context
     card && certRecord ? (({ matches, explanation }) => ({ record: certRecord, matches, explanation }))(compareCertRecord(card, certRecord)) : null;
 
   let photoMatches: PhotoMatch[] = [];
+  let photoMatchRan = false;
   if (card && deps.photoMatch && deps.photoMatch.knownPhotos.length > 0) {
     try {
       photoMatches = await findReusedPhotos(card.photos, deps.photoMatch);
+      photoMatchRan = true;
     } catch (error) {
       console.warn(`[pay-pals agents] photo match failed: ${error instanceof Error ? error.message : String(error)}`);
     }
@@ -274,20 +278,34 @@ export async function reviewCard(card: ItemCard | null, chat: Message[], context
 
   let readings: PhotoReading[] = [];
   let pass: ModelPass = { review: null, message: null };
+  const publicMode = deps.publicMode === true;
   if (deps.client) {
     if (card) {
       readings = await readPhotos(card.photos, { client: deps.client, fetchImage: deps.fetchImage, photoBaseUrl: deps.photoBaseUrl, hints: { brand: card.brand, model: card.model } });
     }
-    const publicMode = deps.publicMode === true;
-    const claims: ClaimContext = {
-      imagesRead: readings.some((r) => r.imageStatus === "read"),
-      psaContacted: certRecord?.provider === "psa",
-      certCheck,
-      publicMode,
-      shops: shopNames(priceCheck),
-    };
+  }
+  // Built whether or not a model ran, because the reasons go through the same honesty check the message does.
+  const claims: ClaimContext = {
+    imagesRead: readings.some((r) => r.imageStatus === "read"),
+    psaContacted: certRecord?.provider === "psa",
+    certCheck,
+    publicMode,
+    shops: shopNames(priceCheck),
+  };
+  const reasonInput = {
+    card,
+    priceCheck,
+    certCheck,
+    certLookupFailed,
+    readings,
+    seller: context?.seller ?? null,
+    photoMatchRan,
+    modelAvailable: deps.client !== null,
+  };
+  if (deps.client) {
     const facts = ruleFlags.length === 0 ? "The rules raised no flags." : JSON.stringify(ruleFlags, null, 2);
     const cert = certLine(card, certCheck, certLookupFailed);
+    const already = reviewReasoning({ ...reasonInput, flags: ruleFlags, overall: overallFromFlags(ruleFlags) });
     pass = await askModel(
       deps.client,
       [
@@ -302,6 +320,10 @@ export async function reviewCard(card: ItemCard | null, chat: Message[], context
         { type: "text", text: card ? priceLine(priceCheck) : "No price check without a card." },
         ...(cert ? [{ type: "text" as const, text: cert }] : []),
         { type: "text", text: `Fixed facts. Flags raised by the rules, which will appear in the verdict as given:\n${facts}` },
+        {
+          type: "text",
+          text: `Fixed facts. Reasons already worked out, which will appear as given. Add to them only where you have something they do not say, and do not repeat one in other words:\n${JSON.stringify(already, null, 2)}`,
+        },
       ],
       claims,
     );
@@ -319,6 +341,9 @@ export async function reviewCard(card: ItemCard | null, chat: Message[], context
   const body = pass.message ? plainCopy(pass.message) : fallbackMessage(card, flags, priceCheck, certCheck, certLookupFailed);
   const palMessage = sentences(describeLooking(readings, "card photo", deps.publicMode === true), body);
 
+  // The rules' reasons are fixed facts, like their flags. The model may add to a group and never take from one.
+  const reasoning = mergeReasoning(reviewReasoning({ ...reasonInput, flags, overall }), review?.reasoning ?? null, claims);
+
   const verdict: Verdict = {
     dealId: card?.dealId ?? chat.find((m) => m.dealId.length > 0)?.dealId ?? "unknown",
     cardVersion: card?.version ?? 0,
@@ -328,6 +353,7 @@ export async function reviewCard(card: ItemCard | null, chat: Message[], context
     ...(certCheck ? { certCheck } : {}),
     questionsForSeller,
     palMessage,
+    reasoning,
     createdAt: new Date().toISOString(),
   };
   return { data: verdict, palMessage };
