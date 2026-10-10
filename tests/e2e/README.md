@@ -9,11 +9,22 @@ npm run e2e:install -w tests/e2e   # once, downloads Chromium
 npm run test:e2e                   # from the repo root
 ```
 
-The config starts `apps/web` on port 3100 (override with `E2E_PORT`) and reuses a server already on that port. When `apps/web` is not on the branch the specs skip themselves.
+The config starts its own `apps/web` on port 3100 (override with `E2E_PORT`) and reuses nothing. If `apps/web` is missing from the checkout the run stops rather than skipping every spec and reporting green.
+
+### Which server a run is talking to
+
+Both configs used to reuse a server that was already listening: the demo config whenever `CI` was unset, the real config always. A dev server left from an earlier run serves whatever it had compiled, so a suite could pass against code that is not in the working tree, and nothing said so. One real case: a reused server served a stale compile, three specs passed against it, and the same specs failed on a fresh server.
+
+So, now:
+
+- **With no environment variables set, a run starts its own server and reuses nothing.** If the port is busy, the run stops and says to stop whatever is on it.
+- **`E2E_REUSE_SERVER=1`** allows reuse, for the fast local loop. The run's first line says so and says what it means for the result.
+- Every run prints one line naming the server and whether it started it, before any spec runs.
+- Before the warm-up, the demo run checks the server it is talking to is the pinned demo server (mock gateway, no sandbox buyer). A server someone else started on the same port fails there, in words, instead of showing up later as a pixel diff or a real PayPal call.
 
 **The suite always runs in demo-only mode.** The server it starts gets `PAY_PALS_DEMO_ONLY=1`, which forces the memory store, rules-only pals, fixture prices and the mock PayPal gateway no matter what keys the shell or `.env.local` carry. The suite never spends a Claude or PayPal call, and a key in your shell does not change the result.
 
-The waits after a pal call (review, arrival check) allow 90 s so the same flows work against a real Buyer Pal; every other wait stays short. Note that a reused server on port 3100 keeps whatever mode it was started in. To point the demo specs at a server you started yourself, set `E2E_BASE_URL=http://localhost:3000 npm run test:e2e`.
+The waits after a pal call (review, arrival check) allow 90 s so the same flows work against a real Buyer Pal; every other wait stays short. To point the demo specs at a server you started yourself, set `E2E_BASE_URL=http://localhost:3000 npm run test:e2e`; then nothing is built from your working tree and the run says so.
 
 ## The real-mode run: PayPal and Venmo buttons against the sandbox
 

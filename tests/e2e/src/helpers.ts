@@ -100,9 +100,19 @@ export async function expectStateAfterPal(page: Page, label: string): Promise<vo
   await expect(page.getByRole("banner").getByText(label, { exact: true })).toBeVisible({ timeout: PAL_TIMEOUT });
 }
 
-/** A deal room panel, found by its title. */
+/**
+ * A deal room panel, found by its exact title.
+ *
+ * This used to match by case-insensitive substring, which is Playwright's
+ * default for a role name, so every new panel heading that contained an
+ * existing one collided under strict mode: "Payment" caught "Payment
+ * confirmed by PayPal", "Pay" caught both. Twice the product markup was
+ * changed to get around that, which is the tail wagging the dog. Exact is
+ * the default now. A call site that really wants a prefix says so itself,
+ * with a regular expression, which `exact` leaves alone.
+ */
 export function panel(page: Page, title: string | RegExp): Locator {
-  return page.locator("section").filter({ has: page.getByRole("heading", { name: title }) });
+  return page.locator("section").filter({ has: page.getByRole("heading", { name: title, exact: true }) });
 }
 
 /** Press a button in the "Next step" panel, where the transition-table moves live. */
