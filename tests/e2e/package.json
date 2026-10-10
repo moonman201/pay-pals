@@ -6,9 +6,9 @@
   "type": "module",
   "scripts": {
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "e2e": "playwright test",
+    "e2e": "tsx scripts/preflight.ts demo && playwright test",
     "e2e:install": "playwright install chromium",
-    "e2e:real": "playwright test -c playwright.real.config.ts"
+    "e2e:real": "tsx scripts/preflight.ts real && playwright test -c playwright.real.config.ts"
   },
   "dependencies": {
     "@pay-pals/contracts": "*"

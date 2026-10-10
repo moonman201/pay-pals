@@ -5,14 +5,19 @@
  *   npm run e2e:install -w tests/e2e   (once, downloads Chromium)
  *   npm run test:e2e
  *
- * Starts apps/web on PORT when it is present on the branch. Set E2E_BASE_URL
- * to point at a server that is already running instead. Two projects: a
- * desktop Chrome run of every scenario, and a 390 px phone run of the
- * phone-width spec only. *.real.spec.ts files are ignored here; they run
- * under playwright.real.config.ts (`npm run e2e:real -w tests/e2e`).
+ * Starts its own apps/web on PORT and reuses nothing, so a run with no
+ * environment variables set is testing this working tree and not whatever
+ * a leftover dev server had compiled. `E2E_REUSE_SERVER=1` allows reuse for
+ * the fast local loop and the run says so in its first line. Set
+ * E2E_BASE_URL to point at a server that is already running instead.
+ *
+ * Two projects: a desktop Chrome run of every scenario, and a 390 px phone
+ * run of the phone-width spec only. *.real.spec.ts files are ignored here;
+ * they run under playwright.real.config.ts (`npm run e2e:real -w tests/e2e`).
  */
 import { defineConfig, devices } from "@playwright/test";
 import { BASE_URL, E2E_SERVER_ENV, PORT, REPO_ROOT, STARTS_SERVER } from "./src/env";
+import { REUSE_SERVER } from "./src/server-mode";
 
 const PHONE = /phone-width\.spec\.ts$/;
 /** Real-mode specs run only under playwright.real.config.ts. */
@@ -54,7 +59,9 @@ export default defineConfig({
         command: `npm run dev -w apps/web -- --port ${PORT}`,
         cwd: REPO_ROOT,
         url: BASE_URL,
-        reuseExistingServer: !process.env.CI,
+        // Opt-in only. A server left from an earlier run serves an older compile, and a suite
+        // that passes against it has proved nothing; CI is not the only place that matters.
+        reuseExistingServer: REUSE_SERVER,
         timeout: 120_000,
         // Demo-only mode, on a pinned environment: memory store, rules-only
         // pals, fixture prices and the mock gateway, and nothing a checkout's

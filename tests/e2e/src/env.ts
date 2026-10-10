@@ -13,6 +13,20 @@ export const REPO_ROOT = resolve(here, "..", "..", "..");
 export const WEB_DIR = resolve(REPO_ROOT, "apps", "web");
 export const WEB_PRESENT = existsSync(resolve(WEB_DIR, "package.json"));
 
+/**
+ * Every spec skips itself when apps/web is absent, which once meant "this
+ * branch has no app yet" and now means a run would report green having
+ * tested nothing. A gate that cannot fail is worse than one that does, so
+ * say it instead of skipping. Pointing at a server with E2E_BASE_URL is
+ * still fine: then the app is somewhere else on purpose.
+ */
+if (!WEB_PRESENT && !process.env.E2E_BASE_URL) {
+  throw new Error(
+    `apps/web is not in this checkout (${WEB_DIR}), so every spec would skip and the run would report green having tested nothing. ` +
+      `Run from a checkout that has apps/web, or set E2E_BASE_URL to a server that is already running.`,
+  );
+}
+
 /** 3100 by default so a dev server already on 3000 is left alone. */
 export const PORT = Number(process.env.E2E_PORT ?? 3100);
 /** Set E2E_BASE_URL to run against a server you started yourself, or a deployed app. */
