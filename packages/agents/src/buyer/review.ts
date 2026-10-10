@@ -31,9 +31,9 @@ import { buildGroundingCorpus } from "./grounding";
 import { mergeModelReview } from "./merge-flags";
 import { photoFactsBlock } from "./photo-facts";
 import { findReusedPhotos, type PhotoMatchDeps } from "./photo-match";
-import { datedNoteQuestion, serialCloseUpQuestion, withProofQuestions } from "./proof-question";
+import { BOX_LABEL_CLOSE_UP_QUESTION, datedNoteQuestion, serialCloseUpQuestion, withProofQuestions } from "./proof-question";
 import { mergeReasoning } from "./reasoning";
-import { reviewReasoning } from "./review-reasons";
+import { nearMissSerials, reviewReasoning } from "./review-reasons";
 import { ModelReviewSchema, REVIEW_TOOL, type ModelReview } from "./review-tool";
 
 export const MAX_QUESTIONS = 3;
@@ -274,16 +274,26 @@ export async function reviewCard(card: ItemCard | null, chat: Message[], context
     }
   }
 
-  const ruleFlags = runRules({ card, chat, priceCheck, seller: context?.seller ?? null, certRecord, inviteDeclined: context?.inviteDeclined === true, photoMatches });
-
+  // The photos are read before the rules, not after, because the box-serial rule needs to know
+  // whether a vision read is in play before it decides a one-character difference is a mismatch.
   let readings: PhotoReading[] = [];
   let pass: ModelPass = { review: null, message: null };
   const publicMode = deps.publicMode === true;
-  if (deps.client) {
-    if (card) {
-      readings = await readPhotos(card.photos, { client: deps.client, fetchImage: deps.fetchImage, photoBaseUrl: deps.photoBaseUrl, hints: { brand: card.brand, model: card.model } });
-    }
+  if (deps.client && card) {
+    readings = await readPhotos(card.photos, { client: deps.client, fetchImage: deps.fetchImage, photoBaseUrl: deps.photoBaseUrl, hints: { brand: card.brand, model: card.model } });
   }
+  const serialReadFromPhoto = readings.some((r) => r.source === "vision" && r.serial !== null);
+
+  const ruleFlags = runRules({
+    card,
+    chat,
+    priceCheck,
+    seller: context?.seller ?? null,
+    certRecord,
+    inviteDeclined: context?.inviteDeclined === true,
+    photoMatches,
+    serialReadFromPhoto,
+  });
   // Built whether or not a model ran, because the reasons go through the same honesty check the message does.
   const claims: ClaimContext = {
     imagesRead: readings.some((r) => r.imageStatus === "read"),
@@ -301,6 +311,7 @@ export async function reviewCard(card: ItemCard | null, chat: Message[], context
     seller: context?.seller ?? null,
     photoMatchRan,
     modelAvailable: deps.client !== null,
+    serialReadFromPhoto,
   };
   if (deps.client) {
     const facts = ruleFlags.length === 0 ? "The rules raised no flags." : JSON.stringify(ruleFlags, null, 2);
@@ -315,7 +326,7 @@ export async function reviewCard(card: ItemCard | null, chat: Message[], context
             ? `Item card (version ${card.version}):\n${JSON.stringify(card, null, 2)}`
             : "There is no item card yet. The seller has not joined or has not uploaded anything. Review the chat only; price, serial, photos and cert cannot be checked.",
         },
-        ...(card ? [{ type: "text" as const, text: photoFactsBlock(readings, publicMode) }] : []),
+        ...(card ? [{ type: "text" as const, text: photoFactsBlock(readings, publicMode, card) }] : []),
         { type: "text", text: `Shared chat, in order:\n${transcript(chat) || "(no messages yet)"}` },
         { type: "text", text: card ? priceLine(priceCheck) : "No price check without a card." },
         ...(cert ? [{ type: "text" as const, text: cert }] : []),
@@ -335,7 +346,12 @@ export async function reviewCard(card: ItemCard | null, chat: Message[], context
   const overall = overallFromFlags(flags);
   // Our own questions are deterministic and come first; the model's, or the rules-only ones, follow.
   // The dated-note ask stands even on a stop: it is the one answer that would change the verdict.
-  const ours = [datedNoteQuestion(card), overall === "stop" ? null : serialCloseUpQuestion(card)];
+  const ours = [
+    datedNoteQuestion(card),
+    // The band claimed neither, so the one photo that would settle it is asked for.
+    nearMissSerials(card, serialReadFromPhoto) ? BOX_LABEL_CLOSE_UP_QUESTION : null,
+    overall === "stop" ? null : serialCloseUpQuestion(card),
+  ];
   const modelQuestions = review?.questions_for_seller ?? [];
   const questionsForSeller = pickQuestions(withProofQuestions(ours, modelQuestions.length > 0 ? modelQuestions : fallbackQuestions(card, flags)));
   const body = pass.message ? plainCopy(pass.message) : fallbackMessage(card, flags, priceCheck, certCheck, certLookupFailed);

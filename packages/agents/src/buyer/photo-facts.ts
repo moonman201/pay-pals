@@ -3,10 +3,26 @@
  * the seller's caption and, when the vision model read the image, what it
  * read. When no image was read the block says so, so the model cannot
  * mistake captions for things it saw.
+ *
+ * It also warns where a read number is one character off a number on the card.
+ * That is the shape of a misread, not of a different item, and the model
+ * raising a flag on it is how the clean deal came back caution with an OTHER
+ * flag on the keyed run of 2026-10-10. The deterministic rule already declines
+ * to call that a mismatch (serial-match.ts); this stops the model doing in
+ * prose what the rule refuses to do in a flag.
  */
+import type { ItemCard } from "@pay-pals/contracts";
+import { compareSerials, describeDifference } from "../vision/serial-match";
 import type { PhotoReading } from "../vision/read-photo";
 
-export function photoFactsBlock(readings: PhotoReading[], publicMode = false): string {
+/** The warning that follows a read serial which is one character off one the card carries. */
+function nearMissNote(serial: string, card: ItemCard | null): string {
+  const against = [card?.serial, card?.boxSerial].find((c) => c && compareSerials(serial, c, { readFromPhoto: true }) === "near");
+  if (!against) return "";
+  return `. That is one character away from ${against} on the card, because ${describeDifference(serial, against)}, which is the shape of a misread rather than a different unit. Treat the two as possibly the same number: do not raise a flag on the difference and do not say they do not match. Asking for a clearer photo of that label is the right response`;
+}
+
+export function photoFactsBlock(readings: PhotoReading[], publicMode = false, card: ItemCard | null = null): string {
   if (readings.length === 0) return "The card has no photos.";
   const lines = readings.map((r, i) => {
     const caption = `${i + 1}. Seller's caption: "${r.photo.whatItShows}".`;
@@ -15,7 +31,7 @@ export function photoFactsBlock(readings: PhotoReading[], publicMode = false): s
         r.brand ? `brand ${r.brand}` : null,
         r.model ? `model ${r.model}` : null,
         r.serial
-          ? `serial ${r.serial} on the ${r.serialOn === "packaging" ? "box or packaging" : "item"}`
+          ? `serial ${r.serial} on the ${r.serialOn === "packaging" ? "box or packaging" : "item"}${nearMissNote(r.serial, card)}`
           : r.serialIllegible
             ? `a serial is in the picture but it could not be read, because ${r.serialIllegibleReason}. There is no number from this photo. Do not guess one and do not treat it as a serial that differs from the card`
             : "no serial legible",
