@@ -278,10 +278,24 @@ function paymentTitle(items: readonly StatusItem[]): string {
   return items.some((i) => i.status === "verified") ? "Payment confirmed by PayPal" : "Payment, not confirmed by PayPal";
 }
 
+/** Decision 12: the buyer took the payment off Pay Pals, so there is nothing of PayPal's to show. */
+function offPlatformItem(input: StatusInput): StatusItem | null {
+  const chosen = input.events.find((e) => e.kind === "off_platform_chosen");
+  if (!chosen) return null;
+  return {
+    id: "off-platform",
+    label: "Paid outside PayPal Goods and Services",
+    status: "missing",
+    detail: `The buyer told Pay Pals on ${formatTime(chosen.at)} that they would pay another way. Pay Pals created no order, is not handling that payment and has no record of it, so there is no PayPal protection and no dispute path for it.`,
+  };
+}
+
 function paymentGroup(input: StatusInput): StatusGroup {
   const items: StatusItem[] = [];
   const read = input.paypalRead;
   const why = whyNotConfirmed(read);
+  const offPlatform = offPlatformItem(input);
+  if (offPlatform) items.push(offPlatform);
 
   if (!input.payment) {
     items.push({ id: "order", label: "Order at PayPal", status: "missing", detail: "No PayPal order has been created for this deal." });

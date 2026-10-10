@@ -8,6 +8,7 @@ const DOT: Partial<Record<DealEvent["kind"], string>> = {
   agreed: "bg-[var(--accent)]",
   seller_joined: "bg-gold",
   invite_declined: "bg-stop",
+  off_platform_chosen: "bg-caution",
   shipment_checked: "bg-caution",
   card_locked: "bg-navy",
   payment_captured: "bg-go",

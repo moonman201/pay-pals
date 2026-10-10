@@ -73,3 +73,25 @@ describe("dealProgress", () => {
     }
   });
 });
+
+describe("a deal the buyer took off Pay Pals", () => {
+  const offPlatform = [ev("seller_invited"), ev("card_updated"), ev("review_posted"), ev("card_locked"), ev("off_platform_chosen")];
+
+  it("does not advance the steps, because nothing was paid through Pay Pals", () => {
+    // Cancelled at the payment step: four steps reached, and Paid never ticks.
+    expect(statuses("CANCELLED", offPlatform)).toEqual([D, D, D, D, U, U, U]);
+  });
+
+  it("carries its own end badge rather than the state it left behind", () => {
+    expect(dealProgress("CANCELLED", offPlatform).end).toEqual({ kind: "off_platform", label: "Paying another way" });
+    // The blocked case, which is the one the control exists for.
+    expect(dealProgress("BLOCKED", [ev("review_posted"), ev("off_platform_chosen")]).end).toEqual({ kind: "off_platform", label: "Paying another way" });
+  });
+
+  it("leaves every other ending alone", () => {
+    expect(dealProgress("CANCELLED", [ev("review_posted")]).end).toEqual({ kind: "cancelled", label: "Cancelled" });
+    expect(dealProgress("BLOCKED", [ev("review_posted")]).end).toEqual({ kind: "blocked", label: "Blocked" });
+    expect(dealProgress("ISSUE", [ev("delivered")]).end).toEqual({ kind: "issue", label: "Issue open" });
+    expect(dealProgress("AGREED", []).end).toBeNull();
+  });
+});

@@ -22,7 +22,13 @@ export const PROGRESS_LABELS: Readonly<Record<ProgressStepId, string>> = {
 
 export type StepStatus = "done" | "current" | "upcoming";
 
-export type ProgressEnd = { kind: "blocked"; label: "Blocked" } | { kind: "issue"; label: "Issue open" } | { kind: "cancelled"; label: "Cancelled" } | null;
+export type ProgressEnd =
+  | { kind: "blocked"; label: "Blocked" }
+  | { kind: "issue"; label: "Issue open" }
+  | { kind: "cancelled"; label: "Cancelled" }
+  /** The buyer is paying outside Goods and Services, so Pay Pals stepped back here. */
+  | { kind: "off_platform"; label: "Paying another way" }
+  | null;
 
 export interface Progress {
   steps: { id: ProgressStepId; label: string; status: StepStatus }[];
@@ -71,7 +77,19 @@ function reachedFromEvents(events: readonly DealEvent[]): number {
 }
 
 export function dealProgress(state: DealState, events: readonly DealEvent[]): Progress {
-  const end: ProgressEnd = state === "BLOCKED" ? { kind: "blocked", label: "Blocked" } : state === "ISSUE" ? { kind: "issue", label: "Issue open" } : state === "CANCELLED" ? { kind: "cancelled", label: "Cancelled" } : null;
+  // Paying another way is the truer badge than the state it leaves behind: the deal did not
+  // fail a check and nobody cancelled it, the buyer took the payment off Pay Pals. Nothing was
+  // paid through Pay Pals either, so the steps themselves never advance past what happened.
+  const offPlatform = events.some((e) => e.kind === "off_platform_chosen");
+  const end: ProgressEnd = offPlatform
+    ? { kind: "off_platform", label: "Paying another way" }
+    : state === "BLOCKED"
+      ? { kind: "blocked", label: "Blocked" }
+      : state === "ISSUE"
+        ? { kind: "issue", label: "Issue open" }
+        : state === "CANCELLED"
+          ? { kind: "cancelled", label: "Cancelled" }
+          : null;
   const byState = DONE_BY_STATE[state];
   const doneCount = byState >= 0 ? byState : reachedFromEvents(events);
   // Off the happy path nothing is current: the end badge is what the reader needs next.
