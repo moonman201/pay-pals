@@ -5,6 +5,7 @@ import { ProtectionPanel } from "@/components/landing/ProtectionPanel";
 import { ScenarioCard } from "@/components/landing/ScenarioCard";
 import { PalAvatar } from "@/components/pal/PalAvatar";
 import { LinkIcon, LockIcon } from "@/components/ui/icons";
+import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { resolveSeededDeals } from "@/lib/demo/live-seeded";
 import { asDealFinder } from "@/lib/demo/seed-fixtures";
 import { getServices } from "@/lib/services";
@@ -46,9 +47,12 @@ export default async function HomePage() {
           <PalAvatar pal="seller" size={24} className="-ml-3" />
           Pay Pals
         </Link>
-        <Link href="/deals/new" className="inline-flex min-h-11 items-center text-sm font-semibold text-navy underline-offset-4 hover:underline">
-          Selling? List an item
-        </Link>
+        <div className="flex items-center gap-1">
+          <ThemeToggle />
+          <Link href="/deals/new" className="inline-flex min-h-11 items-center text-sm font-semibold text-navy underline-offset-4 hover:underline">
+            Selling? List an item
+          </Link>
+        </div>
       </nav>
 
       <header className="grid items-center gap-6 pt-4 sm:pt-8 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:gap-10">
