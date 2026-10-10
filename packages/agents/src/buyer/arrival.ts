@@ -21,6 +21,7 @@ import { sentences } from "../copy";
 import { modelFamily, normalizeSerial } from "../vision/description";
 import type { ImageFetcher } from "../vision/fetch-image";
 import { describeLooking, itemMissing, itemSerial, packagingSerial, readPhotos, type PhotoReading } from "../vision/read-photo";
+import { arrivalReasoning } from "./arrival-reasons";
 
 export interface ArrivalDeps {
   client: ClaudeClient | null;
@@ -158,6 +159,7 @@ export async function checkArrivalAgainstCard(card: ItemCard, arrivalPhotos: Pho
     mismatches,
     observed,
     palMessage,
+    reasoning: arrivalReasoning({ card, readings, observed, mismatches, missing }),
     createdAt: new Date().toISOString(),
   };
   return { data: check, palMessage };

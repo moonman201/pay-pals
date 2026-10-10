@@ -14,7 +14,11 @@ export function photoFactsBlock(readings: PhotoReading[], publicMode = false): s
       const bits = [
         r.brand ? `brand ${r.brand}` : null,
         r.model ? `model ${r.model}` : null,
-        r.serial ? `serial ${r.serial} on the ${r.serialOn === "packaging" ? "box or packaging" : "item"}` : "no serial legible",
+        r.serial
+          ? `serial ${r.serial} on the ${r.serialOn === "packaging" ? "box or packaging" : "item"}`
+          : r.serialIllegible
+            ? `a serial is in the picture but it could not be read, because ${r.serialIllegibleReason}. There is no number from this photo. Do not guess one and do not treat it as a serial that differs from the card`
+            : "no serial legible",
         r.itemPresent === false ? "the item itself is not in the picture" : r.itemPresent === true ? "the item is in the picture" : null,
       ].filter((b): b is string => b !== null);
       return `${caption} Read by the vision model: ${bits.join(", ")}.`;
