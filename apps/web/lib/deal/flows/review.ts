@@ -6,7 +6,7 @@
  * In INVITED there is no card yet: the pal reviews the chat and the refusal
  * alone, and the deal moves INVITED -> REVIEWED (-> BLOCKED on a refusal).
  */
-import { isPaymentMethodFlag, type Deal, type DealEvent, type ReviewContext, type Verdict } from "@pay-pals/contracts";
+import { isPaymentMethodFlag, type Deal, type DealEvent, type ReviewContext, type ReviewProgress, type Verdict } from "@pay-pals/contracts";
 import type { Services } from "../../services";
 import { FlowError } from "../errors";
 import { absoluteCard, absoluteMessages } from "../photo-urls";
@@ -29,8 +29,14 @@ export function reviewContext(deal: Deal, events: readonly DealEvent[]): ReviewC
   };
 }
 
-export async function runReview(services: Services, dealId: string): Promise<Verdict> {
-  let deal = await mustDeal(services, dealId);
+/**
+ * Everything the review needs, gathered and checked, before the Buyer Pal is
+ * called. Split out so a streaming route can answer a bad request with a
+ * proper status before it opens the stream: once the body has started there
+ * is no status left to send.
+ */
+export async function prepareReview(services: Services, dealId: string) {
+  const deal = await mustDeal(services, dealId);
   expectState(deal, "LISTED", "INVITED");
   const { store } = services;
   const card = await store.getCurrentCard(dealId);
@@ -38,8 +44,26 @@ export async function runReview(services: Services, dealId: string): Promise<Ver
   if (deal.state === "INVITED" && chat.length === 0 && !wasInviteDeclined(events)) {
     throw new FlowError("There is nothing to review yet. Paste the seller's reply in the chat, or wait for them to join.", 409);
   }
+  return { deal, card, chat, events };
+}
 
-  const result = await services.buyerPal.review(card ? absoluteCard(card) : null, absoluteMessages(chat), reviewContext(deal, events));
+export interface RunReviewOptions {
+  /**
+   * Findings as they land, for the page. Progress is never the record: the
+   * verdict below is, and it is saved here whether or not anyone listened.
+   */
+  onProgress?: (event: ReviewProgress) => void;
+}
+
+export async function runReview(services: Services, dealId: string, options: RunReviewOptions = {}): Promise<Verdict> {
+  const prepared = await prepareReview(services, dealId);
+  let deal = prepared.deal;
+  const { card, chat, events } = prepared;
+  const { store } = services;
+
+  const result = await services.buyerPal.review(card ? absoluteCard(card) : null, absoluteMessages(chat), reviewContext(deal, events), {
+    onProgress: options.onProgress,
+  });
   const verdict = await store.saveVerdict(result.data);
   await say(services, dealId, "buyer_pal", "buyer_pal", result.palMessage);
   const what = card ? `card version ${card.version}` : "the seller's reply, with no card";

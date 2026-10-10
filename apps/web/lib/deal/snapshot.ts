@@ -9,6 +9,7 @@ import { fixtureById } from "../scenarios";
 import { palChannel, type Role } from "../role";
 import type { Services } from "../services";
 import { notFound } from "./errors";
+import { isReviewing } from "./review-registry";
 import type { PayPalReadResult } from "./paypal-confirmation";
 import { readPayPalOrder } from "./paypal-read";
 import { absoluteCard } from "./photo-urls";
@@ -52,6 +53,13 @@ export interface DealSnapshot {
   example: boolean;
   /** Photo uploads work on this host (a writable public/uploads). */
   uploadsEnabled: boolean;
+  /**
+   * A Buyer Pal review is running for this deal on this server right now
+   * (Decision 19). Covers a reload mid-review, so the room still locks Agree
+   * and still says why. Read from the in-process registry, never inferred
+   * from the absence of a verdict.
+   */
+  reviewInFlight: boolean;
   /** The sandbox test buyer to approve with: demo deals on the sandbox gateway only, never real deals, never the mock. */
   sandboxBuyer: { email: string; password: string } | null;
 }
@@ -139,6 +147,7 @@ export async function loadSnapshot(services: Services, dealId: string): Promise<
     inviteDeclined: events.some((e) => e.kind === "invite_declined"),
     example: isExampleDeal(events, payment),
     uploadsEnabled: services.uploadsEnabled,
+    reviewInFlight: isReviewing(dealId),
     sandboxBuyer: sandboxBuyerFor(deal, services),
   };
 }
