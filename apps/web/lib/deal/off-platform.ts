@@ -39,9 +39,16 @@ export const OFF_PLATFORM_WARNING: readonly string[] = [
   "Everything your pal checked stays on this deal and you can keep reading it. Pay Pals records that you chose to pay another way, and then it steps back.",
 ];
 
-export const OFF_PLATFORM_CHECKBOX = "I understand: no PayPal protection and no dispute path on a payment made another way.";
-
 export const OFF_PLATFORM_BUTTON = "I will pay another way";
+
+/**
+ * The second press. Asking again, rather than an acknowledgment checkbox: a
+ * checkbox is the pattern for continuing past a stop, which the buyer can
+ * take back, and this cannot be taken back.
+ */
+export const OFF_PLATFORM_CONFIRM = "Recording this ends Pay Pals' part of the deal, and there is no PayPal protection and no dispute path on a payment made another way.";
+
+export const OFF_PLATFORM_CONFIRM_BUTTON = "Yes, record it and step back";
 
 /** The timeline line. Says what the buyer told us, not what they did. */
 export const OFF_PLATFORM_SUMMARY = `The buyer said they will pay outside PayPal Goods and Services. ${ON_YOUR_OWN} Pay Pals created no order and stepped back.`;

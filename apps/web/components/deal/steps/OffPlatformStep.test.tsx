@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import { OFF_PLATFORM_BUTTON, OFF_PLATFORM_WARNING, ON_YOUR_OWN } from "@/lib/deal/off-platform";
+import { OFF_PLATFORM_BUTTON, OFF_PLATFORM_CONFIRM_BUTTON, OFF_PLATFORM_WARNING, ON_YOUR_OWN } from "@/lib/deal/off-platform";
 import { OffPlatformStep } from "./OffPlatformStep";
 
 describe("OffPlatformStep", () => {
@@ -13,12 +13,26 @@ describe("OffPlatformStep", () => {
     expect(screen.queryByRole("button", { name: /show|more|details/i })).not.toBeInTheDocument();
   });
 
-  it("asks for a deliberate confirmation before the button works", async () => {
+  it("asks a second time before it records anything", async () => {
     render(<OffPlatformStep dealId="d" onDone={() => {}} />);
-    const button = screen.getByRole("button", { name: OFF_PLATFORM_BUTTON });
-    expect(button).toBeDisabled();
-    await userEvent.click(screen.getByTestId("off-platform-understood"));
-    expect(button).toBeEnabled();
+    expect(screen.queryByTestId("off-platform-confirm")).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: OFF_PLATFORM_BUTTON }));
+    const confirm = screen.getByTestId("off-platform-confirm");
+    expect(confirm).toHaveTextContent("ends Pay Pals' part of the deal");
+    expect(screen.getByRole("button", { name: OFF_PLATFORM_CONFIRM_BUTTON })).toBeEnabled();
+  });
+
+  it("lets the buyer back out of the second ask", async () => {
+    render(<OffPlatformStep dealId="d" onDone={() => {}} />);
+    await userEvent.click(screen.getByRole("button", { name: OFF_PLATFORM_BUTTON }));
+    await userEvent.click(screen.getByRole("button", { name: "Not now" }));
+    expect(screen.queryByTestId("off-platform-confirm")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: OFF_PLATFORM_BUTTON })).toBeInTheDocument();
+  });
+
+  it("uses no acknowledgment checkbox, which is the pattern for an overridable stop", () => {
+    render(<OffPlatformStep dealId="d" onDone={() => {}} />);
+    expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
   });
 
   it("does not dress the choice as an error", () => {
@@ -32,8 +46,8 @@ describe("OffPlatformStep", () => {
     vi.stubGlobal("fetch", fetchMock);
     const onDone = vi.fn();
     render(<OffPlatformStep dealId="d" onDone={onDone} />);
-    await userEvent.click(screen.getByTestId("off-platform-understood"));
     await userEvent.click(screen.getByRole("button", { name: OFF_PLATFORM_BUTTON }));
+    await userEvent.click(screen.getByRole("button", { name: OFF_PLATFORM_CONFIRM_BUTTON }));
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(String(fetchMock.mock.calls[0]![0])).toContain("/api/deals/d/off-platform");
     expect(onDone).toHaveBeenCalled();

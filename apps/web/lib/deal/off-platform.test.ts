@@ -4,7 +4,8 @@ import {
   canChooseOffPlatform,
   hasChosenOffPlatform,
   OFF_PLATFORM_BUTTON,
-  OFF_PLATFORM_CHECKBOX,
+  OFF_PLATFORM_CONFIRM,
+  OFF_PLATFORM_CONFIRM_BUTTON,
   OFF_PLATFORM_PAL_LINE,
   OFF_PLATFORM_STATES,
   OFF_PLATFORM_SUMMARY,
@@ -70,7 +71,7 @@ describe("the words", () => {
   });
 
   it("tells the buyer their checks are still theirs, rather than scolding them", () => {
-    const all = [...OFF_PLATFORM_WARNING, OFF_PLATFORM_SUMMARY, OFF_PLATFORM_PAL_LINE, OFF_PLATFORM_CHECKBOX, OFF_PLATFORM_BUTTON, offPlatformNotice("CANCELLED"), offPlatformNotice("BLOCKED")];
+    const all = [...OFF_PLATFORM_WARNING, OFF_PLATFORM_SUMMARY, OFF_PLATFORM_PAL_LINE, OFF_PLATFORM_CONFIRM, OFF_PLATFORM_CONFIRM_BUTTON, OFF_PLATFORM_BUTTON, offPlatformNotice("CANCELLED"), offPlatformNotice("BLOCKED")];
     expect(OFF_PLATFORM_WARNING.join(" ")).toMatch(/stays on this deal/);
     expect(offPlatformNotice("CANCELLED")).toMatch(/still on this page/);
     for (const line of all) {
@@ -87,6 +88,8 @@ describe("the words", () => {
 
   it("labels the control with what it does, not with a nudge either way", () => {
     expect(OFF_PLATFORM_BUTTON).toBe("I will pay another way");
-    expect(OFF_PLATFORM_CHECKBOX).toMatch(/no PayPal protection and no dispute path/);
+    expect(OFF_PLATFORM_CONFIRM_BUTTON).toBe("Yes, record it and step back");
+    expect(OFF_PLATFORM_CONFIRM).toMatch(/no PayPal protection and no dispute path/);
+    expect(OFF_PLATFORM_CONFIRM).toMatch(/ends Pay Pals' part of the deal/);
   });
 });

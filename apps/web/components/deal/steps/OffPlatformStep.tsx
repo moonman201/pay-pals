@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { dealApi, postJson } from "@/lib/client/api";
-import { OFF_PLATFORM_BUTTON, OFF_PLATFORM_CHECKBOX, OFF_PLATFORM_WARNING } from "@/lib/deal/off-platform";
+import { OFF_PLATFORM_BUTTON, OFF_PLATFORM_CONFIRM, OFF_PLATFORM_CONFIRM_BUTTON, OFF_PLATFORM_WARNING } from "@/lib/deal/off-platform";
 import { Button } from "../../ui/Button";
 import { Panel } from "../../ui/Panel";
 import { StepError } from "./StepPanel";
@@ -12,18 +12,20 @@ import { StepError } from "./StepPanel";
  *
  * Deliberately a plain panel and not a warning box: Pay Pals is not telling
  * the buyer off and not talking them round, it is telling them what they
- * lose and getting out of the way. So no red, no small print, nothing
- * hidden behind a disclosure, and the button says what it does. The
- * acknowledgment is the same pattern as a non-payment stop, because the
- * choice is the buyer's to make and theirs to carry.
+ * lose and getting out of the way. So no red, no small print, the whole
+ * warning visible from the start, and a button that says what it does.
+ *
+ * The deliberate confirmation is a second press rather than an acknowledgment
+ * checkbox. A checkbox is the pattern for continuing past a stop, which is a
+ * choice the buyer can take back; this one ends Pay Pals' part of the deal
+ * and cannot be taken back, so it says so and asks again.
  *
  * Named as a landmark rather than a heading: the title carries the word
  * "pay", and a second "Pay..." heading beside the Pay panel and the Payment
- * panel reads as a duplicate of them in a heading list. The region keeps the
- * name for assistive tech.
+ * panel reads as a duplicate of them in a heading list.
  */
 export function OffPlatformStep({ dealId, onDone }: { dealId: string; onDone: () => void }) {
-  const [understood, setUnderstood] = useState(false);
+  const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -47,13 +49,23 @@ export function OffPlatformStep({ dealId, onDone }: { dealId: string; onDone: ()
             <p key={line}>{line}</p>
           ))}
         </div>
-        <label className="mt-4 flex items-start gap-2 text-sm">
-          <input type="checkbox" checked={understood} onChange={(e) => setUnderstood(e.target.checked)} className="mt-0.5" data-testid="off-platform-understood" />
-          <span>{OFF_PLATFORM_CHECKBOX}</span>
-        </label>
-        <Button variant="secondary" className="mt-3" disabled={!understood || busy} onClick={choose}>
-          {busy ? "Recording" : OFF_PLATFORM_BUTTON}
-        </Button>
+        {confirming ? (
+          <div className="mt-4" data-testid="off-platform-confirm">
+            <p className="text-sm font-semibold leading-relaxed">{OFF_PLATFORM_CONFIRM}</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <Button variant="secondary" disabled={busy} onClick={choose}>
+                {busy ? "Recording" : OFF_PLATFORM_CONFIRM_BUTTON}
+              </Button>
+              <Button variant="secondary" disabled={busy} onClick={() => setConfirming(false)}>
+                Not now
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <Button variant="secondary" className="mt-4" onClick={() => setConfirming(true)}>
+            {OFF_PLATFORM_BUTTON}
+          </Button>
+        )}
         <div className="mt-3">
           <StepError error={error} />
         </div>
