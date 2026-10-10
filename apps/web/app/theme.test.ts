@@ -133,6 +133,13 @@ describe("the shipped theme", () => {
     expect(page).not.toContain("theme-seller");
   });
 
+  it("carries the mode through hydration as well, for the error shell the boot script cannot reach", () => {
+    // notFound() answers with a bare html document: no layout, no stylesheet, no script run.
+    expect(layout).toMatch(/<ThemeSync \/>/);
+    const notFound = read("deals/[id]/not-found.tsx");
+    expect(notFound).toMatch(/<ThemeToggle \/>/);
+  });
+
   it("swaps the page background and the deal room shell on :root, and nothing else there", () => {
     const page = declarations(block(tokens, PAGE_BY_CHOICE));
     expect([...page.keys()]).toEqual(["--bg", "--bg-room"]);
