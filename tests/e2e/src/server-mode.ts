@@ -26,19 +26,22 @@ export interface ServerMode {
   baseUrl: string;
   /** True when this config starts the server itself. */
   startsServer: boolean;
+  /** True when the port came from an environment variable rather than being chosen free. */
+  portPinned?: boolean;
 }
 
 /** One line naming the server and how much of this working tree is actually under test. */
-export function serverBanner({ label, baseUrl, startsServer }: ServerMode): string {
+export function serverBanner({ label, baseUrl, startsServer, portPinned }: ServerMode): string {
   const where = `[e2e] ${label}: ${baseUrl}`;
   if (!startsServer) return `${where}, not started by this run (E2E_BASE_URL is set). Nothing here is built from this working tree.`;
+  const how = portPinned ? "port pinned" : "port chosen free for this worktree";
   if (REUSE_SERVER) {
     return (
-      `${where}, reuse allowed (E2E_REUSE_SERVER=1). If a server was already listening, this run tested whatever that server ` +
+      `${where} (${how}), reuse allowed (E2E_REUSE_SERVER=1). If a server was already listening, this run tested whatever that server ` +
       `had compiled, which may not be this working tree. Unset E2E_REUSE_SERVER before you believe a green run.`
     );
   }
-  return `${where}, started by this run. Nothing was reused.`;
+  return `${where} (${how}), started by this run. Nothing was reused.`;
 }
 
 export function announceServer(mode: ServerMode): void {
