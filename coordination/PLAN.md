@@ -255,6 +255,37 @@ Save every working call as a Postman collection in `docs/postman/`.
     the streaming status line and every fix in the Oct 10 batch's section D. It is
     the one to apply when a new case appears that no decision here covers.
 
+21. **Only push `main` when the gate is green (Oct 10, Matt).** Every push to
+    `main` deploys to production, because Vercel builds this repo from the GitHub
+    integration and `apps/web/vercel.json` carries `"ignoreCommand": "exit 1"` so
+    that no push is skipped. There is no Vercel CLI on this machine and
+    `.vercel/project.json` holds a `local-sim` placeholder rather than a real
+    project link, so a push **is** the deploy and there is no manual step to hold
+    it back. The gate is the one in [[pay-pals-gate-is-not-just-npm-test]]:
+    `npm run gate` (copy guard, typecheck, build, keyless), the keyed run, and
+    the e2e suite, each exit code read on its own and never piped into something
+    that swallows it. Lane branches and the theme branch are free to be red;
+    `main` is not.
+
+22. **Two things owed at the final deploy and smoke (Oct 10, Matt).**
+    (a) **Re-seed the three demo deals.** They were seeded 2026-10-08 and a
+    seeded verdict is frozen at seed time, so the whole Oct 10 batch is invisible
+    on "See the finished deal": no `PalReasoning` groups, the old PS5 price range,
+    the old tamper wording. It is live on "Play as", which runs the pals for real,
+    and that was confirmed on production. Re-seeding needs `SEED_VERSION` bumped
+    in `apps/web/lib/demo/seed-version.ts` (still `2026-10-08.2`, so the seeder
+    treats the old seeds as current), then `npm run db:delete-seeded-demo-deals
+    -w packages/db`, then a deploy. The seeds are correctly stamped, so the
+    stamp-based selector from Decision 18's round will find them.
+    (b) **Delete the Lead's production smoke deal**, `3e28036c-77f1-49e1-9f5d-f9184fcdbf84`,
+    a clean-ps5 deal started on production on Oct 10 to prove the live model
+    carries the new reason groups. It is **unstamped**, so the delete script will
+    not touch it, by design: a visitor's own deal was never ours to remove. It
+    needs deleting by id, which means the script needs a `--deal <id>` option or
+    an equivalent. qa also left five unfinished probe deals on Oct 10
+    (73c44fa0, 2845c8ea, f0a403dd, 6e077c43, b0b6aa10); none is stamped, none is
+    linked from the landing, and the same option would clear them.
+
 13. **"Verified" on an evidence item (Oct 10, Lead, reconciling the Oct 9 rule).**
     The Oct 9 wording rule below says never "verified" and never "authentic". Batch
     item E12 asks for every item in the deal status view to be labelled Verified,
