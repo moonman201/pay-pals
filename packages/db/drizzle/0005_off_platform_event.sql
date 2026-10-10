@@ -1,0 +1,1 @@
+ALTER TYPE "public"."deal_event_kind" ADD VALUE 'off_platform_chosen' BEFORE 'payment_created';

@@ -109,5 +109,14 @@ export const MIGRATIONS: readonly BundledMigration[] = [
     "bps": true,
     "folderMillis": 1791453812540,
     "hash": "96f8e3fef62b516c530ee605c37a9cefc72805d37c6b176697d6e4fa094cd44a"
+  },
+  {
+    "tag": "0005_off_platform_event",
+    "sql": [
+      "ALTER TYPE \"public\".\"deal_event_kind\" ADD VALUE 'off_platform_chosen' BEFORE 'payment_created';"
+    ],
+    "bps": true,
+    "folderMillis": 1791652487207,
+    "hash": "bef207224ed23a550d8a614c1919583028e0070438c173b30179005ae7458298"
   }
 ];
