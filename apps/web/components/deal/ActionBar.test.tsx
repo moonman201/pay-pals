@@ -190,7 +190,7 @@ describe("ActionBar: override rules", () => {
     const onAction = renderBar({ state: "REVIEWED", role: "buyer", verdict: verdict("stop", [flag("PRICE_FAR_BELOW_MARKET", "stop"), flag("URGENCY_PRESSURE", "caution")]) });
     const warning = screen.getByRole("alert");
     expect(warning).toHaveTextContent(/Your pal says stop\. It found a price far below market\./);
-    expect(warning).toHaveTextContent(/never ships/);
+    expect(warning).toHaveTextContent(/That is a risk signal, so ask the seller about it before you pay\./);
     expect(warning).toHaveTextContent(/Goods and Services protection/);
     const agree = screen.getByRole("button", { name: "Agree" });
     expect(agree).toBeDisabled();
