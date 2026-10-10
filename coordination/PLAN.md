@@ -141,6 +141,30 @@ Save every working call as a Postman collection in `docs/postman/`.
     schema change, so that half is **parked on `coordination/PROPOSAL-contracts-v1.7.0.md`**
     pending Matt. The rest of the decision needs no contract change.
 
+14. **A reason group may be empty; it may never be padded (Oct 10, Lead).**
+    `PalReasoning`'s four groups exist so a pal's reasons can be checked one claim
+    at a time, which only works if each line is a thing that actually happened.
+    An empty group is a true statement about a pal that checked nothing in that
+    category. A group filled with work that was not done is a lie in the one field
+    built to prevent lying. Two cases decided today: an arrival check with no
+    photos returns an empty `checked` rather than "Nothing yet, no arrival photos
+    have been added", and the empty-box arrival no longer lists a serial
+    comparison it could not make while `couldNotVerify` on the same page says
+    there was nothing to read. `couldNotVerify` remains the exception in the
+    other direction: it always renders, printing "Nothing. Everything I set out
+    to check, I could check." when empty, so a pal cannot hide behind a blank.
+
+15. **Where one end can carry a value, the other reads it (Oct 10, Lead).**
+    Two of reality-check's six findings were the same defect: `packages/agents`
+    and `apps/web` each deriving the same fact separately and drifting. The
+    tamper-check sentence claimed PayPal corroboration while `HistoryBadge`
+    correctly said no order held the hash; the status view said the pal read a
+    serial off a photo while the pal's own reasons said it did not. Both ends
+    were reasonable alone. When a fact is known where a value is produced, it
+    gets carried on the contract rather than re-derived by each reader, even
+    when re-deriving looks easy. Pattern-matching a convention, such as a
+    `FIXTURE-` id prefix, is re-deriving. See `coordination/PROPOSAL-contracts-v1.8.0.md`.
+
 13. **"Verified" on an evidence item (Oct 10, Lead, reconciling the Oct 9 rule).**
     The Oct 9 wording rule below says never "verified" and never "authentic". Batch
     item E12 asks for every item in the deal status view to be labelled Verified,
