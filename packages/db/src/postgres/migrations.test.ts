@@ -9,7 +9,7 @@ import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { verifyChain } from "@pay-pals/contracts";
+import { DEAL_EVENT_KINDS, verifyChain } from "@pay-pals/contracts";
 import * as schema from "../../schema";
 import { backfillEventHashes } from "./backfill-hashes";
 import { runMigrations } from "./migrate";
@@ -51,6 +51,50 @@ describe("bundled migrations", () => {
         ]);
         const applied = await client.query<{ hash: string }>("select hash from drizzle.__drizzle_migrations order by id");
         expect(applied.rows.map((r) => r.hash)).toEqual(MIGRATIONS.map((m) => m.hash));
+      } finally {
+        await client.close();
+      }
+    }, 60_000);
+  });
+
+  describe("0005_off_platform_event on a database that already has 0000 to 0004", () => {
+    it("adds off_platform_chosen in front of payment_created, and only then does the enum accept it", async () => {
+      const client = new PGlite();
+      try {
+        const db = drizzle(client, { schema });
+        await runMigrations(db, { through: "0004_shipment_flags" });
+        const labels = async () =>
+          (
+            await client.query<{ l: string }>(
+              "select e.enumlabel as l from pg_enum e join pg_type t on t.oid = e.enumtypid where t.typname = 'deal_event_kind' order by e.enumsortorder",
+            )
+          ).rows.map((r) => r.l);
+        expect(await labels()).not.toContain("off_platform_chosen");
+
+        const inserted = await client.query<{ id: string }>(
+          `insert into deals (state, scenario, seller_name, seller_email) values ('AGREED', 'clean-ps5', 'Matt M.', 'matt@example.com') returning id`,
+        );
+        const dealId = inserted.rows[0]!.id;
+        const writeOffPlatformEvent = () =>
+          client.query(
+            `insert into deal_events (deal_id, kind, actor, summary, hash)
+             values ($1, 'off_platform_chosen'::deal_event_kind, 'buyer', 'The buyer chose to pay outside Goods and Services.', $2)`,
+            [dealId, "hash-off-platform-chosen"],
+          );
+        // Before 0005 the label does not exist, so the web flow could not write the line.
+        await expect(writeOffPlatformEvent()).rejects.toThrow();
+
+        await runMigrations(db);
+
+        // Every kind in the contract is a label on the Postgres enum, in the same order.
+        // This fails if a later contract addition ever ships without its migration.
+        const after = await labels();
+        expect(after).toEqual([...DEAL_EVENT_KINDS]);
+        expect(after.indexOf("off_platform_chosen")).toBe(after.indexOf("payment_created") - 1);
+
+        await writeOffPlatformEvent();
+        const stored = await client.query<{ kind: string }>("select kind::text as kind from deal_events where deal_id = $1", [dealId]);
+        expect(stored.rows.map((r) => r.kind)).toEqual(["off_platform_chosen"]);
       } finally {
         await client.close();
       }
