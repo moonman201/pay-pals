@@ -5,6 +5,8 @@ import { ProtectionPanel } from "@/components/landing/ProtectionPanel";
 import { ScenarioCard } from "@/components/landing/ScenarioCard";
 import { PalAvatar } from "@/components/pal/PalAvatar";
 import { LinkIcon, LockIcon } from "@/components/ui/icons";
+import { resolveSeededDeals } from "@/lib/demo/live-seeded";
+import { asDealFinder } from "@/lib/demo/seed-fixtures";
 import { getServices } from "@/lib/services";
 import type { Role } from "@/lib/role";
 
@@ -30,7 +32,10 @@ function StepMark({ step }: { step: Step }) {
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
-  const seeded = await getServices().seededDeals;
+  const services = getServices();
+  // The ids resolve once per server process; a re-seed can delete the deals behind them, so check
+  // they are still there before a scenario card offers one (REVIEW, Oct 9). Three lookups, in parallel.
+  const seeded = await resolveSeededDeals(await services.seededDeals, services.store, asDealFinder(services.store));
   return (
     <main className="mx-auto max-w-6xl px-4 pb-16">
       <nav className="flex min-h-14 items-center justify-between gap-4 py-2" aria-label="Site">
