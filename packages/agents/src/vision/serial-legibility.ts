@@ -57,6 +57,29 @@
  * caption path is a different claim with its own provenance: see arrival.ts,
  * which says plainly when a number came from a description rather than a
  * picture, because a caption is the uploader's word rather than something read.
+ *
+ * The other thing it does not cover is a sharp photo read wrongly. This gate
+ * asks how the number is drawn, not whether the transcription is right, so a
+ * label it correctly calls sharp can still come back with the wrong
+ * characters. Three distinct faults have been seen on clean-ps5/box-label.jpg,
+ * whose true serial is AJ164952580, all on reads the gate called sharp and let
+ * through:
+ *
+ *   AJ16495258O   trailing 0 read as O. Seen by this lane and by
+ *                 reality-check independently, about 1 run in 5.
+ *   AJ16495258Q   the same position read as Q, on the wide shot before the
+ *                 gate existed.
+ *   AJ16952580    the 4 at position 5 dropped. Seen on the keyed gate run of
+ *                 2026-10-10, and it is the expensive one: card.boxSerial no
+ *                 longer matched the card's serial, so the clean deal came
+ *                 back caution with a model-added OTHER flag and the review
+ *                 was spent asking the seller to confirm the box number.
+ *
+ * All three are one edit away from the truth, and the third is a deletion
+ * rather than a substitution, so folding confusable glyph pairs at comparison
+ * time would not catch it. A rule that treats a one-edit difference as neither
+ * a match nor a mismatch handles all three. That changes what counts as a
+ * match, so it is Matt's call and is not implemented here.
  */
 
 /**
