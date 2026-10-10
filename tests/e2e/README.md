@@ -29,6 +29,14 @@ Screenshots of the pay step, the Venmo window and the Paid room go to `tests/e2e
 
 Do not run `npm run build` and the e2e at the same time: both use `apps/web/.next`.
 
+`npm run e2e:real` runs every `*.real.spec.ts`, including the one that pays a sandbox order. To run one of them on its own, name the file, which is how `live-model.real.spec.ts` is pointed at the deployed site:
+
+```bash
+cd tests/e2e
+E2E_BASE_URL=https://pay-pals-m00n1.vercel.app \
+  npx playwright test -c playwright.real.config.ts src/live-model.real.spec.ts
+```
+
 ## Projects
 
 | Project | Viewport | Runs |
@@ -49,6 +57,7 @@ Do not run `npm run build` and the e2e at the same time: both use `apps/web/.nex
 | `src/card-change-reagree.spec.ts` | Buyer agrees, the seller changes the card instead, the deal goes back to Listed, both sides review and agree again, locked at version 2. |
 | `src/empty-box.spec.ts` | Same path to Delivered, then the arrival check finds no console to read a serial from, the issue, and the evidence page with the locked card and the arrival photos. |
 | `src/phone-width.spec.ts` | The clean deal again at 390 px: no horizontal scroll on the landing page, the deal room or the evidence pack. |
+| `src/live-model.real.spec.ts` | Real mode only, and the one real spec that is safe against production: it starts two copies of the clean deal through "Play as buyer", reviews both and proves the reviews differ, so the flow cannot be a fixture replay. It prints which services the host is running. Two Claude calls, two Channel3 lookups, two unfinished demo deals, no payment. |
 | `src/paypal-buttons.real.spec.ts` | Real mode only. The SDK v6 script loads from the sandbox, `paypal-button` and `venmo-button` render, no demo button, the Venmo window is observed, the PayPal window is driven as the sandbox buyer, the badge reaches Paid and the API shows a CAPTURED sandbox payment. |
 
 `src/helpers.ts` holds the page helpers and `src/flows.ts` the shared steps. Selectors are roles and visible text, never class names. Assertions on pal wording stop at flag names and the block sentence, so a real Buyer Pal running rules only passes too.
