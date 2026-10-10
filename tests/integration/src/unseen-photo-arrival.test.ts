@@ -22,13 +22,14 @@
  * The real-model case needs ANTHROPIC_API_KEY and is skipped under
  * SKIP_REAL_TESTS=1, like every other real-model test here. One Claude call.
  */
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { ALL_FIXTURES, CLEAN_SERIAL, cleanPs5 } from "@pay-pals/contracts";
 import type { ItemCard, Photo } from "@pay-pals/contracts";
-import { createAnthropicClientFromEnv, createBuyerPal, createFixturePriceLookup, type ImageFetcher } from "@pay-pals/agents";
+import { createAnthropicClientFromEnv, createBuyerPal, createFixturePriceLookup } from "@pay-pals/agents";
+import { LOCAL_PHOTO_BASE, fileImageFetcher } from "./local-images";
 
 const REPO_ROOT = resolve(fileURLToPath(import.meta.url), "..", "..", "..", "..");
 
@@ -39,11 +40,9 @@ const CERT_ON_THE_SLAB = "72096346";
 
 /**
  * A URL that says nothing about the subject, so the caption is the only
- * thing pulling the pal the wrong way. The fetcher below answers it with the
- * file on disk: `fetchImage` in packages/agents only speaks http(s), and the
- * `fetchImage` option is the seam it publishes for exactly this.
+ * thing pulling the pal the wrong way. local-images.ts answers it from disk.
  */
-const PHOTO_URL = "https://pay-pals.test/arrival/photo-1.jpg";
+const PHOTO_URL = `${LOCAL_PHOTO_BASE}/arrival/photo-1.jpg`;
 
 /** The clean deal's own arrival caption, copied word for word onto a photo of something else. */
 const LYING_CAPTION = cleanPs5.arrivalPhotos[0]!.whatItShows;
@@ -53,10 +52,7 @@ const arrivalPhoto: Photo = { url: PHOTO_URL, whatItShows: LYING_CAPTION, addedB
 /** The locked card of the clean deal: a Sony PlayStation 5 whose serial is on the card. */
 const lockedCard: ItemCard = { ...cleanPs5.cards.at(-1)!, lockedAt: new Date().toISOString() };
 
-const fetchLocalFile: ImageFetcher = async (url) => {
-  if (url !== PHOTO_URL) return null;
-  return { data: readFileSync(UNSEEN_PHOTO).toString("base64"), mediaType: "image/jpeg" };
-};
+const fetchLocalFile = fileImageFetcher({ [PHOTO_URL]: UNSEEN_PHOTO });
 
 /** Every photo URL any fixture carries, in any slot. */
 function everyFixturePhotoUrl(): string[] {

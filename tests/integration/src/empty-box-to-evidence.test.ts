@@ -17,6 +17,7 @@ import { describe, expect, it } from "vitest";
 import { EMPTY_BOX_LOCKED_SERIAL, EvidencePackSchema, emptyBox } from "@pay-pals/contracts";
 import type { ArrivalCheck, EvidenceInput, EvidencePack, ItemCard } from "@pay-pals/contracts";
 import { buildEvidencePack, createAnthropicClientFromEnv, createBuyerPal, createFixturePriceLookup } from "@pay-pals/agents";
+import { LOCAL_PHOTO_BASE, fileImageFetcher } from "./local-images";
 import { driveTo, seedFixture } from "./seed";
 import type { SeededDeal } from "./seed";
 
@@ -158,11 +159,16 @@ describe("empty-box: arrival check to evidence pack", () => {
   // Runs once Matt's photos are under apps/web/public/fixtures and a Claude key is present (never under SKIP_REAL_TESTS).
   it.skipIf(!photoFilesPresent || !visionClient)("with the real photos, vision sees the box is empty and names it (review item 2)", async () => {
     const delivered = await deliverEmptyBox();
-    const vision = createBuyerPal({ anthropic: visionClient, priceLookup: createFixturePriceLookup() });
-    const absolute = delivered.seeded.arrivalPhotos.map((p) => ({ ...p, url: `file://${resolve(PUBLIC_FIXTURES, `.${p.url}`)}` }));
-    const { data: check } = await vision.checkArrival(delivered.lockedCard, absolute);
+    // The photos keep their app-relative URLs; the fetcher answers them from public/fixtures.
+    // A file:// URL would not be fetched at all and the pal would read the captions instead.
+    const photos = delivered.seeded.arrivalPhotos.map((p) => ({ ...p, url: `${LOCAL_PHOTO_BASE}${p.url}` }));
+    const files = Object.fromEntries(photos.map((p, i) => [p.url, resolve(PUBLIC_FIXTURES, `.${delivered.seeded.arrivalPhotos[i]!.url}`)]));
+    const vision = createBuyerPal({ anthropic: visionClient, priceLookup: createFixturePriceLookup(), fetchImage: fileImageFetcher(files) });
+    const { data: check } = await vision.checkArrival(delivered.lockedCard, photos);
 
     expect(check.matches).toBe(false);
+    // Vision actually ran: the pal says it looked at the photos, not at their descriptions.
+    expect(check.palMessage).toMatch(/I looked at/i);
     // Vision sees foam and a bag and no console. The locked card has no console serial, so the
     // mismatch is the item, not a serial: the same single "other" row the keyless path produces.
     const other = check.mismatches.find((m) => m.field === "other")!;
@@ -171,5 +177,6 @@ describe("empty-box: arrival check to evidence pack", () => {
     expect(check.mismatches.map((m) => m.field)).not.toContain("serial");
     expect(check.palMessage).toContain("without the item");
     expect(check.palMessage).not.toMatch(/photo description/i);
-  });
+    // Two real vision calls, one per arrival photo.
+  }, 120_000);
 });
