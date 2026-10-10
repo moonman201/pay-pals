@@ -445,6 +445,7 @@ describe("BuyerPal.checkArrival", () => {
     const offline = await createBuyerPal({ anthropic: null, priceLookup }).checkArrival(cleanPs5.cards.at(-1)!, cleanPs5.arrivalPhotos);
     expect(offline.data.matches).toBe(true);
     expect(offline.data.observed.serial).toBe(CLEAN_SERIAL);
+    expect(offline.data.observed.serialSource).toBe("description");
     expect(offline.palMessage).not.toContain("confirmed on the item itself");
     expect(offline.palMessage).toContain("comes from the description filed with the photo");
     expect(offline.palMessage).toContain("the buyer's word");
@@ -456,6 +457,7 @@ describe("BuyerPal.checkArrival", () => {
     const model = fakeClaude(() => ({ brand: "Sony", model: "PlayStation 5", serial: CLEAN_SERIAL, serial_on: "item", item_present: true }));
     const vision = await createBuyerPal({ anthropic: model, priceLookup, fetchImage: async () => asFetched(pictureA()), photoBaseUrl: "https://pay-pals.example" }).checkArrival(cleanPs5.cards.at(-1)!, cleanPs5.arrivalPhotos);
     expect(vision.data.matches).toBe(true);
+    expect(vision.data.observed.serialSource).toBe("photo");
     expect(vision.palMessage).toContain("I looked at the arrival photo.");
     expect(vision.palMessage).toContain(`Serial ${CLEAN_SERIAL} confirmed on the item itself.`);
     expect(vision.data.reasoning!.found.join(" ")).toContain(`I read ${CLEAN_SERIAL} off the item itself in the arrival photo.`);
