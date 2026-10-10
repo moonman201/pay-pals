@@ -17,6 +17,8 @@ The first build day proved the mechanics: real PayPal sandbox orders to the sell
 
 4. **Deal history is hash-chained and anchored in PayPal's record.** Every `DealEvent` carries `prevHash` and `hash` (sha256 over canonical fields, `packages/contracts/src/history.ts`); the stores compute them on append under a lock. When the order is created, the chain head goes into the PayPal order's `custom_id` as `dealId#hash` and onto the payment record. The evidence pack recomputes the stored events and states whether they reproduce the head PayPal holds. Nobody can edit the history after payment without the mismatch showing.
 
+   *Amended 2026-10-10 (Lead, batch item D11).* That last sentence needs its condition stated. It holds where a real PayPal order carries the head and we read that order back; then an edit to the stored events fails to reproduce the head PayPal holds. It does not hold for an example deal seeded from a scenario, where no PayPal order holds the head and the chain is only self-consistent, nor in a render where the live read of the order did not come back, where the comparison is against our own stored copy of the head rather than against PayPal's. Say what was checked and against what.
+
 5. **Two demo items.** The PlayStation 5 with its box (clean deal, empty box) and a PSA-graded Pokemon slab (fake slab). The scam script is Matt's wording; no military references anywhere in demo data.
 
 ## Consequences
