@@ -41,6 +41,9 @@ const RULES: Rule[] = [
   { rule: "D9", pattern: /prove[sd]? (the )?(ownership|authenticity|it is genuine)/i, instead: 'say the number "supports the listing"' },
   { rule: "D9", pattern: /\b(item|console|card|slab) is (authentic|genuine)\b/i, instead: "say what was checked and against what", unless: NEGATED },
   { rule: "D9", pattern: /\bauthenticated\b/i, instead: "say what was compared" },
+  // Provenance: ArrivalCheck.observed carries no source for the serial, so nothing in apps/web
+  // may say a number was read off a picture. In demo-only mode it came from the caption.
+  { rule: "D9", pattern: /read\b[^.]{0,40}\boff (the |these )?(arrival )?(photos|pictures|them|it)\b/i, instead: "say what was compared, not where the number came from" },
   { rule: "D10", pattern: /\bguarantee[sd]?\b/i, instead: 'say the pack is "useful context for a PayPal dispute"' },
   { rule: "D10", pattern: /(win|wins|winning) (the |a )?dispute/i, instead: "PayPal decides a dispute under its own terms" },
   { rule: "D10", pattern: /(get|gets) your money back/i, instead: "say what protection covers and who decides" },
