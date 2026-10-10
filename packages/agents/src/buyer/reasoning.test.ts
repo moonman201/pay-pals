@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from "vitest";
 import type { ClaimContext } from "./claim-check";
-import { cleanPs5, emptyBox, fakeSlab } from "@pay-pals/contracts";
+import { CLEAN_SERIAL, cleanPs5, emptyBox, fakeSlab } from "@pay-pals/contracts";
 import { createBuyerPal } from "./buyer-pal";
 import { createFixtureCertLookup } from "../cert/fixture-lookup";
 import { createFixturePriceLookup } from "../price/fixture-lookup";
@@ -84,10 +84,31 @@ describe("the rules fill all four groups with no model at all", () => {
     expect(reasoning.wouldChangeMyMind.length).toBeGreaterThan(0);
   });
 
-  it("says what each check was compared against, not just what was checked", async () => {
-    const { data: verdict } = await pal().review(cleanPs5.cards[1]!, cleanPs5.chat, { seller: cleanPs5.seller });
-    // Every line in checked names the other side of the comparison.
-    for (const line of verdict.reasoning!.checked) expect(line.toLowerCase()).toContain("against");
+  /**
+   * Every checked line names the other side of the comparison. Held across
+   * all three scenarios, every card version and both pals, because the one
+   * place this slipped was an arrival check on a deal where nothing arrived.
+   */
+  it.each([fakeSlab, cleanPs5, emptyBox].map((f) => [f.id, f] as const))("%s: every checked line says what it was compared against", async (_id, fixture) => {
+    const buyerPal = pal();
+    for (const card of fixture.cards) {
+      const { data: verdict } = await buyerPal.review(card, fixture.chat, { seller: fixture.seller });
+      for (const line of verdict.reasoning!.checked) expect(line.toLowerCase(), `review of ${fixture.id} v${card.version}`).toContain("against");
+    }
+    const { data: check } = await buyerPal.checkArrival(fixture.cards.at(-1)!, fixture.arrivalPhotos);
+    for (const line of check.reasoning!.checked) expect(line.toLowerCase(), `arrival of ${fixture.id}`).toContain("against");
+  });
+
+  it("lists no comparison on an arrival with no photos at all, rather than a line about checking nothing", async () => {
+    const { data: check } = await pal().checkArrival(cleanPs5.cards.at(-1)!, []);
+    expect(check.reasoning!.checked).toEqual([]);
+  });
+
+  it("does not claim it compared a serial when nothing arrived to read one from", async () => {
+    const { data: check } = await pal().checkArrival(emptyBox.cards.at(-1)!, emptyBox.arrivalPhotos);
+    const checked = check.reasoning!.checked.join(" ");
+    expect(checked).not.toContain("The serial on the item that arrived");
+    expect(check.reasoning!.couldNotVerify.join(" ")).toContain("nothing to read a serial from");
   });
 
   it("admits it did not look at the photo files when no model ran, and does not pretend the card has none", async () => {
@@ -174,12 +195,22 @@ describe("the arrival check explains itself too", () => {
     expect(reasoning.wouldChangeMyMind.join(" ")).toContain("photo of the item itself");
   });
 
-  it("fills all four groups even when there are no arrival photos at all", async () => {
+  it("keeps all four groups present when there are no arrival photos at all, empty where nothing happened", async () => {
     const { data: check } = await pal().checkArrival(cleanPs5.cards.at(-1)!, []);
     const reasoning = check.reasoning!;
-    expect(reasoning.checked.length).toBeGreaterThan(0);
+    // A group may be empty but not absent, and nothing was checked here.
+    expect(reasoning.checked).toEqual([]);
+    expect(reasoning.found).toEqual([]);
     expect(reasoning.couldNotVerify.join(" ")).toContain("no arrival photos");
     expect(reasoning.wouldChangeMyMind.length).toBeGreaterThan(0);
-    expect(Array.isArray(reasoning.found)).toBe(true);
+  });
+
+  it("says a caption-sourced serial is the buyer's word, in the message and in both groups", async () => {
+    const { data: check, palMessage } = await pal().checkArrival(cleanPs5.cards.at(-1)!, cleanPs5.arrivalPhotos);
+    expect(check.observed.serial).toBe(CLEAN_SERIAL);
+    expect(palMessage).not.toContain("confirmed on the item itself");
+    expect(check.reasoning!.found.join(" ")).toContain("the buyer's word, not a number I read off the picture");
+    expect(check.reasoning!.couldNotVerify.join(" ")).toContain("did not read that serial off the picture myself");
+    expect(check.reasoning!.wouldChangeMyMind.join(" ")).toContain("photo file I can open and read");
   });
 });
