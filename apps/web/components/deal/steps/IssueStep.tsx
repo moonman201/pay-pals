@@ -43,8 +43,8 @@ export function IssueStep({ dealId, state, preselect, onDone, onClose }: Props) 
 
   const intro =
     state === "DELIVERED"
-      ? "Tell your pal what is wrong. It builds the evidence pack for a PayPal dispute."
-      : "The item has not been confirmed as delivered. Say what happened and your pal builds the evidence pack for an item-not-received dispute.";
+      ? "Tell your pal what is wrong. It builds the evidence pack, which is useful context for a PayPal dispute."
+      : "The item has not been confirmed as delivered. Say what happened and your pal builds the evidence pack, which is useful context for an item-not-received dispute.";
 
   return (
     <StepPanel id="issue" title="Report an issue" intro={intro}>

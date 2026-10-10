@@ -93,7 +93,13 @@ export async function captureOrder(services: Services, dealId: string, orderId: 
   const via = payment.method === "venmo" ? " via Venmo" : "";
   await note(services, dealId, "payment_captured", "paypal", `Payment of $${payment.amount.toFixed(2)} captured${via}.`, { captureId: capture.captureId });
   await services.store.transition(dealId, "PAID", "system", "Paid.");
-  await say(services, dealId, "buyer_pal", "buyer_pal", `Paid. $${payment.amount.toFixed(2)} went to ${payment.payeeEmail} as a Goods and Services payment, so PayPal purchase protection applies. I will look out for the tracking number.`);
+  await say(
+    services,
+    dealId,
+    "buyer_pal",
+    "buyer_pal",
+    `Paid. $${payment.amount.toFixed(2)} went to ${payment.payeeEmail} as a Goods and Services payment, so PayPal purchase protection can apply. I will look out for the tracking number.`,
+  );
   await say(services, dealId, "seller_pal", "seller_pal", "Payment captured. Time to pack. I have a short checklist for you in the shipping step.");
   return payment;
 }

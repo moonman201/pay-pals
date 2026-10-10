@@ -181,6 +181,10 @@ export function EvidencePackView({
                   <span className="text-muted"> (Checked again now; the builder recorded {pack.historyVerified ? "verified" : "not verified"} when the pack was built.)</span>
                 ) : null}
               </p>
+              <p className="mt-2">
+                This chain is the official record of the deal, and it is the thing PayPal can check first, because the head of it sits on PayPal&apos;s own order. A dispute or
+                a refund does not depend on it.
+              </p>
             </>
           ) : (
             <p>No PayPal order was created, so no history hash was recorded with PayPal. Each stored event still carries the hash of the one before it.</p>

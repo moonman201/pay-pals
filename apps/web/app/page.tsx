@@ -13,7 +13,7 @@ type Step = { who: string; what: string; tone: "theme-seller" | "theme-buyer"; p
 const STEPS: Step[] = [
   { who: "You invite the seller", what: "with their PayPal email and the listing link. They get a link to join.", tone: "theme-buyer", pal: null },
   { who: "Seller Pal", what: "turns their photos into an item card with the serial or cert number on it.", tone: "theme-seller", pal: "seller" },
-  { who: "Buyer Pal", what: "checks the price, the cert and the chat. A refusal to use Pay Pals is the strongest warning sign.", tone: "theme-buyer", pal: "buyer" },
+  { who: "Buyer Pal", what: "checks the price, the cert and the chat. A refusal to use Pay Pals is a risk signal.", tone: "theme-buyer", pal: "buyer" },
   { who: "Both agree, then proof", what: "the card locks into a PayPal Goods and Services order; packing photos, tracking and an arrival check follow.", tone: "theme-seller", pal: null },
 ];
 

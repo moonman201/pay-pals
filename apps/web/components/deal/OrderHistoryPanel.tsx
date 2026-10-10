@@ -30,6 +30,10 @@ export function OrderHistoryPanel({ check, events, orderId }: { check: OrderHist
         <HistoryBadge events={events} historyHash={check.historyHash} source="live_order" orderId={orderId} />
       </div>
       <p className="mt-2 text-sm leading-relaxed">{orderHistoryLine(check)}</p>
+      <p className="mt-1 text-xs leading-relaxed text-muted">
+        The chain is the official record of the deal, and the thing PayPal can check first, because its head is on PayPal&apos;s own order. A dispute or a refund does not
+        depend on it.
+      </p>
       {warning ? (
         <p role="alert" className="mt-2 text-sm font-semibold text-stop">
           {warning}

@@ -20,7 +20,7 @@ export async function checkArrival(services: Services, dealId: string, photos: P
   const check = await services.store.saveArrivalCheck({ ...result.data, photos });
   await say(services, dealId, "buyer_pal", "buyer_pal", result.palMessage);
   const summary = check.matches
-    ? `Arrival matches the locked card.${check.observed.serial ? ` Serial ${check.observed.serial} confirmed.` : ""}`
+    ? `Arrival matches the locked card.${check.observed.serial ? ` Serial ${check.observed.serial} read off the arrival photos is the one on the card.` : ""}`
     : `Arrival does not match. ${check.mismatches.map((m) => `${m.field}: card ${m.expected}, arrived ${m.observed}`).join("; ")}.`;
   // The photos ride on the event so the evidence pack can find them later.
   await note(services, dealId, "arrival_checked", "buyer_pal", summary.slice(0, 300), { photos });

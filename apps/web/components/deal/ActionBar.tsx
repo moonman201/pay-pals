@@ -40,7 +40,7 @@ const WORKING_NOTES: Partial<Record<ActionId, string>> = {
 const ENDINGS: Partial<Record<DealState, string>> = {
   COMPLETE: "This deal is complete. Both sides have the locked card, the payment record and the photos.",
   BLOCKED: BLOCKED_SENTENCE + " No order was created and no money moved.",
-  ISSUE: "An issue is open. The evidence pack is ready to attach to a PayPal dispute.",
+  ISSUE: "An issue is open. The evidence pack is built. It is useful context for a PayPal dispute, which PayPal decides under its own terms.",
   CANCELLED: "This deal was cancelled before any money moved.",
 };
 
