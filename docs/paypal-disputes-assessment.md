@@ -15,6 +15,11 @@ $420.00 USD x 1", as the disputed item, and it accepted a Pay Pals evidence file
 as a supporting document. So the item card we put on the order is what the buyer
 sees inside PayPal when something goes wrong. That is a real demo moment.
 
+PayPal also delivered `CUSTOMER.DISPUTE.CREATED` to our webhook about four minutes
+later, carrying our deal id in `invoice_number`, our chain head in `custom` and our
+serial and card title in the disputed line item. The inbound half of the loop
+works end to end on a real dispute, not just in our tests.
+
 What we cannot do is drive any of it from our own code. The dispute was opened by
 hand, as the buyer, in the sandbox Resolution Center. Every write path through the
 API is closed to us:
@@ -142,14 +147,41 @@ After the case was open:
 | `GET /v1/customer/disputes/PP-R-BWV-10190936` | `403 NOT_AUTHORIZED`, `ACTION_NOT_ALLOWED` |
 | `POST /v1/customer/disputes/PP-R-BWV-10190936/provide-evidence` | `403 NOT_AUTHORIZED`, `ACTION_NOT_ALLOWED` |
 
+So the API tells us nothing about a dispute on a deal we created. The webhook does.
+
+### The dispute webhook does reach us, and it matches the deal
+
 Our webhook `6BJ660763N133044S` at `https://pay-pals-m00n1.vercel.app/api/paypal/webhook`
 is subscribed to `CHECKOUT.ORDER.APPROVED`, `PAYMENT.CAPTURE.COMPLETED` and
-`CUSTOMER.DISPUTE.CREATED`, all ENABLED. `GET /v1/notifications/webhooks-events`
-confirms PayPal fired the first two for our order and capture even though the
-payee is a different account. No `CUSTOMER.DISPUTE.CREATED` arrived in the window
-we watched, which is consistent with the case being a `PP-R-` message rather than
-a `PP-D-` dispute. We have not proved the dispute webhook reaches us for a Pay Pals
-capture, and we should not claim that we have.
+`CUSTOMER.DISPUTE.CREATED`, all ENABLED. PayPal fired all three for this deal even
+though the payee is a different sandbox account.
+
+`CUSTOMER.DISPUTE.CREATED` arrived as event `WH-2K820509XY442320B-2X675859T8400442R`
+about four minutes after the case was filed. The resource carries everything the
+handler in `packages/paypal/src/webhook-handler.ts` reads:
+
+```
+dispute_id                : PP-R-BWV-10190936
+reason                    : MERCHANDISE_OR_SERVICE_NOT_AS_DESCRIBED
+status                    : UNDER_REVIEW
+dispute_life_cycle_stage  : INQUIRY
+dispute_channel           : INTERNAL
+disputed_transactions[0].invoice_number        : bf917430-...        (our bare deal id)
+disputed_transactions[0].custom                : bf917430-...#fa0f41fc...  (deal id plus chain head)
+disputed_transactions[0].seller_transaction_id : 35F21684R9839603W   (our capture)
+disputed_transactions[0].items[0].item_id      : AJ164952580         (our serial, from the line item sku)
+disputed_transactions[0].items[0].item_name    : Sony PlayStation 5 disc edition, CFI-1015A, with the original box
+```
+
+`dealIdFromPayPal(invoice_number, custom)` resolves the deal from this with no
+change, which is what moves the deal to `ISSUE` and starts the evidence pack. We
+read these fields off the real event; we did not replay the body through the
+handler, so qa should turn this resource into a fixture and do that.
+
+Two more things worth noting from the event. The seller is
+`seller_protection_eligible: true` with `EXPANDED_SELLER_PROTECTION`, and the
+buyer's free text and attached note come through in `items[0].notes` and
+`messages[0].content`.
 
 ## What we read, and did not prove with a call
 
@@ -231,20 +263,23 @@ What it costs:
   Playwright the way we did today. About 2 hours either way. The script in this
   lane's scratchpad already does the whole flow headlessly and can be cleaned up
   into `packages/paypal/scripts/` if we want it repeatable.
-- Decide what the product does when a dispute exists but we cannot read it. We
-  already move the deal to `ISSUE` and build the evidence pack from the webhook.
-  If the webhook does not arrive for a third party payee, the honest fallback is
-  the seller telling us, or a button. That is a product call, not engineering.
+- A fixture built from the real `CUSTOMER.DISPUTE.CREATED` resource above, replayed
+  through `handleWebhookEvent`, so the ISSUE transition and the evidence pack are
+  proved against PayPal's real shape and not only our synthetic one. About 2 hours
+  for qa.
 - Copy discipline. We must not say "we filed the dispute" or "PayPal shows our
   evidence". We can say: the card text we locked is the text PayPal puts in front
-  of the buyer when they report a problem, and our pack is ready to attach.
+  of the buyer when they report a problem, PayPal tells us about the dispute with
+  our own deal id attached, and our pack is ready to attach.
 
-**Named risks.** The `PP-R-` message stage may never become a `PP-D-` dispute
-without the seller ignoring it for days, so a live demo of a *formal* dispute may
-not be reproducible on command. And we have not seen `CUSTOMER.DISPUTE.CREATED`
-arrive for a third party payee, so a demo that depends on our webhook firing is
-not yet safe to promise. Both are checkable in an hour: open a second case, leave
-it, and watch `GET /v1/notifications/webhooks-events`.
+**Named risks.** The webhook took about four minutes to arrive, which is fine for a
+recording and awkward for a live click-through; the demo should not stall waiting
+for it. The case is at the `PP-R-` inquiry stage, not a formal `PP-D-` dispute, and
+getting to a formal one needs the seller to let the clock run, so a live demo of a
+*formal* dispute is not reproducible on command. And the Resolution Center filing
+is eight screens of PayPal's own UI, which is slow on camera; the script in this
+lane's scratchpad does it headlessly in about four minutes if we would rather
+pre-record it.
 
 ### (b) Submit the evidence pack to PayPal through the API
 
@@ -266,6 +301,12 @@ around it.
 and in the submission describe the pack as proof the buyer or seller can attach
 to a PayPal case, because PayPal's own upload screen asks for precisely the five
 things the pack contains. That claim is true and we can show it.
+
+The stronger claim we can now make, and could not before today: when a buyer
+reports a problem, PayPal shows them the exact item text Pay Pals locked onto the
+order, and PayPal tells Pay Pals about it with our deal id and our history chain
+head attached. The deal moves to ISSUE and the pack builds itself. That whole
+sentence is proved by calls recorded here.
 
 ## Reproducing this
 
