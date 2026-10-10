@@ -2,23 +2,28 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
-import { PriceCheckSchema } from "@pay-pals/contracts";
+import { PriceCheckSchema, cleanPs5, emptyBox } from "@pay-pals/contracts";
 import { Channel3Error, channel3CallCount, type Channel3SearchResponse } from "./channel3-api";
 import {
   ESTIMATE_NOTE_PREFIX,
   MAX_SOURCES,
   NO_RELIABLE_PRICE_NOTE,
+  OUTLIER_FLOOR,
+  SAME_RUN_TTL_MS,
   buildSearchRequest,
   classifyTitle,
+  clearSameRunResponses,
   createChannel3PriceLookup,
   deriveRange,
   isGradedQuery,
+  madeForTheItem,
+  medianPrice,
   modelCodes,
   requiredWords,
 } from "./channel3-lookup";
-import { createDiskCache, type DiskCache } from "../cache/disk-cache";
+import { createDiskCache, noCache, type DiskCache } from "../cache/disk-cache";
 import { createFixturePriceLookup } from "./fixture-lookup";
-import { listingCounts } from "../buyer/review";
+import { listingCounts, priceQuery } from "../buyer/review";
 import { priceBelowMarketRule } from "../rules/price-below-market";
 import { card } from "../testing/builders";
 
@@ -228,6 +233,123 @@ describe("deriveRange keeps the headline checkable against the listings", () => 
   });
 });
 
+/**
+ * Shaped like the live clean-ps5 result of 2026-10-09: a widened family
+ * search whose cheapest entry was a part, not a console, which set a $100.79
+ * headline low under eleven listings running $588.99 and up.
+ */
+const livePartInTheConsoles: Channel3SearchResponse = {
+  products: [
+    product("part", "PlayStation 5 Disc Drive", [offer("parts.example", 143.99)]),
+    product("1", "PlayStation 5 Slim Console Disc Edition", [offer("a.example", 588.99)]),
+    product("2", "PlayStation 5 Slim Console Disc Edition", [offer("b.example", 649.99)]),
+    product("3", "PlayStation 5 Slim Console Disc Edition", [offer("c.example", 776.99)]),
+    product("4", "PlayStation 5 Slim Console Disc Edition", [offer("d.example", 799.99)]),
+    product("5", "PlayStation 5 Slim Console Disc Edition", [offer("e.example", 858.99)]),
+    product("6", "PlayStation 5 Slim Console Disc Edition", [offer("f.example", 914.99)]),
+  ],
+  next_page_token: null,
+};
+
+describe("deriveRange prices the same item only", () => {
+  it("drops a part whose title names the item it is made for", () => {
+    expect(madeForTheItem("disc drive for playstation 5 slim console", ["playstation", "disc"])).toBe(true);
+    expect(madeForTheItem("playstation 5 disc edition console for gaming", ["playstation", "disc"])).toBe(false);
+    expect(classifyTitle("Disc Drive for PlayStation 5 Slim Console", PS5, false)).toBeNull();
+    expect(classifyTitle("SSD Heatsink for Sony PlayStation 5 Disc Edition", PS5, false)).toBeNull();
+    expect(classifyTitle("PlayStation 5 Disc Edition Console, great for gaming", PS5, false)).toBe("same");
+  });
+
+  it("drops a listing too cheap to be the same item, and says so with the median", () => {
+    expect(medianPrice([])).toBe(0);
+    const range = deriveRange(livePartInTheConsoles, { brand: "Sony", model: PS5, condition: "good" });
+    const prices = range.sources.filter((s) => s.price !== undefined).map((s) => s.price!);
+    expect(prices).not.toContain(143.99);
+    expect(prices).toHaveLength(6);
+    // The $143.99 part used to set the headline low at $100.79. The low is now the cheapest console.
+    expect(range.marketLow).toBeCloseTo(588.99 * 0.7, 2);
+    expect(range.marketHigh).toBeCloseTo(914.99 * 0.7, 2);
+    expect(range.marketLow).not.toBeCloseTo(143.99 * 0.7, 2);
+    expect(range.sources[0]!.name).toContain(
+      `Dropped 1 listing priced under ${Math.round(OUTLIER_FLOOR * 100)}% of the $776.99 median ($143.99), too cheap to be the same item`,
+    );
+  });
+
+  it("keeps a cheap used offer, which sits near the pack rather than far below it", () => {
+    const withUsed: Channel3SearchResponse = {
+      products: [
+        product("1", "PlayStation 5 Disc Edition", [offer("a.example", 588.99)]),
+        product("2", "PlayStation 5 Disc Edition", [offer("b.example", 649.99)]),
+        product("3", "PlayStation 5 Disc Edition", [offer("c.example", 699.99)]),
+        product("u", "PlayStation 5 Disc Edition", [offer("resale.example", 330, "used")]),
+      ],
+      next_page_token: null,
+    };
+    const range = deriveRange(withUsed, { brand: "Sony", model: PS5, condition: "good" });
+    expect(range.sources.filter((s) => s.price !== undefined).map((s) => s.price)).toContain(330);
+    expect(range.marketLow).toBe(330);
+    expect(range.sources[0]!.name).not.toContain("too cheap");
+  });
+
+  it("returns the unknown range when dropping the outliers leaves too few listings", () => {
+    const thin: Channel3SearchResponse = {
+      products: [
+        product("part", "PlayStation 5 Disc Drive", [offer("parts.example", 143.99)]),
+        product("1", "PlayStation 5 Disc Edition", [offer("a.example", 588.99)]),
+        product("2", "PlayStation 5 Disc Edition", [offer("b.example", 914.99)]),
+      ],
+      next_page_token: null,
+    };
+    expect(deriveRange(thin, { brand: "Sony", model: PS5, condition: "good" })).toMatchObject({
+      marketLow: 0,
+      marketHigh: 0,
+      sources: [{ name: NO_RELIABLE_PRICE_NOTE }],
+    });
+  });
+});
+
+describe("one console, one range", () => {
+  // clean-ps5 and empty-box describe the same physical console, so the Buyer Pal must not
+  // quote two different market ranges for it. The query carries nothing but brand, model
+  // and condition, and the derivation reads nothing else.
+  const cleanV1 = cleanPs5.cards[0]!;
+  const cleanV2 = cleanPs5.cards[1]!;
+  const box = emptyBox.cards[0]!;
+
+  it("asks the same question for both PS5 scenarios", () => {
+    expect(priceQuery(cleanV1)).toEqual({ brand: "Sony", model: "PlayStation 5 disc edition, CFI-1015A", condition: "good" });
+    expect(priceQuery(box)).toEqual(priceQuery(cleanV1));
+    expect(priceQuery(cleanV2)).toEqual(priceQuery(cleanV1));
+    expect(buildSearchRequest(priceQuery(box), 20)).toEqual(buildSearchRequest(priceQuery(cleanV1), 20));
+  });
+
+  it("derives the same range from the same response, whichever card asked", () => {
+    for (const response of [livePs5, liveProduction, livePartInTheConsoles]) {
+      const clean = deriveRange(response, priceQuery(cleanV1));
+      expect(deriveRange(response, priceQuery(box))).toEqual(clean);
+      expect(deriveRange(response, priceQuery(cleanV2))).toEqual(clean);
+      expect(clean.marketLow).toBeGreaterThan(0);
+    }
+  });
+
+  it("answers both scenarios from one search in one run, even with no cache behind it", async () => {
+    clearSameRunResponses();
+    let calls = 0;
+    // Production has no disk cache, and the two scenarios are looked up by two lookups.
+    const options = { cache: noCache, sameRunTtlMs: SAME_RUN_TTL_MS, fetchImpl: async () => {
+      calls += 1;
+      return new Response(JSON.stringify(livePartInTheConsoles), { status: 200, headers: { "content-type": "application/json" } });
+    } };
+    const first = await createChannel3PriceLookup("test-key", options).priceRange(priceQuery(cleanV1));
+    const second = await createChannel3PriceLookup("test-key", options).priceRange(priceQuery(box));
+    expect(calls).toBe(1);
+    expect({ ...second, checkedAt: first.checkedAt }).toEqual(first);
+    clearSameRunResponses();
+    await createChannel3PriceLookup("test-key", options).priceRange(priceQuery(box));
+    expect(calls).toBe(2);
+  });
+});
+
 describe("deriveRange refuses thin or flat data", () => {
   it("returns the unknown range with the note when fewer than three relevant listings remain", () => {
     const two: Channel3SearchResponse = { products: [product("1", "PlayStation 5 Disc Edition", [offer("a.example", 500), offer("b.example", 540)])], next_page_token: null };
@@ -276,6 +398,7 @@ describe("deriveRange on a graded card", () => {
 
 describe("createChannel3PriceLookup", () => {
   it("posts the search with the api key, makes one live call per lookup and none when the cache answers", async () => {
+    clearSameRunResponses();
     const calls: Array<{ url: string; init?: RequestInit }> = [];
     const cache = memoryCache();
     const fetchImpl = async (url: string, init?: RequestInit) => {
