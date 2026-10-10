@@ -1,6 +1,8 @@
 /**
- * BuyerPal.review: price check, cert lookup and photo reads, rules, then one
- * Claude call for judgment and plain words. The rules decide what is a flag;
+ * BuyerPal.review: the price check, the cert lookup, the photo reads and the
+ * reused-photo check run together (see gather.ts), then the rules, then one
+ * Claude call for judgment and plain words. Findings are reported as they
+ * land when the caller passes onProgress (see progress.ts). The rules decide what is a flag;
  * the model explains and adds. With no card yet (a buyer-started deal the
  * seller has not joined, or a refusal) only the chat rules run. The model is
  * told exactly what was examined (which photos were read, whether PSA was
@@ -17,20 +19,23 @@ import type {
   PriceCheck,
   RedFlag,
   ReviewContext,
+  ReviewOptions,
   Verdict,
 } from "@pay-pals/contracts";
 import { compareCertRecord } from "../cert/compare";
+import { gatherCert, gatherPhotoMatches, gatherPhotoReads, gatherPrice } from "./gather";
+import { emitter, flagReporter } from "./progress";
 import type { ClaudeClient } from "../claude/client";
 import { callTool } from "../claude/tool-call";
 import { plainCopy, sentences } from "../copy";
-import { collapsePaymentFlags, overallFromFlags, runRules, type PhotoMatch } from "../rules";
+import { collapsePaymentFlags, overallFromFlags, runRules } from "../rules";
 import type { ImageFetcher } from "../vision/fetch-image";
-import { describeLooking, readPhotos, type PhotoReading } from "../vision/read-photo";
+import { describeLooking } from "../vision/read-photo";
 import { reaskInstruction, unfoundedClaims, type ClaimContext } from "./claim-check";
 import { buildGroundingCorpus } from "./grounding";
 import { mergeModelReview } from "./merge-flags";
 import { photoFactsBlock } from "./photo-facts";
-import { findReusedPhotos, type PhotoMatchDeps } from "./photo-match";
+import type { PhotoMatchDeps } from "./photo-match";
 import { BOX_LABEL_CLOSE_UP_QUESTION, datedNoteQuestion, serialCloseUpQuestion, withProofQuestions } from "./proof-question";
 import { mergeReasoning } from "./reasoning";
 import { nearMissSerials, reviewReasoning } from "./review-reasons";
@@ -240,50 +245,42 @@ export function priceQuery(card: ItemCard): { brand: string; model: string; cond
   return { brand: card.brand, model: card.grade ? `${card.model} ${card.grade}` : card.model, condition: card.conditionGrade };
 }
 
-export async function reviewCard(card: ItemCard | null, chat: Message[], context: ReviewContext | undefined, deps: ReviewDeps): Promise<PalResult<Verdict>> {
-  let priceCheck: PriceCheck | null = null;
-  if (card) {
-    try {
-      priceCheck = await deps.priceLookup.priceRange(priceQuery(card));
-    } catch (error) {
-      console.warn(`[pay-pals agents] price lookup failed: ${error instanceof Error ? error.message : String(error)}`);
-    }
-  }
+export async function reviewCard(
+  card: ItemCard | null,
+  chat: Message[],
+  context: ReviewContext | undefined,
+  deps: ReviewDeps,
+  options?: ReviewOptions,
+): Promise<PalResult<Verdict>> {
+  const emit = emitter(options?.onProgress);
+  const reportFlags = flagReporter(emit);
 
-  let certRecord: CertRecord | null = null;
-  let certLookupFailed = false;
-  if (card?.certNumber && deps.certLookup) {
-    try {
-      certRecord = await deps.certLookup.lookup(card.certNumber);
-    } catch (error) {
-      certLookupFailed = true;
-      console.warn(`[pay-pals agents] cert lookup failed: ${error instanceof Error ? error.message : String(error)}`);
-    }
-  }
+  // The four lookups do not depend on each other, so they run together. Each swallows its own
+  // failure and reports itself as it lands, so one slow or broken lookup neither holds the others
+  // up nor fails the review. The model call cannot join them: it is told what all four found.
+  const [price, cert, matches, readings] = await Promise.all([
+    gatherPrice(card, deps.priceLookup, priceQuery, emit),
+    gatherCert(card, deps.certLookup, emit),
+    gatherPhotoMatches(card, deps.photoMatch, emit),
+    gatherPhotoReads(card, { client: deps.client, fetchImage: deps.fetchImage, photoBaseUrl: deps.photoBaseUrl }, emit),
+  ]);
+
+  const priceCheck = price.priceCheck;
+  const certRecord = cert.certRecord;
+  const certLookupFailed = cert.lookupFailed;
+  const photoMatches = matches.photoMatches;
+  const photoMatchRan = matches.ran;
   const certCheck: CertCheck | null =
-    card && certRecord ? (({ matches, explanation }) => ({ record: certRecord, matches, explanation }))(compareCertRecord(card, certRecord)) : null;
+    card && certRecord ? (({ matches: m, explanation }) => ({ record: certRecord, matches: m, explanation }))(compareCertRecord(card, certRecord)) : null;
+  if (certCheck) emit({ kind: "certCheck", certCheck });
 
-  let photoMatches: PhotoMatch[] = [];
-  let photoMatchRan = false;
-  if (card && deps.photoMatch && deps.photoMatch.knownPhotos.length > 0) {
-    try {
-      photoMatches = await findReusedPhotos(card.photos, deps.photoMatch);
-      photoMatchRan = true;
-    } catch (error) {
-      console.warn(`[pay-pals agents] photo match failed: ${error instanceof Error ? error.message : String(error)}`);
-    }
-  }
-
-  // The photos are read before the rules, not after, because the box-serial rule needs to know
-  // whether a vision read is in play before it decides a one-character difference is a mismatch.
-  let readings: PhotoReading[] = [];
   let pass: ModelPass = { review: null, message: null };
   const publicMode = deps.publicMode === true;
-  if (deps.client && card) {
-    readings = await readPhotos(card.photos, { client: deps.client, fetchImage: deps.fetchImage, photoBaseUrl: deps.photoBaseUrl, hints: { brand: card.brand, model: card.model } });
-  }
+  // The box-serial rule has to know whether a vision read is in play before it can decide that a
+  // one-character difference is a mismatch, which is why the reads are gathered before the rules.
   const serialReadFromPhoto = readings.some((r) => r.source === "vision" && r.serial !== null);
 
+  emit({ kind: "stage", stage: "checking the chat for the patterns Pay Pals knows" });
   const ruleFlags = runRules({
     card,
     chat,
@@ -294,6 +291,12 @@ export async function reviewCard(card: ItemCard | null, chat: Message[], context
     photoMatches,
     serialReadFromPhoto,
   });
+  // The rules' findings go out now, not at the end. Every one of them is in the final verdict:
+  // merge-flags.ts keeps each rule flag with its code, only ever raises a severity, and the one
+  // thing that drops a flag, collapsePaymentFlags, only ever drops a model-added one. See
+  // progress.ts. A stop reaching the page the moment it is raised is the point of the exercise.
+  reportFlags(ruleFlags);
+
   // Built whether or not a model ran, because the reasons go through the same honesty check the message does.
   const claims: ClaimContext = {
     imagesRead: readings.some((r) => r.imageStatus === "read"),
@@ -314,6 +317,7 @@ export async function reviewCard(card: ItemCard | null, chat: Message[], context
     serialReadFromPhoto,
   };
   if (deps.client) {
+    emit({ kind: "stage", stage: "asking the pal to weigh it all up" });
     const facts = ruleFlags.length === 0 ? "The rules raised no flags." : JSON.stringify(ruleFlags, null, 2);
     const cert = certLine(card, certCheck, certLookupFailed);
     const already = reviewReasoning({ ...reasonInput, flags: ruleFlags, overall: overallFromFlags(ruleFlags) });
@@ -344,6 +348,10 @@ export async function reviewCard(card: ItemCard | null, chat: Message[], context
   // Collapse again after the merge: the model may have added a payment code of its own.
   const flags = collapsePaymentFlags(mergeModelReview(ruleFlags, review, buildGroundingCorpus(card, chat)));
   const overall = overallFromFlags(flags);
+  // Anything the model added goes out only now, after the collapse, so what was reported is
+  // exactly what the verdict holds. Sending one earlier could report a payment flag the collapse
+  // then folds into the rule's. The reporter skips codes already sent.
+  reportFlags(flags);
   // Our own questions are deterministic and come first; the model's, or the rules-only ones, follow.
   // The dated-note ask stands even on a stop: it is the one answer that would change the verdict.
   const ours = [

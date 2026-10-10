@@ -32,15 +32,21 @@ export function createBuyerPal(options: BuyerPalOptions): BuyerPal {
   const publicMode = isPublicMode(options.publicMode);
   const hashCache = new Map<string, string | null>();
   return {
-    review: (card, chat, context) =>
-      reviewCard(card, chat, context, {
-        client,
-        priceLookup: options.priceLookup,
-        certLookup: options.certLookup ?? null,
-        photoMatch: { knownPhotos: options.knownPhotos ?? [], hashCache, ...photos },
-        publicMode,
-        ...photos,
-      }),
+    review: (card, chat, context, reviewOptions) =>
+      reviewCard(
+        card,
+        chat,
+        context,
+        {
+          client,
+          priceLookup: options.priceLookup,
+          certLookup: options.certLookup ?? null,
+          photoMatch: { knownPhotos: options.knownPhotos ?? [], hashCache, ...photos },
+          publicMode,
+          ...photos,
+        },
+        reviewOptions,
+      ),
     checkArrival: (card, arrivalPhotos) => checkArrivalAgainstCard(card, arrivalPhotos, { client, publicMode, ...photos }),
     checkShipment: async (card, shipment) => checkShipmentAgainstCard(card, shipment),
   };
