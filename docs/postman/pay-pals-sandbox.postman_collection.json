@@ -44,6 +44,18 @@
     {
       "key": "captureId",
       "value": ""
+    },
+    {
+      "key": "disputeId",
+      "value": ""
+    },
+    {
+      "key": "buyerTransactionId",
+      "value": ""
+    },
+    {
+      "key": "buyerAuthAssertion",
+      "value": ""
     }
   ],
   "item": [
@@ -160,7 +172,7 @@
         },
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"intent\": \"CAPTURE\",\n  \"purchase_units\": [\n    {\n      \"reference_id\": \"deal-{{dealId}}-v2\",\n      \"custom_id\": \"{{dealId}}#affab047e1c324770a1ba407bb57004fabd014e232b2a2a7239bd3e57e5219a8\",\n      \"invoice_id\": \"{{dealId}}\",\n      \"description\": \"Sony PlayStation 5 disc edition with original box\",\n      \"payee\": {\n        \"email_address\": \"{{sellerPersonalEmail}}\"\n      },\n      \"amount\": {\n        \"currency_code\": \"USD\",\n        \"value\": \"420.00\",\n        \"breakdown\": {\n          \"item_total\": {\n            \"currency_code\": \"USD\",\n            \"value\": \"420.00\"\n          }\n        }\n      },\n      \"items\": [\n        {\n          \"name\": \"Sony PlayStation 5 disc edition with original box\",\n          \"description\": \"Serial AH912345678. Condition: Good. Owned from new, used in a smoke-free home. Light scuff on the base, no marks on the...\",\n          \"unit_amount\": {\n            \"currency_code\": \"USD\",\n            \"value\": \"420.00\"\n          },\n          \"quantity\": \"1\",\n          \"category\": \"PHYSICAL_GOODS\",\n          \"sku\": \"AH912345678\"\n        }\n      ]\n    }\n  ]\n}"
+          "raw": "{\n  \"intent\": \"CAPTURE\",\n  \"purchase_units\": [\n    {\n      \"reference_id\": \"deal-{{dealId}}-v2\",\n      \"custom_id\": \"{{dealId}}#affab047e1c324770a1ba407bb57004fabd014e232b2a2a7239bd3e57e5219a8\",\n      \"invoice_id\": \"{{dealId}}\",\n      \"description\": \"Sony PlayStation 5 disc edition, CFI-1015A, with the original box\",\n      \"payee\": {\n        \"email_address\": \"{{sellerPersonalEmail}}\"\n      },\n      \"amount\": {\n        \"currency_code\": \"USD\",\n        \"value\": \"420.00\",\n        \"breakdown\": {\n          \"item_total\": {\n            \"currency_code\": \"USD\",\n            \"value\": \"420.00\"\n          }\n        }\n      },\n      \"items\": [\n        {\n          \"name\": \"Sony PlayStation 5 disc edition, CFI-1015A, with the original box\",\n          \"description\": \"Serial AJ164952580. Condition: Good. Bought new in 2021 and used in a smoke-free home. Everything in the photo is included...\",\n          \"unit_amount\": {\n            \"currency_code\": \"USD\",\n            \"value\": \"420.00\"\n          },\n          \"quantity\": \"1\",\n          \"category\": \"PHYSICAL_GOODS\",\n          \"sku\": \"AJ164952580\"\n        }\n      ]\n    }\n  ]\n}"
         },
         "url": {
           "raw": "{{baseUrl}}/v2/checkout/orders",
@@ -229,7 +241,7 @@
         },
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"intent\": \"CAPTURE\",\n  \"purchase_units\": [\n    {\n      \"reference_id\": \"deal-{{dealId}}-v2\",\n      \"custom_id\": \"{{dealId}}#affab047e1c324770a1ba407bb57004fabd014e232b2a2a7239bd3e57e5219a8\",\n      \"invoice_id\": \"{{dealId}}\",\n      \"description\": \"Sony PlayStation 5 disc edition with original box\",\n      \"payee\": {\n        \"email_address\": \"{{sellerBusinessEmail}}\"\n      },\n      \"amount\": {\n        \"currency_code\": \"USD\",\n        \"value\": \"420.00\",\n        \"breakdown\": {\n          \"item_total\": {\n            \"currency_code\": \"USD\",\n            \"value\": \"420.00\"\n          }\n        }\n      },\n      \"items\": [\n        {\n          \"name\": \"Sony PlayStation 5 disc edition with original box\",\n          \"description\": \"Serial AH912345678. Condition: Good. Owned from new, used in a smoke-free home. Light scuff on the base, no marks on the...\",\n          \"unit_amount\": {\n            \"currency_code\": \"USD\",\n            \"value\": \"420.00\"\n          },\n          \"quantity\": \"1\",\n          \"category\": \"PHYSICAL_GOODS\",\n          \"sku\": \"AH912345678\"\n        }\n      ]\n    }\n  ]\n}"
+          "raw": "{\n  \"intent\": \"CAPTURE\",\n  \"purchase_units\": [\n    {\n      \"reference_id\": \"deal-{{dealId}}-v2\",\n      \"custom_id\": \"{{dealId}}#affab047e1c324770a1ba407bb57004fabd014e232b2a2a7239bd3e57e5219a8\",\n      \"invoice_id\": \"{{dealId}}\",\n      \"description\": \"Sony PlayStation 5 disc edition, CFI-1015A, with the original box\",\n      \"payee\": {\n        \"email_address\": \"{{sellerBusinessEmail}}\"\n      },\n      \"amount\": {\n        \"currency_code\": \"USD\",\n        \"value\": \"420.00\",\n        \"breakdown\": {\n          \"item_total\": {\n            \"currency_code\": \"USD\",\n            \"value\": \"420.00\"\n          }\n        }\n      },\n      \"items\": [\n        {\n          \"name\": \"Sony PlayStation 5 disc edition, CFI-1015A, with the original box\",\n          \"description\": \"Serial AJ164952580. Condition: Good. Bought new in 2021 and used in a smoke-free home. Everything in the photo is included...\",\n          \"unit_amount\": {\n            \"currency_code\": \"USD\",\n            \"value\": \"420.00\"\n          },\n          \"quantity\": \"1\",\n          \"category\": \"PHYSICAL_GOODS\",\n          \"sku\": \"AJ164952580\"\n        }\n      ]\n    }\n  ]\n}"
         },
         "url": {
           "raw": "{{baseUrl}}/v2/checkout/orders",
@@ -429,6 +441,216 @@
           ]
         }
       }
+    },
+    {
+      "name": "7. Disputes API v1 (assessment, Oct 10 2026)",
+      "description": "What the Customer Disputes API v1 does and does not allow a Pay Pals sandbox app to do. Run '1. OAuth token' first. Full write-up in docs/paypal-disputes-assessment.md.",
+      "item": [
+        {
+          "name": "7a. List disputes (works, 200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('disputes listed', () => pm.response.to.have.status(200));",
+                  "pm.test('items array present', () => pm.expect(pm.response.json().items).to.be.an('array'));",
+                  "// Lists the disputes of the account the token belongs to, not the payee's."
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/customer/disputes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "customer",
+                "disputes"
+              ]
+            },
+            "description": "Returned 200 with an empty items array on 2026-10-10. The list is scoped to the account the access token belongs to. Pay Pals orders name the seller as payee, so the seller's disputes do not appear here."
+          }
+        },
+        {
+          "name": "7b. List disputes by state (works, 200)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/customer/disputes?dispute_state=OPEN_INQUIRIES&page_size=5",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "customer",
+                "disputes"
+              ],
+              "query": [
+                {
+                  "key": "dispute_state",
+                  "value": "OPEN_INQUIRIES"
+                },
+                {
+                  "key": "page_size",
+                  "value": "5"
+                }
+              ]
+            },
+            "description": "Returned 200 on 2026-10-10. dispute_state also takes REQUIRED_ACTION, UNDER_PAYPAL_REVIEW, APPEALABLE, RESOLVED."
+          }
+        },
+        {
+          "name": "7c. Show dispute details (needs a real dispute id)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/customer/disputes/{{disputeId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "customer",
+                "disputes",
+                "{{disputeId}}"
+              ]
+            },
+            "description": "Not exercised with a real id: our app's token sees no disputes. A made-up id returned 404 RESOURCE_NOT_FOUND, which proves the route exists."
+          }
+        },
+        {
+          "name": "7d. Create a dispute (refused for our app)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "PayPal-Auth-Assertion",
+                "value": "{{buyerAuthAssertion}}"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "input",
+                  "type": "text",
+                  "contentType": "application/json",
+                  "value": "{\n  \"disputed_transactions\": [\n    {\n      \"buyer_transaction_id\": \"{{buyerTransactionId}}\"\n    }\n  ],\n  \"reason\": \"MERCHANDISE_OR_SERVICE_NOT_RECEIVED\",\n  \"dispute_amount\": {\n    \"currency_code\": \"USD\",\n    \"value\": \"420.00\"\n  }\n}"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/customer/disputes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "customer",
+                "disputes"
+              ]
+            },
+            "description": "Sandbox-only endpoint. Our app's token already carries the disputes/create scope, but the call is refused: with PayPal-Auth-Assertion it returns 400 {\"error\":\"invalid_request\",\"error_description\":\"No permissions to set target_client_id\"}, and without it 400 INVALID_REQUEST. PayPal gates the buyer-side simulation behind an account manager. Kept here as the record of what was tried."
+          }
+        },
+        {
+          "name": "7e. Provide evidence (not reachable without a dispute)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "input",
+                  "type": "text",
+                  "contentType": "application/json",
+                  "value": "{\n  \"evidences\": [\n    {\n      \"evidence_type\": \"OTHER\",\n      \"notes\": \"Pay Pals evidence pack: locked item card, packing photos, tracking, arrival check.\"\n    }\n  ]\n}"
+                },
+                {
+                  "key": "evidence-file",
+                  "type": "file",
+                  "src": [],
+                  "description": "pdf, jpg, jpeg, gif or png. Under 10 MB per file, 50 MB per call."
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/customer/disputes/{{disputeId}}/provide-evidence",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "customer",
+                "disputes",
+                "{{disputeId}}",
+                "provide-evidence"
+              ]
+            },
+            "description": "multipart/form-data with a JSON part named 'input' plus one or more 'evidence-file' parts. A made-up dispute id returned 404 RESOURCE_NOT_FOUND. Only callable by the party PayPal has asked for evidence, which for a Pay Pals deal is the seller, not us."
+          }
+        }
+      ]
     }
   ]
 }
