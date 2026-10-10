@@ -87,6 +87,30 @@ describe("writeSummary with a model", () => {
     expect(system).toContain("No title, no heading, no markdown");
   });
 
+  it("the history hash ends its sentence, whichever way it was written", async () => {
+    const head = "7c".repeat(32);
+    const withHash: EvidenceInput = { ...input(emptyBox), payment: { ...emptyBox.payment!, historyHash: head } };
+    // The deterministic summary already puts the hash at the end of its sentence.
+    expect(deterministicSummary(withHash)).toContain(`at payment time is ${head}.`);
+    // A model that writes it inline gets it moved, because the page prints a hash on its own line.
+    const prose = `A tamper check compared the deal history hash recorded on the PayPal order at payment time, ${head}, against the 20 stored timeline events.`;
+    const summary = await writeSummary(withHash, proseClient(prose));
+    expect(summary).toBe(`A tamper check compared the deal history hash recorded on the PayPal order at payment time against the 20 stored timeline events: ${head}.`);
+    expect(summary).not.toContain(`${head},`);
+    expect(summary.trimEnd().endsWith(`${head}.`)).toBe(true);
+  });
+
+  it("tells the model where the hash goes", async () => {
+    let system = "";
+    const client = fakeClaude(() => null);
+    client.messages.create = async (params) => {
+      system = typeof params.system === "string" ? params.system : "";
+      return { content: [{ type: "text", text: "Plain prose." }], stop_reason: "end_turn" } as never;
+    };
+    await writeSummary(input(emptyBox), client);
+    expect(system).toContain("Put the 64-character history hash at the end of its sentence");
+  });
+
   it("drops only a bare heading line", () => {
     expect(dropHeadingLine("Summary\n\nThe deal.")).toBe("The deal.");
     expect(dropHeadingLine("Summary:\nThe deal.")).toBe("The deal.");

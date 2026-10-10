@@ -112,6 +112,10 @@ const SYSTEM = [
   "Write short paragraphs separated by a blank line, two or three sentences each, in this order: the deal and the item card; the Buyer Pal's review and anything the seller never answered; the payment; the shipping; what arrived; the history check. Leave out a paragraph when there is nothing to say for it.",
   "No title, no heading, no markdown of any kind: no stars, no hashes, no backticks, no bullet or numbered lists. Plain sentences only.",
   "Plain words, short sentences, no em dashes, no exclamation marks, no opinion about who is at fault. Never write the words verified or authentic: say what a check showed and what it did not show.",
+  "A matching serial or grading cert supports what the item card says. It never proves who owns the item and it never proves the item is authentic.",
+  "This pack is useful context for whoever reviews the dispute. Never say it guarantees or makes likely any outcome, and never say a refund or a dispute requires it.",
+  "The deal history hash recorded on the PayPal order is the official record of the deal that PayPal can check first. Say whether the stored events reproduce it, and nothing more about what it entitles anyone to.",
+  "Put the 64-character history hash at the end of its sentence, with a full stop after it and nothing else. The page prints a hash on a line of its own, so a comma or more words after it are left hanging there.",
 ].join("\n");
 
 export async function writeSummary(input: EvidenceInput, client: ClaudeClient | null, publicMode = false): Promise<string> {

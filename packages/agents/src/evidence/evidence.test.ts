@@ -101,7 +101,7 @@ describe("buildEvidencePack", () => {
     expect(verified.data.historyVerified).toBe(true);
     expect(verified.data.summary).toContain(`recorded on the PayPal order at payment time is ${paidEvent.hash}`);
     expect(verified.data.summary).toContain("reproduce that hash");
-    expect(verified.palMessage).toContain("history hash on the PayPal order matches");
+    expect(verified.palMessage).toContain("history hash recorded on the PayPal order matches the stored events, so this is the official record of the deal that PayPal can check first");
     expect(EvidencePackSchema.safeParse(verified.data).success).toBe(true);
 
     const tampered = await buildEvidencePack({ ...input, payment: { ...input.payment!, historyHash: "a".repeat(64) } }, { anthropic: null });

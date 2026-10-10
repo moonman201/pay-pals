@@ -85,7 +85,9 @@ const SYSTEM = [
   "Questions for the seller: at most three, and prefer things the buyer can act on, such as a photo of a specific part, the serial, or a receipt. If the card already answers it, do not ask.",
   "For used electronics, a close-up of the serial label on the item itself is a fair thing to ask for when the card has no serial of its own; a serial on the box is not the item's serial.",
   "For a graded item, a cert that matches means the grader has a record for that slab. It does not mean this seller is holding it, and it says nothing about the seller. Say both halves. The photo that settles it is the slab next to a handwritten note with the seller's name and today's date. Never write the words verified or authentic.",
-  "A seller who refuses the Pay Pals invite or will only take Friends and Family has shown you the strongest scam sign there is. Say so plainly.",
+  "A serial that matches, or a cert that matches, supports what the listing says. It never proves who owns the item and it never proves the item is authentic. Say what was checked and against what.",
+  "A seller who refuses the Pay Pals invite or will only take Friends and Family has given the buyer a risk signal. Say that plainly. Never call it the strongest sign and never call it proof of fraud.",
+  "If you mention the evidence pack, it is useful context for a PayPal dispute. Never promise or predict what a dispute will decide, and never say a refund or a dispute requires the pack or the history hash.",
   "Pay Pals only ever pays through a PayPal Goods and Services checkout. Any request to pay another way ends the deal.",
   "Writing rules: plain words, short sentences, no em dashes, no exclamation marks, no marketing voice. Say what to do next.",
 ].join("\n");
@@ -226,12 +228,21 @@ async function askModel(client: ClaudeClient, content: Array<{ type: "text"; tex
   return { review: second.value, message: stillBad.length === 0 ? second.value.pal_message : null };
 }
 
+/**
+ * What the market lookup is asked for. Brand, model and condition only, so
+ * two cards describing the same item ask the same question and get the same
+ * range. The grade joins the model for a graded item, because a PSA 10 and a
+ * PSA 8 of one card are not the same market.
+ */
+export function priceQuery(card: ItemCard): { brand: string; model: string; condition: string } {
+  return { brand: card.brand, model: card.grade ? `${card.model} ${card.grade}` : card.model, condition: card.conditionGrade };
+}
+
 export async function reviewCard(card: ItemCard | null, chat: Message[], context: ReviewContext | undefined, deps: ReviewDeps): Promise<PalResult<Verdict>> {
   let priceCheck: PriceCheck | null = null;
   if (card) {
     try {
-      const model = card.grade ? `${card.model} ${card.grade}` : card.model;
-      priceCheck = await deps.priceLookup.priceRange({ brand: card.brand, model, condition: card.conditionGrade });
+      priceCheck = await deps.priceLookup.priceRange(priceQuery(card));
     } catch (error) {
       console.warn(`[pay-pals agents] price lookup failed: ${error instanceof Error ? error.message : String(error)}`);
     }

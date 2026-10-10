@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { paragraphs, plainCopy, sentences, stripMarkdown } from "./copy";
+import { hashEndsItsSentence, paragraphs, plainCopy, sentences, stripMarkdown } from "./copy";
 
 describe("plainCopy", () => {
   it("removes em dashes and exclamation marks", () => {
@@ -39,6 +39,30 @@ describe("stripMarkdown", () => {
   it("leaves a card number and a single underscore alone", () => {
     expect(plainCopy("Gengar & Mimikyu GX #038 is the card.")).toBe("Gengar & Mimikyu GX #038 is the card.");
     expect(stripMarkdown("condition like_new")).toBe("condition like_new");
+  });
+});
+
+describe("hashEndsItsSentence", () => {
+  const hash = "9f".repeat(32);
+
+  it("moves a hash out of the middle of its sentence so it ends the clause", () => {
+    expect(hashEndsItsSentence(`A tamper check compared the deal history hash recorded on the PayPal order at payment time, ${hash}, against the 20 stored timeline events.`)).toBe(
+      `A tamper check compared the deal history hash recorded on the PayPal order at payment time against the 20 stored timeline events: ${hash}.`,
+    );
+    expect(hashEndsItsSentence(`The hash ${hash} matches the stored events`)).toBe(`The hash matches the stored events: ${hash}.`);
+  });
+
+  it("leaves a hash that already ends its sentence alone, and every other text", () => {
+    const ends = `Tamper check: the hash recorded at payment time is ${hash}. The 20 stored events reproduce it.`;
+    expect(hashEndsItsSentence(ends)).toBe(ends);
+    expect(hashEndsItsSentence("No hash in this one.")).toBe("No hash in this one.");
+    expect(hashEndsItsSentence("Serial AJ164952580 is on the card.")).toBe("Serial AJ164952580 is on the card.");
+  });
+
+  it("works through plainCopy and keeps the paragraph breaks around it", () => {
+    expect(plainCopy(`Paid in full.\n\nThe hash on the order, ${hash}, matches the 20 events.\n\nNothing else.`)).toBe(
+      `Paid in full.\n\nThe hash on the order matches the 20 events: ${hash}.\n\nNothing else.`,
+    );
   });
 });
 
