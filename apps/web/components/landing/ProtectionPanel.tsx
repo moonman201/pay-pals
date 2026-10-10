@@ -39,7 +39,7 @@ export function ProtectionPanel() {
   }
 
   return (
-    <form onSubmit={submit} className="theme-buyer rounded-2xl border border-[var(--accent-line)] bg-surface p-5 shadow-card sm:p-6" aria-labelledby="protection-title">
+    <form onSubmit={submit} className="theme-buyer in-box rounded-2xl border border-[var(--accent-line)] bg-surface p-5 shadow-card sm:p-6" aria-labelledby="protection-title">
       <h2 id="protection-title" className="text-2xl font-bold text-navy">
         Use Pay Pals Protection
       </h2>

@@ -87,7 +87,7 @@ export function EvidencePackView({
   const unanswered = pack.unansweredQuestions ?? [];
   const anchor = anchorCopy(pack.historyAnchor, pack.payment?.paypalOrderId ?? null);
   return (
-    <main className={`theme-${role} mx-auto max-w-3xl px-4 py-8 print:max-w-none print:px-0`}>
+    <main className={`on-page theme-${role} mx-auto max-w-3xl px-4 py-8 print:max-w-none print:px-0`}>
       <EvidenceHeader
         dealId={deal.id}
         role={role}

@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { ThemeScript } from "@/components/ui/ThemeScript";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -11,10 +12,18 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
-/** Dark navy is the site, for every visitor, whatever their device is set to. See app/tokens.css. */
+/**
+ * The colour mode follows the device and nothing is forced here. The boot
+ * script writes data-theme on this element before the first paint when the
+ * visitor has chosen a mode, which is why the html element is left out of
+ * hydration checking. See app/tokens.css and lib/theme.ts.
+ */
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" data-theme="dark">
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <ThemeScript />
+      </head>
       <body className="min-h-screen">{children}</body>
     </html>
   );

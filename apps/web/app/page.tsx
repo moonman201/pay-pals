@@ -39,7 +39,7 @@ export default async function HomePage() {
   // Three lookups, in parallel.
   const seeded = await resolveSeededDeals(await services.seededDeals, services.store, asDealFinder(services.store));
   return (
-    <main className="mx-auto max-w-6xl px-4 pb-16">
+    <main className="on-page theme-buyer mx-auto max-w-6xl px-4 pb-16">
       <nav className="flex min-h-14 items-center justify-between gap-4 py-2" aria-label="Site">
         <Link href="/" className="inline-flex min-h-11 items-center gap-2 text-base font-black tracking-tight text-navy">
           <PalAvatar pal="buyer" size={24} />
@@ -92,7 +92,7 @@ export default async function HomePage() {
         </h2>
         <ol className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {STEPS.map((s, i) => (
-            <li key={s.who} className={`${s.tone} flex gap-3 rounded-2xl border border-[var(--accent-line)] bg-surface p-4 shadow-card`}>
+            <li key={s.who} className={`${s.tone} in-box flex gap-3 rounded-2xl border border-[var(--accent-line)] bg-surface p-4 shadow-card`}>
               <StepMark step={s} />
               <div className="min-w-0">
                 <p className="text-sm font-bold text-[var(--accent-ink)]">

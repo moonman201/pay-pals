@@ -19,8 +19,8 @@ export default async function JoinPage({ params }: Props) {
     const snapshot = await loadSnapshot(getServices(), id);
     if (!canSellerJoin(snapshot.deal) || snapshot.inviteDeclined) redirect(`/deals/${id}?as=seller`);
     return (
-      <div className="theme-seller min-h-screen">
-        <header className="border-b border-[var(--accent-line)] bg-surface">
+      <div className="on-page theme-seller min-h-screen">
+        <header className="theme-seller in-box border-b border-[var(--accent-line)] bg-surface">
           <div className="mx-auto max-w-2xl px-4">
             <Link href="/" className="inline-flex min-h-11 items-center gap-1.5 text-sm font-black tracking-tight text-navy">
               <PalAvatar pal="buyer" size={20} />
