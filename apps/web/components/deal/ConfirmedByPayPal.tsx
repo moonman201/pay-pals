@@ -12,6 +12,8 @@ interface Props {
    * pack, which prints our record in its own half of the page.
    */
   fallbackFields?: boolean;
+  /** Heading at part size, for the evidence pack where this block is one of the page's two halves. */
+  prominent?: boolean;
   children?: React.ReactNode;
 }
 
@@ -30,17 +32,19 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
  * rendered. Otherwise it names what we do have, and the values below it are
  * ours.
  */
-export function ConfirmedByPayPal({ result, payment, fallbackFields = true, children }: Props) {
+export function ConfirmedByPayPal({ result, payment, fallbackFields = true, prominent = false, children }: Props) {
   const described = describeRead(result);
   const example = result.kind === "example";
+  const headingSize = prominent ? "text-lg font-black tracking-tight" : "text-sm font-bold";
+  const noteSize = prominent ? "text-sm text-ink" : "text-xs text-muted";
   return (
     <section
       data-testid="paypal-confirmation"
       data-confirmed={described.confirmed ? "true" : "false"}
       className={`break-inside-avoid rounded-xl border p-4 ${described.confirmed ? "border-go-line bg-go-soft" : "border-line bg-wash"}`}
     >
-      <h3 className={`text-sm font-bold ${described.confirmed ? "text-go" : "text-ink"}`}>{described.heading}</h3>
-      <p className="mt-1 text-xs leading-relaxed text-muted">{described.note}</p>
+      <h3 className={`${headingSize} ${described.confirmed ? "text-go" : "text-navy"}`}>{described.heading}</h3>
+      <p className={`mt-1 leading-relaxed ${noteSize}`}>{described.note}</p>
       {result.kind === "confirmed" ? (
         <dl className="mt-3 grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
           <Field label="PayPal order">

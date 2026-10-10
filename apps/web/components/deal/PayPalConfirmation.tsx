@@ -16,16 +16,18 @@ export function PayPalConfirmation({
   dealId,
   events,
   fallbackFields = true,
+  prominent = false,
 }: {
   read: PayPalReadResult;
   payment: PaymentRecord;
   dealId: string;
   events: readonly DealEvent[];
   fallbackFields?: boolean;
+  prominent?: boolean;
 }) {
   const check = read.kind === "confirmed" ? checkOrderHistory(read.order.customId, dealId, events) : null;
   return (
-    <ConfirmedByPayPal result={read} payment={payment} fallbackFields={fallbackFields}>
+    <ConfirmedByPayPal result={read} payment={payment} fallbackFields={fallbackFields} prominent={prominent}>
       {check && read.kind === "confirmed" ? <OrderHistoryPanel check={check} events={events} orderId={read.order.orderId} /> : null}
     </ConfirmedByPayPal>
   );

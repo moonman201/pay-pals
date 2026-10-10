@@ -122,7 +122,7 @@ export function EvidencePackView({
         </Section>
 
         {pack.payment ? (
-          <PayPalConfirmation read={read} payment={pack.payment} dealId={pack.dealId} events={live} fallbackFields={false} />
+          <PayPalConfirmation read={read} payment={pack.payment} dealId={pack.dealId} events={live} fallbackFields={false} prominent />
         ) : (
           <Section title="Confirmed by PayPal">
             <p>No payment was made, so there is no PayPal order to read back.</p>
