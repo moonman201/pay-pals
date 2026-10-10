@@ -472,8 +472,9 @@ function serialProvenance(check: ArrivalCheck): string {
     case "description":
       return ` The serial ${serial} comes from the description filed with the photo, not from the picture, so it is the buyer's word and not a number the pal read.`;
     default:
-      // No source on the check, so no claim about one. The serial is still named.
-      return ` The pal reports the serial as ${serial}. The check does not record whether that was read off the picture.`;
+      // No source on the check, so no claim either way, and not even the words to deny one:
+      // the number is named and where it came from is left unsaid, because it is unknown.
+      return ` The pal reports the serial as ${serial}. This check does not record where that number came from.`;
   }
 }
 

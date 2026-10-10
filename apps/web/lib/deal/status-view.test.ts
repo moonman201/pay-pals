@@ -375,8 +375,9 @@ describe("the delivery", () => {
 
     // No source on the check: the number is named and no claim is made about where it came from.
     for (const unknown of [null, undefined] as const) {
-      expect(detailFor(unknown), String(unknown)).toContain("does not record whether that was read off the picture");
-      expect(detailFor(unknown), String(unknown)).not.toMatch(/was read off the picture of the item/);
+      expect(detailFor(unknown), String(unknown)).toContain("This check does not record where that number came from.");
+      // Not even the words to deny a read: with no source there is nothing to say either way.
+      expect(detailFor(unknown), String(unknown)).not.toMatch(/read .{0,20}off|off the (photo|picture|image)/i);
     }
   });
 

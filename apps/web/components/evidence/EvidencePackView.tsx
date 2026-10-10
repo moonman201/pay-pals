@@ -167,7 +167,19 @@ export function EvidencePackView({
           <p data-testid="history-anchor" data-anchor={anchorOf(pack.historyAnchor)}>
             {anchor.text}
           </p>
-          {pack.historyHash ? (
+          {/*
+            A separate fact from the anchor, not a second answer to it: the anchor says where the
+            hash stands, this says the deal is seeded demo data. Both can be true and a reader
+            needs both.
+          */}
+          {example ? <p className="mt-2">This is an example deal seeded from a scenario, so the payment ids are placeholders and no real order was ever created for it.</p> : null}
+          {/*
+            The verification is shown for a real deal only. On a seeded example both the events
+            and the hash are ours, so "the stored events reproduce this hash" is true and means
+            nothing: we wrote both sides of it. `example` suppresses a circular claim here; it is
+            not what decides the anchoring, which is pack.historyAnchor above.
+          */}
+          {pack.historyHash && !example ? (
             <>
               <p className="mt-2">The chain head recorded with the order, as it is written into custom_id:</p>
               <p className="mt-1 break-all font-mono text-xs">
@@ -185,7 +197,7 @@ export function EvidencePackView({
                 ) : null}
               </p>
             </>
-          ) : (
+          ) : pack.historyHash ? null : (
             <p className="mt-2">
               No hash was recorded with an order for this deal. Each stored event still carries the hash of the one before it, so the chain itself is intact.
             </p>
