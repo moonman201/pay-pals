@@ -6,7 +6,7 @@
  * markdown and no heading.
  */
 import type { EvidenceInput } from "@pay-pals/contracts";
-import { CONDITION_LABELS, historyMatchesHead } from "@pay-pals/contracts";
+import { CONDITION_LABELS, historyMatchesHead, verifyChain } from "@pay-pals/contracts";
 import type { ClaudeClient } from "../claude/client";
 import { callText } from "../claude/text-call";
 import { paragraphs, plainCopy } from "../copy";
@@ -68,20 +68,66 @@ export function deterministicSummary(input: EvidenceInput): string {
     arrival.push(`${arrivalPhotos.length} arrival photo${arrivalPhotos.length === 1 ? "" : "s"} taken by the buyer: ${arrivalPhotos.map((p) => p.whatItShows).join("; ")}.`);
   }
 
-  const history: Array<string | null> = [];
-  const head = payment?.historyHash ?? null;
-  if (head) {
-    const verified = historyMatchesHead(timeline, head);
-    history.push(
-      `Tamper check: the deal history hash recorded on the PayPal order at payment time is ${head}. The ${timeline.length} stored timeline events ${verified ? "reproduce that hash, so the history was not edited after payment" : "do not reproduce that hash, so the stored history differs from what PayPal holds"}.`,
-    );
-  }
+  const history: Array<string | null> = [tamperCheck(input)];
   const counts = messageCounts(messages);
   history.push(
     `${counts.shared} shared chat message${counts.shared === 1 ? "" : "s"}, ${counts.pal} pal message${counts.pal === 1 ? "" : "s"} and ${timeline.length} timeline event${timeline.length === 1 ? "" : "s"} are attached in full.`,
   );
 
   return paragraphs([[dealPart], [cardPart, certPart], review, [paymentPart], shipping, arrival, history], MAX_SUMMARY_LENGTH);
+}
+
+/**
+ * The tamper-check sentence. Deliberately the weakest of the three things it
+ * could say, because the input cannot yet tell those three apart.
+ *
+ * The three cases are:
+ *   1. a real PayPal order holds the hash and its copy was read back for this
+ *      pack and matches;
+ *   2. a real PayPal order holds it, but nothing read PayPal's copy for this
+ *      pack, so the check is against our own record of the hash;
+ *   3. no PayPal order holds it at all. A seeded example deal has placeholder
+ *      payment ids, so there is nothing on PayPal's side to compare against.
+ *
+ * `EvidenceInput` carries no way to tell them apart. `payment.historyHash` is
+ * our own stored copy with no provenance, nothing says whether a live read
+ * happened, and the only markers for a seeded deal are the `FIXTURE-` id
+ * prefix and the seed stamp, which are an apps/web convention rather than a
+ * contract. An optional `historyAnchor` field is proposed for exactly this;
+ * when it lands, case 1 gets its strong sentence back and the other two say
+ * what is actually true of them.
+ *
+ * Until then the sentence has to be true in all three at once, so it claims
+ * only what we can check on our own side: the stored events reproduce the hash
+ * we hold. It says nothing about PayPal's copy either way. In case 1 that is an
+ * understatement, which is the right direction to be wrong in. The sentence
+ * this replaced asserted PayPal corroboration in all three, and on the seeded
+ * empty-box pack it sat on the same page as a paragraph saying no PayPal order
+ * holds the head, which is the finding that prompted this.
+ *
+ * Returns null when there is no hash and no events, because then there is
+ * nothing to say rather than something weak to say.
+ */
+export function tamperCheck(input: EvidenceInput): string | null {
+  const { payment, timeline } = input;
+  const head = payment?.historyHash ?? null;
+  const events = `${timeline.length} stored timeline event${timeline.length === 1 ? "" : "s"}`;
+  const notChecked = "Whether PayPal's own copy of that hash matches has not been checked for this pack.";
+
+  // The hash ends its own short sentence: the evidence page prints 64 hex characters on a line of
+  // their own, so anything after one is left hanging there (see hashEndsItsSentence in copy.ts).
+  if (head) {
+    return historyMatchesHead(timeline, head)
+      ? `Tamper check: the ${events} are hash-chained and reproduce the hash recorded with this payment, so an edit to them would break the chain. ${notChecked} The hash is ${head}.`
+      : `Tamper check: the ${events} do not reproduce the hash recorded with this payment. The stored history has been changed since that hash was taken, or it is not the history that hash was taken from. ${notChecked} The hash is ${head}.`;
+  }
+
+  // No hash to compare against, so the only honest statement is about the chain itself.
+  if (timeline.length === 0) return null;
+  const chain = verifyChain(timeline);
+  return chain.ok
+    ? `Tamper check: no payment carries a history hash for this deal, so there is nothing on PayPal's side to compare against. The ${events} are hash-chained and internally consistent, so an edit to them would break the chain.`
+    : `Tamper check: no payment carries a history hash for this deal, so there is nothing on PayPal's side to compare against. The ${events} do not form an unbroken chain: the first break is at event ${(chain.brokenAt ?? 0) + 1}.`;
 }
 
 /** Messages on the shared deal channel versus the two private pal channels. */
@@ -114,7 +160,10 @@ const SYSTEM = [
   "Plain words, short sentences, no em dashes, no exclamation marks, no opinion about who is at fault. Never write the words verified or authentic: say what a check showed and what it did not show.",
   "A matching serial or grading cert supports what the item card says. It never proves who owns the item and it never proves the item is authentic.",
   "This pack is useful context for whoever reviews the dispute. Never say it guarantees or makes likely any outcome, and never say a refund or a dispute requires it.",
-  "The deal history hash recorded on the PayPal order is the official record of the deal that PayPal can check first. Say whether the stored events reproduce it, and nothing more about what it entitles anyone to.",
+  // Conditioned with the deterministic sentence above it. Telling the model PayPal holds the hash
+  // would put the claim back in prose after the facts had carefully stopped making it.
+  "The deal history is hash-chained, so an edit to a stored event breaks the chain. Say whether the stored events reproduce the hash in the facts, and nothing more about what that entitles anyone to.",
+  "Do not say that PayPal holds, confirms or corroborates the hash, and do not say the history was not edited after payment. The facts you are given say whether our own stored events reproduce it; whether PayPal's copy matches was not checked. Repeat that limit rather than writing around it.",
   "Put the 64-character history hash at the end of its sentence, with a full stop after it and nothing else. The page prints a hash on a line of its own, so a comma or more words after it are left hanging there.",
 ].join("\n");
 

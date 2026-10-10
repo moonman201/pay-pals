@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { EvidenceInput } from "@pay-pals/contracts";
 import { EMPTY_BOX_LOCKED_SERIAL, cleanPs5, emptyBox } from "@pay-pals/contracts";
 import { fakeClaude } from "../testing/fake-claude";
-import { dropHeadingLine, deterministicSummary, writeSummary } from "./summary";
+import { dropHeadingLine, deterministicSummary, tamperCheck, writeSummary } from "./summary";
 
 const input = (fixture: typeof emptyBox): EvidenceInput => ({
   deal: fixture.deal,
@@ -23,6 +23,80 @@ function proseClient(text: string) {
   client.messages.create = async () => ({ content: [{ type: "text", text }], stop_reason: "end_turn" }) as never;
   return client;
 }
+
+/**
+ * The tamper check. Until EvidenceInput can tell a corroborated hash from an
+ * unread one from a deal with no PayPal order behind it, the sentence claims
+ * only what we can check on our own side. These tests pin that it never
+ * reaches for PayPal in any of its forms, because the overclaim this replaced
+ * sat on the seeded empty-box pack one paragraph away from a line saying no
+ * PayPal order holds the head.
+ */
+describe("the tamper check never claims PayPal corroborated anything", () => {
+  // A real head from the chain, so historyMatchesHead actually verifies.
+  const head = emptyBox.timeline.find((e) => e.kind === "payment_created")!.hash;
+  const withHash = (): EvidenceInput => ({ ...input(emptyBox), payment: { ...emptyBox.payment!, historyHash: head } });
+
+  /** Phrases that assert PayPal's side, none of which the input can support today. */
+  const PAYPAL_CLAIMS = [/\bnot edited after payment\b/i, /PayPal (?:holds|confirms|corroborates|has)\b/i, /\brecorded on the PayPal order\b/i, /what PayPal holds/i];
+
+  it("says the chain reproduces our own hash, and says PayPal's copy was not checked", () => {
+    const sentence = tamperCheck(withHash())!;
+    expect(sentence).toContain("are hash-chained and reproduce the hash recorded with this payment");
+    expect(sentence).toContain("an edit to them would break the chain");
+    expect(sentence).toContain("Whether PayPal's own copy of that hash matches has not been checked for this pack.");
+    expect(sentence.trimEnd().endsWith(`The hash is ${head}.`)).toBe(true);
+    for (const claim of PAYPAL_CLAIMS) expect(sentence).not.toMatch(claim);
+  });
+
+  it("says the chain is broken without reaching for PayPal either way", () => {
+    const sentence = tamperCheck({ ...input(emptyBox), payment: { ...emptyBox.payment!, historyHash: "a".repeat(64) } })!;
+    expect(sentence).toContain("do not reproduce the hash recorded with this payment");
+    expect(sentence).toContain("has been changed since that hash was taken");
+    expect(sentence).toContain("has not been checked for this pack");
+    for (const claim of PAYPAL_CLAIMS) expect(sentence).not.toMatch(claim);
+  });
+
+  it("with no hash at all, says there is nothing on PayPal's side to compare against", () => {
+    const sentence = tamperCheck({ ...input(emptyBox), payment: null })!;
+    expect(sentence).toContain("no payment carries a history hash for this deal");
+    expect(sentence).toContain("nothing on PayPal's side to compare against");
+    expect(sentence).toContain("hash-chained and internally consistent");
+    for (const claim of PAYPAL_CLAIMS) expect(sentence).not.toMatch(claim);
+  });
+
+  it("says nothing rather than something weak when there is no hash and no history", () => {
+    expect(tamperCheck({ ...input(emptyBox), payment: null, timeline: [] })).toBeNull();
+  });
+
+  it("names the broken link when there is no hash and the chain itself does not hold", () => {
+    const edited = emptyBox.timeline.map((e, i) => (i === 2 ? { ...e, summary: "edited after the fact" } : e));
+    const sentence = tamperCheck({ ...input(emptyBox), payment: null, timeline: edited })!;
+    expect(sentence).toContain("do not form an unbroken chain");
+    expect(sentence).toContain("the first break is at event 3");
+  });
+
+  it("keeps the claim out of the model's prose too, not just the facts", async () => {
+    let system = "";
+    const client = fakeClaude((params) => {
+      system = String(params.system);
+      return null;
+    });
+    client.messages.create = async (params) => {
+      system = String(params.system);
+      return { content: [{ type: "text", text: "A summary." }], stop_reason: "end_turn" } as never;
+    };
+    await writeSummary(withHash(), client);
+    expect(system).toContain("Do not say that PayPal holds, confirms or corroborates the hash");
+    expect(system).toContain("do not say the history was not edited after payment");
+    expect(system).not.toContain("official record of the deal that PayPal can check first");
+  });
+
+  it("the seeded empty-box pack no longer contradicts itself about who holds the hash", () => {
+    const summary = deterministicSummary(withHash());
+    for (const claim of PAYPAL_CLAIMS) expect(summary).not.toMatch(claim);
+  });
+});
 
 describe("deterministicSummary shape", () => {
   it("comes out as short paragraphs in a fixed order, with no markdown", () => {
@@ -91,7 +165,7 @@ describe("writeSummary with a model", () => {
     const head = "7c".repeat(32);
     const withHash: EvidenceInput = { ...input(emptyBox), payment: { ...emptyBox.payment!, historyHash: head } };
     // The deterministic summary already puts the hash at the end of its sentence.
-    expect(deterministicSummary(withHash)).toContain(`at payment time is ${head}.`);
+    expect(deterministicSummary(withHash)).toContain(`The hash is ${head}.`);
     // A model that writes it inline gets it moved, because the page prints a hash on its own line.
     const prose = `A tamper check compared the deal history hash recorded on the PayPal order at payment time, ${head}, against the 20 stored timeline events.`;
     const summary = await writeSummary(withHash, proseClient(prose));

@@ -63,10 +63,12 @@ export async function buildEvidencePack(input: EvidenceInput, options?: Evidence
     input.payment ? `PayPal order ${input.payment.paypalOrderId},` : "no PayPal order,",
     input.shipment ? `${input.shipment.carrier} tracking ${input.shipment.trackingNumber},` : "no shipment,",
     input.arrivalCheck ? `and the arrival check (${input.arrivalCheck.matches ? "matched" : "did not match"}).` : "and the full timeline.",
+    // Same limit as the tamper sentence in summary.ts, from the same input: we can say our own
+    // stored events reproduce the hash we hold, and not that PayPal's copy was compared with it.
     history
       ? history.historyVerified
-        ? "The deal history hash recorded on the PayPal order matches the stored events, so this is the official record of the deal that PayPal can check first."
-        : "The stored events do not reproduce the history hash on the PayPal order, so the stored history differs from what PayPal holds."
+        ? "The stored events are hash-chained and reproduce the hash recorded with this payment, so an edit to them would break the chain. Whether PayPal's copy of that hash matches has not been checked for this pack."
+        : "The stored events do not reproduce the hash recorded with this payment, so the history has changed since that hash was taken."
       : null,
     unanswered.length > 0 ? `The seller never answered ${unanswered.length === 1 ? "one question" : `${unanswered.length} questions`} the Buyer Pal asked before payment.` : null,
     shipmentFlags.length > 0 ? "The seller shipped without the required packing photo." : null,
