@@ -434,17 +434,31 @@ describe("BuyerPal.checkArrival", () => {
     expect(missing).toContain("2 of the 2 arrival photos could not be loaded, so this check used the photo descriptions for those.");
   });
 
-  it("clean-ps5: matches true with the serial confirmed on the item, from captions and from vision", async () => {
+  /**
+   * Corrected on 2026-10-10. This test used to assert that the offline path
+   * also says "confirmed on the item itself". That expectation was wrong, not
+   * the code: with no model nothing is read, the number comes out of the
+   * caption in clean-ps5.ts, and the pal was claiming to have seen something
+   * it had not. Only the vision path may say confirmed.
+   */
+  it("clean-ps5: matches true, and only the vision path calls the serial confirmed on the item", async () => {
     const offline = await createBuyerPal({ anthropic: null, priceLookup }).checkArrival(cleanPs5.cards.at(-1)!, cleanPs5.arrivalPhotos);
     expect(offline.data.matches).toBe(true);
     expect(offline.data.observed.serial).toBe(CLEAN_SERIAL);
-    expect(offline.palMessage).toContain("confirmed on the item itself");
+    expect(offline.palMessage).not.toContain("confirmed on the item itself");
+    expect(offline.palMessage).toContain("comes from the description filed with the photo");
+    expect(offline.palMessage).toContain("the buyer's word");
+    // The disclosure and the claim have to agree: it says it did not look, so it may not say it saw.
+    expect(offline.palMessage).toContain("used the arrival photo's description");
+    expect(offline.data.reasoning!.found.join(" ")).toContain("That is the buyer's word, not a number I read off the picture.");
+    expect(offline.data.reasoning!.couldNotVerify.join(" ")).toContain("I did not read that serial off the picture myself.");
 
     const model = fakeClaude(() => ({ brand: "Sony", model: "PlayStation 5", serial: CLEAN_SERIAL, serial_on: "item", item_present: true }));
     const vision = await createBuyerPal({ anthropic: model, priceLookup, fetchImage: async () => asFetched(pictureA()), photoBaseUrl: "https://pay-pals.example" }).checkArrival(cleanPs5.cards.at(-1)!, cleanPs5.arrivalPhotos);
     expect(vision.data.matches).toBe(true);
     expect(vision.palMessage).toContain("I looked at the arrival photo.");
     expect(vision.palMessage).toContain(`Serial ${CLEAN_SERIAL} confirmed on the item itself.`);
+    expect(vision.data.reasoning!.found.join(" ")).toContain(`I read ${CLEAN_SERIAL} off the item itself in the arrival photo.`);
   });
 
   it("a box label alone never satisfies the item serial, even when it matches the card", async () => {
