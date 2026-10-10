@@ -86,6 +86,30 @@ describe("the words", () => {
     expect(offPlatformNotice("AGREED")).toMatch(/Pay Pals closed its part of the deal here/);
   });
 
+  it("says no order was created only when none was", () => {
+    expect(offPlatformNotice("CANCELLED")).toContain("Pay Pals created no order, is not handling your payment, and has no record of it.");
+    expect(offPlatformNotice("BLOCKED", null)).toContain("created no order");
+  });
+
+  it("never says no order was created when one exists, and names it", () => {
+    // The PAYMENT_PENDING path: the buyer pressed Pay, an order exists, and then chose to pay another way.
+    const notice = offPlatformNotice("CANCELLED", "DEMO-A89AFF30");
+    expect(notice).not.toMatch(/created no order/);
+    expect(notice).toContain("Pay Pals had already created PayPal order DEMO-A89AFF30 for this deal.");
+    expect(notice).toMatch(/will not capture it, so no money moves through that order/);
+    expect(notice).toMatch(/not handling the payment you make elsewhere/);
+  });
+
+  it("keeps Matt's sentence and the rest of the notice either way", () => {
+    for (const orderId of [null, "2NW245573K1279237"]) {
+      const notice = offPlatformNotice("CANCELLED", orderId);
+      expect(notice, String(orderId)).toContain(ON_YOUR_OWN);
+      expect(notice, String(orderId)).toMatch(/^You chose to pay outside PayPal Goods and Services\./);
+      expect(notice, String(orderId)).toMatch(/Everything your pal checked is still on this page\.$/);
+      expect(notice, String(orderId)).not.toContain("—");
+    }
+  });
+
   it("labels the control with what it does, not with a nudge either way", () => {
     expect(OFF_PLATFORM_BUTTON).toBe("I will pay another way");
     expect(OFF_PLATFORM_CONFIRM_BUTTON).toBe("Yes, record it and step back");

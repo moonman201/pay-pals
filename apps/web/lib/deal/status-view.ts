@@ -472,12 +472,25 @@ function deliveryGroup(input: StatusInput): StatusGroup {
   if (!check) {
     items.push({ id: "arrival-check", label: "Arrival check against the locked card", status: "missing", detail: "No arrival check on record." });
   } else if (check.matches) {
-    const read = [check.observed.brand, check.observed.model, check.observed.serial].filter(Boolean).join(", ");
+    /*
+      This line used to name the serial and say where the pal got it. The clause is gone, and
+      its absence is deliberate rather than an omission.
+
+      ArrivalCheck.observed carries the serial with no provenance, so this file cannot tell a
+      number the pal read off a picture from one it lifted out of the photo's description. In
+      demo-only mode, which the e2e suite and the public demo both pin, it is the description,
+      and the pal's own "could not check" line two rows below says so. A status line that
+      contradicts the reason block above it is worse than an under-stated one, so this says only
+      what it can defend from what it has: what was compared, against which card version.
+
+      The Lead has proposed `observed.serialSource?: "photo" | "description" | null` to Matt. If
+      that lands, read it and say where the number came from. Do not infer it from anything else.
+    */
     items.push({
       id: "arrival-check",
       label: "Arrival check against the locked card",
       status: "verified",
-      detail: `The Buyer Pal compared the arrival photos with locked card version ${check.cardVersion} and read ${read || "the item"} off them: the same item the card describes.`,
+      detail: `The Buyer Pal compared the arrival photos against locked card version ${check.cardVersion} and found no difference from the item the card describes.`,
     });
   } else {
     items.push({

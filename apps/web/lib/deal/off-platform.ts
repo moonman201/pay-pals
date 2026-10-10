@@ -56,11 +56,30 @@ export const OFF_PLATFORM_SUMMARY = `The buyer said they will pay outside PayPal
 /** The pal's own line in the buyer's pane. No scolding. */
 export const OFF_PLATFORM_PAL_LINE = `Understood. I am not handling that payment and I will not see it, so ${ON_YOUR_OWN.charAt(0).toLowerCase()}${ON_YOUR_OWN.slice(1)} Everything I checked stays on this page, and the item card and my review are yours to keep.`;
 
-/** What the room says once the choice is made. */
-export function offPlatformNotice(state: DealState): string {
+/**
+ * What the room says once the choice is made.
+ *
+ * The choice is offered from PAYMENT_PENDING, where an order already exists,
+ * and the notice used to say "Pay Pals created no order" in that case too,
+ * while the status view five lines below named the order id and the timeline
+ * said when it was created. True of three of the four states, false of the
+ * one with a real order sitting in it. So the notice takes the order id and
+ * says which of the two happened.
+ */
+export function offPlatformNotice(state: DealState, orderId: string | null = null): string {
   const ending = isTerminal(state) && state !== "CANCELLED" ? "This deal was already closed before that." : "Pay Pals closed its part of the deal here.";
-  return `You chose to pay outside PayPal Goods and Services. ${ending} Pay Pals created no order, is not handling your payment, and has no record of it. ${ON_YOUR_OWN} Everything your pal checked is still on this page.`;
+  const order = orderId
+    ? `Pay Pals had already created PayPal order ${orderId} for this deal. It will not capture it, so no money moves through that order, and it is not handling the payment you make elsewhere.`
+    : "Pay Pals created no order, is not handling your payment, and has no record of it.";
+  return `You chose to pay outside PayPal Goods and Services. ${ending} ${order} ${ON_YOUR_OWN} Everything your pal checked is still on this page.`;
 }
 
 /** Said when something tries to create an order on a deal that went off platform. */
 export const OFF_PLATFORM_ORDER_REFUSED = "This deal was taken off Pay Pals: the buyer chose to pay another way, so Pay Pals will not create an order for it.";
+
+/**
+ * Said when something tries to capture one. An order can already exist when
+ * the choice is made from PAYMENT_PENDING, so this is the guard that stops
+ * money moving through it afterwards.
+ */
+export const OFF_PLATFORM_CAPTURE_REFUSED = "This deal was taken off Pay Pals: the buyer chose to pay another way, so Pay Pals will not capture an order for it.";
