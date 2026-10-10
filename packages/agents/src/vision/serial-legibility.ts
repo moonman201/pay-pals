@@ -44,6 +44,19 @@
  * reads from bad ones. On the box label the model named an unresolved character
  * in roughly three runs in four, whether or not it had read the number right,
  * so gating on it threw away good reads without catching bad ones.
+ *
+ * What this gate does not cover, noted by reality-check on 2026-10-10. It only
+ * sees answers that arrive. When the model returns no tool call at all,
+ * readPhoto never reaches judgeSerial: it falls back to fromDescription, and
+ * the serial then comes from the caption through serialFromText. On the wide
+ * shot that path happened once in eight runs and was still safe, but the safety
+ * came from the caption, which happens to say the sticker is too small to read.
+ * A caption naming a number would have produced one on that run. So the
+ * guarantee is "a serial the model transcribed off a photo it called small or
+ * soft is discarded", not "an unreadable sticker can never yield a number". The
+ * caption path is a different claim with its own provenance: see arrival.ts,
+ * which says plainly when a number came from a description rather than a
+ * picture, because a caption is the uploader's word rather than something read.
  */
 
 /**

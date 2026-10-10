@@ -99,14 +99,19 @@ describe("buildEvidencePack", () => {
     const verified = await buildEvidencePack({ ...input, payment: { ...input.payment!, historyHash: paidEvent.hash } }, { anthropic: null });
     expect(verified.data.historyHash).toBe(paidEvent.hash);
     expect(verified.data.historyVerified).toBe(true);
-    expect(verified.data.summary).toContain(`recorded on the PayPal order at payment time is ${paidEvent.hash}`);
-    expect(verified.data.summary).toContain("reproduce that hash");
-    expect(verified.palMessage).toContain("history hash recorded on the PayPal order matches the stored events, so this is the official record of the deal that PayPal can check first");
+    // Corrected on 2026-10-10 with the tamper sentence itself. These assertions used to require the
+    // pack to say PayPal's record corroborated the hash, which nothing on EvidenceInput can support.
+    expect(verified.data.summary).toContain(`The hash is ${paidEvent.hash}.`);
+    expect(verified.data.summary).toContain("reproduce the hash recorded with this payment");
+    expect(verified.data.summary).toContain("has not been checked for this pack");
+    expect(verified.palMessage).toContain("Whether PayPal's copy of that hash matches has not been checked for this pack.");
+    expect(verified.palMessage).not.toContain("official record of the deal that PayPal can check first");
     expect(EvidencePackSchema.safeParse(verified.data).success).toBe(true);
 
     const tampered = await buildEvidencePack({ ...input, payment: { ...input.payment!, historyHash: "a".repeat(64) } }, { anthropic: null });
     expect(tampered.data.historyVerified).toBe(false);
-    expect(tampered.data.summary).toContain("do not reproduce that hash");
+    expect(tampered.data.summary).toContain("do not reproduce the hash recorded with this payment");
+    expect(tampered.palMessage).not.toContain("what PayPal holds");
 
     const none = await buildEvidencePack({ ...input, payment: { ...input.payment!, historyHash: null } }, { anthropic: null });
     expect(none.data.historyHash).toBeUndefined();
