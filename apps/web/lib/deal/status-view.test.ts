@@ -348,23 +348,52 @@ describe("the delivery", () => {
     expect(line.detail).toMatch(/compared the arrival photos against/);
   });
 
-  it("never says where the serial came from, because the arrival check does not carry that", () => {
-    // In demo-only mode the number comes out of the photo's description, not out of the picture,
-    // and the pal's own "could not check" line on the same page says so. This line must not
-    // contradict it. Drop the guard only when observed carries a source and this reads it.
+  it("says where the serial came from, from observed.serialSource and nowhere else", () => {
+    const base = {
+      dealId: cleanPs5.deal.id,
+      cardVersion: lockedCard.version,
+      matches: true,
+      mismatches: [],
+      palMessage: "It is the same console.",
+      createdAt: "2026-10-09T12:30:00.000Z",
+    };
+    const detailFor = (serialSource: "photo" | "description" | null | undefined) =>
+      item(
+        dealStatusView(input({ arrivalCheck: { ...base, observed: { brand: "Sony", model: "PlayStation 5", serial: "AJ164952580", serialSource } } })),
+        "delivery",
+        "arrival-check",
+      ).detail;
+
+    // Read off the picture: the pal saw it, so the line may say so.
+    expect(detailFor("photo")).toContain("Serial AJ164952580 was read off the picture of the item itself.");
+
+    // Out of the caption: the buyer's word, in the same terms the pal uses for it.
+    const described = detailFor("description");
+    expect(described).toContain("comes from the description filed with the photo, not from the picture");
+    expect(described).toContain("the buyer's word and not a number the pal read");
+    expect(described).not.toMatch(/read off the picture of the item/);
+
+    // No source on the check: the number is named and no claim is made about where it came from.
+    for (const unknown of [null, undefined] as const) {
+      expect(detailFor(unknown), String(unknown)).toContain("does not record whether that was read off the picture");
+      expect(detailFor(unknown), String(unknown)).not.toMatch(/was read off the picture of the item/);
+    }
+  });
+
+  it("names no serial when the check carries none", () => {
     const check = {
       dealId: cleanPs5.deal.id,
       cardVersion: lockedCard.version,
       matches: true,
       mismatches: [],
-      observed: { brand: "Sony", model: "PlayStation 5", serial: "AJ164952580" },
-      palMessage: "It is the same console.",
+      observed: { brand: "Sony", model: "PlayStation 5", serial: null, serialSource: null },
+      palMessage: "Nothing contradicts the card.",
       createdAt: "2026-10-09T12:30:00.000Z",
     };
     const line = item(dealStatusView(input({ arrivalCheck: check })), "delivery", "arrival-check");
-    expect(line.detail).not.toMatch(/read .{0,30}off (them|it|the)/i);
-    expect(line.detail).not.toContain("AJ164952580");
-    expect(line.detail.toLowerCase()).not.toMatch(/\bread\b/);
+    expect(line.detail).toBe(
+      `The Buyer Pal compared the arrival photos against locked card version ${lockedCard.version} and found no difference from the item the card describes.`,
+    );
   });
 
   it("does not verify an arrival check that found a difference, and names it", () => {
