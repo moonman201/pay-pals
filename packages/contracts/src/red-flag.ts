@@ -13,7 +13,7 @@ export const RED_FLAG_CODES = [
   "STOCK_OR_REUSED_PHOTO",
   "MISSING_SERIAL",
   "SHIP_BEFORE_PAY_TRICK",
-  /** The seller refused the Pay Pals invite and wants Friends and Family or another unprotected method. The strongest sign. */
+  /** The seller refused the Pay Pals invite and wants Friends and Family or another unprotected method. A risk signal, not proof of fraud. */
   "INVITE_REFUSED",
   /** The grading certificate on the card does not match the grader's record (or does not exist). */
   "CERT_MISMATCH",

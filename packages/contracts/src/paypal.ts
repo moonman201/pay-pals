@@ -71,7 +71,7 @@ export interface WebhookEvent {
 }
 
 export interface CreateOrderOptions {
-  /** Head of the deal's event hash chain. Written into custom_id so PayPal's record proves the history. */
+  /** Head of the deal's event hash chain. Written into custom_id, so PayPal's own record of the order shows the history was not edited after the order was created. */
   historyHash?: string | null;
 }
 

@@ -9,7 +9,9 @@ The first build day proved the mechanics: real PayPal sandbox orders to the sell
 
 1. **The buyer starts the deal.** The entry point is a payment screen: the buyer taps "Use Pay Pals Protection," enters the seller's PayPal email and the listing link. The seller receives an invite link, joins and uploads photos. Seller-started deals remain, as the secondary path. A new state `INVITED` sits between DRAFT and LISTED. v1 shows the invite link for the buyer to send; email delivery is a stretch.
 
-2. **Refusing the invite is the strongest scam sign.** A seller who will not use Pay Pals and insists on Friends and Family or another unprotected method raises `INVITE_REFUSED`, a payment-method flag: stop, no override, deal BLOCKED. The Buyer Pal can review a refusal with no card at all; it then runs only the chat rules.
+2. **Refusing the invite is a risk signal.** A seller who will not use Pay Pals and insists on Friends and Family or another unprotected method raises `INVITE_REFUSED`, a payment-method flag: stop, no override, deal BLOCKED. The Buyer Pal can review a refusal with no card at all; it then runs only the chat rules.
+
+   *Amended 2026-10-10 (Matt).* This decision was written as "the strongest scam sign" and the wording is withdrawn. A refusal is a risk signal. It is not proof of fraud, and plenty of honest sellers refuse a tool they have never heard of. What the refusal does is end the path through Pay Pals, because Pay Pals only ever creates a Goods and Services payment. The block is on our payment path, not a finding about the person.
 
 3. **Graded items are checked with the grader.** `ItemCard.certNumber` and `grade` carry the slab label. The Buyer Pal looks the cert up with PSA's public API (token `PSA_API_TOKEN`, disk-cached so tests never call it) and compares subject and grade with the card. A mismatch or a missing record is `CERT_MISMATCH`, stop. The verdict carries the grader's record.
 

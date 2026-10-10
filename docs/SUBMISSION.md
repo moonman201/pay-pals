@@ -9,7 +9,7 @@ Deadline Thu Nov 12, 2026, 12:00 PM Pacific. Target: submit Wed Nov 11. Facts fr
 - [x] Claude runs both pals; Channel3 answers the price check live.
 - [x] Postgres on Neon, migrations bundled, state survives restarts.
 - [x] Two-sided agreement; payment-method flags are a hard block; other flags overridable with a warning.
-- [x] Buyer-first entry with a seller invite; a refusal is the strongest stop.
+- [x] Buyer-first entry with a seller invite; a refusal is a risk signal and a hard block on paying through Pay Pals.
 - [x] PSA cert check for graded items (live call pending `PSA_API_TOKEN`).
 - [x] Tamper-evident history: hash chain anchored in the PayPal order, verified on the evidence page.
 - [x] Scenario 3 ship-time check: unanswered questions and the missing packing photo called out in the evidence pack.
