@@ -1,10 +1,10 @@
 /**
  * Scenario 1: a stolen photo, stopped. Buyer-started.
  *
- * Someone copied a real listing photo of a graded card and put it up again at
- * a fraction of what the card sells for. The cert on the label is real and it
- * does match the card in the picture, which is the point: a real cert proves
- * the slab exists somewhere, not that this seller is holding it. The Buyer Pal
+ * Someone copied a real listing photo of a graded card and put it up again as
+ * their own. The cert on the label is real and it does match the card in the
+ * picture, which is the point: a matching cert supports the listing, it does
+ * not show who is holding the slab. The Buyer Pal
  * asks for the one photo a real owner can take in ten seconds and a photo
  * thief cannot, the slab next to a note with the seller's name and today's
  * date. The seller talks around it, pushes Friends and Family and sets a
@@ -39,7 +39,7 @@ export const fakeSlab: ScenarioFixture = {
   id: "fake-slab",
   name: "Stolen photo stopped",
   summary:
-    "A graded Pokemon card that sells for about $400 is listed at $140, with a photo lifted from someone else's listing. The cert on the label is real and matches the card, which proves the slab exists, not that this seller has it. The Buyer Pal asks for the slab next to a note with the seller's name and today's date. He will not take it.",
+    "The listing photo was lifted from someone else's listing. The cert on the label is real and matches the card in the picture, which supports the listing but does not show who is holding the slab. The Buyer Pal asks for the slab next to a note with the seller's name and today's date. He will not take it, he pushes Friends and Family, and he sets a deadline.",
   seller,
   buyer,
   deal: {
