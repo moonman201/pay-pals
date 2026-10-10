@@ -119,7 +119,21 @@ export function DealRoom({ snapshot, role }: { snapshot: DealSnapshot; role: Rol
               cardGrade={currentCard?.grade ?? null}
             />
           ) : null}
-          {snapshot.payment ? <PaymentSummary payment={snapshot.payment} /> : null}
+          {snapshot.payment ? (
+            <PaymentSummary
+              payment={snapshot.payment}
+              read={snapshot.paypalRead}
+              record={{
+                cards: snapshot.cards,
+                lockedVersion: deal.lockedCardVersion,
+                messages: snapshot.messages,
+                verdicts: snapshot.verdicts,
+                arrivalCheck: snapshot.arrivalCheck,
+                shipment: snapshot.shipment,
+                method: snapshot.payment.method,
+              }}
+            />
+          ) : null}
           {snapshot.shipment ? <ShipmentSummary shipment={snapshot.shipment} /> : null}
           {snapshot.arrivalCheck ? <ArrivalResult check={snapshot.arrivalCheck} lockedCard={snapshot.lockedCard} /> : null}
 

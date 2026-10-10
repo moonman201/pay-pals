@@ -1,6 +1,7 @@
 import { chainEvents, emptyBox, type EvidencePack } from "@pay-pals/contracts";
 import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
+import { readOrderFields } from "@/lib/deal/paypal-confirmation";
 import { EvidencePackView, messageCounts, summaryParts } from "./EvidencePackView";
 
 const firstCard = emptyBox.cards[0];
@@ -111,21 +112,37 @@ describe("EvidencePackView", () => {
 
   it("on a seeded example deal (fixture order id), labels it and never claims PayPal holds the hash", () => {
     const head = emptyBox.timeline.find((e) => e.kind === "payment_created")!.hash;
-    render(<EvidencePackView pack={pack({ historyHash: head, historyVerified: true, payment: emptyBox.payment })} deal={emptyBox.deal} role="buyer" />);
+    render(<EvidencePackView pack={pack({ historyHash: head, historyVerified: true, payment: emptyBox.payment })} deal={emptyBox.deal} role="buyer" read={{ kind: "example" }} />);
     expect(screen.getAllByText("Example deal, seeded from a scenario").length).toBeGreaterThan(0);
     expect(screen.getAllByTestId("history-badge")[0]).toHaveTextContent(/example deal, no PayPal order/);
     expect(screen.queryByText(/PayPal's own record holds it/)).not.toBeInTheDocument();
-    expect(screen.getByText(/Example order id FIXTURE-ORDER/)).toBeInTheDocument();
+    expect(screen.getByText(new RegExp(`Example order id ${emptyBox.payment!.paypalOrderId}`))).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Confirmed by PayPal" })).not.toBeInTheDocument();
     expect(screen.getByText(/no PayPal order holds the head/)).toBeInTheDocument();
   });
 
-  it("a real deal keeps the verified claim and the plain order label", () => {
+  it("a real deal keeps the verified claim, and a live read earns the Confirmed by PayPal heading", () => {
     const head = emptyBox.timeline.find((e) => e.kind === "payment_created")!.hash;
     const realTimeline = emptyBox.timeline.map((e) => (e.kind === "deal_created" ? { ...e, data: undefined } : e));
-    render(<EvidencePackView pack={pack({ historyHash: head, payment: realPayment, timeline: realTimeline })} deal={emptyBox.deal} role="buyer" />);
+    render(
+      <EvidencePackView
+        pack={pack({ historyHash: head, payment: realPayment, timeline: realTimeline })}
+        deal={emptyBox.deal}
+        role="buyer"
+        read={{ kind: "confirmed", order: readOrderFields({ id: "2NW245573K1279237", status: "COMPLETED" }) }}
+      />,
+    );
     expect(screen.queryByText("Example deal, seeded from a scenario")).not.toBeInTheDocument();
     expect(screen.getByText(/PayPal's own record holds it/)).toBeInTheDocument();
-    expect(screen.getByText(/Order 2NW245573K1279237/)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Confirmed by PayPal" })).toBeInTheDocument();
+    expect(screen.getByText("2NW245573K1279237")).toBeInTheDocument();
+  });
+
+  it("keeps the two halves labelled, and never claims a confirmation when no read is passed", () => {
+    render(<EvidencePackView pack={pack()} deal={emptyBox.deal} role="buyer" />);
+    expect(screen.queryByRole("heading", { name: "Confirmed by PayPal" })).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Recorded by Pay Pals" })).toBeInTheDocument();
+    expect(screen.getByText(/could not read this order back from PayPal/)).toBeInTheDocument();
   });
 
   it("shows the market line per review and never a zero range", () => {

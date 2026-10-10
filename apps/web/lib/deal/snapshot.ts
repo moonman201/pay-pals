@@ -9,6 +9,8 @@ import { fixtureById } from "../scenarios";
 import { palChannel, type Role } from "../role";
 import type { Services } from "../services";
 import { notFound } from "./errors";
+import type { PayPalReadResult } from "./paypal-confirmation";
+import { readPayPalOrder } from "./paypal-read";
 import { absoluteCard } from "./photo-urls";
 
 export interface DemoHints {
@@ -25,9 +27,17 @@ export interface DealSnapshot {
   lockedCard: ItemCard | null;
   messages: Message[];
   events: DealEvent[];
+  /** Every review on record, oldest first. The before-and-after view reads the last two. */
+  verdicts: Verdict[];
+  /** The latest review, which is the last of `verdicts`. */
   verdict: Verdict | null;
   arrivalCheck: ArrivalCheck | null;
   payment: PaymentRecord | null;
+  /**
+   * The live GET order from PayPal, done while this snapshot was built. The
+   * only thing "Confirmed by PayPal" may sit over.
+   */
+  paypalRead: PayPalReadResult;
   shipment: Shipment | null;
   hasEvidence: boolean;
   /** Seller Pal's packing list, present once the deal is paid. */
@@ -92,6 +102,8 @@ export async function loadSnapshot(services: Services, dealId: string): Promise<
   const currentCard = cards.find((c) => c.version === deal.currentCardVersion) ?? null;
   const lockedCard = deal.lockedCardVersion ? (cards.find((c) => c.version === deal.lockedCardVersion) ?? null) : null;
   const verdict = verdicts.length > 0 ? (verdicts[verdicts.length - 1] ?? null) : null;
+  // One live GET order per render, so the payment panel can say what PayPal confirms rather than what we stored.
+  const paypalRead = await readPayPalOrder(services.paypal, payment, services.modes.paypal);
 
   let checklist: ChecklistItem[] | null = shipment?.checklist ?? null;
   let checklistMessage: string | null = null;
@@ -113,9 +125,11 @@ export async function loadSnapshot(services: Services, dealId: string): Promise<
     lockedCard,
     messages: [...messages].sort((a, b) => a.at.localeCompare(b.at)),
     events,
+    verdicts: [...verdicts],
     verdict,
     arrivalCheck,
     payment,
+    paypalRead,
     shipment,
     hasEvidence: evidence !== null,
     checklist,

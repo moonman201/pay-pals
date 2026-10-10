@@ -4,9 +4,12 @@ import { historyStatus } from "@/lib/deal/history-status";
 import { priceRangeLine, priceSourceNote } from "@/lib/deal/price-copy";
 import { summariseSources } from "@/lib/deal/price-sources";
 import { isExampleDeal } from "@/lib/deal/snapshot";
+import type { PayPalReadResult } from "@/lib/deal/paypal-confirmation";
+import { ConfirmedByPayPal } from "../deal/ConfirmedByPayPal";
 import { FlagEvidence } from "../deal/FlagEvidence";
 import { HistoryBadge } from "../deal/HistoryBadge";
 import { EvidenceHeader } from "./EvidenceHeader";
+import { RecordedPartHeading } from "./RecordedPartHeading";
 import { PalAvatar } from "../pal/PalAvatar";
 import { ShipmentFlags } from "../deal/ShipmentFlags";
 
@@ -58,7 +61,20 @@ function Section({ title, children }: { title: string; children: React.ReactNode
  * stepper read the live one, and the pack's own count is named as what it
  * was when the pack was built.
  */
-export function EvidencePackView({ pack, deal, role, events }: { pack: EvidencePack; deal: Deal; role: Role; events?: readonly DealEvent[] }) {
+export function EvidencePackView({
+  pack,
+  deal,
+  role,
+  events,
+  read = { kind: "failed" },
+}: {
+  pack: EvidencePack;
+  deal: Deal;
+  role: Role;
+  events?: readonly DealEvent[];
+  /** The live GET order, done while the page rendered. Defaults to a failed read so no caller can claim a confirmation by accident. */
+  read?: PayPalReadResult;
+}) {
   const live = events ?? pack.timeline;
   const card = pack.lockedCard;
   const sellerPhotos = pack.photos.filter((p) => p.addedBy === "seller");
@@ -104,6 +120,16 @@ export function EvidencePackView({ pack, deal, role, events }: { pack: EvidenceP
             </p>
           ))}
         </Section>
+
+        {pack.payment ? (
+          <ConfirmedByPayPal result={read} payment={pack.payment} fallbackFields={false} />
+        ) : (
+          <Section title="Confirmed by PayPal">
+            <p>No payment was made, so there is no PayPal order to read back.</p>
+          </Section>
+        )}
+
+        <RecordedPartHeading />
 
         <Section title={`Locked item card, version ${card.version}`}>
           <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-2">
@@ -164,9 +190,10 @@ export function EvidencePackView({ pack, deal, role, events }: { pack: EvidenceP
         <Section title="Payment">
           {pack.payment ? (
             <p>
-              {formatMoney(pack.payment.amount, pack.payment.currency)} to {pack.payment.payeeEmail} via {pack.payment.method === "venmo" ? "Venmo" : "PayPal"} Goods and Services.{" "}
-              {example ? "Example order id" : "Order"} {pack.payment.paypalOrderId}
-              {pack.payment.captureId ? `, capture ${pack.payment.captureId}` : ""}. Status {pack.payment.status}.{pack.payment.capturedAt ? ` Captured ${formatTime(pack.payment.capturedAt)}.` : ""}
+              As Pay Pals recorded it: {formatMoney(pack.payment.amount, pack.payment.currency)} to {pack.payment.payeeEmail} via{" "}
+              {pack.payment.method === "venmo" ? "Venmo" : "PayPal"} Goods and Services. {example ? "Example order id" : "Order"} {pack.payment.paypalOrderId}
+              {pack.payment.captureId ? `, capture ${pack.payment.captureId}` : ""}. Status {pack.payment.status}.
+              {pack.payment.capturedAt ? ` Captured ${formatTime(pack.payment.capturedAt)}.` : ""}
             </p>
           ) : (
             <p>No payment was made.</p>

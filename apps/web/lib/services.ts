@@ -22,7 +22,7 @@ import {
 } from "@pay-pals/agents";
 import type { BuyerPal, EvidencePackBuilder, PayPalGateway, PayPalsStore, ScenarioId, SellerPal, WebhookEvent } from "@pay-pals/contracts";
 import { createMemoryDealStore, createPostgresDealStore, createReplayClock, systemClock } from "@pay-pals/db";
-import { createPayPalGateway, handleWebhookEvent, loadPayPalConfig, type WebhookOutcome } from "@pay-pals/paypal";
+import { createPayPalGateway, handleWebhookEvent, loadPayPalConfig, type PayPalsGateway, type WebhookOutcome } from "@pay-pals/paypal";
 import path from "node:path";
 import { photoBase } from "./deal/photo-urls";
 import { buildKnownPhotos } from "./demo/known-photos";
@@ -31,6 +31,14 @@ import { loadRootEnvLocal } from "./env";
 import { isPublicMode, publicModeLine } from "./public-mode";
 import { detectUploadsEnabled } from "./uploads";
 import { createMockPayPalGateway } from "./mocks/paypal-gateway";
+
+/**
+ * The contract gateway plus getOrder, the live read the payment panel needs
+ * so "Confirmed by PayPal" can sit over PayPal's own values. Narrowed from
+ * PayPalsGateway on purpose: the mock has no low-level http handle and does
+ * not need one.
+ */
+export type PayPalService = PayPalGateway & Pick<PayPalsGateway, "getOrder">;
 
 export interface ServiceModes {
   store: "postgres" | "memory";
@@ -44,7 +52,7 @@ export interface Services {
   store: PayPalsStore;
   sellerPal: SellerPal;
   buyerPal: BuyerPal;
-  paypal: PayPalGateway;
+  paypal: PayPalService;
   buildEvidencePack: EvidencePackBuilder;
   /** Verified PayPal webhook events go here. */
   handleWebhook: (event: WebhookEvent) => Promise<WebhookOutcome>;
