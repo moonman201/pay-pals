@@ -124,6 +124,30 @@ Save every working call as a Postman collection in `docs/postman/`.
 11. **Sandbox buyer login on the pay panel (Oct 8, Matt).** On a demo deal with the sandbox gateway, the pay panel shows the PayPal sandbox buyer email and password, labelled as a test account with no real money, so a judge can finish the clean and empty-box scenarios live.
 6. **Non-payment stops (Oct 7).** A stop that is not about payment method (price far below market, ship-before-pay) stays overridable with the acknowledgment checkbox and stronger warning wording. Only payment-method flags end the deal.
 
+12. **Payment stays Goods and Services only (Oct 10, Matt).** Pay Pals only ever
+    processes a PayPal Goods and Services checkout payment. It never processes a
+    Friends and Family payment. What changes is who gets the checks: **anyone can
+    start a deal and get the full set** (Buyer Pal review, item card, cert check,
+    scam flags) **no matter how they plan to pay**. If the buyer then chooses to
+    pay outside Goods and Services, Pay Pals says plainly "You're on your own
+    from here: no PayPal protection and no dispute path," records that on the
+    timeline, and steps back. A seller pushing Friends and Family is still a flag.
+    Recording it on the timeline needs one new event kind, which is a contract and
+    schema change, so that half is **parked on `coordination/PROPOSAL-contracts-v1.7.0.md`**
+    pending Matt. The rest of the decision needs no contract change.
+
+13. **"Verified" on an evidence item (Oct 10, Lead, reconciling the Oct 9 rule).**
+    The Oct 9 wording rule below says never "verified" and never "authentic". Batch
+    item E12 asks for every item in the deal status view to be labelled Verified,
+    Unverified or Missing. These do not conflict, and the distinction is the one
+    section D of that batch is about. "Verified" may describe **an evidence item we
+    checked against something**, and the view must say what it was checked against
+    (a console serial against the box label, a cert against the grader's record, a
+    capture against PayPal's own order). It may never describe **the item itself**:
+    never "verified authentic", never "verified owner", never "verified seller".
+    Where the subject is the goods or the person, say what was checked and against
+    what, as the Oct 9 rule requires.
+
 ## Live site review, Oct 7 (Matt). Lane assignments
 Branch `review-oct7`, merged to main 718be0b on Oct 8 and deployed. Each fix is its own commit with tests. Items 1 to 15 done (item 1 and the reused-photo check light up fully once photo files exist; item 4 needs a comp key, see BLOCKERS). Item 16 running against production. Stop rules: a contract or schema change, or a product change, goes to Matt first; everything else keeps moving.
 
@@ -189,6 +213,41 @@ Branch `visual`, merged to main ee70456 on Oct 9 with Matt's approval, productio
 | 16 | reality-check | Review the preview as a first-time judge on a phone: confusing, cluttered, forgettable. Done; notes in docs/visual-pass/README.md. |
 
 **Matt's decisions, Oct 9.** (1) Price panel shows the count and the prices only, no retailer names, with "via Channel3" still visible. Not yet built; it waits with everything else. (2) The hero keeps the PayPal badges as supplied. (3) Re-seeding the demo deals is approved, but only after Matt approves the merge to main. Polish is stopped until Matt replies.
+
+## Oct 10 batch (Matt). Lane assignments
+
+One batch, eight sections, A to H. Matt's order: build on `main` first, then rebase
+the parked `day-night-modes` branch onto it; qa refreshes visual baselines **once**,
+after both have landed, not twice. Matt's speed rule: commit each item, but run the
+full gate (keyed and keyless, all e2e) once per section rather than per commit, run
+only the unit tests and the affected e2e spec in between, refresh baselines once at
+the end, and deploy and smoke production once per section.
+
+Stop rule for this batch: a contract change past v1.6.0 earns a stop with the
+proposed change written out. Two items hit it, see
+`coordination/PROPOSAL-contracts-v1.7.0.md`. Everything else keeps moving.
+
+| # | Item | Lane | Status |
+|---|---|---|---|
+| A | Payment stays Goods and Services only; everyone gets the full checks; an off-platform choice is warned, recorded and stepped back from | builder-web, needs a new event kind | **PARKED** on the v1.7.0 proposal (contract + schema) |
+| B1 | Pay panel and evidence pack split into "Confirmed by PayPal" (read back with GET order, not from our database) and "Recorded by Pay Pals" | builder-web | in flight. No contract change needed: `PayPalsGateway` in packages/paypal already publishes `getOrder` |
+| B2 | Show the PayPal order carries the history hash in `custom_id`, and the history check against it | builder-web | in flight |
+| B3 | Keep the Oct 23 re-seed: finished demo deals get real sandbox order and capture ids | builder-paypal (tooling check only, no re-seed now) | in flight |
+| B4 | Assessment only: can the sandbox Disputes API open or simulate a dispute and accept our evidence pack, and what would it cost | builder-paypal | in flight, lands as `docs/paypal-disputes-assessment.md` |
+| C5 | Every pal decision shows what it checked, what it found, what it could not verify and what would change its mind | builder-agents + builder-web | **PARKED** on the v1.7.0 proposal (contract, no migration) |
+| C6 | New evidence shows the before and after verdict side by side with what changed it | builder-web | in flight, derived from the verdicts array, no contract change |
+| C7 | Confirm the "Play as" flows run the live model on production, not fixtures; one test with a photo outside the fixtures | qa | in flight |
+| D8 | Refusing Pay Pals is "a risk signal", never "the strongest warning sign", never proof of fraud | Lead (done, f89f268), builder-web, builder-agents | Lead done; lanes in flight |
+| D9 | A matching serial or cert supports the listing; it never proves ownership or authenticity | Lead (done in the slab fixture, 659b461), builder-web, builder-agents | Lead done; lanes in flight |
+| D10 | The evidence pack is "useful context for a PayPal dispute", never a guaranteed outcome | builder-web, builder-agents | in flight |
+| D11 | The audit chain is "the official record of the deal that PayPal can check first"; never say a refund or dispute requires it | Lead (done, f89f268), builder-web, builder-agents | Lead done; lanes in flight |
+| E12 | One grouped status view per deal, every item labelled Verified, Unverified or Missing (see Decision 13) | builder-web | in flight |
+| F13 | PS5 comps: consoles only, the same range for the same console in both PS5 scenarios | builder-agents | in flight, closes REVIEW finding 44 |
+| F14 | Slab: no price claim anywhere including the landing card; lead on the stolen photo, the refused dated note, the Friends and Family push | Lead (fixtures) | **DONE** 659b461, closes REVIEW finding 46 |
+| F15 | Remove the dead demo deal id from the landing | builder-web | in flight, closes the Oct 9 warm-instance finding |
+| G16 | Default to night for every visitor with no stored choice, whatever the device says; the header toggle switches to day and remembers it | builder-web, after the rebase | not started, Section 2 |
+| G17 | Deploy the rebased branch to a preview; screenshots at 1280 and 390 of the landing, one deal room and the evidence pack, in both modes; do not merge the theme to main until Matt approves | Lead + qa, after the rebase | not started, Section 2 |
+| H18 | README "Try it yourself": live URL, the three scenarios in order, how to sign in as the sandbox test buyer | Lead | **DONE** 94ce4e2, and the instruction arrived truncated, see the worklog |
 
 ## Next: candidate features (recorded Oct 9, not built)
 
