@@ -165,6 +165,27 @@ Save every working call as a Postman collection in `docs/postman/`.
     when re-deriving looks easy. Pattern-matching a convention, such as a
     `FIXTURE-` id prefix, is re-deriving. See `coordination/PROPOSAL-contracts-v1.8.0.md`.
 
+16. **A test written beside a claim cannot check it (Oct 10, Lead).**
+    Three tests were found today asserting things the product could not support:
+    `packages/agents/src/buyer/buyer-pal.test.ts:441` required "confirmed on the
+    item itself" on a path that read a caption rather than a photo;
+    `packages/agents/src/evidence/evidence.test.ts` required the pack to say
+    PayPal corroborated the history hash; and
+    `tests/integration/src/review-oct7-hash-badge.test.tsx:90` required the same
+    phrase one layer down. In each case the sentence and the test asserting it
+    were written in the same change and reviewed together, so the test could
+    never have caught the overclaim; it pinned it. None of them was found by the
+    suite. All three were found by reading the product's own output, two by
+    `reality-check` and one by the lane that removed the claim.
+    **What follows:** a test that asserts a claim about the world (what a pal
+    saw, what PayPal holds, what was checked against what) is worth no more than
+    the claim was when it was written, so it earns a second pair of eyes on the
+    claim and not just on the test. When such an assertion has to change, it is
+    corrected with a dated reason saying the expectation was wrong rather than
+    the code, so the record shows a correction and not a test weakened to go
+    green. A `.not.toContain` left pointing at a phrase that no longer exists
+    passes vacuously, which is worse than failing, because it reads as coverage.
+
 13. **"Verified" on an evidence item (Oct 10, Lead, reconciling the Oct 9 rule).**
     The Oct 9 wording rule below says never "verified" and never "authentic". Batch
     item E12 asks for every item in the deal status view to be labelled Verified,
