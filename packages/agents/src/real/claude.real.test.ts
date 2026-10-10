@@ -22,6 +22,41 @@ import { hasKey } from "../testing/env";
 
 const enabled = hasKey("ANTHROPIC_API_KEY");
 
+/**
+ * Timeouts here guard against a hang. They are not a performance budget, and
+ * nothing in this file asserts how fast a pal is.
+ *
+ * They were raised on 2026-10-10 after the keyed gate went red on
+ * "clean-ps5 v2 is go" with "Test timed out in 60000ms". Nothing had got
+ * slower: the same test passed in 27s on a re-run of the whole file at a
+ * higher limit. The old 60s limits were simply inside the range that ordinary
+ * latency variance on a real network call reaches, so the file failed on
+ * weather rather than on an answer.
+ *
+ * Measured on that re-run, all nine passing (milliseconds):
+ *
+ *   fake-slab v1 stops                     64,987
+ *   clean-ps5 v1 is go                     17,708
+ *   clean-ps5 v2 is go                     27,408
+ *   Seller Pal drafts the clean card        2,597
+ *   wide console back, run 1                6,371
+ *   wide console back, run 2                7,964
+ *   serial close-up still reads             2,589
+ *   arrival close-up reads                  6,849
+ *   v1 on real photos, with reasons        33,251
+ *
+ * Note the shape of the failure: the test that timed out normally takes 27s,
+ * and the slowest test in the file took 65s against a limit of 120s. A limit
+ * near twice the observed time is the marginal case that bit us, so these are
+ * set well clear of it rather than just above the worst number seen.
+ */
+
+/** A whole pal run: several model calls in sequence, and the review can re-ask once. Worst observed 65s. */
+const PAL_RUN_MS = 240_000;
+
+/** One vision read of one photo: a single call. Worst observed 8s. */
+const ONE_READ_MS = 120_000;
+
 function print(label: string, verdict: Verdict): void {
   console.log(
     `${label}: overall=${verdict.overall} flags=[${verdict.flags.map((f) => `${f.code}:${f.severity}${f.raisedByRule ? "" : "(model)"}`).join(", ")}] questions=${JSON.stringify(verdict.questionsForSeller)}\n  pal: ${verdict.palMessage}`,
@@ -46,7 +81,7 @@ describe.skipIf(!enabled)("real Claude (needs ANTHROPIC_API_KEY)", () => {
     expect(verdict.palMessage).not.toMatch(/[—!]/);
     expect(verdict.palMessage).not.toMatch(/verif|authentic/i);
     // The slab review is the longest message the pal writes, so it gets the most room.
-  }, 120_000);
+  }, PAL_RUN_MS);
 
   it("clean-ps5 v1 (before the serial close-up) is go, with at most three questions", async () => {
     const pal = createBuyerPal({ anthropic, priceLookup });
@@ -55,7 +90,7 @@ describe.skipIf(!enabled)("real Claude (needs ANTHROPIC_API_KEY)", () => {
     expect(hasStop(verdict.flags)).toBe(false);
     expect(verdict.overall).toBe("go");
     expect(verdict.questionsForSeller.length).toBeLessThanOrEqual(3);
-  }, 60_000);
+  }, PAL_RUN_MS);
 
   it("clean-ps5 v2 (serial close-up added) is go", async () => {
     const pal = createBuyerPal({ anthropic, priceLookup });
@@ -63,7 +98,7 @@ describe.skipIf(!enabled)("real Claude (needs ANTHROPIC_API_KEY)", () => {
     print("clean-ps5 v2", verdict);
     expect(hasStop(verdict.flags)).toBe(false);
     expect(verdict.overall).toBe("go");
-  }, 60_000);
+  }, PAL_RUN_MS);
 
   it("Seller Pal drafts the clean card, takes the box label number and leaves the item serial empty", async () => {
     const pal = createSellerPal({ anthropic });
@@ -81,7 +116,7 @@ describe.skipIf(!enabled)("real Claude (needs ANTHROPIC_API_KEY)", () => {
     expect(card.boxSerial).toBe(CLEAN_SERIAL);
     expect(palMessage).toContain("A box label is not the item");
     expect(card.askingPrice).toBe(420);
-  }, 60_000);
+  }, PAL_RUN_MS);
 });
 
 /**
@@ -108,7 +143,7 @@ describe.skipIf(!enabled)("real Claude vision on the demo photos", () => {
     expect(reading.serial).toBeNull();
     // Model and brand are large print and must still come through.
     expect(reading.model).toMatch(/CFI-1015A/i);
-  }, 60_000);
+  }, ONE_READ_MS);
 
   it("the serial close-up still reads, so the gate did not just turn every serial off", async () => {
     const reading = await read(cleanPs5.cards[1]!.photos[3]!);
@@ -116,14 +151,14 @@ describe.skipIf(!enabled)("real Claude vision on the demo photos", () => {
     expect(reading.serial).toBe(CLEAN_SERIAL);
     expect(reading.serialOn).toBe("item");
     expect(reading.serialIllegible).toBe(false);
-  }, 60_000);
+  }, ONE_READ_MS);
 
   it("the arrival close-up reads, so the arrival check can still confirm the unit", async () => {
     const reading = await read(cleanPs5.arrivalPhotos[0]!);
     console.log(`arrival-console-serial: serial=${reading.serial} illegible=${reading.serialIllegible}`);
     expect(reading.serial).toBe(CLEAN_SERIAL);
     expect(reading.serialOn).toBe("item");
-  }, 60_000);
+  }, ONE_READ_MS);
 
   /**
    * The clean deal's first card, reviewed with the real model and the real
@@ -147,5 +182,5 @@ describe.skipIf(!enabled)("real Claude vision on the demo photos", () => {
     expect(reasoning.couldNotVerify.join(" ")).toMatch(/could not read it/i);
     expect(reasoning.wouldChangeMyMind.join(" ")).toMatch(/close-up of the serial label/i);
     expect(verdict.questionsForSeller).toContain(CONSOLE_SERIAL_QUESTION);
-  }, 120_000);
+  }, PAL_RUN_MS);
 });
