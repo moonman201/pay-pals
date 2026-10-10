@@ -173,6 +173,26 @@ describe("EvidencePackView", () => {
     expect(screen.getAllByRole("heading", { name: "What I could not check" })).toHaveLength(2);
   });
 
+  it("never claims a confirmation on a deal with no payment at all, which is two clicks from any agreed deal", () => {
+    render(<EvidencePackView pack={pack({ payment: null })} deal={emptyBox.deal} role="buyer" />);
+    expect(screen.queryByRole("heading", { name: "Confirmed by PayPal" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Confirmed by PayPal")).not.toBeInTheDocument();
+    expect(screen.getByTestId("paypal-confirmation")).toHaveAttribute("data-confirmed", "false");
+    expect(screen.getByRole("heading", { name: "No PayPal order yet" })).toBeInTheDocument();
+    expect(screen.getByText("No PayPal order has been created for this deal.")).toBeInTheDocument();
+    // Nothing of ours is dressed up as PayPal's either: there is no record to print.
+    expect(screen.getByRole("heading", { name: "Recorded by Pay Pals" })).toBeInTheDocument();
+  });
+
+  it("says the same for a deal with no payment whatever read it is handed", () => {
+    for (const read of [{ kind: "confirmed" as const, order: readOrderFields({ id: "X", status: "COMPLETED" }) }, { kind: "failed" as const }, { kind: "example" as const }]) {
+      const { unmount } = render(<EvidencePackView pack={pack({ payment: null })} deal={emptyBox.deal} role="buyer" read={read} />);
+      expect(screen.queryByText("Confirmed by PayPal"), read.kind).not.toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "No PayPal order yet" }), read.kind).toBeInTheDocument();
+      unmount();
+    }
+  });
+
   it("keeps the two halves labelled, and never claims a confirmation when no read is passed", () => {
     render(<EvidencePackView pack={pack()} deal={emptyBox.deal} role="buyer" />);
     expect(screen.queryByRole("heading", { name: "Confirmed by PayPal" })).not.toBeInTheDocument();

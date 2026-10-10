@@ -122,13 +122,12 @@ export function EvidencePackView({
           ))}
         </Section>
 
-        {pack.payment ? (
-          <PayPalConfirmation read={read} payment={pack.payment} dealId={pack.dealId} events={live} fallbackFields={false} prominent />
-        ) : (
-          <Section title="Confirmed by PayPal">
-            <p>No payment was made, so there is no PayPal order to read back.</p>
-          </Section>
-        )}
+        {/*
+          One producer for this heading, always. A deal with no payment used to take a branch of its
+          own here with the words hard-coded, which printed "Confirmed by PayPal" over a deal PayPal
+          had never heard of. The component takes a null payment and says so itself.
+        */}
+        <PayPalConfirmation read={read} payment={pack.payment ?? null} dealId={pack.dealId} events={live} fallbackFields={false} prominent />
 
         <RecordedPartHeading />
 
