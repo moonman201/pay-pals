@@ -6,6 +6,7 @@ import { useState } from "react";
 import type { ActionId } from "@/lib/deal/actions";
 import { canStillPay } from "@/lib/deal/actions";
 import type { DealSnapshot } from "@/lib/deal/snapshot";
+import { diffVerdicts, lastTwoVerdicts } from "@/lib/deal/verdict-diff";
 import { dealApi, postJson } from "@/lib/client/api";
 import { palChannel, type Role } from "@/lib/role";
 import { ActionBar } from "./ActionBar";
@@ -17,6 +18,7 @@ import { PaymentSummary } from "./PaymentSummary";
 import { SharedChat } from "./SharedChat";
 import { ShipmentSummary } from "./ShipmentSummary";
 import { Timeline } from "./Timeline";
+import { VerdictDiffPanel } from "./VerdictDiffPanel";
 import { VerdictPanel } from "./VerdictPanel";
 import Link from "next/link";
 import { Panel } from "../ui/Panel";
@@ -88,6 +90,9 @@ export function DealRoom({ snapshot, role }: { snapshot: DealSnapshot; role: Rol
   // This side agreed to an earlier version and the store cleared it when the card changed.
   const agreedEarlier = snapshot.events.some((e) => e.kind === "agreed" && e.actor === role);
   const cardChangedSinceAgree = agreedEarlier && (role === "buyer" ? deal.buyerAgreedAt : deal.sellerAgreedAt) === null;
+  // The pal looked again after new evidence: both reviews stay on the page (C6).
+  const pair = lastTwoVerdicts(snapshot.verdicts);
+  const verdictDiff = pair ? diffVerdicts(pair.previous, pair.current) : null;
 
   return (
     <div className={`theme-${role} min-h-screen bg-wash`}>
@@ -119,6 +124,7 @@ export function DealRoom({ snapshot, role }: { snapshot: DealSnapshot; role: Rol
               cardGrade={currentCard?.grade ?? null}
             />
           ) : null}
+          {verdictDiff ? <VerdictDiffPanel diff={verdictDiff} /> : null}
           {snapshot.payment ? (
             <PaymentSummary
               payment={snapshot.payment}
