@@ -3,7 +3,9 @@
  * em dashes, no exclamation marks, no markdown. Applied to everything the
  * model writes and to our own canned sentences, so the UI never has to clean
  * copy itself. Blank lines between paragraphs survive. Text that runs long is
- * cut at the last full sentence, never mid-word.
+ * cut at the last full sentence, never mid-word. A deal history hash is moved
+ * to the end of its sentence, because the page breaks it onto a line of its
+ * own and any punctuation after it is left hanging there.
  */
 
 export const DEFAULT_MAX_LENGTH = 900;
@@ -26,8 +28,48 @@ export function stripMarkdown(text: string): string {
     .replace(/__+/g, "");
 }
 
+
+/** The deal history hash: 64 hex characters. The page prints it on a monospace line of its own. */
+const HASH_TOKEN = /\b[0-9a-f]{64}\b/i;
+
+/**
+ * Moves a hash out of the middle of its sentence and onto the end of it.
+ * The evidence page breaks a 64-character hash onto a line of its own (the
+ * Oct 8 fix for the 390 px overflow), so a sentence written as "... at
+ * payment time, HASH, against the 20 stored timeline events." leaves a comma
+ * stranded at the start of the next line and reads as a typo. Written as
+ * "... at payment time against the 20 stored timeline events: HASH." the
+ * hash ends the clause, which also reads better inline. A hash that already
+ * ends its sentence is left alone, which is the deterministic summary's case.
+ */
+export function hashEndsItsSentence(text: string): string {
+  if (!HASH_TOKEN.test(text)) return text;
+  return text
+    .split(/(?<=[.?!])(\s+)/)
+    .map((part) => moveHashToTheEnd(part))
+    .join("");
+}
+
+function moveHashToTheEnd(sentence: string): string {
+  const match = sentence.match(HASH_TOKEN);
+  if (!match || match.index === undefined) return sentence;
+  const hash = match[0];
+  const afterHash = sentence.slice(match.index + hash.length);
+  const trailingSpace = afterHash.match(/\s*$/)![0];
+  const after = afterHash.slice(0, afterHash.length - trailingSpace.length);
+  // Nothing but punctuation follows, so the hash already ends the clause.
+  if (!/[a-z0-9]/i.test(after)) return sentence;
+  const head = sentence.slice(0, match.index).replace(/[\s,;:(\[]+$/, "");
+  const tail = after.replace(/^[\s,;:)\]]+/, "");
+  const body = `${head} ${tail}`
+    .replace(/\s{2,}/g, " ")
+    .trim()
+    .replace(/[.?!]+$/, "");
+  return `${body}: ${hash}.${trailingSpace}`;
+}
+
 export function plainCopy(text: string, maxLength = DEFAULT_MAX_LENGTH): string {
-  const cleaned = stripMarkdown(text)
+  const cleaned = hashEndsItsSentence(stripMarkdown(text))
     .replace(/[ \t]*[—–][ \t]*/g, ", ")
     .replace(/!+/g, ".")
     .replace(/\.\s*,/g, ".")
