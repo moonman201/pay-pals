@@ -165,7 +165,7 @@ export function DealRoom({ snapshot, role }: { snapshot: DealSnapshot; role: Rol
           ) : null}
           {snapshot.shipment ? <ShipmentSummary shipment={snapshot.shipment} /> : null}
           {snapshot.arrivalCheck ? <ArrivalResult check={snapshot.arrivalCheck} lockedCard={snapshot.lockedCard} /> : null}
-          {offPlatform ? <OffPlatformNotice state={state} /> : null}
+          {offPlatform ? <OffPlatformNotice state={state} orderId={snapshot.payment?.paypalOrderId ?? null} /> : null}
 
           {needsBuyer ? (
             <JoinForm dealId={deal.id} onDone={refresh} />

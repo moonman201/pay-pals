@@ -5,10 +5,10 @@
 import { describe, expect, it } from "vitest";
 import { createServices } from "../../services";
 import { FlowError } from "../errors";
-import { hasChosenOffPlatform, OFF_PLATFORM_ORDER_REFUSED, OFF_PLATFORM_SUMMARY, ON_YOUR_OWN } from "../off-platform";
+import { hasChosenOffPlatform, OFF_PLATFORM_CAPTURE_REFUSED, OFF_PLATFORM_ORDER_REFUSED, OFF_PLATFORM_SUMMARY, ON_YOUR_OWN } from "../off-platform";
 import { agree } from "./agree";
 import { chooseOffPlatform } from "./off-platform";
-import { createOrder } from "./pay";
+import { captureOrder, createOrder } from "./pay";
 import { runReview } from "./review";
 import { startDemoDeal } from "./start";
 
@@ -76,6 +76,35 @@ describe("chooseOffPlatform on a deal at the payment step", () => {
     const error = await createOrder(services, dealId, "paypal").catch((e: unknown) => e);
     expect(error).toBeInstanceOf(FlowError);
     expect((error as FlowError).message).toBe(OFF_PLATFORM_ORDER_REFUSED);
+  });
+
+  it("will not capture the order that was already sitting there, which is the one that could still move money", async () => {
+    const services = noKeys();
+    const dealId = await atPaymentStep(services);
+    const payment = await createOrder(services, dealId, "paypal");
+    await chooseOffPlatform(services, dealId);
+
+    const error = await captureOrder(services, dealId, payment.paypalOrderId).catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(FlowError);
+    expect((error as FlowError).message).toBe(OFF_PLATFORM_CAPTURE_REFUSED);
+    // Nothing moved: the record is still the uncaptured order and the deal never reached PAID.
+    const after = (await services.store.getPayment(dealId))!;
+    expect(after.status).toBe("CREATED");
+    expect(after.captureId).toBeNull();
+    expect((await services.store.getDeal(dealId))!.state).not.toBe("PAID");
+  });
+
+  it("says why rather than naming the state the choice left behind", async () => {
+    const services = noKeys();
+    const dealId = await atPaymentStep(services);
+    const payment = await createOrder(services, dealId, "paypal");
+    await chooseOffPlatform(services, dealId);
+    // The deal is CANCELLED by now, so a state-only guard would answer with that and say nothing useful.
+    expect((await services.store.getDeal(dealId))!.state).toBe("CANCELLED");
+    const error = (await captureOrder(services, dealId, payment.paypalOrderId).catch((e: unknown) => e)) as FlowError;
+    expect(error.message).toMatch(/taken off Pay Pals/);
+    expect(error.message).not.toMatch(/CANCELLED/);
+    expect(error.status).toBe(409);
   });
 });
 

@@ -12,7 +12,7 @@ import type { PaymentMethod, PaymentRecord } from "@pay-pals/contracts";
 import type { Services } from "../../services";
 import { nowIso } from "../../time";
 import { FlowError } from "../errors";
-import { hasChosenOffPlatform, OFF_PLATFORM_ORDER_REFUSED } from "../off-platform";
+import { hasChosenOffPlatform, OFF_PLATFORM_CAPTURE_REFUSED, OFF_PLATFORM_ORDER_REFUSED } from "../off-platform";
 import { expectState, mustDeal, mustLockedCard, note, say } from "./shared";
 
 /** The gateway may attach PayPal's response as `raw`; keep it when it is a plain object. */
@@ -75,6 +75,10 @@ export async function createOrder(services: Services, dealId: string, method: Pa
 
 export async function captureOrder(services: Services, dealId: string, orderId: string): Promise<PaymentRecord> {
   const deal = await mustDeal(services, dealId);
+  // The same guard as createOrder, and it matters more here: the choice is offered from
+  // PAYMENT_PENDING, where a live order is already sitting there waiting to be captured.
+  // Before the state check, so the answer says why rather than naming the state the choice left.
+  if (hasChosenOffPlatform(await services.store.listEvents(dealId))) throw new FlowError(OFF_PLATFORM_CAPTURE_REFUSED, 409);
   expectState(deal, "PAYMENT_PENDING");
   const existing = await services.store.getPayment(dealId);
   if (!existing || existing.paypalOrderId !== orderId) throw new FlowError("That order does not belong to this deal.", 409);
