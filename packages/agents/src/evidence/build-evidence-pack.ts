@@ -3,7 +3,7 @@
  * the locked card, every verdict, the arrival check, the chat, the payment,
  * the shipment, the timeline and all photos, with a plain summary on top.
  */
-import type { EvidenceInput, EvidencePack, EvidencePackBuilder, PalResult, Photo } from "@pay-pals/contracts";
+import type { EvidenceInput, EvidencePack, EvidencePackBuilder, HistoryAnchor, PalResult, Photo } from "@pay-pals/contracts";
 import type { ClaudeClient } from "../claude/client";
 import { createAnthropicClientFromEnv } from "../claude/client";
 import { sentences } from "../copy";
@@ -33,6 +33,22 @@ export function collectPhotos(input: EvidenceInput): Photo[] {
   return photos;
 }
 
+/** The one line the pal's chat message says about the hash, per case. */
+const HASH_LINE: Record<HistoryAnchor, { reproduces: string; differs: string }> = {
+  corroborated: {
+    reproduces: "The stored events reproduce the hash recorded with this payment, and PayPal's own copy was read back and carries the same one.",
+    differs: "The stored events do not reproduce the hash recorded with this payment, and PayPal's own copy carries that hash, so the stored history differs from what PayPal holds.",
+  },
+  recorded_only: {
+    reproduces: "The stored events are hash-chained and reproduce the hash recorded with this payment, so an edit to them would break the chain. PayPal's copy of that hash was not read back for this pack.",
+    differs: "The stored events do not reproduce the hash recorded with this payment, so the history has changed since that hash was taken.",
+  },
+  not_anchored: {
+    reproduces: "The stored events are hash-chained and reproduce the hash recorded with this payment, so an edit to them would break the chain. No PayPal order holds this hash: the payment ids on this deal are placeholders.",
+    differs: "The stored events do not reproduce the hash recorded with this payment, so the history has changed since that hash was taken. No PayPal order holds it either: the payment ids on this deal are placeholders.",
+  },
+};
+
 export async function buildEvidencePack(input: EvidenceInput, options?: EvidencePackOptions): Promise<PalResult<EvidencePack>> {
   const client = options ? options.anthropic : createAnthropicClientFromEnv();
   const photos = collectPhotos(input);
@@ -40,8 +56,12 @@ export async function buildEvidencePack(input: EvidenceInput, options?: Evidence
   const history = historyStatus(input);
   const unanswered = unansweredQuestions(input);
   const shipmentFlags = input.shipment?.flags ?? [];
+  // Carried onto the pack so the page renders the case from the same value this summary was
+  // written from, rather than working it out again and drifting from it.
+  const anchor: HistoryAnchor = input.historyAnchor ?? "recorded_only";
   const pack: EvidencePack = {
     ...(history ?? {}),
+    historyAnchor: anchor,
     unansweredQuestions: unanswered,
     shipmentFlags,
     dealId: input.deal.id,
@@ -63,13 +83,9 @@ export async function buildEvidencePack(input: EvidenceInput, options?: Evidence
     input.payment ? `PayPal order ${input.payment.paypalOrderId},` : "no PayPal order,",
     input.shipment ? `${input.shipment.carrier} tracking ${input.shipment.trackingNumber},` : "no shipment,",
     input.arrivalCheck ? `and the arrival check (${input.arrivalCheck.matches ? "matched" : "did not match"}).` : "and the full timeline.",
-    // Same limit as the tamper sentence in summary.ts, from the same input: we can say our own
-    // stored events reproduce the hash we hold, and not that PayPal's copy was compared with it.
-    history
-      ? history.historyVerified
-        ? "The stored events are hash-chained and reproduce the hash recorded with this payment, so an edit to them would break the chain. Whether PayPal's copy of that hash matches has not been checked for this pack."
-        : "The stored events do not reproduce the hash recorded with this payment, so the history has changed since that hash was taken."
-      : null,
+    // The same three cases as the tamper sentence in summary.ts, from the same field, so the
+    // chat line and the pack's own prose cannot say different things about who holds the hash.
+    history ? HASH_LINE[anchor][history.historyVerified ? "reproduces" : "differs"] : null,
     unanswered.length > 0 ? `The seller never answered ${unanswered.length === 1 ? "one question" : `${unanswered.length} questions`} the Buyer Pal asked before payment.` : null,
     shipmentFlags.length > 0 ? "The seller shipped without the required packing photo." : null,
     input.arrivalCheck && !input.arrivalCheck.matches
