@@ -63,6 +63,10 @@ export default defineConfig({
         // that passes against it has proved nothing; CI is not the only place that matters.
         reuseExistingServer: REUSE_SERVER,
         timeout: 120_000,
+        // Playwright hides a webServer's stdout by default, so a dev server that dies mid-run
+        // leaves "Process from config.webServer exited early" and nothing to read.
+        stdout: "pipe",
+        stderr: "pipe",
         // Demo-only mode, on a pinned environment: memory store, rules-only
         // pals, fixture prices and the mock gateway, and nothing a checkout's
         // .env.local carries. The suite never spends Claude or PayPal calls,

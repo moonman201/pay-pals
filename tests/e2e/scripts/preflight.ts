@@ -47,7 +47,9 @@ if (REUSE_SERVER) {
 console.error(
   `[e2e] port ${port} is already in use, so this run would have to reuse a server it did not start.\n` +
     `      A server left from an earlier run serves whatever it had compiled, so the suite could pass against code that is not in this working tree.\n` +
-    `      Stop whatever is on port ${port} and run again. For the fast local loop, and knowing the above, run with E2E_REUSE_SERVER=1.\n` +
-    `      Do not turn reuseExistingServer back on in the config: that is the default this guard exists to replace.`,
+    `      Stop it and run again:  kill $(lsof -ti tcp:${port})\n` +
+    `      A run that was interrupted can leave a next-server behind that lsof does not always show; "ps aux | grep next-server" finds it.\n` +
+    `      For the fast local loop, and knowing all of the above, run with E2E_REUSE_SERVER=1.\n` +
+    `      Do not turn reuseExistingServer back on in the config: that default is what this guard replaces.`,
 );
 process.exit(1);

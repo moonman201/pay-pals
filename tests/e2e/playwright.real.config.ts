@@ -54,6 +54,9 @@ export default defineConfig({
         reuseExistingServer: REUSE_SERVER,
         // Production build plus start.
         timeout: 420_000,
+        // Same reason as the demo config: a build or a server that dies should say why.
+        stdout: "pipe",
+        stderr: "pipe",
         env: process.env as Record<string, string>,
       }
     : undefined,
