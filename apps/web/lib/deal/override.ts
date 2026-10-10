@@ -50,13 +50,23 @@ export function gateFor(verdict: Verdict | null): Gate {
   return "override";
 }
 
-/** Three short sentences for a non-payment stop. Names the flags, says what the pattern is, says what protection covers. */
+/**
+ * Three short sentences for a non-payment stop. Names the flags, says what
+ * they are, says what protection covers.
+ *
+ * The middle sentence used to tell the buyer what the seller was going to
+ * do with their money, which states as fact something Pay Pals inferred, on
+ * a stop the buyer is allowed to override. It names the flags as a risk
+ * signal instead, and says what to do about it, matching the wording the
+ * Buyer Pal's own price rule uses. Guarded in lib/copy-rules.test.ts.
+ */
 export function stopWarning(verdict: Verdict): string[] {
   const names = stopFlags(verdict).map((f) => FLAG_WORDS[f.code]);
   const list = names.length <= 1 ? (names[0] ?? "a stop") : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+  const these = names.length <= 1 ? "That is a risk signal" : "Those are risk signals";
   return [
     `Your pal says stop. It found ${list}.`,
-    "This is the pattern of a listing that never ships, or a trick to get your money first.",
+    `${these}, so ask the seller about it before you pay.`,
     "PayPal Goods and Services protection covers an item that never arrives or is not as described, nothing more, so paying against a stop is a risk you carry yourself.",
   ];
 }

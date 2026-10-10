@@ -193,6 +193,25 @@ describe("the evidence", () => {
     expect(line.detail).toContain("Can you send a close-up of the serial label?");
   });
 
+  it("lists each thing the pal said it could not check as its own Unverified line", () => {
+    const reasoning = {
+      checked: ["The serial against the box label."],
+      found: ["Both read the same number."],
+      couldNotVerify: ["Whether the seller owns the console.", "Whether the console powers on."],
+      wouldChangeMyMind: ["A photo of it powered on."],
+    };
+    const items = group(dealStatusView(input({ verdicts: [verdict({ reasoning })] })), "evidence").items.filter((i) => i.id.startsWith("could-not-verify-"));
+    expect(items).toHaveLength(2);
+    expect(items[0]!.status).toBe("unverified");
+    expect(items[0]!.detail).toContain("Whether the seller owns the console.");
+    expect(items[0]!.detail).toMatch(new RegExp(`card version ${lockedCard.version}`));
+  });
+
+  it("adds no lines for a verdict stored before the pal had reasons", () => {
+    const items = group(dealStatusView(input()), "evidence").items;
+    expect(items.some((i) => i.id.startsWith("could-not-verify-"))).toBe(false);
+  });
+
   it("lists an open flag as unresolved and unverified, and leaves info flags out", () => {
     const flags = [
       { code: "URGENCY_PRESSURE" as const, severity: "caution" as const, evidence: "pay today", explanation: "The seller is pushing for a fast payment.", raisedByRule: true },

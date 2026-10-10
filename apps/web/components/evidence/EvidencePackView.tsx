@@ -11,6 +11,7 @@ import { HistoryBadge } from "../deal/HistoryBadge";
 import { EvidenceHeader } from "./EvidenceHeader";
 import { RecordedPartHeading } from "./RecordedPartHeading";
 import { PalAvatar } from "../pal/PalAvatar";
+import { PalReasons } from "../pal/PalReasons";
 import { ShipmentFlags } from "../deal/ShipmentFlags";
 
 /** A dealId#hash token (36 plus 64 characters) or a bare 64-hex hash, which no phone width can hold on one line. */
@@ -256,6 +257,7 @@ export function EvidencePackView({
                   ))}
                 </ul>
               ) : null}
+              <PalReasons reasoning={v.reasoning} pal="buyer" className="mt-3" />
               </div>
             </div>
           ))}
@@ -272,6 +274,7 @@ export function EvidencePackView({
                   ))}
                 </ul>
               ) : null}
+              <PalReasons reasoning={pack.arrivalCheck.reasoning} pal="buyer" className="mt-3" />
             </>
           ) : (
             <p>No arrival check on record.</p>

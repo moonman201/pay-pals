@@ -141,4 +141,31 @@ describe("VerdictPanel", () => {
     expect(screen.queryByTestId("flag-evidence")).not.toBeInTheDocument();
     expect(screen.queryByText(/Photo block/)).not.toBeInTheDocument();
   });
+
+  it("renders the pal's reasons, with the ask down beside the questions for the seller", () => {
+    const v = verdict({
+      questionsForSeller: ["Can you send a close-up of the serial?"],
+      reasoning: {
+        checked: ["The asking price against the market range."],
+        found: ["It sits below the range."],
+        couldNotVerify: ["Whether the seller owns the item."],
+        wouldChangeMyMind: ["A receipt from the original purchase."],
+      },
+    });
+    render(<VerdictPanel verdict={v} currentVersion={1} locked={false} />);
+    const blocks = screen.getAllByTestId("pal-reasons");
+    expect(blocks).toHaveLength(2);
+    expect(blocks[0]!).toHaveTextContent("What I could not check");
+    expect(blocks[0]!).toHaveTextContent("Whether the seller owns the item.");
+    expect(blocks[0]!).not.toHaveTextContent("What would change my mind");
+    expect(blocks[1]!).toHaveTextContent("What would change my mind");
+    // The ask comes after the questions for the seller, which is what it belongs with.
+    const asked = screen.getByText("Asked of the seller");
+    expect(asked.compareDocumentPosition(blocks[1]!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("renders exactly as it did for a verdict with no reasons on it", () => {
+    render(<VerdictPanel verdict={verdict()} currentVersion={1} locked={false} />);
+    expect(screen.queryByTestId("pal-reasons")).not.toBeInTheDocument();
+  });
 });

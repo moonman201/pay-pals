@@ -22,6 +22,7 @@ import { formatMoney, formatTime } from "../format";
 import { boxSerialStatus } from "./box-serial";
 import { checkOrderHistory } from "./order-history";
 import { FLAG_WORDS } from "./override";
+import { couldNotVerify } from "./pal-reasons";
 import type { PayPalReadResult } from "./paypal-confirmation";
 
 export type StatusLabel = "verified" | "unverified" | "missing";
@@ -248,6 +249,16 @@ function evidenceGroup(input: StatusInput): StatusGroup {
   items.push(photoItem(input));
 
   const verdict = latest(input.verdicts);
+  // The pal's own "what I could not check" list is exactly an Unverified line each, so it
+  // lands here rather than in a box of its own (C5).
+  for (const [i, line] of couldNotVerify(verdict?.reasoning).entries()) {
+    items.push({
+      id: `could-not-verify-${i}`,
+      label: "The Buyer Pal could not check this",
+      status: "unverified",
+      detail: `${line} Said by the Buyer Pal reviewing card version ${verdict!.cardVersion}.`,
+    });
+  }
   for (const [i, question] of (verdict?.questionsForSeller ?? []).entries()) {
     items.push({
       id: `question-${i}`,
@@ -278,10 +289,24 @@ function paymentTitle(items: readonly StatusItem[]): string {
   return items.some((i) => i.status === "verified") ? "Payment confirmed by PayPal" : "Payment, not confirmed by PayPal";
 }
 
+/** Decision 12: the buyer took the payment off Pay Pals, so there is nothing of PayPal's to show. */
+function offPlatformItem(input: StatusInput): StatusItem | null {
+  const chosen = input.events.find((e) => e.kind === "off_platform_chosen");
+  if (!chosen) return null;
+  return {
+    id: "off-platform",
+    label: "Paid outside PayPal Goods and Services",
+    status: "missing",
+    detail: `The buyer told Pay Pals on ${formatTime(chosen.at)} that they would pay another way. Pay Pals created no order, is not handling that payment and has no record of it, so there is no PayPal protection and no dispute path for it.`,
+  };
+}
+
 function paymentGroup(input: StatusInput): StatusGroup {
   const items: StatusItem[] = [];
   const read = input.paypalRead;
   const why = whyNotConfirmed(read);
+  const offPlatform = offPlatformItem(input);
+  if (offPlatform) items.push(offPlatform);
 
   if (!input.payment) {
     items.push({ id: "order", label: "Order at PayPal", status: "missing", detail: "No PayPal order has been created for this deal." });
@@ -460,6 +485,15 @@ function deliveryGroup(input: StatusInput): StatusGroup {
       label: "Arrival check against the locked card",
       status: "unverified",
       detail: `The Buyer Pal compared the arrival photos with locked card version ${check.cardVersion} and found ${plural(check.mismatches.length, "difference", "differences")}: ${list(check.mismatches.map((m) => `${m.field}, card says ${m.expected}, arrived ${m.observed}`))}.`,
+    });
+  }
+
+  for (const [i, line] of couldNotVerify(check?.reasoning).entries()) {
+    items.push({
+      id: `arrival-could-not-verify-${i}`,
+      label: "The Buyer Pal could not check this on arrival",
+      status: "unverified",
+      detail: line,
     });
   }
 

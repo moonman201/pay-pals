@@ -6,6 +6,7 @@ import { useState } from "react";
 import type { ActionId } from "@/lib/deal/actions";
 import { canStillPay } from "@/lib/deal/actions";
 import type { DealSnapshot } from "@/lib/deal/snapshot";
+import { canChooseOffPlatform, hasChosenOffPlatform } from "@/lib/deal/off-platform";
 import { dealStatusView } from "@/lib/deal/status-view";
 import { diffVerdicts, lastTwoVerdicts } from "@/lib/deal/verdict-diff";
 import { dealApi, postJson } from "@/lib/client/api";
@@ -14,6 +15,7 @@ import { ActionBar } from "./ActionBar";
 import { ArrivalResult } from "./ArrivalResult";
 import { DealHeader } from "./DealHeader";
 import { ItemCardView } from "./ItemCardView";
+import { OffPlatformNotice } from "./OffPlatformNotice";
 import { PalPane } from "./PalPane";
 import { PaymentSummary } from "./PaymentSummary";
 import { SharedChat } from "./SharedChat";
@@ -29,6 +31,7 @@ import { InvitePanel } from "./steps/InvitePanel";
 import { IssueStep } from "./steps/IssueStep";
 import { RefusalStep } from "./steps/RefusalStep";
 import { JoinForm } from "./steps/JoinForm";
+import { OffPlatformStep } from "./steps/OffPlatformStep";
 import { PayStep } from "./steps/PayStep";
 import { RequestStep } from "./steps/RequestStep";
 import { ShipStep } from "./steps/ShipStep";
@@ -92,6 +95,8 @@ export function DealRoom({ snapshot, role }: { snapshot: DealSnapshot; role: Rol
   // This side agreed to an earlier version and the store cleared it when the card changed.
   const agreedEarlier = snapshot.events.some((e) => e.kind === "agreed" && e.actor === role);
   const cardChangedSinceAgree = agreedEarlier && (role === "buyer" ? deal.buyerAgreedAt : deal.sellerAgreedAt) === null;
+  // Decision 12: once the buyer says they are paying another way, Pay Pals has stepped back.
+  const offPlatform = hasChosenOffPlatform(snapshot.events);
   // The pal looked again after new evidence: both reviews stay on the page (C6).
   const pair = lastTwoVerdicts(snapshot.verdicts);
   const verdictDiff = pair ? diffVerdicts(pair.previous, pair.current) : null;
@@ -160,10 +165,11 @@ export function DealRoom({ snapshot, role }: { snapshot: DealSnapshot; role: Rol
           ) : null}
           {snapshot.shipment ? <ShipmentSummary shipment={snapshot.shipment} /> : null}
           {snapshot.arrivalCheck ? <ArrivalResult check={snapshot.arrivalCheck} lockedCard={snapshot.lockedCard} /> : null}
+          {offPlatform ? <OffPlatformNotice state={state} /> : null}
 
           {needsBuyer ? (
             <JoinForm dealId={deal.id} onDone={refresh} />
-          ) : (
+          ) : offPlatform ? null : (
             <>
               <ActionBar
                 state={state}
@@ -205,6 +211,7 @@ export function DealRoom({ snapshot, role }: { snapshot: DealSnapshot; role: Rol
               {role === "buyer" && state === "DELIVERED" && !snapshot.arrivalCheck ? (
                 <ArrivalStep dealId={deal.id} suggestions={snapshot.demo?.arrivalPhotos ?? []} uploadsEnabled={snapshot.uploadsEnabled} onDone={refresh} />
               ) : null}
+              {role === "buyer" && canChooseOffPlatform(state, snapshot.events) ? <OffPlatformStep dealId={deal.id} onDone={refresh} /> : null}
             </>
           )}
         </div>

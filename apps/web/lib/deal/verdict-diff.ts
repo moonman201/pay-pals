@@ -6,6 +6,7 @@
  */
 import { OVERALL_LABELS } from "../labels";
 import { FLAG_WORDS } from "./override";
+import { couldNotVerify } from "./pal-reasons";
 import { priceRangeLine } from "./price-copy";
 import type { RedFlag, Verdict } from "@pay-pals/contracts";
 
@@ -79,6 +80,15 @@ export function diffVerdicts(previous: Verdict, current: Verdict): VerdictDiff {
   if (answered.length > 0) lines.push(`${answered.length} ${answered.length === 1 ? "question" : "questions"} the pal asked before is no longer open.`);
   const asked = current.questionsForSeller.filter((q) => !previous.questionsForSeller.includes(q));
   if (asked.length > 0) lines.push(`${asked.length} new ${asked.length === 1 ? "question" : "questions"} for the seller.`);
+
+  // The pal's own "could not check" list is the clearest before-and-after there is: the new
+  // evidence either closed one of those or opened another (C5).
+  const openedBefore = couldNotVerify(previous.reasoning);
+  const openNow = couldNotVerify(current.reasoning);
+  const closed = openedBefore.filter((line) => !openNow.includes(line));
+  const opened = openNow.filter((line) => !openedBefore.includes(line));
+  for (const line of closed) lines.push(`The pal could not check this before and can now: ${line}`);
+  for (const line of opened) lines.push(`The pal could not check this on the new version: ${line}`);
 
   const price = priceLine(previous, current);
   if (price) lines.push(price);

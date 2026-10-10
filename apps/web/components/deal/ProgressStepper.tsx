@@ -6,11 +6,12 @@ const END_STYLE: Record<NonNullable<ProgressEnd>["kind"], string> = {
   blocked: "border-stop-line bg-stop-soft text-stop",
   issue: "border-caution-line bg-caution-soft text-caution",
   cancelled: "border-line bg-wash text-muted",
+  off_platform: "border-caution-line bg-caution-soft text-caution",
 };
 
 function EndIcon({ kind }: { kind: NonNullable<ProgressEnd>["kind"] }) {
   if (kind === "blocked") return <ShieldStopIcon size={16} />;
-  if (kind === "issue") return <IssueIcon size={16} />;
+  if (kind === "issue" || kind === "off_platform") return <IssueIcon size={16} />;
   return null;
 }
 

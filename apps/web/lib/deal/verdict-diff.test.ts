@@ -102,6 +102,20 @@ describe("diffVerdicts", () => {
     expect(diffVerdicts(before, after).lines).toContain("The cert check went from was not checked to did not match the card.");
   });
 
+  it("says which open question the new evidence closed, and which it opened", () => {
+    const reasoning = (couldNotVerify: string[]) => ({ checked: [], found: [], couldNotVerify, wouldChangeMyMind: [] });
+    const before = verdict({ cardVersion: 1, reasoning: reasoning(["Whether the console serial matches the box."]) });
+    const after = verdict({ cardVersion: 2, reasoning: reasoning(["Whether the console powers on."]) });
+    const diff = diffVerdicts(before, after);
+    expect(diff.lines).toContain("The pal could not check this before and can now: Whether the console serial matches the box.");
+    expect(diff.lines).toContain("The pal could not check this on the new version: Whether the console powers on.");
+  });
+
+  it("says nothing about reasons a verdict never carried", () => {
+    const diff = diffVerdicts(verdict(), verdict({ cardVersion: 2 }));
+    expect(diff.lines.some((l) => l.includes("could not check"))).toBe(false);
+  });
+
   it("writes no em dashes and never claims the item is authentic", () => {
     const before = verdict({ flags: [flag("CERT_MISMATCH", "stop")], overall: "stop" });
     const after = verdict({ overall: "go" });

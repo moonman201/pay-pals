@@ -28,6 +28,7 @@ export const EVENT_KIND_LABELS: Readonly<Record<DealEventKind, string>> = {
   agreed: "Agreed",
   card_locked: "Card locked",
   state_changed: "State changed",
+  off_platform_chosen: "Paying another way",
   payment_created: "PayPal order created",
   payment_captured: "Payment captured",
   shipped: "Shipped",

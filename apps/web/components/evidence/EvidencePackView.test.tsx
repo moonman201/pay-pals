@@ -138,6 +138,41 @@ describe("EvidencePackView", () => {
     expect(screen.getByText("2NW245573K1279237")).toBeInTheDocument();
   });
 
+  it("carries the pal's reasons under its review and under its arrival check", () => {
+    const reasoning = {
+      checked: ["The arrival photos against the locked card."],
+      found: ["No console in the photos."],
+      couldNotVerify: ["What was in the box when it left the seller."],
+      wouldChangeMyMind: ["A packing photo showing the console inside the box."],
+    };
+    const verdict = {
+      dealId: emptyBox.deal.id,
+      cardVersion: 1,
+      overall: "go" as const,
+      flags: [],
+      priceCheck: null,
+      questionsForSeller: [],
+      palMessage: "Looks fine.",
+      reasoning: { ...reasoning, couldNotVerify: ["Whether the seller owns the console."] },
+      createdAt: "2026-10-08T00:00:00.000Z",
+    };
+    const arrivalCheck = {
+      dealId: emptyBox.deal.id,
+      cardVersion: 1,
+      matches: false,
+      mismatches: [],
+      observed: { brand: null, model: null, serial: null },
+      palMessage: "The console is not there.",
+      reasoning,
+      createdAt: "2026-10-08T00:00:00.000Z",
+    };
+    render(<EvidencePackView pack={pack({ verdicts: [verdict], arrivalCheck })} deal={emptyBox.deal} role="buyer" />);
+    expect(screen.getAllByTestId("pal-reasons")).toHaveLength(2);
+    expect(screen.getByText("Whether the seller owns the console.")).toBeInTheDocument();
+    expect(screen.getByText("What was in the box when it left the seller.")).toBeInTheDocument();
+    expect(screen.getAllByRole("heading", { name: "What I could not check" })).toHaveLength(2);
+  });
+
   it("keeps the two halves labelled, and never claims a confirmation when no read is passed", () => {
     render(<EvidencePackView pack={pack()} deal={emptyBox.deal} role="buyer" />);
     expect(screen.queryByRole("heading", { name: "Confirmed by PayPal" })).not.toBeInTheDocument();
