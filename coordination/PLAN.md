@@ -24,9 +24,14 @@ tests/e2e            Playwright runs of the three demo scenarios                
 ```
 Modules talk only through `packages/contracts` interfaces. apps/web is the only place modules are wired together.
 
-## Contracts (v1.6.0, frozen Oct 8, a day ahead of the Fri Oct 9 date in `packages/contracts`, frozen Fri Oct 9)
+## Contracts (v1.7.0, Oct 10. Frozen at v1.6.0 on Oct 8; Matt approved two additive changes on Oct 10, see `coordination/PROPOSAL-contracts-v1.7.0.md`)
 
 The TypeScript in `packages/contracts/src` is the contract. This section is the summary. Where they differ, the code wins and the Lead fixes this file.
+
+### Changes in v1.7.0 (Matt approved, Oct 10)
+Both additive. Nothing existing changed shape, so every v1.6.0 consumer still compiles and every stored row still parses.
+- **`DEAL_EVENT_KINDS` gains `off_platform_chosen`**, between `state_changed` and `payment_created`. The buyer told Pay Pals they will pay outside Goods and Services; Pay Pals warned them, wrote the line, and stepped back. It is the end of Pay Pals' part, not the start of one. Needs migration 0005 and a re-bundle of `migrations.generated.ts`, because the Postgres enum is generated from this constant.
+- **`PalReasoning`**, optional on `Verdict` and `ArrivalCheck`: `checked`, `found`, `couldNotVerify`, `wouldChangeMyMind`. Four lists of short plain sentences, so a pal's reasons can be laid out, tested and checked one claim at a time. No migration: verdicts round-trip as a single jsonb payload. A group may be empty but not absent, so a pal cannot quietly omit what it could not verify.
 
 ### Deal states
 `DRAFT -> LISTED -> REVIEWED -> AGREED -> PAYMENT_PENDING -> PAID -> SHIPPED -> DELIVERED -> COMPLETE`

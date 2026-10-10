@@ -53,6 +53,27 @@ export const CertCheckSchema = z.object({
 });
 export type CertCheck = z.infer<typeof CertCheckSchema>;
 
+/**
+ * Why a pal decided what it decided. Four groups, each a list of short plain
+ * sentences, so the reasons can be laid out, tested and checked one claim at a
+ * time rather than buried in prose.
+ *
+ * The honesty rule this field exists to serve: a pal says what it checked and
+ * what it checked it against. `couldNotVerify` is the one that matters most,
+ * because it is the thing a pal is tempted to leave out.
+ */
+export const PalReasoningSchema = z.object({
+  /** What the pal looked at. "The serial on the back of the console, against the box label." */
+  checked: z.array(z.string().min(1).max(300)),
+  /** What it found when it looked. */
+  found: z.array(z.string().min(1).max(300)),
+  /** What it could not establish, and why not. Never left empty to look confident. */
+  couldNotVerify: z.array(z.string().min(1).max(300)),
+  /** What would move this verdict, so the other side knows what to send. */
+  wouldChangeMyMind: z.array(z.string().min(1).max(300)),
+});
+export type PalReasoning = z.infer<typeof PalReasoningSchema>;
+
 export const VerdictSchema = z.object({
   dealId: z.string().min(1),
   /** 0 when the review ran with no card (a refusal reviewed from the chat alone). */
@@ -66,6 +87,8 @@ export const VerdictSchema = z.object({
   questionsForSeller: z.array(z.string().min(1).max(300)),
   /** Short plain summary for the buyer's chat pane. */
   palMessage: z.string().min(1),
+  /** What the pal checked, found, could not verify, and what would change its mind. */
+  reasoning: PalReasoningSchema.optional(),
   createdAt: z.string().datetime(),
 });
 export type Verdict = z.infer<typeof VerdictSchema>;
@@ -96,6 +119,8 @@ export const ArrivalCheckSchema = z.object({
   /** The arrival photos the check was made from, kept with the result for the evidence pack. */
   photos: z.array(PhotoSchema).optional(),
   palMessage: z.string().min(1),
+  /** Same four groups as a review. What it read off the arrival photos, and what it could not. */
+  reasoning: PalReasoningSchema.optional(),
   createdAt: z.string().datetime(),
 });
 export type ArrivalCheck = z.infer<typeof ArrivalCheckSchema>;
