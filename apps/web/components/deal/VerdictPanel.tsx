@@ -6,6 +6,7 @@ import { hasUsableRange, priceRangeLine, priceSourceNote } from "@/lib/deal/pric
 import { methodNote, summariseSources } from "@/lib/deal/price-sources";
 import { OVERALL_LABELS } from "@/lib/labels";
 import { PalAvatar } from "../pal/PalAvatar";
+import { PalReasons } from "../pal/PalReasons";
 import { Badge, type Tone } from "../ui/Badge";
 import { CautionIcon, CheckIcon, StopIcon } from "../ui/icons";
 import { Panel } from "../ui/Panel";
@@ -107,6 +108,8 @@ export function VerdictPanel({ verdict, currentVersion, locked, cardTitle = null
         </div>
       ) : null}
 
+      <PalReasons reasoning={verdict.reasoning} pal="buyer" only={["checked", "found", "couldNotVerify"]} className="mt-4" />
+
       {verdict.flags.length > 0 ? (
         <ul className="mt-4 space-y-2" aria-label="Red flags">
           {verdict.flags.map((f, i) => (
@@ -141,6 +144,9 @@ export function VerdictPanel({ verdict, currentVersion, locked, cardTitle = null
           </ul>
         </div>
       ) : null}
+
+      {/* The ask sits with the questions for the seller, which is what it is, rather than repeating them higher up. */}
+      <PalReasons reasoning={verdict.reasoning} pal="buyer" only={["wouldChangeMyMind"]} className="mt-4" />
     </Panel>
   );
 }
