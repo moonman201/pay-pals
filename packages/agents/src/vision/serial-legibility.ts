@@ -62,8 +62,24 @@ export interface SerialJudgement {
   illegible: boolean;
 }
 
-/** The sentence the pal falls back to when the model gave no reason of its own. */
+/** The clause the pal falls back to when the model gave no reason of its own. */
 export const DEFAULT_UNREADABLE_REASON = "it is too small or too soft in this shot to read character for character";
+
+/** Sentence openers that are only capitals because they started a sentence. */
+const OPENERS = new Set(["the", "a", "an", "it", "its", "this", "that", "there", "no", "most", "part", "much", "some", "they"]);
+
+/**
+ * Turns whatever the model wrote into something that reads correctly after
+ * "because": no closing stop, and no capital that was only there to open a
+ * sentence. A first word that is a name or a model number keeps its case.
+ */
+export function asReasonClause(text: string): string {
+  const trimmed = text.trim().replace(/[.\s]+$/, "");
+  if (trimmed.length === 0) return trimmed;
+  const firstWord = trimmed.split(/\s+/)[0] ?? "";
+  if (!OPENERS.has(firstWord.toLowerCase())) return trimmed;
+  return trimmed.charAt(0).toLowerCase() + trimmed.slice(1);
+}
 
 /**
  * Accepts a transcribed serial only when the model called the number sharp. A

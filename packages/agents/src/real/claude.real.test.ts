@@ -14,6 +14,7 @@ import { CLEAN_MODEL, CLEAN_SERIAL, cleanPs5, hasStop, fakeSlab } from "@pay-pal
 import type { ImageFetcher } from "../vision/fetch-image";
 import { readPhoto } from "../vision/read-photo";
 import { createBuyerPal } from "../buyer/buyer-pal";
+import { CONSOLE_SERIAL_QUESTION } from "../buyer/proof-question";
 import { createFixtureCertLookup } from "../cert/fixture-lookup";
 import { createSellerPal } from "../seller/seller-pal";
 import { createFixturePriceLookup } from "../price/fixture-lookup";
@@ -123,4 +124,28 @@ describe.skipIf(!enabled)("real Claude vision on the demo photos", () => {
     expect(reading.serial).toBe(CLEAN_SERIAL);
     expect(reading.serialOn).toBe("item");
   }, 60_000);
+
+  /**
+   * The clean deal's first card, reviewed with the real model and the real
+   * photos. This is the run that shows items C5 and the serial gate agreeing:
+   * the wide shot gives no number, the pal says so in couldNotVerify, and it
+   * asks for the close-up in both wouldChangeMyMind and questionsForSeller.
+   */
+  it("reviews clean-ps5 v1 on the real photos and shows its reasons", async () => {
+    const pal = createBuyerPal({ anthropic, priceLookup: createFixturePriceLookup(), fetchImage: fromDisk, photoBaseUrl: "https://demo.invalid" });
+    const { data: verdict } = await pal.review(cleanPs5.cards[0]!, cleanPs5.chat.slice(0, 2), { seller: cleanPs5.seller });
+    print("clean-ps5 v1 (real photos)", verdict);
+    for (const group of ["checked", "found", "couldNotVerify", "wouldChangeMyMind"] as const) {
+      console.log(`  ${group}:\n${verdict.reasoning![group].map((line) => `    - ${line}`).join("\n")}`);
+    }
+    expect(verdict.overall).not.toBe("stop");
+    const reasoning = verdict.reasoning!;
+    for (const group of ["checked", "found", "couldNotVerify", "wouldChangeMyMind"] as const) expect(Array.isArray(reasoning[group])).toBe(true);
+    expect(reasoning.checked.length).toBeGreaterThan(0);
+    expect(reasoning.couldNotVerify.length).toBeGreaterThan(0);
+    // The wide shot is the only photo of the console itself, so the number is not available and the pal must say so.
+    expect(reasoning.couldNotVerify.join(" ")).toMatch(/could not read it/i);
+    expect(reasoning.wouldChangeMyMind.join(" ")).toMatch(/close-up of the serial label/i);
+    expect(verdict.questionsForSeller).toContain(CONSOLE_SERIAL_QUESTION);
+  }, 120_000);
 });

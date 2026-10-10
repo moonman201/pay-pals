@@ -11,7 +11,21 @@ import { fakeClaude, promptText } from "../testing/fake-claude";
 import { asFetched, pictureA } from "../testing/images";
 import { photoFactsBlock } from "../buyer/photo-facts";
 import { readPhoto } from "./read-photo";
-import { DEFAULT_UNREADABLE_REASON, judgeSerial } from "./serial-legibility";
+import { asReasonClause, DEFAULT_UNREADABLE_REASON, judgeSerial } from "./serial-legibility";
+
+describe("asReasonClause", () => {
+  it("reads correctly after the word because", () => {
+    expect(asReasonClause("The sticker is a thin strip in a wide shot.")).toBe("the sticker is a thin strip in a wide shot");
+  });
+
+  it("leaves a name or a part number with the case it was written in", () => {
+    expect(asReasonClause("Sony printed it below the barcode.")).toBe("Sony printed it below the barcode");
+  });
+
+  it("is empty when the model said nothing, so the caller can fall back", () => {
+    expect(asReasonClause("   ")).toBe("");
+  });
+});
 
 describe("judgeSerial", () => {
   it("keeps a serial the model called sharp", () => {

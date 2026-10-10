@@ -14,7 +14,7 @@ import { callTool } from "../claude/tool-call";
 import { plainCopy } from "../copy";
 import { brandFromText, isPackagingDescription, modelFromText, normalizeSerial, saysItemMissing, serialFromText } from "./description";
 import { fetchImage as defaultFetchImage, loadPhoto, type ImageFetcher } from "./fetch-image";
-import { DEFAULT_UNREADABLE_REASON, judgeSerial, SERIAL_LEGIBILITIES } from "./serial-legibility";
+import { asReasonClause, DEFAULT_UNREADABLE_REASON, judgeSerial, SERIAL_LEGIBILITIES } from "./serial-legibility";
 
 export type SerialLocation = "item" | "packaging";
 
@@ -165,7 +165,7 @@ export async function readPhoto(photo: Photo, deps: ReadPhotoDeps): Promise<Phot
     serial,
     serialOn: serial ? (result.value.serial_on ?? (isPackagingDescription(photo.whatItShows) ? "packaging" : "item")) : null,
     serialIllegible: illegible,
-    serialIllegibleReason: illegible ? plainCopy(result.value.unreadable_reason ?? "", 200) || DEFAULT_UNREADABLE_REASON : null,
+    serialIllegibleReason: illegible ? asReasonClause(plainCopy(result.value.unreadable_reason ?? "", 200)) || DEFAULT_UNREADABLE_REASON : null,
     itemPresent: result.value.item_present ?? (saysItemMissing(photo.whatItShows) ? false : null),
     source: "vision",
     imageStatus: "read",
