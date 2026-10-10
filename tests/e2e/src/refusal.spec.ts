@@ -1,8 +1,9 @@
 /**
- * A refused invite is the strongest scam sign. The buyer starts a deal, the
- * seller opens the invite link and says they will not use Pay Pals, and the
- * Buyer Pal reviews the refusal with no card at all: INVITE_REFUSED, a
- * payment-method stop, no override, Blocked. Fixtures only, no keys.
+ * A refused invite is a risk signal, and it is the one risk signal a buyer
+ * cannot wave through. The buyer starts a deal, the seller opens the invite
+ * link and says they will not use Pay Pals, and the Buyer Pal reviews the
+ * refusal with no card at all: INVITE_REFUSED, a payment-method stop, no
+ * override, Blocked. Fixtures only, no keys.
  */
 import { expect, test } from "@playwright/test";
 import { fakeSlab } from "@pay-pals/contracts";
