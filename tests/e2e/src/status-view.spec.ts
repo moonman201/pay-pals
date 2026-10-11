@@ -28,7 +28,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { ALL_FIXTURES } from "@pay-pals/contracts";
 import { WEB_PRESENT } from "./env";
-import { panel, waitForHydration } from "./helpers";
+import { panel, waitForHydration, waitForReviewIdle } from "./helpers";
 
 interface StatusRow {
   group: string;
@@ -76,6 +76,8 @@ async function openFinishedDeal(page: Page, name: string): Promise<void> {
   await expect(link, `the landing page offers the finished ${name} deal`).toBeVisible();
   await page.goto((await link.getAttribute("href"))!);
   await waitForHydration(page);
+  // The review streams, and a half-filled one would give a different set of rows.
+  await waitForReviewIdle(page);
 }
 
 test.describe("the deal status view", () => {
@@ -142,9 +144,7 @@ test.describe("the deal status view", () => {
     expect(delivery!.detail).toContain("the buyer's word");
   });
 
-  test("the arrival line says what was compared, and does not say where a serial came from", async ({ page }) => {
-    // Settled 2026-10-10: in demo-only mode a serial on the arrival line came from the buyer's
-    // caption, not from a photo the pal read, so the line names the comparison and claims no source.
+  test("the arrival line says what was compared, and claims a serial's source only from the check", async ({ page }) => {
     const fixture = ALL_FIXTURES.find((f) => f.id === "clean-ps5")!;
     await openFinishedDeal(page, fixture.name);
     const rows = await statusRows(page);
@@ -153,6 +153,46 @@ test.describe("the deal status view", () => {
     expect(arrival, "the completed deal has an arrival line").toBeTruthy();
     expect(arrival!.detail).toMatch(/compared the arrival photos/i);
     expect(arrival!.detail).toContain("locked card version");
-    expect(arrival!.detail, "the arrival line must not claim the pal read a number off a photo").not.toMatch(/read .{0,20}off|off the (photo|picture|image)/i);
+
+    /**
+     * Contracts v1.8.0 added `observed.serialSource`, so "the pal read it off
+     * the picture" became a claim the page is sometimes entitled to make.
+     * This used to forbid that sentence outright, which was right while the
+     * claim was always unfounded and is wrong now. The rule it is replaced
+     * with is the one that still holds: the page may say where a number came
+     * from only when the check records it, and must say the thing that source
+     * means and not another. Read from the check rather than from the
+     * sentence, so this cannot be satisfied by the wording it is checking.
+     */
+    const res = await page.request.get(`/api/deals/${/\/deals\/([^/?]+)/.exec(page.url())![1]}`);
+    expect(res.ok(), `GET the deal -> ${res.status()}`).toBe(true);
+    const { arrivalCheck } = (await res.json()) as {
+      arrivalCheck: { observed: { serial: string | null; serialSource?: "photo" | "description" | null } } | null;
+    };
+    expect(arrivalCheck, "the completed deal has an arrival check behind the line").toBeTruthy();
+
+    const { serial, serialSource } = arrivalCheck!.observed;
+    console.log(`arrival line: serial=${serial ?? "none"} source=${serialSource ?? "absent"}\n  ${arrival!.detail}`);
+    const SAYS_READ_OFF_A_PICTURE = /read off the picture/i;
+    const SAYS_THE_BUYER_S_WORD = /comes from the description filed with the photo/i;
+    const SAYS_IT_DOES_NOT_KNOW = /does not record where that number came from/i;
+
+    if (!serial) {
+      // No number, so nothing to attribute, and the line must attribute nothing.
+      for (const claim of [SAYS_READ_OFF_A_PICTURE, SAYS_THE_BUYER_S_WORD, SAYS_IT_DOES_NOT_KNOW]) {
+        expect(arrival!.detail, `no serial on the check, so the line claims nothing about one: "${arrival!.detail}"`).not.toMatch(claim);
+      }
+      return;
+    }
+
+    expect(arrival!.detail, "a serial the check holds is named on the line").toContain(serial);
+    const expected =
+      serialSource === "photo" ? SAYS_READ_OFF_A_PICTURE : serialSource === "description" ? SAYS_THE_BUYER_S_WORD : SAYS_IT_DOES_NOT_KNOW;
+    const forbidden = [SAYS_READ_OFF_A_PICTURE, SAYS_THE_BUYER_S_WORD, SAYS_IT_DOES_NOT_KNOW].filter((p) => p !== expected);
+
+    expect(arrival!.detail, `serialSource is ${serialSource ?? "absent"}, so the line must say so: "${arrival!.detail}"`).toMatch(expected);
+    for (const claim of forbidden) {
+      expect(arrival!.detail, `serialSource is ${serialSource ?? "absent"}, so the line must not say the other thing: "${arrival!.detail}"`).not.toMatch(claim);
+    }
   });
 });
