@@ -1,4 +1,4 @@
-import { fakeSlab, type RedFlag, type Verdict } from "@pay-pals/contracts";
+import { cleanPs5, fakeSlab, type RedFlag, type Verdict } from "@pay-pals/contracts";
 import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { VerdictPanel } from "./VerdictPanel";
@@ -109,7 +109,108 @@ describe("VerdictPanel", () => {
     expect(screen.getByTestId("price-sources")).toHaveTextContent("From 2 listings: 2 new, $588.99 to $949.99");
     expect(block.textContent).not.toMatch(/shop\.example|a shop|another/);
     const order = [...block.querySelectorAll("[data-testid]")].map((el) => el.getAttribute("data-testid"));
-    expect(order).toEqual(["price-method", "price-sources"]);
+    // The comparison leads, then the derived band's own note, then the chips.
+    expect(order).toEqual(["price-comparison", "asking-price", "retail-range", "price-method", "price-sources"]);
+  });
+
+  /**
+   * The clean deal exactly as production holds it, read off the live API on
+   * Oct 11. The point of pinning the real numbers is that the derived band
+   * (412.29 to 640.49) and the returned retail range (588.99 to 914.99) are
+   * different figures, and the panel must not confuse them.
+   */
+  const liveClean = {
+    marketLow: 412.29,
+    marketHigh: 640.49,
+    currency: "USD" as const,
+    provider: "channel3" as const,
+    checkedAt: "2026-10-11T01:52:22.779Z",
+    sources: [
+      { name: "Showing the 12 cheapest of 13 priced listings; Estimated for a used unit from new retail prices (good: 70% of new), scaled from 11 new listings priced $588.99 to $914.99" },
+      { name: "Retail listing, new", price: 588.99, condition: "new", url: "https://shop.example/1" },
+      { name: "Used listing", price: 588.99, condition: "used", url: "https://shop.example/2" },
+      ...[649.99, 649.99, 776.99, 779.99, 824.99, 858.99, 879.99, 879.99, 899.99, 914.99].map((price, i) => ({
+        name: "Retail listing, new",
+        price,
+        condition: "new",
+        url: `https://shop.example/${i + 3}`,
+      })),
+    ],
+  };
+
+  it("puts the asking price beside the retail range Channel3 returned, with the count and the source named", () => {
+    render(<VerdictPanel verdict={verdict({ overall: "go", priceCheck: liveClean })} currentVersion={1} locked={false} askingPrice={420} />);
+    const comparison = screen.getByTestId("price-comparison");
+    expect(within(comparison).getByTestId("asking-price")).toHaveTextContent("$420.00");
+    expect(within(comparison).getByTestId("retail-range")).toHaveTextContent("$588.99 to $914.99");
+    expect(comparison).toHaveTextContent("Asking price");
+    // "New" is load-bearing: the item is used, so the comparison must say what it is against.
+    expect(comparison).toHaveTextContent("New at retail");
+    expect(comparison).toHaveTextContent("across 11 new listings");
+    expect(comparison).toHaveTextContent("via Channel3");
+  });
+
+  it("keeps the returned retail range and the derived band apart, both on the page", () => {
+    render(<VerdictPanel verdict={verdict({ overall: "go", priceCheck: liveClean })} currentVersion={1} locked={false} askingPrice={420} />);
+    // The comparison carries only the figures Channel3 returned.
+    const comparison = screen.getByTestId("price-comparison");
+    expect(comparison.textContent).not.toMatch(/412|640/);
+    // The derived band keeps its own line, and the note under it says how it was reached.
+    expect(screen.getByTestId("price-check")).toHaveTextContent("Market range $412.29 to $640.49");
+    expect(screen.getByTestId("price-method")).toHaveTextContent("70% of new");
+  });
+
+  it("leaves the priceless method note out of the retail count and the range", () => {
+    render(<VerdictPanel verdict={verdict({ overall: "go", priceCheck: liveClean })} currentVersion={1} locked={false} askingPrice={420} />);
+    // 13 sources, 12 priced, 11 of them new. Neither the note nor the used listing is counted.
+    expect(liveClean.sources).toHaveLength(13);
+    expect(screen.getByTestId("price-comparison")).toHaveTextContent("across 11 new listings");
+    expect(screen.getByTestId("price-sources")).toHaveTextContent("From 12 listings: 11 new, 1 used");
+  });
+
+  it("names no shop in the comparison, the same rule as the rest of the panel", () => {
+    render(<VerdictPanel verdict={verdict({ overall: "go", priceCheck: liveClean })} currentVersion={1} locked={false} askingPrice={420} />);
+    expect(screen.getByTestId("price-comparison").textContent).not.toMatch(/shop\.example|\.com/i);
+  });
+
+  it("says so plainly when the card carries no asking price, rather than printing a bare dollar sign", () => {
+    render(<VerdictPanel verdict={verdict({ overall: "go", priceCheck: liveClean })} currentVersion={1} locked={false} />);
+    expect(screen.getByTestId("asking-price")).toHaveTextContent("Not on the card");
+    expect(screen.getByTestId("retail-range")).toHaveTextContent("$588.99 to $914.99");
+  });
+
+  it("shows no comparison at all when the lookup returned no new listing", () => {
+    const used = verdict({
+      overall: "go",
+      priceCheck: { ...liveClean, sources: [{ name: "Used listing", price: 380, condition: "good" }] },
+    });
+    render(<VerdictPanel verdict={used} currentVersion={1} locked={false} askingPrice={420} />);
+    expect(screen.queryByTestId("price-comparison")).not.toBeInTheDocument();
+    // The panel is exactly what it was before: the band, and the listings under it.
+    expect(screen.getByTestId("price-check")).toHaveTextContent("Market range $412.29 to $640.49");
+    expect(screen.getByTestId("price-sources")).toHaveTextContent("From 1 listing: 1 used, $380");
+  });
+
+  it("shows no comparison when there is no price check, and still says no reliable price", () => {
+    render(<VerdictPanel verdict={verdict({ overall: "go", priceCheck: null })} currentVersion={1} locked={false} askingPrice={420} />);
+    expect(screen.queryByTestId("price-comparison")).not.toBeInTheDocument();
+    expect(screen.getByTestId("price-check")).toHaveTextContent("No reliable market price found");
+  });
+
+  it("offers no retail comparison for a graded card, whose sales are all used", () => {
+    // Every slab source is a like_new graded sale, so there is no "new at retail" to compare to.
+    render(<VerdictPanel verdict={verdict({ overall: "go", priceCheck: fakeSlab.marketPrice })} currentVersion={1} locked={false} askingPrice={140} />);
+    expect(screen.queryByTestId("price-comparison")).not.toBeInTheDocument();
+    expect(screen.getByTestId("price-check")).toHaveTextContent("demo prices");
+  });
+
+  it("calls a demo check demo prices in the comparison too, never Channel3", () => {
+    render(<VerdictPanel verdict={verdict({ overall: "go", priceCheck: cleanPs5.marketPrice })} currentVersion={1} locked={false} askingPrice={420} />);
+    const comparison = screen.getByTestId("price-comparison");
+    expect(comparison).toHaveTextContent("demo prices");
+    expect(comparison).not.toHaveTextContent("Channel3");
+    expect(within(comparison).getByTestId("retail-range")).toHaveTextContent("$499.00");
+    expect(comparison).toHaveTextContent("across 1 new listing");
   });
 
   it("renders a real range with its sources", () => {

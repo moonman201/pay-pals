@@ -3,7 +3,7 @@ import { certRows } from "@/lib/deal/cert-compare";
 import { certSentence } from "@/lib/deal/cert-copy";
 import { FLAG_WORDS } from "@/lib/deal/override";
 import { hasUsableRange, priceRangeLine, priceSourceNote } from "@/lib/deal/price-copy";
-import { methodNote, summariseSources } from "@/lib/deal/price-sources";
+import { methodNote, priceText, retailRange, summariseSources } from "@/lib/deal/price-sources";
 import { OVERALL_LABELS } from "@/lib/labels";
 import { PalAvatar } from "../pal/PalAvatar";
 import { PalReasons } from "../pal/PalReasons";
@@ -35,14 +35,19 @@ interface Props {
   /** What the card says, for the cert comparison. */
   cardTitle?: string | null;
   cardGrade?: string | null;
+  /** What the seller is asking, to sit beside the retail range. From the same card as the title and the grade. */
+  askingPrice?: number | null;
 }
 
-export function VerdictPanel({ verdict, currentVersion, locked, cardTitle = null, cardGrade = null }: Props) {
+export function VerdictPanel({ verdict, currentVersion, locked, cardTitle = null, cardGrade = null, askingPrice = null }: Props) {
   const stale = !locked && verdict.cardVersion > 0 && verdict.cardVersion !== currentVersion;
   // Matt, Oct 9: the listings behind the range are a count, a split and prices. Never the shop names.
   const sources = summariseSources(verdict.priceCheck);
   // The sentence that says how the range was reached, so a scaled figure can be checked against the listings under it.
   const method = methodNote(verdict.priceCheck);
+  // The prices the lookup actually returned, as opposed to the band derived from them. Null when
+  // it returned no new listing, and then the panel is exactly what it was before.
+  const retail = retailRange(verdict.priceCheck);
   const style = VERDICT_STYLE[verdict.overall];
   return (
     <Panel title="Buyer Pal review">
@@ -64,6 +69,28 @@ export function VerdictPanel({ verdict, currentVersion, locked, cardTitle = null
       </div>
 
       <div className="mt-4 rounded-lg bg-wash p-3 text-sm" data-testid="price-check">
+        {retail ? (
+          <dl
+            className="mb-3 grid grid-cols-1 gap-3 rounded-lg border border-[var(--accent-line)] bg-[var(--accent-soft)] p-3 sm:grid-cols-[auto_1fr] sm:gap-x-5"
+            data-testid="price-comparison"
+          >
+            <div>
+              <dt className="text-xs font-semibold uppercase tracking-wide text-muted">Asking price</dt>
+              <dd className="mt-0.5 text-2xl font-black leading-none tracking-tight text-ink" data-testid="asking-price">
+                {askingPrice === null ? "Not on the card" : priceText(askingPrice)}
+              </dd>
+            </div>
+            <div className="sm:border-l sm:border-[var(--accent-line)] sm:pl-5">
+              <dt className="text-xs font-semibold uppercase tracking-wide text-muted">New at retail</dt>
+              <dd className="mt-0.5 text-2xl font-black leading-none tracking-tight text-[var(--accent-ink)]" data-testid="retail-range">
+                {retail.text}
+              </dd>
+              <dd className="mt-1 text-xs text-muted">
+                {retail.countLine}, {priceSourceNote(verdict.priceCheck)}
+              </dd>
+            </div>
+          </dl>
+        ) : null}
         <p className="font-semibold">
           {priceRangeLine(verdict.priceCheck)}
           <span className="ml-2 text-xs font-normal text-muted">{priceSourceNote(verdict.priceCheck)}</span>
