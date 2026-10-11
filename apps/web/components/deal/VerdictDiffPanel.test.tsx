@@ -50,7 +50,7 @@ describe("VerdictDiffPanel", () => {
     const worse = verdict({ cardVersion: 2, overall: "stop", flags: [flag("STOCK_OR_REUSED_PHOTO", "stop")] });
     render(<VerdictDiffPanel diff={diffVerdicts(verdict(), worse)} />);
     const sides = screen.getAllByTestId("verdict-diff-side");
-    expect(sides[1]).toHaveTextContent("a catalog photo instead of the real item");
+    expect(sides[1]).toHaveTextContent("a reused listing photo");
     expect(sides[1]).toHaveTextContent("new");
   });
 

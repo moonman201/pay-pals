@@ -24,14 +24,14 @@ describe("HistoryBadge", () => {
   it("on an example deal, says the history is chained but that no PayPal order holds it, even with a hash on the fixture payment", () => {
     render(<HistoryBadge events={events} historyHash={head} example />);
     const badge = screen.getByTestId("history-badge");
-    expect(badge).toHaveTextContent(`History hash-chained, ${events.length} events (example deal, no PayPal order)`);
+    expect(badge).toHaveTextContent(`Tamper-evident history, ${events.length} events (example deal, no PayPal order)`);
     expect(badge).toHaveAttribute("data-status", "unanchored");
     expect(screen.queryByText(/unchanged since PayPal order/)).not.toBeInTheDocument();
   });
 
   it("shows a count and no verdict before any order", () => {
     render(<HistoryBadge events={events.slice(0, 3)} historyHash={null} />);
-    expect(screen.getByTestId("history-badge")).toHaveTextContent("History hash-chained, 3 events");
+    expect(screen.getByTestId("history-badge")).toHaveTextContent("Tamper-evident history, 3 events");
   });
 
   it("wears a seal only once there is a verdict: green when verified, red on a mismatch, none before an order", () => {

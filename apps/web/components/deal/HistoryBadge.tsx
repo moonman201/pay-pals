@@ -51,12 +51,17 @@ export function HistoryBadge({ events, historyHash, example = false, source = "p
   const bad = status.kind === "mismatch" || (status.kind === "unanchored" && !status.chainOk);
   const tone = status.kind === "verified" ? "border-go-line bg-go-soft text-go" : bad ? "border-stop-line bg-stop-soft text-stop font-bold" : "border-line bg-wash text-muted";
   return (
-    <span
+    /*
+      A link, because the events it counts are the timeline, and a reader who
+      wants to see them should not have to go looking (Matt's rule 1).
+    */
+    <a
+      href="#timeline"
       role={status.kind === "mismatch" ? "alert" : undefined}
       data-testid="history-badge"
       data-status={status.kind}
       title={titleFor(source, example ? null : historyHash, example, orderId)}
-      className={`inline-flex min-h-8 items-center gap-1.5 rounded-full border py-0.5 pl-1 pr-2.5 text-xs font-semibold ${tone} ${className}`}
+      className={`inline-flex min-h-8 items-center gap-1.5 rounded-full border py-0.5 pl-1 pr-2.5 text-xs font-semibold underline-offset-2 hover:underline ${tone} ${className}`}
     >
       {status.kind === "verified" || bad ? (
         <Seal verified={status.kind === "verified"} />
@@ -64,6 +69,6 @@ export function HistoryBadge({ events, historyHash, example = false, source = "p
         <span aria-hidden className="ml-1.5 inline-block h-2 w-2 rounded-full border-2 border-current" />
       )}
       {line}
-    </span>
+    </a>
   );
 }

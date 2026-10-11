@@ -27,7 +27,7 @@ const FLAG_WORDS: Readonly<Record<RedFlagCode, string>> = {
   PRICE_FAR_BELOW_MARKET: "a price far below market",
   URGENCY_PRESSURE: "pressure to pay now",
   NAME_MISMATCH: "a PayPal account that does not match the seller",
-  STOCK_OR_REUSED_PHOTO: "a catalog photo instead of the real item",
+  STOCK_OR_REUSED_PHOTO: "a reused listing photo",
   MISSING_SERIAL: "no serial number",
   SHIP_BEFORE_PAY_TRICK: "a trick to get money before shipping",
   INVITE_REFUSED: "the seller refused Pay Pals protection",

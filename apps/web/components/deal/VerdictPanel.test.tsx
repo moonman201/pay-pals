@@ -3,7 +3,9 @@ import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { VerdictPanel } from "./VerdictPanel";
 
-const flag = (code: RedFlag["code"], severity: RedFlag["severity"]): RedFlag => ({ code, severity, evidence: "e", explanation: "x", raisedByRule: true });
+/* Explanation empty so the reasons come from the fallback map. The pal's own
+   sentence is preferred when it has one, which review-lead.test.ts covers. */
+const flag = (code: RedFlag["code"], severity: RedFlag["severity"], explanation = ""): RedFlag => ({ code, severity, evidence: "e", explanation, raisedByRule: true });
 
 function verdict(overrides: Partial<Verdict> = {}): Verdict {
   return { dealId: "d1", cardVersion: 1, overall: "stop", flags: [], priceCheck: null, questionsForSeller: [], palMessage: "Stop.", createdAt: new Date().toISOString(), ...overrides };
@@ -17,11 +19,12 @@ describe("VerdictPanel", () => {
     });
     render(<VerdictPanel verdict={v} currentVersion={1} locked={false} cardTitle={fakeSlab.cards[0]!.title} cardGrade="PSA 10" />);
     const block = screen.getByTestId("cert-check");
-    expect(block).toHaveTextContent(`Cert ${fakeSlab.certRecord!.certNumber}`);
-    expect(block).toHaveTextContent(/does not match the card/);
-    expect(block).toHaveTextContent(`Card says PSA 10. PSA (demo record) record says ${fakeSlab.certRecord!.subject}, grade ${fakeSlab.certRecord!.grade}.`);
-    // Once in the sentence, once in the card title cell, once in the card grade cell of the comparison.
-    expect(block.textContent?.match(/PSA 10/g)?.length).toBe(3);
+    // One header line, then the table. The closing paragraph that repeated the
+    // header in other words is gone (Matt's rule 1).
+    expect(screen.getByTestId("cert-headline")).toHaveTextContent(`Cert ${fakeSlab.certRecord!.certNumber} does not match PSA (demo record)'s record.`);
+    expect(block).toHaveTextContent("PSA's record for this cert is a different card and grade.");
+    // Once in the card title cell, once in the card grade cell of the comparison.
+    expect(block.textContent?.match(/PSA 10/g)?.length).toBe(2);
     expect(block).not.toHaveTextContent("PSA 10, PSA 10");
     const rows = within(block).getAllByRole("row").slice(1);
     const record = fakeSlab.certRecord!;
@@ -33,10 +36,13 @@ describe("VerdictPanel", () => {
     expect(screen.getByText("a grading cert that does not match PSA's record")).toBeInTheDocument();
   });
 
-  it("says the record agrees on a match", () => {
+  it("says the record agrees, and in the same breath what that does not prove", () => {
     const v = verdict({ overall: "go", certCheck: { record: { ...fakeSlab.certRecord!, provider: "psa", grade: "10" }, matches: true, explanation: "Matches." } });
     render(<VerdictPanel verdict={v} currentVersion={1} locked={false} cardGrade="PSA 10" />);
-    expect(screen.getByTestId("cert-check")).toHaveTextContent("PSA record agrees: PSA 10");
+    const headline = screen.getByTestId("cert-headline");
+    expect(headline).toHaveTextContent(`Cert ${fakeSlab.certRecord!.certNumber} matches PSA's record.`);
+    // The half that matters: a real slab is not the same thing as this seller having it.
+    expect(headline).toHaveTextContent("The slab exists. That doesn't prove the seller has it.");
   });
 
   it("renders each flag as three separate elements: severity pill, category word, no-override marker", () => {
@@ -243,7 +249,7 @@ describe("VerdictPanel", () => {
     expect(screen.queryByText(/Photo block/)).not.toBeInTheDocument();
   });
 
-  it("renders the pal's reasons, with the ask down beside the questions for the seller", () => {
+  it("puts the pal's working behind one expander, collapsed, with nothing deleted", () => {
     const v = verdict({
       questionsForSeller: ["Can you send a close-up of the serial?"],
       reasoning: {
@@ -254,19 +260,133 @@ describe("VerdictPanel", () => {
       },
     });
     render(<VerdictPanel verdict={v} currentVersion={1} locked={false} />);
-    const blocks = screen.getAllByTestId("pal-reasons");
-    expect(blocks).toHaveLength(2);
-    expect(blocks[0]!).toHaveTextContent("What I could not check");
-    expect(blocks[0]!).toHaveTextContent("Whether the seller owns the item.");
-    expect(blocks[0]!).not.toHaveTextContent("What would change my mind");
-    expect(blocks[1]!).toHaveTextContent("What would change my mind");
-    // The ask comes after the questions for the seller, which is what it belongs with.
-    const asked = screen.getByText("Asked of the seller");
-    expect(asked.compareDocumentPosition(blocks[1]!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const work = screen.getByTestId("pal-work");
+    expect(work.tagName).toBe("DETAILS");
+    // Rule 4: collapsed by default, so honesty is one click away and never in the way.
+    expect(work).not.toHaveAttribute("open");
+    expect(screen.getByText("Show the pal's work")).toBeInTheDocument();
+    // Still on the page, inside it.
+    expect(work).toHaveTextContent("What I checked");
+    expect(work).toHaveTextContent("What I could not check");
+    expect(work).toHaveTextContent("Whether the seller owns the item.");
   });
 
-  it("renders exactly as it did for a verdict with no reasons on it", () => {
+  it("drops What I found from the room, because the reasons and the flag cards are those findings", () => {
+    const v = verdict({
+      reasoning: { checked: ["The price."], found: ["It sits below the range."], couldNotVerify: ["Who holds it."], wouldChangeMyMind: [] },
+    });
+    render(<VerdictPanel verdict={v} currentVersion={1} locked={false} />);
+    expect(screen.queryByText("What I found")).not.toBeInTheDocument();
+  });
+
+  it("puts what would change the pal's mind at the top only, never twice", () => {
+    const v = verdict({
+      flags: [flag("URGENCY_PRESSURE", "caution")],
+      reasoning: { checked: [], found: [], couldNotVerify: [], wouldChangeMyMind: ["The seller agreeing to wait until these checks are done would change this."] },
+    });
+    render(<VerdictPanel verdict={v} currentVersion={1} locked={false} />);
+    expect(screen.getByTestId("look-again")).toHaveTextContent("I'd look again if The seller agreeing to wait");
+    expect(screen.queryByText("What would change my mind")).not.toBeInTheDocument();
+    expect(screen.getByTestId("verdict").textContent?.match(/would change this/g)).toHaveLength(1);
+  });
+
+  it("keeps every ask on the page when the lead has room for only two", () => {
+    // Rule 4 over rule 1: the lead may be short, it may not be the only place
+    // an ask lived and then drop it. Two up top, the rest behind the disclosure.
+    const five = ["One would change this.", "Two would change this.", "Three would change this.", "Four would change this.", "Five would change this."];
+    const v = verdict({ reasoning: { checked: [], found: [], couldNotVerify: [], wouldChangeMyMind: five } });
+    render(<VerdictPanel verdict={v} currentVersion={1} locked={false} />);
+    expect(screen.getByTestId("look-again")).toHaveTextContent("One would change this. two would change this.");
+    const rest = screen.getByTestId("rest-of-asks");
+    for (const ask of five.slice(2)) expect(rest).toHaveTextContent(ask);
+    // And the page as a whole still carries all five. Case-insensitive, because
+    // joining the second into the sentence lowercases its first letter on purpose.
+    const page = document.body.textContent!.toLowerCase();
+    for (const ask of five) expect(page, ask).toContain(ask.toLowerCase());
+  });
+
+  it("renders no expander at all for a verdict with no reasons on it", () => {
     render(<VerdictPanel verdict={verdict()} currentVersion={1} locked={false} />);
+    expect(screen.queryByTestId("pal-work")).not.toBeInTheDocument();
     expect(screen.queryByTestId("pal-reasons")).not.toBeInTheDocument();
+  });
+});
+
+describe("VerdictPanel, the lead", () => {
+  it("leads with three words and one line per reason, not a paragraph", () => {
+    const v = verdict({
+      overall: "stop",
+      palMessage: "A long paragraph that used to be the first thing anybody read, and which repeated every flag below it in prose.",
+      flags: [flag("FRIENDS_AND_FAMILY_REQUEST", "stop"), flag("STOCK_OR_REUSED_PHOTO", "caution"), flag("URGENCY_PRESSURE", "caution")],
+    });
+    render(<VerdictPanel verdict={v} currentVersion={1} locked={false} />);
+    expect(screen.getByTestId("verdict-headline")).toHaveTextContent("Stop. Don't pay.");
+    const reasons = within(screen.getByTestId("verdict-reasons")).getAllByRole("listitem");
+    expect(reasons).toHaveLength(3);
+    for (const reason of reasons) expect(reason.textContent!.split(/\s+/).filter(Boolean).length).toBeLessThanOrEqual(13);
+    // The paragraph it replaced is gone from the page.
+    expect(screen.queryByText(/A long paragraph that used to be/)).not.toBeInTheDocument();
+  });
+
+  it("names no more than three reasons however many flags there are, worst first", () => {
+    const v = verdict({
+      overall: "stop",
+      flags: [flag("URGENCY_PRESSURE", "caution"), flag("OTHER", "info"), flag("INVITE_REFUSED", "stop"), flag("MISSING_SERIAL", "caution")],
+    });
+    render(<VerdictPanel verdict={v} currentVersion={1} locked={false} />);
+    const reasons = within(screen.getByTestId("verdict-reasons")).getAllByRole("listitem");
+    expect(reasons).toHaveLength(3);
+    expect(reasons[0]).toHaveTextContent("The seller refused Pay Pals protection.");
+    // The info flag is the one that drops off the end.
+    expect(screen.getByTestId("verdict-reasons")).not.toHaveTextContent("Something else the pal wanted you to see.");
+  });
+
+  it("shows the pal's own sentence as the reason, not a second phrasing of it", () => {
+    const own = "His only photo matches a listing photo already on file.";
+    const v = verdict({ overall: "caution", flags: [flag("STOCK_OR_REUSED_PHOTO", "caution", own)] });
+    render(<VerdictPanel verdict={v} currentVersion={1} locked={false} />);
+    expect(screen.getByTestId("verdict-reasons")).toHaveTextContent(own);
+    // The check is against Pay Pals' own file of photos, so no line may imply a search.
+    expect(screen.getByTestId("verdict-reasons").textContent).not.toMatch(/online|web|internet|searched/i);
+  });
+
+  it("falls back to the pal's own findings when there are no flags to name", () => {
+    const v = verdict({
+      overall: "go",
+      reasoning: { checked: ["The serial."], found: ["The serial matches the box label.", "The price sits inside the range."], couldNotVerify: [], wouldChangeMyMind: [] },
+    });
+    render(<VerdictPanel verdict={v} currentVersion={1} locked={false} />);
+    expect(screen.getByTestId("verdict-headline")).toHaveTextContent("Looks good.");
+    expect(screen.getByTestId("verdict-reasons")).toHaveTextContent("The serial matches the box label.");
+  });
+});
+
+describe("VerdictPanel, a graded card", () => {
+  const slabCard = fakeSlab.cards[fakeSlab.cards.length - 1]!;
+
+  it("claims no market price for a graded card, even when the check returned one", () => {
+    // The slab fixture carries a 305 to 493 range. Channel3 prices retail stock,
+    // so for one graded slab that number would be about a different thing.
+    expect(fakeSlab.marketPrice.marketLow).toBeGreaterThan(0);
+    render(<VerdictPanel verdict={verdict({ overall: "stop", priceCheck: fakeSlab.marketPrice })} currentVersion={1} locked={false} card={slabCard} askingPrice={140} />);
+    const block = screen.getByTestId("price-check");
+    expect(block).toHaveTextContent("Price: can't check automatically. Channel3 covers retail stores, not graded cards.");
+    expect(block.textContent).not.toMatch(/305|493|Market range|New at retail/);
+    expect(screen.queryByTestId("price-comparison")).not.toBeInTheDocument();
+  });
+
+  it("sends the reader somewhere that does track graded sales, in a new tab", () => {
+    render(<VerdictPanel verdict={verdict({ overall: "stop", priceCheck: fakeSlab.marketPrice })} currentVersion={1} locked={false} card={slabCard} />);
+    const link = screen.getByRole("link", { name: "Check recent sold prices on PriceCharting or 130point" });
+    expect(link).toHaveAttribute("target", "_blank");
+    expect(link).toHaveAttribute("rel", expect.stringContaining("noopener"));
+    expect(link.getAttribute("href")).toContain("pricecharting.com");
+    expect(link.getAttribute("href")).toContain(encodeURIComponent(slabCard.title).slice(0, 20));
+  });
+
+  it("leaves a card with no cert number alone, which is every other deal", () => {
+    render(<VerdictPanel verdict={verdict({ overall: "go", priceCheck: cleanPs5.marketPrice })} currentVersion={1} locked={false} card={cleanPs5.cards[0]!} askingPrice={420} />);
+    expect(screen.getByTestId("price-check")).toHaveTextContent("Market range");
+    expect(screen.getByTestId("price-check")).not.toHaveTextContent("can't check automatically");
   });
 });

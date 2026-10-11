@@ -23,3 +23,23 @@ export function certSentence(check: CertCheck, cardGrade: string | null | undefi
   }
   return { text: check.explanation, tone: "muted" };
 }
+
+/**
+ * The one line above the comparison table: what the check found, and what
+ * it does not prove.
+ *
+ * The second half is the point. A cert that matches says the slab is real
+ * and graded; it says nothing about who is holding it, and a reader who
+ * takes a green "matches" as proof of the seller has read it wrong. Matt's
+ * words: "The slab exists. That doesn't prove he has it."
+ *
+ * The panel used to print this finding, then the table, then a closing
+ * paragraph saying the same thing again. This is the one place it is said.
+ */
+export function certHeadline(check: CertCheck): string {
+  const grader = graderName(check);
+  const cert = `Cert ${check.record.certNumber}`;
+  if (check.matches === true) return `${cert} matches ${grader}'s record. The slab exists. That doesn't prove the seller has it.`;
+  if (check.matches === false) return `${cert} does not match ${grader}'s record. ${check.explanation}`;
+  return `${cert} could not be checked. ${check.explanation}`;
+}

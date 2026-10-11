@@ -22,14 +22,20 @@ describe("hasReasons", () => {
 });
 
 describe("reasonGroups", () => {
-  it("gives the four groups in order, each with a title and a line saying what it is for", () => {
+  it("gives the four groups in order, each with a title", () => {
     const groups = reasonGroups(full);
     expect(groups.map((g) => g.id)).toEqual(REASON_GROUP_IDS);
     expect(groups.map((g) => g.title)).toEqual(["What I checked", "What I found", "What I could not check", "What would change my mind"]);
-    for (const group of groups) {
-      expect(group.intro.length).toBeGreaterThan(10);
-      expect(group.intro).not.toContain("—");
-    }
+    for (const group of groups) expect(group.intro).not.toContain("—");
+  });
+
+  it("keeps a sentence under one heading only: the one that is a disclaimer", () => {
+    // A line under every heading was most of what made this block long. The
+    // group that carries a caveat keeps it, beside the thing it qualifies.
+    const withIntro = reasonGroups(full).filter((g) => g.intro.length > 0);
+    expect(withIntro.map((g) => g.id)).toEqual(["found", "couldNotVerify", "wouldChangeMyMind"]);
+    expect(reasonGroups(full).find((g) => g.id === "checked")!.intro).toBe("");
+    expect(reasonGroups(full).find((g) => g.id === "couldNotVerify")!.intro).toBe("Open questions, not findings against the seller.");
   });
 
   it("still prints what the pal could not check when the list is empty, which is the point of the field", () => {

@@ -1,12 +1,17 @@
 /**
  * One status view per deal: five groups, and every line in them carries one
- * of exactly three labels.
+ * of exactly four labels.
  *
  *   Verified   Pay Pals checked this against something, and it matched. The
  *              detail always names what it was checked against.
- *   Unverified Pay Pals holds it, but nothing has been checked against it,
- *              or a check ran and did not match.
+ *   Flagged    Pay Pals checked it and it did not match.
+ *   Unverified Pay Pals holds it, but nothing has been checked against it.
  *   Missing    It is not on record at all.
+ *
+ * Flagged used to be folded into Unverified, which gave "we looked and it is
+ * wrong" and "we never looked" the same word, so the lines a buyer most needs
+ * to see read like the ones carrying no news. Splitting them is the whole of
+ * Matt's Oct 11 note on this view.
  *
  * Verified never means the item is genuine or that the seller owns it. Every
  * line is derived from data the deal already carries; nothing here calls out.
@@ -26,17 +31,18 @@ import { FLAG_WORDS } from "./override";
 import { couldNotVerify } from "./pal-reasons";
 import type { PayPalReadResult } from "./paypal-confirmation";
 
-export type StatusLabel = "verified" | "unverified" | "missing";
+export type StatusLabel = "verified" | "flagged" | "unverified" | "missing";
 
 export const STATUS_WORDS: Readonly<Record<StatusLabel, string>> = {
   verified: "Verified",
+  flagged: "Flagged",
   unverified: "Unverified",
   missing: "Missing",
 };
 
-/** The sentence that has to sit above the view, so "Verified" is never read as a claim about the item. */
+/** The sentence that has to sit above the view, so "Verified" is never read as a claim about the item. Matt's words. */
 export const STATUS_LEGEND =
-  "Verified means Pay Pals checked that line against something named in it, and the two matched. It never means the item is genuine or that the seller owns it. Unverified means Pay Pals holds the thing but checked nothing against it, or a check did not match. Missing means it is not on record.";
+  "Verified: checked and matched. Flagged: checked and didn't match. Unverified: on file, not checked. Missing: not on record. Verified never means genuine or that the seller owns it.";
 
 export interface StatusItem {
   id: string;
@@ -49,10 +55,22 @@ export interface StatusItem {
 
 export type StatusGroupId = "card" | "evidence" | "payment" | "shipping" | "delivery";
 
+/**
+ * A pointer to the panel that already says this at length, so the view can
+ * drop a row instead of printing the same sentence twice (Matt's rule 1:
+ * say each fact once, and link rather than restate).
+ */
+export interface StatusNote {
+  text: string;
+  href: string;
+  linkText: string;
+}
+
 export interface StatusGroup {
   id: StatusGroupId;
   title: string;
   items: StatusItem[];
+  note?: StatusNote;
 }
 
 export interface StatusInput {
@@ -130,7 +148,8 @@ function cardGroup(input: StatusInput): StatusGroup {
       id: "card-locked",
       label: "Item card locked",
       status: "unverified",
-      detail: `Version ${card.version} is still open to change, so nothing has been locked or checked against it.`,
+      // Matt: "Not yet", because a card nobody has locked is a step not reached, not a fault.
+      detail: `Not yet. Version ${card.version} is still open to change, so nothing has been locked or checked against it.`,
     });
   } else {
     items.push({ id: "card-locked", label: "Item card locked", status: "missing", detail: "No item card on this deal." });
@@ -175,7 +194,8 @@ function cardOnOrderItem(input: StatusInput): StatusItem {
   return {
     id,
     label,
-    status: matched ? "verified" : "unverified",
+    // Both texts are in hand and they are not the same text. That is a check that ran and failed.
+    status: matched ? "verified" : "flagged",
     detail: matched
       ? `PayPal's own record of the order carries the item line "${itemName}". Pay Pals compared it with locked card version ${card.version}, "${card.title}": the same item.`
       : `PayPal's order carries the item line "${itemName}", and locked card version ${card.version} says "${card.title}". Those are not the same text.`,
@@ -188,7 +208,8 @@ function serialItem(input: StatusInput): StatusItem {
   const id = "serial";
   const label = "Serial number on the card";
   const card = subjectCard(input);
-  if (!card || (!card.serial && !card.boxSerial)) return { id, label, status: "missing", detail: "No serial number on the item card." };
+  // Matt: the row stays, because some cards do carry a serial, and its absence is itself worth seeing.
+  if (!card || (!card.serial && !card.boxSerial)) return { id, label, status: "missing", detail: "None on this card." };
   const status = boxSerialStatus(card);
   if (status === "match") {
     return {
@@ -199,7 +220,7 @@ function serialItem(input: StatusInput): StatusItem {
     };
   }
   if (status === "mismatch") {
-    return { id, label, status: "unverified", detail: `The card says serial ${card.serial} and the box label says ${card.boxSerial}. Those are different numbers.` };
+    return { id, label, status: "flagged", detail: `The card says serial ${card.serial} and the box label says ${card.boxSerial}. Those are different numbers.` };
   }
   if (card.serial) return { id, label, status: "unverified", detail: `Serial ${card.serial} is on the card. Nothing has been compared with it.` };
   return { id, label, status: "unverified", detail: `Box label ${card.boxSerial} is on the card, but no serial has been read off the item itself, so there is nothing to compare.` };
@@ -222,7 +243,7 @@ function certItem(input: StatusInput): StatusItem | null {
       detail: `Cert ${check.record.certNumber} compared with ${provider}${parts ? ` (${parts})` : ""}: the record describes the card on the item card. A matching cert supports the listing. It is not a check that the slab is genuine or that the seller owns it.`,
     };
   }
-  if (check.matches === false) return { id, label, status: "unverified", detail: `Cert ${check.record.certNumber} compared with ${provider}: ${check.explanation}` };
+  if (check.matches === false) return { id, label, status: "flagged", detail: `Cert ${check.record.certNumber} compared with ${provider}: ${check.explanation}` };
   return { id, label, status: "unverified", detail: `Cert ${check.record.certNumber} was not checked. ${check.explanation}` };
 }
 
@@ -236,10 +257,71 @@ function photoItem(input: StatusInput): StatusItem {
   return {
     id,
     label,
-    status: "unverified",
+    status: flagged ? "flagged" : "unverified",
     detail: flagged
-      ? `${plural(urls.size, "photo", "photos")} stored with the card. The Buyer Pal flagged one as a catalog or reused image, so this is not a clean set.`
-      : `${plural(urls.size, "photo", "photos")} stored with the card. Pay Pals keeps them with the deal and shows both sides the same ones. It does not check where a photo came from beyond its reused-photo check.`,
+      ? // "Already on file" is the honest half: the match is against Pay Pals' own
+        // reference folder, which holds the listing photos, never a search of the web.
+        `${plural(urls.size, "photo", "photos")} stored with the card. One matches a listing photo already on file, so it was not taken of this seller's item for this listing.`
+      : `${plural(urls.size, "photo", "photos")} stored with the card. Pay Pals keeps them with the deal and shows both sides the same ones. It compares them against its own set of pictures and nothing else.`,
+  };
+}
+
+/**
+ * What the Buyer Pal's name check concluded, which until now was shown only
+ * when it failed: a pass left no trace anywhere on the page.
+ *
+ * Read off the verdict, never recomputed here. packages/agents owns the
+ * comparison (rules/name-mismatch.ts) and raises NAME_MISMATCH when the
+ * PayPal address does not share a name token with the seller. apps/web
+ * passes the seller on every review, so for any verdict the rule ran, and
+ * the absence of the flag is its pass. Decision 15: the side that decides a
+ * fact is the side that words it.
+ */
+function payeeNameItem(input: StatusInput): StatusItem | null {
+  const id = "payee-name";
+  const label = "PayPal address against the seller's name";
+  const card = subjectCard(input);
+  const verdict = latest(input.verdicts);
+  if (!card || !verdict) return null;
+  const flag = verdict.flags.find((f) => f.code === "NAME_MISMATCH");
+  if (flag) return { id, label, status: "flagged", detail: `${flag.explanation} ${flag.evidence}` };
+  // The pal says this itself when it was handed no seller to compare against.
+  const notGiven = couldNotVerify(verdict.reasoning).some((line) => /seller's name on the account/i.test(line));
+  if (notGiven) {
+    return { id, label, status: "unverified", detail: `The Buyer Pal was not given the seller's name, so it could not check it against ${card.sellerPaypalEmail}.` };
+  }
+  return {
+    id,
+    label,
+    status: "verified",
+    detail: `The Buyer Pal compared ${card.sellerPaypalEmail} with ${input.deal.seller.displayName}, the seller on this deal, and they agree. This checks that the address looks like the seller's. It is not proof of who owns the account.`,
+  };
+}
+
+/**
+ * What the view used to add here and no longer does: one row per thing the
+ * pal could not check, one per open question, and one per flag. All three
+ * are printed in full by the review panel above, so the view was saying the
+ * same sentences a second time, and they were the bulk of its length.
+ *
+ * They are not deleted, they are upstairs. This counts them and points at
+ * them (Matt's rule 1), which is also the only honest way to shorten a view
+ * whose job is to be complete.
+ */
+function reviewNote(verdict: Verdict | null): StatusNote | null {
+  if (!verdict) return null;
+  const parts: string[] = [];
+  const open = couldNotVerify(verdict.reasoning).length;
+  const asked = verdict.questionsForSeller.length;
+  const flags = verdict.flags.filter((f) => f.severity !== "info").length;
+  if (flags > 0) parts.push(plural(flags, "flag", "flags"));
+  if (open > 0) parts.push(`${open} it could not check`);
+  if (asked > 0) parts.push(plural(asked, "open question", "open questions"));
+  if (parts.length === 0) return null;
+  return {
+    text: `The Buyer Pal raised ${list(parts)} on card version ${verdict.cardVersion}.`,
+    href: "#buyer-pal-review",
+    linkText: "Read them in the review",
   };
 }
 
@@ -248,35 +330,11 @@ function evidenceGroup(input: StatusInput): StatusGroup {
   const cert = certItem(input);
   if (cert) items.push(cert);
   items.push(photoItem(input));
+  const payee = payeeNameItem(input);
+  if (payee) items.push(payee);
 
-  const verdict = latest(input.verdicts);
-  // The pal's own "what I could not check" list is exactly an Unverified line each, so it
-  // lands here rather than in a box of its own (C5).
-  for (const [i, line] of couldNotVerify(verdict?.reasoning).entries()) {
-    items.push({
-      id: `could-not-verify-${i}`,
-      label: "The Buyer Pal could not check this",
-      status: "unverified",
-      detail: `${line} Said by the Buyer Pal reviewing card version ${verdict!.cardVersion}.`,
-    });
-  }
-  for (const [i, question] of (verdict?.questionsForSeller ?? []).entries()) {
-    items.push({
-      id: `question-${i}`,
-      label: "An answer the Buyer Pal asked for",
-      status: "missing",
-      detail: `Asked on card version ${verdict!.cardVersion} and still open: "${question}"`,
-    });
-  }
-  for (const [i, flag] of (verdict?.flags ?? []).filter((f) => f.severity !== "info").entries()) {
-    items.push({
-      id: `flag-${i}`,
-      label: `Unresolved: ${FLAG_WORDS[flag.code]}`,
-      status: "unverified",
-      detail: `${flag.explanation} Raised by the Buyer Pal against card version ${verdict!.cardVersion}.`,
-    });
-  }
-  return { id: "evidence", title: "Evidence the pals asked for", items };
+  const note = reviewNote(latest(input.verdicts));
+  return { id: "evidence", title: "Evidence the pals asked for", items, ...(note ? { note } : {}) };
 }
 
 // --------------------------------------------------------------- the payment
@@ -364,7 +422,7 @@ function amountAndPayeeItem(input: StatusInput, read: PayPalReadResult): StatusI
   const got = `${read.order.amount ?? "no amount"} ${read.order.currency ?? ""} to ${read.order.payeeEmail ?? "no payee"}`.replace(/\s+/g, " ");
   if (amountOk && payeeOk) return { id, label, status: "verified", detail: `PayPal's order says ${got}. Pay Pals compared it with locked card version ${card.version}, which says ${want}: both agree.` };
   const wrong = list([amountOk ? null : "the amount", payeeOk ? null : "the payee"].filter((x): x is string => x !== null));
-  return { id, label, status: "unverified", detail: `PayPal's order says ${got} and locked card version ${card.version} says ${want}. ${wrong} does not agree.` };
+  return { id, label, status: "flagged", detail: `PayPal's order says ${got} and locked card version ${card.version} says ${want}. ${wrong} does not agree.` };
 }
 
 function hashItem(input: StatusInput, read: PayPalReadResult): StatusItem {
@@ -385,7 +443,7 @@ function hashItem(input: StatusInput, read: PayPalReadResult): StatusItem {
   return {
     id,
     label,
-    status: check.matches ? "verified" : "unverified",
+    status: check.matches ? "verified" : "flagged",
     detail: check.matches
       ? `The hash in PayPal's custom_id on order ${read.order.orderId} reproduces from the ${plural(check.events, "event", "events")} stored here, so the timeline has not changed since the order was created.`
       : `The hash in PayPal's custom_id on order ${read.order.orderId} does not reproduce from the ${plural(check.events, "event", "events")} stored here.`,
@@ -430,7 +488,7 @@ function shippingGroup(input: StatusInput): StatusGroup {
     items.push({
       id: "packing-photos",
       label: "Packing photos",
-      status: "unverified",
+      status: "flagged",
       detail: `${plural(photos, "photo", "photos")}. The Buyer Pal checked them at ship time and raised ${list(flags.map((f) => FLAG_WORDS[f.code]))}.`,
     });
   } else {
@@ -443,7 +501,7 @@ function shippingGroup(input: StatusInput): StatusGroup {
     items.push({
       id: "checklist",
       label: "Seller Pal packing checklist",
-      status: undone.length === 0 ? "verified" : "unverified",
+      status: undone.length === 0 ? "verified" : "flagged",
       detail:
         undone.length === 0
           ? `All ${required.length} required steps were marked done when the seller shipped. Pay Pals compared the shipment against the checklist the Seller Pal wrote for this card.`
@@ -524,17 +582,8 @@ function deliveryGroup(input: StatusInput): StatusGroup {
     items.push({
       id: "arrival-check",
       label: "Arrival check against the locked card",
-      status: "unverified",
+      status: "flagged",
       detail: `The Buyer Pal compared the arrival photos with locked card version ${check.cardVersion} and found ${plural(check.mismatches.length, "difference", "differences")}: ${list(check.mismatches.map((m) => `${m.field}, card says ${m.expected}, arrived ${m.observed}`))}.`,
-    });
-  }
-
-  for (const [i, line] of couldNotVerify(check?.reasoning).entries()) {
-    items.push({
-      id: `arrival-could-not-verify-${i}`,
-      label: "The Buyer Pal could not check this on arrival",
-      status: "unverified",
-      detail: line,
     });
   }
 
@@ -549,7 +598,11 @@ function deliveryGroup(input: StatusInput): StatusGroup {
         }
       : { id: "evidence-pack", label: "Evidence pack", status: "missing", detail: "No evidence pack has been built." },
   );
-  return { id: "delivery", title: "Delivery, and the dispute-ready summary", items };
+  // Same as the evidence group: the arrival panel prints these in full, so point at it.
+  const open = couldNotVerify(check?.reasoning).length;
+  const note: StatusNote | null =
+    open > 0 ? { text: `The Buyer Pal named ${plural(open, "thing", "things")} it could not check on arrival.`, href: "#arrival-check", linkText: "Read them in the arrival check" } : null;
+  return { id: "delivery", title: "Delivery, and the dispute-ready summary", items, ...(note ? { note } : {}) };
 }
 
 /** The five groups, in the order a reader should take them. */
@@ -557,9 +610,90 @@ export function dealStatusView(input: StatusInput): StatusGroup[] {
   return [cardGroup(input), evidenceGroup(input), paymentGroup(input), shippingGroup(input), deliveryGroup(input)];
 }
 
+/**
+ * A stage nobody reached, written as one line instead of a list of Missing
+ * rows that all say the same thing (Matt's rule 5).
+ *
+ * "Not reached" is deliberately not "nothing to report". A deal that was
+ * blocked before payment and a deal still waiting to be paid are different
+ * facts, and the second sentence says which this is, so collapsing the rows
+ * loses the repetition and not the meaning.
+ */
+export interface SkippedStages {
+  /** "payment, shipping and delivery". */
+  names: string;
+  /** Why none of them happened, in one short sentence. */
+  because: string;
+}
+
+const STAGE_NAMES: Readonly<Record<StatusGroupId, string>> = {
+  card: "the item card",
+  evidence: "evidence",
+  payment: "payment",
+  shipping: "shipping",
+  delivery: "delivery",
+};
+
+/** True when every line in the group is Missing, which is what "never started" looks like. */
+function untouched(group: StatusGroup): boolean {
+  return group.items.length > 0 && group.items.every((item) => item.status === "missing");
+}
+
+/**
+ * How far the deal's own state says it got. BLOCKED and CANCELLED say only
+ * that it stopped, not where, so they claim nothing and let the rows decide.
+ */
+const REACHED: Readonly<Record<Deal["state"], number>> = {
+  DRAFT: 0,
+  INVITED: 0,
+  LISTED: 0,
+  REVIEWED: 0,
+  AGREED: 0,
+  BLOCKED: 0,
+  CANCELLED: 0,
+  PAYMENT_PENDING: 1,
+  PAID: 1,
+  SHIPPED: 2,
+  DELIVERED: 3,
+  ISSUE: 3,
+  COMPLETE: 3,
+};
+
+/** The point on that scale each stage sits at. Earlier groups never collapse. */
+const STAGE_AT: Readonly<Record<StatusGroupId, number>> = { card: 0, evidence: 0, payment: 1, shipping: 2, delivery: 3 };
+
+/**
+ * Splits the view into the groups worth reading and the trailing stages
+ * nobody reached. Only a trailing run collapses: a gap in the middle is a
+ * real oddity and stays on the page where it can be seen.
+ *
+ * A group collapses only when its rows are all Missing *and* the deal's own
+ * state agrees it never got there. The state is a veto rather than the
+ * decision, so a PAID deal carrying no payment rows keeps them on the page:
+ * that combination is a fault worth seeing, and collapsing it would be the
+ * view hiding exactly the thing it exists to show.
+ */
+export function splitUnreached(groups: readonly StatusGroup[], deal: Pick<Deal, "state">): { shown: StatusGroup[]; skipped: SkippedStages | null } {
+  const shown = [...groups];
+  const dropped: StatusGroup[] = [];
+  const reached = REACHED[deal.state];
+  const collapsible = (g: StatusGroup) => untouched(g) && reached < STAGE_AT[g.id];
+  while (shown.length > 1 && collapsible(shown[shown.length - 1]!)) dropped.unshift(shown.pop()!);
+  if (dropped.length === 0) return { shown, skipped: null };
+  const blocked = deal.state === "BLOCKED" || deal.state === "CANCELLED";
+  const first = STAGE_NAMES[dropped[0]!.id];
+  return {
+    shown,
+    skipped: {
+      names: list(dropped.map((g) => STAGE_NAMES[g.id])),
+      because: blocked ? `This deal ended before ${first}, so no money moved.` : `This deal has not reached ${first} yet.`,
+    },
+  };
+}
+
 /** How many lines carry each label, for the header line above the view. */
 export function countStatuses(groups: readonly StatusGroup[]): Record<StatusLabel, number> {
-  const counts: Record<StatusLabel, number> = { verified: 0, unverified: 0, missing: 0 };
+  const counts: Record<StatusLabel, number> = { verified: 0, flagged: 0, unverified: 0, missing: 0 };
   for (const group of groups) for (const item of group.items) counts[item.status] += 1;
   return counts;
 }

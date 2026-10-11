@@ -57,7 +57,7 @@ describe("diffVerdicts", () => {
     expect(diff.appeared.map((f) => f.code)).toEqual(["STOCK_OR_REUSED_PHOTO"]);
     expect(diff.stayed.map((f) => f.code)).toEqual(["URGENCY_PRESSURE"]);
     expect(diff.lines).toContain("Cleared: no serial number.");
-    expect(diff.lines).toContain("New: a catalog photo instead of the real item.");
+    expect(diff.lines).toContain("New: a reused listing photo.");
     expect(diff.unchangedLine).toBe("Still there: pressure to pay now.");
   });
 

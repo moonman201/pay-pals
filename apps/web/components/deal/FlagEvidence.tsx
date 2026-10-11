@@ -1,4 +1,5 @@
 import { visibleEvidence } from "@/lib/deal/flag-evidence";
+import { messageAnchor } from "@/lib/deal/evidence-source";
 
 /**
  * The line a pal quotes to back a flag up: the seller's own words, or the
@@ -9,13 +10,23 @@ import { visibleEvidence } from "@/lib/deal/flag-evidence";
  * scannable; from 640 px up it is simply shown. The toggle is a checkbox
  * and a label, so it needs no script and the text is always in the page.
  */
-export function FlagEvidence({ evidence, always = false }: { evidence: string | null | undefined; always?: boolean }) {
+export function FlagEvidence({ evidence, always = false, sourceMessageId = null }: { evidence: string | null | undefined; always?: boolean; sourceMessageId?: string | null }) {
   const text = visibleEvidence(evidence);
   if (!text) return null;
+  const quote = <>&ldquo;{text}&rdquo;</>;
   const body = (
     <div className={`${always ? "" : "why-body "}mt-1.5 border-l border-line pl-3`} data-testid="flag-evidence">
       <p className="text-xs font-semibold text-muted">Evidence</p>
-      <p className="mt-0.5 text-xs leading-relaxed text-muted">&ldquo;{text}&rdquo;</p>
+      {/* When the quote came from the chat, it links to the message rather than leaving the reader to find it. */}
+      <p className="mt-0.5 text-xs leading-relaxed text-muted">
+        {sourceMessageId ? (
+          <a href={`#${messageAnchor(sourceMessageId)}`} className="underline underline-offset-2 hover:text-[var(--accent-ink)]" data-testid="evidence-link">
+            {quote}
+          </a>
+        ) : (
+          quote
+        )}
+      </p>
     </div>
   );
   if (always) return body;

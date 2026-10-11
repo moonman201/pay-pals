@@ -8,6 +8,7 @@ import { canStillPay } from "@/lib/deal/actions";
 import type { DealSnapshot } from "@/lib/deal/snapshot";
 import { canChooseOffPlatform, hasChosenOffPlatform } from "@/lib/deal/off-platform";
 import { dealStatusView } from "@/lib/deal/status-view";
+import { collapseReviewMessages, stripPalPrefix } from "@/lib/deal/pal-chat";
 import { diffVerdicts, lastTwoVerdicts } from "@/lib/deal/verdict-diff";
 import { dealApi, postJson } from "@/lib/client/api";
 import { streamReview } from "@/lib/client/review-stream";
@@ -117,9 +118,11 @@ export function DealRoom({ snapshot, role }: { snapshot: DealSnapshot; role: Rol
   }
 
   const refresh = () => router.refresh();
-  const myPal = snapshot.messages.filter((m) => m.channel === palChannel(role));
+  // The pal's review message is a copy of the panel above it, so it shows as one line.
+  const myPal = collapseReviewMessages(snapshot.messages.filter((m) => m.channel === palChannel(role)), snapshot.verdicts);
   const needsBuyer = role === "buyer" && deal.buyer === null;
-  const shared = snapshot.messages.filter((m) => m.channel === "deal");
+  // The bubble names the pal already, so "Buyer Pal to seller:" was a third naming.
+  const shared = stripPalPrefix(snapshot.messages.filter((m) => m.channel === "deal"));
   const openQuestions = snapshot.verdict && currentCard && snapshot.verdict.cardVersion === currentCard.version ? snapshot.verdict.questionsForSeller : [];
   // This side agreed to an earlier version and the store cleared it when the card changed.
   const agreedEarlier = snapshot.events.some((e) => e.kind === "agreed" && e.actor === role);
@@ -173,10 +176,12 @@ export function DealRoom({ snapshot, role }: { snapshot: DealSnapshot; role: Rol
               cardTitle={currentCard?.title ?? null}
               cardGrade={currentCard?.grade ?? null}
               askingPrice={currentCard?.askingPrice ?? null}
+              card={currentCard ?? null}
+              chat={shared}
             />
           ) : null}
           {verdictDiff ? <VerdictDiffPanel diff={verdictDiff} /> : null}
-          <StatusView groups={statusGroups} />
+          <StatusView groups={statusGroups} deal={deal} />
           {snapshot.payment ? (
             <PaymentSummary
               payment={snapshot.payment}
@@ -246,7 +251,10 @@ export function DealRoom({ snapshot, role }: { snapshot: DealSnapshot; role: Rol
               {role === "buyer" && state === "DELIVERED" && !snapshot.arrivalCheck ? (
                 <ArrivalStep dealId={deal.id} suggestions={snapshot.demo?.arrivalPhotos ?? []} uploadsEnabled={snapshot.uploadsEnabled} onDone={refresh} />
               ) : null}
-              {role === "buyer" && canChooseOffPlatform(state, snapshot.events) ? <OffPlatformStep dealId={deal.id} onDone={refresh} /> : null}
+              {role === "buyer" && canChooseOffPlatform(state, snapshot.events) ? (
+                /* The Next step panel prints the Goods and Services rule on a blocked deal, so this one does not repeat it. */
+                <OffPlatformStep dealId={deal.id} onDone={refresh} rulePrinted={state === "BLOCKED"} />
+              ) : null}
             </>
           )}
         </div>

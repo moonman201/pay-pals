@@ -1,7 +1,7 @@
 import { buildCustomId, cleanPs5, emptyBox, fakeSlab, type Verdict } from "@pay-pals/contracts";
 import { describe, expect, it } from "vitest";
 import { readOrderFields } from "./paypal-confirmation";
-import { countStatuses, dealStatusView, STATUS_LEGEND, type StatusGroup, type StatusInput, type StatusLabel } from "./status-view";
+import { countStatuses, dealStatusView, splitUnreached, STATUS_LEGEND, type StatusGroup, type StatusInput, type StatusLabel } from "./status-view";
 
 const events = cleanPs5.timeline;
 const head = events[events.length - 1]!.hash;
@@ -67,8 +67,8 @@ describe("dealStatusView", () => {
     expect(dealStatusView(input()).map((g) => g.id)).toEqual(["card", "evidence", "payment", "shipping", "delivery"]);
   });
 
-  it("gives every line one of exactly three labels", () => {
-    const allowed: StatusLabel[] = ["verified", "unverified", "missing"];
+  it("gives every line one of exactly four labels", () => {
+    const allowed: StatusLabel[] = ["verified", "flagged", "unverified", "missing"];
     for (const fixture of [input(), input({ lockedCard: null, cards: [], verdicts: [] }), input({ payment: cleanPs5.payment, paypalRead: { kind: "example" } })]) {
       for (const g of dealStatusView(fixture)) {
         expect(g.items.length).toBeGreaterThan(0);
@@ -87,9 +87,13 @@ describe("dealStatusView", () => {
     }
   });
 
-  it("says what Verified means before saying anything is verified", () => {
-    expect(STATUS_LEGEND).toMatch(/checked that line against something named in it/);
-    expect(STATUS_LEGEND).toMatch(/never means the item is genuine or that the seller owns it/);
+  it("says what all four labels mean before saying anything is any of them", () => {
+    expect(STATUS_LEGEND).toMatch(/Verified: checked and matched/);
+    // The whole point of the split: "we looked and it is wrong" is not "we never looked".
+    expect(STATUS_LEGEND).toMatch(/Flagged: checked and didn't match/);
+    expect(STATUS_LEGEND).toMatch(/Unverified: on file, not checked/);
+    expect(STATUS_LEGEND).toMatch(/Missing: not on record/);
+    expect(STATUS_LEGEND).toMatch(/never means genuine or that the seller owns it/);
   });
 });
 
@@ -122,10 +126,11 @@ describe("the agreed item card", () => {
     expect(line.detail).toMatch(/PayPal's own record of the order/);
   });
 
-  it("does not verify the card text when PayPal's item line is a different item", () => {
+  it("flags the card text when PayPal's item line is a different item, rather than calling it unchecked", () => {
     const order = readOrderFields({ id: "X", status: "COMPLETED", purchase_units: [{ items: [{ name: "A completely different thing" }] }] });
     const line = item(dealStatusView(input({ payment: cleanPs5.payment, paypalRead: { kind: "confirmed", order } })), "card", "card-on-order");
-    expect(line.status).toBe("unverified");
+    // Both texts were in hand and they disagree. That is a check that ran and failed.
+    expect(line.status).toBe("flagged");
     expect(line.detail).toMatch(/not the same text/);
   });
 
@@ -148,10 +153,10 @@ describe("the evidence", () => {
     expect(item(dealStatusView(input({ lockedCard: card, cards: [card] })), "evidence", "serial").status).toBe("unverified");
   });
 
-  it("does not verify a serial that disagrees with the box label", () => {
+  it("flags a serial that disagrees with the box label", () => {
     const card = { ...lockedCard, serial: "AJ164952580", boxSerial: "ZZ000000000" };
     const line = item(dealStatusView(input({ lockedCard: card, cards: [card] })), "evidence", "serial");
-    expect(line.status).toBe("unverified");
+    expect(line.status).toBe("flagged");
     expect(line.detail).toMatch(/different numbers/);
   });
 
@@ -183,44 +188,152 @@ describe("the evidence", () => {
   it("holds photos without verifying them, and says the one check it does run", () => {
     const line = item(dealStatusView(input()), "evidence", "photos");
     expect(line.status).toBe("unverified");
-    expect(line.detail).toMatch(/does not check where a photo came from beyond its reused-photo check/);
+    expect(line.detail).toMatch(/compares them against its own set of pictures and nothing else/);
   });
 
-  it("lists a question the Buyer Pal asked and never got as missing", () => {
+  it("flags a reused photo in the words packages/agents uses, claiming no web search", () => {
+    const flags = [{ code: "STOCK_OR_REUSED_PHOTO" as const, severity: "caution" as const, evidence: "3 of 64 bits differ", explanation: "x", raisedByRule: true }];
+    const line = item(dealStatusView(input({ verdicts: [verdict({ flags })] })), "evidence", "photos");
+    expect(line.status).toBe("flagged");
+    expect(line.detail).toMatch(/matches a listing photo already on file/);
+    // The match is against Pay Pals' own file of photos, never a search of the web.
+    expect(line.detail).not.toMatch(/online|web|internet|searched/i);
+  });
+
+  /*
+    These three used to be a row each, and between them they were most of the
+    view's length. The review panel above prints all three in full, so the view
+    now counts them and links to them (Matt's rule 1). The tests moved with the
+    behaviour: each one proves the rows are gone AND that the count that
+    replaced them is right, so a future edit cannot quietly drop the pointer
+    and leave the facts nowhere.
+  */
+  it("prints no row for a question the pal asked, and counts it in the note instead", () => {
     const groups = dealStatusView(input({ verdicts: [verdict({ questionsForSeller: ["Can you send a close-up of the serial label?"] })] }));
-    const line = group(groups, "evidence").items.find((i) => i.id === "question-0")!;
-    expect(line.status).toBe("missing");
-    expect(line.detail).toContain("Can you send a close-up of the serial label?");
+    const evidence = group(groups, "evidence");
+    expect(evidence.items.some((i) => i.id.startsWith("question-"))).toBe(false);
+    expect(evidence.note?.text).toContain("1 open question");
+    expect(evidence.note?.href).toBe("#buyer-pal-review");
   });
 
-  it("lists each thing the pal said it could not check as its own Unverified line", () => {
+  it("prints no row per thing the pal could not check, and counts those too", () => {
     const reasoning = {
       checked: ["The serial against the box label."],
       found: ["Both read the same number."],
       couldNotVerify: ["Whether the seller owns the console.", "Whether the console powers on."],
       wouldChangeMyMind: ["A photo of it powered on."],
     };
-    const items = group(dealStatusView(input({ verdicts: [verdict({ reasoning })] })), "evidence").items.filter((i) => i.id.startsWith("could-not-verify-"));
-    expect(items).toHaveLength(2);
-    expect(items[0]!.status).toBe("unverified");
-    expect(items[0]!.detail).toContain("Whether the seller owns the console.");
-    expect(items[0]!.detail).toMatch(new RegExp(`card version ${lockedCard.version}`));
+    const evidence = group(dealStatusView(input({ verdicts: [verdict({ reasoning })] })), "evidence");
+    expect(evidence.items.some((i) => i.id.startsWith("could-not-verify-"))).toBe(false);
+    expect(evidence.note?.text).toContain("2 it could not check");
   });
 
-  it("adds no lines for a verdict stored before the pal had reasons", () => {
-    const items = group(dealStatusView(input()), "evidence").items;
-    expect(items.some((i) => i.id.startsWith("could-not-verify-"))).toBe(false);
-  });
-
-  it("lists an open flag as unresolved and unverified, and leaves info flags out", () => {
+  it("prints no unresolved-flag row, and counts the flags, leaving info flags out", () => {
     const flags = [
       { code: "URGENCY_PRESSURE" as const, severity: "caution" as const, evidence: "pay today", explanation: "The seller is pushing for a fast payment.", raisedByRule: true },
       { code: "OTHER" as const, severity: "info" as const, evidence: "a note", explanation: "Just a note.", raisedByRule: true },
     ];
-    const items = group(dealStatusView(input({ verdicts: [verdict({ flags })] })), "evidence").items.filter((i) => i.id.startsWith("flag-"));
-    expect(items).toHaveLength(1);
-    expect(items[0]!.label).toBe("Unresolved: pressure to pay now");
-    expect(items[0]!.status).toBe("unverified");
+    const evidence = group(dealStatusView(input({ verdicts: [verdict({ flags })] })), "evidence");
+    expect(evidence.items.some((i) => i.id.startsWith("flag-"))).toBe(false);
+    expect(evidence.note?.text).toContain("1 flag");
+    expect(evidence.note?.text).not.toContain("2 flags");
+  });
+
+  it("has no note at all when the pal raised nothing, rather than a link to an empty review", () => {
+    expect(group(dealStatusView(input()), "evidence").note).toBeUndefined();
+  });
+});
+
+/*
+  The name check used to appear only when it failed, so a pass left no trace
+  anywhere on the page and a reader could not tell "checked, fine" from "never
+  looked". All three outcomes are read off the verdict, never recomputed here:
+  packages/agents owns the comparison (Decision 15).
+*/
+describe("the PayPal address against the seller's name", () => {
+  const nameFlag = {
+    code: "NAME_MISMATCH" as const,
+    severity: "caution" as const,
+    evidence: "Seller Dana M. (dana@example.com) but the PayPal account that gets paid is quickpay2026@example.com",
+    explanation: "The PayPal account that would get paid does not match the seller's name, so ask whose account it is before you pay.",
+    raisedByRule: true,
+  };
+
+  it("says the check passed, which it never used to say at all", () => {
+    const line = item(dealStatusView(input()), "evidence", "payee-name");
+    expect(line.status).toBe("verified");
+    expect(line.detail).toContain(lockedCard.sellerPaypalEmail);
+    expect(line.detail).toContain(cleanPs5.deal.seller.displayName);
+    // A name-shaped address is not proof of who holds the account, and the line says so.
+    expect(line.detail).toMatch(/not proof of who owns the account/);
+  });
+
+  it("flags it when the pal raised the mismatch, in the pal's own words", () => {
+    const line = item(dealStatusView(input({ verdicts: [verdict({ flags: [nameFlag] })] })), "evidence", "payee-name");
+    expect(line.status).toBe("flagged");
+    expect(line.detail).toContain(nameFlag.explanation);
+    expect(line.detail).toContain(nameFlag.evidence);
+  });
+
+  it("is unverified, not verified, when the pal says it was given no name to check", () => {
+    const reasoning = {
+      checked: [],
+      found: [],
+      couldNotVerify: ["I was not given the seller's name on the account, so I could not check it against the PayPal address on the card."],
+      wouldChangeMyMind: [],
+    };
+    const line = item(dealStatusView(input({ verdicts: [verdict({ reasoning })] })), "evidence", "payee-name");
+    expect(line.status).toBe("unverified");
+    expect(line.detail).toMatch(/not given the seller's name/);
+  });
+
+  it("has no line at all before a review has run, rather than claiming a pass", () => {
+    expect(group(dealStatusView(input({ verdicts: [] })), "evidence").items.some((i) => i.id === "payee-name")).toBe(false);
+  });
+});
+
+describe("splitUnreached", () => {
+  /*
+    A deal that stopped at the review: no payment, no shipment, and a timeline
+    that never reached delivery. The clean fixture's own timeline carries a
+    delivered event, so passing it here would leave the delivery group
+    non-empty and nothing would collapse. That is the guard working, not the
+    case under test, so the fixture has to be coherent with the state.
+  */
+  const early = { events: [], payment: null, shipment: null, arrivalCheck: null, hasEvidence: false } as const;
+
+  it("collapses the trailing stages a blocked deal never got to", () => {
+    const groups = dealStatusView(input({ ...early, deal: { ...cleanPs5.deal, state: "BLOCKED" } }));
+    const { shown, skipped } = splitUnreached(groups, { state: "BLOCKED" });
+    expect(shown.map((g) => g.id)).toEqual(["card", "evidence"]);
+    expect(skipped?.names).toBe("payment, shipping and delivery");
+    expect(skipped?.because).toBe("This deal ended before payment, so no money moved.");
+  });
+
+  it("says not yet, rather than ended, for a deal still working through it", () => {
+    expect(splitUnreached(dealStatusView(input(early)), { state: "REVIEWED" }).skipped?.because).toBe("This deal has not reached payment yet.");
+  });
+
+  it("collapses nothing on a finished deal, because every stage was reached", () => {
+    const groups = dealStatusView(input({ payment: cleanPs5.payment, shipment: cleanPs5.shipment, hasEvidence: true }));
+    expect(splitUnreached(groups, { state: "COMPLETE" }).skipped).toBeNull();
+  });
+
+  it("keeps an empty stage the deal's state says happened, because that is a fault worth seeing", () => {
+    // No payment on the deal, but the state says PAID. Collapsing it would hide exactly that.
+    const { shown, skipped } = splitUnreached(dealStatusView(input()), { state: "PAID" });
+    expect(shown.map((g) => g.id)).toContain("payment");
+    expect(skipped).toBeNull();
+  });
+
+  it("never collapses a gap in the middle, only a trailing run", () => {
+    const groups: StatusGroup[] = [
+      { id: "card", title: "c", items: [{ id: "a", label: "a", status: "verified", detail: "detail" }] },
+      { id: "payment", title: "p", items: [{ id: "b", label: "b", status: "missing", detail: "detail" }] },
+      { id: "delivery", title: "d", items: [{ id: "c", label: "c", status: "verified", detail: "detail" }] },
+    ];
+    expect(splitUnreached(groups, { state: "DELIVERED" }).skipped).toBeNull();
+    expect(splitUnreached(groups, { state: "DELIVERED" }).shown).toHaveLength(3);
   });
 });
 
@@ -253,20 +366,20 @@ describe("the payment", () => {
     expect(item(groups, "payment", "order").detail).toMatch(/live read of the order did not come back/);
   });
 
-  it("does not verify an amount or payee that disagrees with the locked card", () => {
+  it("flags an amount or payee that disagrees with the locked card", () => {
     const order = liveOrder({
       amount: { currency_code: "USD", value: "999.00" },
       payee: { email_address: "someone.else@example.com" },
       payments: { captures: [{ id: "C", status: "COMPLETED", amount: { currency_code: "USD", value: "999.00" } }] },
     });
     const line = item(dealStatusView(input({ payment: cleanPs5.payment, paypalRead: { kind: "confirmed", order } })), "payment", "amount-payee");
-    expect(line.status).toBe("unverified");
+    expect(line.status).toBe("flagged");
     expect(line.detail).toMatch(/the amount and the payee does not agree/);
   });
 
-  it("does not verify the hash when the stored events do not reproduce it", () => {
+  it("flags the hash when the stored events do not reproduce it", () => {
     const order = liveOrder({ custom_id: buildCustomId(cleanPs5.deal.id, "f".repeat(64)) });
-    expect(item(dealStatusView(input({ payment: cleanPs5.payment, paypalRead: { kind: "confirmed", order } })), "payment", "history-hash").status).toBe("unverified");
+    expect(item(dealStatusView(input({ payment: cleanPs5.payment, paypalRead: { kind: "confirmed", order } })), "payment", "history-hash").status).toBe("flagged");
   });
 
   it("is missing all through for a deal that never paid", () => {
@@ -312,10 +425,10 @@ describe("the shipment", () => {
     expect(line.detail).toMatch(/the checklist the Seller Pal wrote for this card/);
   });
 
-  it("does not verify a checklist with a required step left undone", () => {
+  it("flags a checklist with a required step left undone", () => {
     const checklist = [{ id: "a", label: "Photograph the serial", required: true, done: false }];
     const line = item(dealStatusView(input({ shipment: { ...shipment, checklist } })), "shipping", "checklist");
-    expect(line.status).toBe("unverified");
+    expect(line.status).toBe("flagged");
     expect(line.detail).toContain("Photograph the serial");
   });
 
@@ -397,7 +510,7 @@ describe("the delivery", () => {
     );
   });
 
-  it("does not verify an arrival check that found a difference, and names it", () => {
+  it("flags an arrival check that found a difference, and names it", () => {
     const check = {
       dealId: cleanPs5.deal.id,
       cardVersion: lockedCard.version,
@@ -408,7 +521,7 @@ describe("the delivery", () => {
       createdAt: "2026-10-09T12:30:00.000Z",
     };
     const line = item(dealStatusView(input({ arrivalCheck: check })), "delivery", "arrival-check");
-    expect(line.status).toBe("unverified");
+    expect(line.status).toBe("flagged");
     expect(line.detail).toContain("nothing in the box");
   });
 

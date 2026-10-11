@@ -1,0 +1,44 @@
+[
+  {
+    "room": "fake-slab/buyer",
+    "read": 1164,
+    "onPage": 2775,
+    "details": "0/2",
+    "px": 3801
+  },
+  {
+    "room": "fake-slab/seller",
+    "read": 1117,
+    "onPage": 2602,
+    "details": "0/2",
+    "px": 3557
+  },
+  {
+    "room": "clean-ps5/buyer",
+    "read": 2065,
+    "onPage": 4237,
+    "details": "0/2",
+    "px": 6945
+  },
+  {
+    "room": "clean-ps5/seller",
+    "read": 2038,
+    "onPage": 4010,
+    "details": "0/2",
+    "px": 6945
+  },
+  {
+    "room": "empty-box/buyer",
+    "read": 2131,
+    "onPage": 4004,
+    "details": "0/2",
+    "px": 6671
+  },
+  {
+    "room": "empty-box/seller",
+    "read": 1930,
+    "onPage": 3533,
+    "details": "0/2",
+    "px": 6671
+  }
+]

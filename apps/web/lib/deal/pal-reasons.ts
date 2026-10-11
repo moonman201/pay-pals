@@ -31,7 +31,9 @@ export interface ReasonGroup {
 const META: Readonly<Record<ReasonGroupId, Pick<ReasonGroup, "title" | "intro" | "tone" | "emptyText">>> = {
   checked: {
     title: "What I checked",
-    intro: "The things I looked at, and what I compared them with.",
+    // No intro. The title already says it, and a sentence under every heading
+    // was most of what made this block long (Matt's rule 1, Oct 11).
+    intro: "",
     tone: "plain",
     emptyText: null,
   },
@@ -43,7 +45,9 @@ const META: Readonly<Record<ReasonGroupId, Pick<ReasonGroup, "title" | "intro" |
   },
   couldNotVerify: {
     title: "What I could not check",
-    intro: "I looked and could not establish these. They are open questions, not findings against the seller.",
+    // This one keeps its sentence. It is the disclaimer for the group, it sits
+    // beside the thing it qualifies, and it is said in exactly one place.
+    intro: "Open questions, not findings against the seller.",
     tone: "caution",
     emptyText: "Nothing. Everything I set out to check, I could check.",
   },
@@ -60,6 +64,31 @@ export function hasReasons(reasoning: PalReasoning | null | undefined): reasonin
 }
 
 /**
+ * The same sentence twice, removed. Nothing cleverer.
+ *
+ * This list did repeat itself in substance: on the stolen-photo deal the pal
+ * said in three different sentences that a matching cert does not show the
+ * seller is holding the slab. Judging that two differently worded lines make
+ * the same point is the pal's job, not this layer's, and builder-agents is
+ * cutting those lines at source now that the cert panel says it next to the
+ * table. A heuristic here guessing at meaning would be a second mechanism
+ * competing with that one, and it could drop a line that genuinely said
+ * something new.
+ *
+ * So this removes only what is literally the same line, ignoring case and
+ * spacing, which can never hide a claim nobody else made.
+ */
+export function dedupeReasons(lines: readonly string[]): string[] {
+  const seen = new Set<string>();
+  return lines.filter((line) => {
+    const key = line.trim().toLowerCase().replace(/\s+/g, " ");
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+/**
  * The groups to render, in the order given (or the canonical order). A group
  * with nothing in it is dropped unless it has something to say when empty.
  */
@@ -67,10 +96,11 @@ export function reasonGroups(reasoning: PalReasoning | null | undefined, only: r
   if (!hasReasons(reasoning)) return [];
   const groups: ReasonGroup[] = [];
   for (const id of only) {
-    const items = reasoning[id] ?? [];
+    // Only this group repeats itself, and it is the group a reader has to take seriously.
+    const items = id === "couldNotVerify" ? dedupeReasons(reasoning[id] ?? []) : [...(reasoning[id] ?? [])];
     const meta = META[id];
     if (items.length === 0 && meta.emptyText === null) continue;
-    groups.push({ id, ...meta, items: [...items] });
+    groups.push({ id, ...meta, items });
   }
   return groups;
 }
