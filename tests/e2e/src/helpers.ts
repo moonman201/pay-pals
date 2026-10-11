@@ -90,6 +90,20 @@ export function joinPath(dealId: string): string {
  */
 export const PAL_TIMEOUT = 90_000;
 
+/**
+ * Wait until the deal room says its review is finished.
+ *
+ * The review streams now, so a room can be hydrated and still be filling in
+ * findings. The room root carries `data-review="running"` while that is
+ * happening and `data-review="idle"` when it is not, set from both the live
+ * stream and a plain reload, and Matt's rule is that a baseline is a picture
+ * of the finished review. A page with no such root (the landing page, an
+ * evidence page) settles immediately.
+ */
+export async function waitForReviewIdle(page: Page): Promise<void> {
+  await page.waitForFunction(() => document.querySelector('[data-review="running"]') === null, undefined, { timeout: PAL_TIMEOUT });
+}
+
 /** The state badge in the deal room header. */
 export async function expectState(page: Page, label: string): Promise<void> {
   await expect(page.getByRole("banner").getByText(label, { exact: true })).toBeVisible();
