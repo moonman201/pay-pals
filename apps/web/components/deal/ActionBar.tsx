@@ -26,6 +26,14 @@ interface Props {
   refusalToReview?: boolean;
   /** The card carries a cert number, so the pal has a cert to check while the buyer waits. */
   hasCert?: boolean;
+  /**
+   * A review is running for this deal (Decision 19). Agree is unavailable
+   * until it finishes, and the line below the buttons says why. The server
+   * refuses it too; this is the courtesy half.
+   */
+  reviewing?: boolean;
+  /** Why Agree is locked, in plain words. Shown whenever `reviewing`. */
+  reviewingLine?: string;
   onAction: (id: ActionId, opts?: { override?: boolean }) => void;
 }
 
@@ -45,7 +53,7 @@ const ENDINGS: Partial<Record<DealState, string>> = {
 };
 
 /** The moves this side can make right now, straight from the transition table. */
-export function ActionBar({ state, role, verdict, dealId, busy, hasLockedCard, agreement, cardVersion, cardChangedSinceAgree, refusalToReview = false, hasCert = false, onAction }: Props) {
+export function ActionBar({ state, role, verdict, dealId, busy, hasLockedCard, agreement, cardVersion, cardChangedSinceAgree, refusalToReview = false, hasCert = false, reviewing = false, reviewingLine = "", onAction }: Props) {
   const [understood, setUnderstood] = useState(false);
   const other = otherRole(role);
   const agreeing = state === "REVIEWED" && cardVersion > 0;
@@ -54,6 +62,8 @@ export function ActionBar({ state, role, verdict, dealId, busy, hasLockedCard, a
   const gate = agreeing && role === "buyer" ? gateFor(verdict) : "open";
   const needsCheckbox = gate === "override" || gate === "stop_override";
   const actions = allowedActions(state, role).filter((a) => {
+    // Decision 19: never agree on partial findings. The agree route refuses it as well.
+    if (a.id === "agree" && reviewing) return false;
     if (a.id === "agree") return cardVersion > 0 && !mineDone && gate !== "blocked";
     // In INVITED the Buyer Pal has nothing to review until the seller refuses or the buyer pastes a reply.
     if (a.id === "review" && state === "INVITED") return refusalToReview;
@@ -85,6 +95,11 @@ export function ActionBar({ state, role, verdict, dealId, busy, hasLockedCard, a
             </p>
           ))}
         </div>
+      ) : null}
+      {reviewing && reviewingLine ? (
+        <p className="mb-3 rounded-lg border border-[var(--accent-line)] bg-[var(--accent-soft)] px-3 py-2 text-sm text-[var(--accent-ink)]" data-testid="agree-locked">
+          {reviewingLine}
+        </p>
       ) : null}
       {state === "INVITED" && refusalToReview && role === "buyer" ? (
         <p className="mb-3 text-sm">The seller has not joined. Ask your pal to review what they said before you do anything else.</p>

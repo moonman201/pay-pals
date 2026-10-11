@@ -10,11 +10,14 @@ import { canChooseOffPlatform, hasChosenOffPlatform } from "@/lib/deal/off-platf
 import { dealStatusView } from "@/lib/deal/status-view";
 import { diffVerdicts, lastTwoVerdicts } from "@/lib/deal/verdict-diff";
 import { dealApi, postJson } from "@/lib/client/api";
+import { streamReview } from "@/lib/client/review-stream";
+import { agreeLockedLine, applyProgress, IDLE_REVIEW, startedReview, type LiveReviewState } from "@/lib/deal/live-review";
 import { palChannel, type Role } from "@/lib/role";
 import { ActionBar } from "./ActionBar";
 import { ArrivalResult } from "./ArrivalResult";
 import { DealHeader } from "./DealHeader";
 import { ItemCardView } from "./ItemCardView";
+import { LiveReview } from "./LiveReview";
 import { OffPlatformNotice } from "./OffPlatformNotice";
 import { PalPane } from "./PalPane";
 import { PaymentSummary } from "./PaymentSummary";
@@ -46,8 +49,15 @@ export function DealRoom({ snapshot, role }: { snapshot: DealSnapshot; role: Rol
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [issueOpen, setIssueOpen] = useState(false);
+  /*
+    The review as it streams in (Decision 19). Local to this page: the verdict is saved on the
+    server from the final Verdict whatever happens here, so losing this state loses nothing but
+    the live view. `snapshot.reviewInFlight` covers the other case, a reload while one runs.
+  */
+  const [live, setLive] = useState<LiveReviewState>(IDLE_REVIEW);
   const { deal, currentCard } = snapshot;
   const state = deal.state;
+  const reviewing = live.running || snapshot.reviewInFlight;
 
   async function run(label: string, fn: () => Promise<unknown>) {
     setBusy(label);
@@ -62,11 +72,29 @@ export function DealRoom({ snapshot, role }: { snapshot: DealSnapshot; role: Rol
     }
   }
 
+  /** Findings land here as they arrive, and the panel is torn down when the review ends. */
+  async function review() {
+    setBusy("review");
+    setError(null);
+    setLive(startedReview());
+    try {
+      await streamReview(deal.id, { onProgress: (event) => setLive((prev) => applyProgress(prev, event)) });
+      router.refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Something went wrong.");
+    } finally {
+      // Cleared either way: a review that ended is not a review in flight, and Agree must open
+      // again. The finished verdict comes from the refresh, never from what streamed in.
+      setLive(IDLE_REVIEW);
+      setBusy(null);
+    }
+  }
+
   function onAction(id: ActionId, opts?: { override?: boolean }) {
     const api = (action: string, body?: unknown) => () => postJson(dealApi(deal.id, action), body);
     switch (id) {
       case "review":
-        return run(id, api("review"));
+        return review();
       case "agree":
         return run(id, api("agree", { by: role, override: Boolean(opts?.override) }));
       case "confirm_delivery":
@@ -115,7 +143,7 @@ export function DealRoom({ snapshot, role }: { snapshot: DealSnapshot; role: Rol
   });
 
   return (
-    <div className={`theme-${role} min-h-screen bg-wash`}>
+    <div className={`theme-${role} min-h-screen bg-wash`} data-review={reviewing ? "running" : "idle"}>
       <DealHeader snapshot={snapshot} role={role} />
       <main className="mx-auto grid max-w-6xl gap-4 px-4 py-4 md:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] md:py-6">
         <div className="min-w-0 space-y-4">
@@ -135,6 +163,7 @@ export function DealRoom({ snapshot, role }: { snapshot: DealSnapshot; role: Rol
               </p>
             </Panel>
           ) : null}
+          {reviewing ? <LiveReview state={live.running ? live : startedReview()} /> : null}
           {snapshot.verdict ? (
             <VerdictPanel
               verdict={snapshot.verdict}
@@ -183,6 +212,8 @@ export function DealRoom({ snapshot, role }: { snapshot: DealSnapshot; role: Rol
                 cardChangedSinceAgree={cardChangedSinceAgree}
                 refusalToReview={snapshot.inviteDeclined || shared.length > 0}
                 hasCert={Boolean(currentCard?.certNumber)}
+                reviewing={reviewing}
+                reviewingLine={agreeLockedLine({ ...live, running: reviewing })}
                 onAction={onAction}
               />
               {error ? (
