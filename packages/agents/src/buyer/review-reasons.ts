@@ -68,33 +68,17 @@ function unreadableSerial(readings: PhotoReading[]): PhotoReading | null {
 function checked(input: ReviewReasonInput): ReasonLine[] {
   const { card, priceCheck, certCheck, readings, seller } = input;
   const read = readings.filter((r) => r.imageStatus === "read").length;
-  const lines: ReasonLine[] = [
-    "Every message in the shared chat, against the payment, pressure and off-platform patterns Pay Pals checks for.",
-  ];
+  // One short line each, no lead-in sentence. Each still names the other side of the comparison,
+  // because "the serial" is not a check and "the serial against the box label" is.
+  const lines: ReasonLine[] = ["The chat, against the payment and pressure patterns we know."];
   if (!card) return lines;
-  if (read > 0) {
-    lines.push(
-      read === readings.length
-        ? `The ${read === 1 ? "photo" : `${read} photos`} on the card, against the brand, model and serial the card claims.`
-        : `${read} of the ${readings.length} photos on the card, against the brand, model and serial the card claims.`,
-    );
-  }
-  if (priceCheck && priceCheck.marketLow > 0) {
-    lines.push(`The asking price of $${card.askingPrice}, against a market range of $${priceCheck.marketLow} to $${priceCheck.marketHigh} for this item in this condition.`);
-  }
-  if (certCheck) {
-    lines.push(`Cert ${certCheck.record.certNumber} on the card, against the ${certCheck.record.provider === "psa" ? "grader's record" : "demo record standing in for the grader"} for that number.`);
-  }
-  if (card.serial && card.boxSerial) {
-    lines.push(`The serial on the card, ${card.serial}, against the number on the box label, ${card.boxSerial}.`);
-  }
-  if (seller?.displayName) {
-    // "Matt M." already ends in a stop, and one serves both the abbreviation and the sentence.
-    lines.push(`The PayPal address on the card, ${card.sellerPaypalEmail}, against the seller's name on the deal, ${seller.displayName.replace(/\.$/, "")}.`);
-  }
-  if (input.photoMatchRan) {
-    lines.push("The card's photos, against the reference pictures Pay Pals holds, to see whether any of them is a picture Pay Pals has already seen.");
-  }
+  if (read > 0) lines.push(`${read === readings.length ? "The" : `${read} of the ${readings.length}`} card photo${readings.length === 1 ? "" : "s"}, against the brand, model and serial on the card.`);
+  if (priceCheck && priceCheck.marketLow > 0) lines.push(`The $${card.askingPrice} price, against $${priceCheck.marketLow} to $${priceCheck.marketHigh} for this item.`);
+  if (certCheck) lines.push(`Cert ${certCheck.record.certNumber}, against the ${certCheck.record.provider === "psa" ? "grader's record" : "stand-in record we hold"}.`);
+  if (card.serial && card.boxSerial) lines.push(`The serial ${card.serial}, against ${card.boxSerial} on the box label.`);
+  // "Matt M." already ends in a stop, and one serves both the abbreviation and the sentence.
+  if (seller?.displayName) lines.push(`${card.sellerPaypalEmail}, against the seller's name, ${seller.displayName.replace(/\.$/, "")}.`);
+  if (input.photoMatchRan) lines.push("The card photos, against the listing photos already on file.");
   return lines;
 }
 
@@ -110,6 +94,12 @@ function found(input: ReviewReasonInput): ReasonLine[] {
         ? `The $${card.askingPrice} ask is above the $${priceCheck.marketLow} to $${priceCheck.marketHigh} range.`
         : `The $${card.askingPrice} ask sits inside the $${priceCheck.marketLow} to $${priceCheck.marketHigh} range.`,
     );
+  }
+  // The PayPal-address check reported nothing when it passed, so a check that ran had no result
+  // anywhere. It says what it actually tested: the name is in the address, not that the account
+  // belongs to him, which nothing here can establish.
+  if (card && input.seller?.displayName && !has(flags, "NAME_MISMATCH")) {
+    lines.push(`The PayPal address that gets paid has the seller's name in it.`);
   }
   const item = itemSerial(readings);
   if (item) lines.push(`I read ${item.serial} off the item itself in one of the photos.`);
@@ -152,10 +142,10 @@ function couldNotVerify(input: ReviewReasonInput): ReasonLine[] {
   // Item 2's consequence: a serial that is in the picture and unreadable is a thing we do not know, not a thing to skip over.
   const unreadable = unreadableSerial(readings);
   if (unreadable) {
-    lines.push(`A serial is in one of the photos but I could not read it, because ${unreadable.serialIllegibleReason}. I have no number off the item itself.`);
+    lines.push(`A serial is in one photo but I could not read it: ${unreadable.serialIllegibleReason}.`);
   }
   if (card.boxSerial && !card.serial) {
-    lines.push("The number I have is on the box label. A box is not the console, so it does not show which unit is inside.");
+    lines.push("The only serial is on the box label, which does not say which console is inside.");
   }
   // The near-miss band claims neither a match nor a mismatch, so the thing it could not settle has
   // to be said out loud. Dropping the flag and saying nothing would be the quiet kind of untruth.
@@ -165,13 +155,24 @@ function couldNotVerify(input: ReviewReasonInput): ReasonLine[] {
   }
 
   if (certLookupFailed && card.certNumber) lines.push(`I could not reach the grader to check cert ${card.certNumber}, so that check did not happen.`);
-  if (certCheck?.record.provider === "fixture") lines.push("The cert record behind that check is a demo record standing in for the grader, not a live lookup.");
-  if (certCheck?.matches === true) lines.push("A record that matches shows the grader has one for that number. It does not show that this seller is holding the slab.");
+  // A cert that was not checked says so here. Its explanation used to ride in the pal's paragraph,
+  // and when the paragraph went it would have gone silent, which is the exact failure this group exists for.
+  if (certCheck?.matches === null) lines.push(certCheck.explanation);
+
+  // One line for stand-in data, not one per source. The cert record and the price range were two
+  // sentences saying the same thing, which is rule 1 broken inside a single group.
+  const demoCert = certCheck?.record.provider === "fixture";
+  const demoPrice = priceCheck !== null && priceCheck.marketLow > 0 && priceCheck.provider === "fixture";
+  if (demoCert && demoPrice) lines.push("The cert record and the price range are both stand-ins for this demo, not live lookups.");
+  else if (demoCert) lines.push("The cert record is a stand-in for this demo, not a live lookup.");
+  else if (demoPrice) lines.push("The price range is a stand-in for this demo, not a live quote.");
 
   if (!priceCheck || priceCheck.marketLow <= 0) {
-    lines.push(`No market price came back for this item, so I could not compare the $${card.askingPrice} ask against anything.`);
-  } else if (priceCheck.provider === "fixture") {
-    lines.push("The market range is a reference range for this demo, not a live quote.");
+    lines.push(
+      card.certNumber
+        ? "No price check for a graded card. Our price source covers retail stores, not graded cards."
+        : `No market price came back, so there is nothing to compare the $${card.askingPrice} price against.`,
+    );
   }
 
   // The limit on the picture check, which until now was never stated. Pay Pals compares against a
@@ -180,48 +181,61 @@ function couldNotVerify(input: ReviewReasonInput): ReasonLine[] {
   if (photos > 0) {
     lines.push(
       input.photoMatchRan
-        ? "I compared these pictures against Pay Pals' own set only. I did not search the web, so I cannot say whether any of them appears on a listing somewhere else."
-        : "I did not compare these pictures against the set Pay Pals holds, so I cannot say whether any of them is one it has seen before.",
+        ? "Photos are matched against our own file only, never the web."
+        : "The photos were not matched against our file, so nothing was compared.",
     );
   }
   if (!has(flags, "NAME_MISMATCH") && !input.seller) {
-    lines.push("I was not given the seller's name on the account, so I could not check it against the PayPal address on the card.");
+    lines.push("I had no seller name to check the PayPal address against.");
   }
-  // Last, because it is true of every deal and should never push a specific gap out of the list.
-  lines.push("Nothing here shows who is holding the item. A number that matches supports what the listing says and no more.");
+  // One ownership line, not two. The cert version of this said the same thing in different words,
+  // so the specific one is used where there is a cert and the general one everywhere else.
+  lines.push(
+    certCheck?.matches === true
+      ? "A matching cert shows the record exists, not who is holding the slab."
+      : "Nothing here shows who is holding the item.",
+  );
   return lines;
 }
 
+/**
+ * Phrased as conditions, not as sentences, because the first two of these are
+ * read straight into one line: "I'd look again if he sends the slab next to
+ * his name and today's date, and agrees to Goods and Services." Each item has
+ * to survive being dropped in after "if", so none of them ends in "would
+ * change this" any more.
+ *
+ * Artefacts come before behaviour. What the seller can photograph or send is
+ * the thing a buyer can act on today, and it is what Matt's own example leads
+ * with; agreeing to Goods and Services closes the line rather than opening it.
+ */
 function wouldChangeMyMind(input: ReviewReasonInput): ReasonLine[] {
   const { card, flags, overall } = input;
-  const lines: ReasonLine[] = [];
-  if (flags.some((f) => PAYMENT_METHOD_FLAGS.includes(f.code))) {
-    lines.push("A Goods and Services checkout would change this. Nothing else will, because that is the only way Pay Pals pays.");
-  }
-  if (has(flags, "PRICE_FAR_BELOW_MARKET")) lines.push("A plain reason for the price, with a receipt or proof of purchase, would change this.");
-  if (has(flags, "STOCK_OR_REUSED_PHOTO")) lines.push("A photo of the item in the seller's own hands, taken today, would change this.");
-  if (has(flags, "CERT_MISMATCH")) lines.push("A clear photo of the whole grading label, so I can read the cert number and the subject on it, would change this.");
-  if (has(flags, "URGENCY_PRESSURE")) lines.push("The seller agreeing to wait until these checks are done would change this.");
-  if (has(flags, "NAME_MISMATCH")) lines.push("An explanation of why the PayPal name is not the seller's name, or a payment to an address that matches, would change this.");
-  if (has(flags, "SHIP_BEFORE_PAY_TRICK")) lines.push("The seller shipping only after the Goods and Services payment is captured would change this.");
+  const artefacts: ReasonLine[] = [];
+  const behaviour: ReasonLine[] = [];
 
-  // The same asks the seller gets, worded as what they would settle, so the panels agree.
-  if (nearMissSerials(card, input.serialReadFromPhoto)) {
-    lines.push("A clearer photo of the box label would settle whether those two numbers are the same, because one of the two was read off a picture and could be a character out.");
-  }
-  if (datedNoteQuestion(card)) lines.push("One photo of the slab next to a handwritten note with the seller's name and today's date would show who is holding it.");
+  if (datedNoteQuestion(card)) artefacts.push("he sends the slab next to his name and today's date");
   const closeUp = serialCloseUpQuestion(card);
   if (closeUp) {
     const family = card ? deviceFamily(`${card.brand} ${card.model} ${card.title}`) : null;
-    lines.push(`A close-up of the serial label on the ${family === "console" ? "console" : "device"} itself would give me a number to match against the card and against whatever arrives.`);
+    artefacts.push(`he sends a close-up of the serial label on the ${family === "console" ? "console" : "device"}`);
   }
-  if (card && !card.serial && !closeUp && has(flags, "MISSING_SERIAL")) {
-    lines.push("A serial number for the item itself would change this, so there is something to match when it arrives.");
-  }
-  if (overall === "go" && lines.length === 0) {
-    lines.push("Anything that pushes you to pay another way, or to pay before these checks are done, would change this.");
-  }
-  if (!card) lines.push("The seller filling in an item card would change this, because then there is a price, a serial and photos to check.");
+  if (nearMissSerials(card, input.serialReadFromPhoto)) artefacts.push("he sends a clearer photo of the box label");
+  if (has(flags, "STOCK_OR_REUSED_PHOTO")) artefacts.push("he sends a photo of the item in his own hands, taken today");
+  if (has(flags, "CERT_MISMATCH")) artefacts.push("he sends a clear photo of the whole grading label");
+  if (has(flags, "PRICE_FAR_BELOW_MARKET")) artefacts.push("he explains the price and shows a receipt");
+  if (card && !card.serial && !closeUp && has(flags, "MISSING_SERIAL")) artefacts.push("he gives a serial number for the item itself");
+
+  if (flags.some((f) => PAYMENT_METHOD_FLAGS.includes(f.code))) behaviour.push("agrees to Goods and Services");
+  if (has(flags, "URGENCY_PRESSURE")) behaviour.push("agrees to wait until these checks are done");
+  if (has(flags, "NAME_MISMATCH")) behaviour.push("explains whose PayPal account that is");
+  if (has(flags, "SHIP_BEFORE_PAY_TRICK")) behaviour.push("ships only after the payment is captured");
+
+  // One artefact then one behaviour, so the single line the review closes with pairs something
+  // he can photograph with something he can agree to, which is the shape of Matt's example.
+  const lines = [...artefacts.slice(0, 1), ...behaviour.slice(0, 1), ...artefacts.slice(1), ...behaviour.slice(1)];
+  if (overall === "go" && lines.length === 0) lines.push("anything pushes you to pay another way, or to pay before these checks are done");
+  if (!card) lines.push("the seller fills in an item card, so there is a price, a serial and photos to check");
   return lines;
 }
 

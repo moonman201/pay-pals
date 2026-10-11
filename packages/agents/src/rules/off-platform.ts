@@ -30,7 +30,7 @@ export const offPlatformRule: Rule = (input) => {
       "OFF_PLATFORM_PAYMENT",
       "stop",
       quoted(match.quote),
-      "The seller is pointing you to a payment method outside the PayPal checkout, where there is no record and no way to dispute.",
+      "Wants to pay outside the PayPal checkout. No record, no dispute.",
     ),
   ];
 };

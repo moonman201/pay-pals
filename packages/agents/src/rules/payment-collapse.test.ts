@@ -10,13 +10,13 @@ describe("collapsePaymentFlags", () => {
     const flags = collapsePaymentFlags([rule("FRIENDS_AND_FAMILY_REQUEST", 'Seller wrote: "first to send Friends & Family gets it."'), urgency, rule("OFF_PLATFORM_PAYMENT", 'Seller wrote: "or Zelle in the next hour"')]);
     expect(flags.map((f) => f.code)).toEqual(["FRIENDS_AND_FAMILY_REQUEST", "URGENCY_PRESSURE"]);
     expect(flags[0]!.evidence).toBe('Seller wrote: "first to send Friends & Family gets it."');
-    expect(flags[0]!.explanation).toBe("The seller wants a Friends and Family payment or a payment outside the PayPal checkout, which has no buyer protection, so Pay Pals will not move money this way.");
+    expect(flags[0]!.explanation).toBe("Wants Friends and Family or payment outside PayPal. That has no buyer protection.");
   });
   it("keeps a refusal over everything", () => {
     const flags = collapsePaymentFlags([rule("OFF_PLATFORM_PAYMENT", "zelle"), rule("INVITE_REFUSED", 'Seller wrote: "Friends & Family only"'), rule("FRIENDS_AND_FAMILY_REQUEST", "ff")]);
     expect(flags).toHaveLength(1);
     expect(flags[0]!.code).toBe("INVITE_REFUSED");
-    expect(flags[0]!.explanation).toContain("refused Pay Pals protection and wants a Friends and Family payment or a payment outside the PayPal checkout");
+    expect(flags[0]!.explanation).toContain("Refused Pay Pals protection and wants Friends and Family or payment outside PayPal.");
   });
   it("lets a rule-raised flag outrank a model-added one, whatever the code", () => {
     const flags = collapsePaymentFlags([rule("FRIENDS_AND_FAMILY_REQUEST", "ff"), rule("INVITE_REFUSED", "model guess", false)]);

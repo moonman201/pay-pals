@@ -20,7 +20,10 @@ describe("BuyerPal.checkShipment", () => {
     });
     // The fixture's seeded flag matches on everything but the wording of the evidence, which the Lead updates.
     const seeded = emptyBox.shipment!.flags![0]!;
-    expect(flags[0]).toMatchObject({ code: seeded.code, severity: seeded.severity, explanation: seeded.explanation, raisedByRule: true });
+    // The explanation is deliberately not compared here. Matt's Oct 11 rules cut every flag
+    // explanation to about twelve words, and the fixture still carries the long one, which is the
+    // Lead's file. Reported rather than worked around; the code and severity still have to agree.
+    expect(flags[0]).toMatchObject({ code: seeded.code, severity: seeded.severity, raisedByRule: true });
     expect(palMessage).toContain("One required packing step is missing: Photo of the console, controller and cables going into the box.");
     expect(palMessage).toContain("USPS, tracking 9400100000000000000002");
   });

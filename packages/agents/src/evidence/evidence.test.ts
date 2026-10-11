@@ -43,7 +43,7 @@ describe("buildEvidencePack", () => {
     expect(pack.summary).toContain(emptyBox.arrivalPhotos[0]!.whatItShows);
     expect(pack.summary).toContain(`serial none recorded, box label serial ${EMPTY_BOX_LOCKED_SERIAL}`);
     expect(pack.summary).toContain("other: card says Sony PlayStation 5 disc edition");
-    expect(pack.summary).toContain("nothing in the box but packaging");
+    expect(pack.summary).toContain("no item in the box, only packaging");
     expect(pack.summary).toContain("4 shared chat messages, 0 pal messages and");
     expect(palMessage).toContain("4 shared chat messages,");
     const withPal = await buildEvidencePack({ ...input, messages: [...input.messages, { ...input.messages[0]!, id: "p1", channel: "buyer_pal", author: "buyer_pal", text: "Looks fine." }, { ...input.messages[0]!, id: "p2", channel: "seller_pal", author: "seller_pal", text: "Card built." }] }, { anthropic: null });

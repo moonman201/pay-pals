@@ -25,7 +25,7 @@ export const boxSerialMismatchRule: Rule = ({ card, serialReadFromPhoto }) => {
       "OTHER",
       "caution",
       `Serial on the item ${card.serial}; serial on the box label ${card.boxSerial}`,
-      "The serial on the item does not match the serial on its box label, so ask the seller why before you pay.",
+      "The serial on the item and the one on its box label differ.",
     ),
   ];
 };

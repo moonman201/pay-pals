@@ -40,6 +40,7 @@ import { BOX_LABEL_CLOSE_UP_QUESTION, datedNoteQuestion, serialCloseUpQuestion, 
 import { mergeReasoning } from "./reasoning";
 import { nearMissSerials, reviewReasoning } from "./review-reasons";
 import { ModelReviewSchema, REVIEW_TOOL, type ModelReview } from "./review-tool";
+import { chatNote, verdictMessage } from "./verdict-message";
 
 export const MAX_QUESTIONS = 3;
 /** Questions a buyer can act on come first: something to photograph or show. */
@@ -85,7 +86,8 @@ const FLAG_WORDS: Record<RedFlag["code"], string> = {
 const SYSTEM = [
   "You are the Buyer Pal in Pay Pals. You protect a buyer in a deal with a stranger on an online marketplace.",
   "Deterministic rules have already run. Their flags are fixed facts: they stay in the verdict exactly as given, you cannot remove or soften them, and you should not restate them as new flags.",
-  "Your job: notice anything in the chat or on the card that the rules missed, raise a severity when the chat makes a flag worse, reword explanations in plain words a first-time buyer understands, list up to three questions for the seller, and write a short message to the buyer.",
+  "Your job: notice anything in the chat or on the card that the rules missed, raise a severity when the chat makes a flag worse, reword a flag's explanation in plainer words, list up to three questions for the seller, and add to the pal's reasons.",
+  "You do not write the message the buyer reads. It is built from the flags and the reasons, so a flag explanation IS a line the buyer sees: keep each one to about twelve words, one fact, plain words, no preamble.",
   "A flag needs evidence that exists: quote the seller's words from the chat, or name the card field and its value. A missing answer, an unasked question or something you merely wish you knew is never a flag. It is a question for the seller.",
   "Say only what was examined. The photo block tells you which photos were read by the vision model; a caption is the seller's claim, not something you saw. The cert block tells you whether PSA was contacted; never say PSA's database was checked unless it says so.",
   "When the rules raised nothing and the price sits in the market range, the verdict is go unless the chat itself contains something the rules missed. Do not add a flag to justify caution.",
@@ -99,7 +101,7 @@ const SYSTEM = [
   "STOCK_OR_REUSED_PHOTO means a card photo is the same picture as one in Pay Pals' own set of reference pictures. Pay Pals does not search the web and has no way to know where else a picture appears. Never say a photo was found on another listing, found online, taken from the internet or traced anywhere. Say it is a picture Pay Pals already holds, so the buyer has not been shown the seller's own item, and say the check was against our own set.",
   "If you mention the evidence pack, it is useful context for a PayPal dispute. Never promise or predict what a dispute will decide, and never say a refund or a dispute requires the pack or the history hash.",
   "Pay Pals only ever pays through a PayPal Goods and Services checkout. Any request to pay another way ends the deal.",
-  "Writing rules: plain words, short sentences, no em dashes, no exclamation marks, no marketing voice. Say what to do next.",
+  "Writing rules: plain words, short sentences, no em dashes, no exclamation marks, no marketing voice. Prefer the everyday word over the technical one: say the deal history rather than the hash chain, and a picture we hold rather than a perceptual match.",
 ].join("\n");
 
 function transcript(chat: Message[]): string {
@@ -149,9 +151,15 @@ export function shopNames(priceCheck: PriceCheck | null): string[] {
   return [...names];
 }
 
-function priceLine(priceCheck: PriceCheck | null): string {
+function priceLine(priceCheck: PriceCheck | null, card: ItemCard | null): string {
   if (!priceCheck || priceCheck.marketLow <= 0) {
-    return `No reliable market price was found${priceNote(priceCheck) ? ` (${priceNote(priceCheck)!.toLowerCase()})` : ""}. Say so plainly; do not invent a range.`;
+    // A graded card has no comps in our price source at all, so "none found" would read as a
+    // failed lookup rather than a check that cannot be made. Say which it is, and never let the
+    // model imply a graded comp exists somewhere.
+    const graded = card?.certNumber
+      ? " This is a graded card, and the price source covers retail stores rather than graded cards, so there is no automatic check to make. Say that, and never suggest a graded comparison exists."
+      : "";
+    return `No market price came back${priceNote(priceCheck) ? ` (${priceNote(priceCheck)!.toLowerCase()})` : ""}. Say so plainly; do not invent a range.${graded}`;
   }
   const note = priceNote(priceCheck);
   const counts = listingCounts(priceCheck);
@@ -179,63 +187,39 @@ function fallbackQuestions(card: ItemCard | null, flags: RedFlag[]): string[] {
   return questions;
 }
 
-function fallbackMessage(card: ItemCard | null, flags: RedFlag[], priceCheck: PriceCheck | null, certCheck: CertCheck | null, certLookupFailed: boolean): string {
-  const overall = overallFromFlags(flags);
-  const list = (f: RedFlag[]) => f.map((x) => FLAG_WORDS[x.code]).join(", ");
-  const scope = card ? null : "I reviewed the chat only. There is no item card yet, so I could not check the price, the serial, the photos or a grading cert.";
-  const certNote = certCheck
-    ? certCheck.matches === null || certCheck.matches === true
-      ? certCheck.explanation
-      : null
-    : certLookupFailed && card?.certNumber
-      ? `I could not reach the grader to check cert ${card.certNumber}. Try again before you pay.`
-      : null;
-  const reference = card && priceCheck && priceCheck.marketLow > 0 && priceCheck.provider === "fixture" ? REFERENCE_RANGE_NOTE : null;
-  if (overall === "stop") {
-    const stops = flags.filter((f) => f.severity === "stop");
-    const paymentFlag = stops.some((f) => f.code === "FRIENDS_AND_FAMILY_REQUEST" || f.code === "OFF_PLATFORM_PAYMENT" || f.code === "INVITE_REFUSED");
-    return sentences(
-      scope,
-      `Stop. I found ${list(stops)}.`,
-      stops.some((f) => f.code === "PRICE_FAR_BELOW_MARKET") ? reference : null,
-      certNote,
-      paymentFlag ? "Pay Pals only pays through a Goods and Services checkout, so this deal cannot go ahead." : "Do not pay for this.",
-    );
-  }
-  if (overall === "caution") {
-    return sentences(scope, `Caution. I found ${list(flags)}.`, certNote, "Get answers before you pay. I have listed what to ask the seller.");
-  }
-  const note = priceNote(priceCheck);
-  return sentences(
-    scope,
-    card ? "This looks fair." : "Nothing in the chat worries me so far.",
-    certNote,
-    card && priceCheck && priceCheck.marketLow > 0
-      ? `The asking price of $${card.askingPrice} sits within the market range of $${priceCheck.marketLow} to $${priceCheck.marketHigh}${note ? `, ${note.charAt(0).toLowerCase()}${note.slice(1)}` : ""}.`
-      : null,
-    reference,
-    card && (!priceCheck || priceCheck.marketLow <= 0) ? `No reliable market price was found to compare the $${card.askingPrice} ask against${note ? ` (${note.toLowerCase()})` : ""}, so judge the price yourself.` : null,
-    card?.serial ? `The serial ${card.serial} is on the card, so we can check it when the item arrives.` : null,
-    card ? "Nothing in the chat worries me." : "I will check the price, the photos and the serial once the seller's card is in.",
-  );
-}
 
-interface ModelPass {
-  review: ModelReview | null;
-  /** The model's message after the honesty check, or null when it has to be replaced by the rules-only text. */
-  message: string | null;
-}
-
-/** One model call, then an honesty check on its message with one re-ask. */
-async function askModel(client: ClaudeClient, content: Array<{ type: "text"; text: string }>, claims: ClaimContext): Promise<ModelPass> {
+/**
+ * One model call, then an honesty check on everything it wrote, with one
+ * re-ask when something cannot be supported.
+ *
+ * The review a buyer reads is now a verdict, three reason lines and one
+ * closing line, built from the flags and the reasons (verdict-message.ts), so
+ * there is no longer a slot for a paragraph of model prose and the model no
+ * longer writes one. What it still writes is reason lines and reworded flag
+ * explanations, and those go through the same check the paragraph did: a line
+ * claiming a check that did not happen gets the call made again with the
+ * offending phrases named, exactly as before.
+ */
+async function askModel(client: ClaudeClient, content: Array<{ type: "text"; text: string }>, claims: ClaimContext): Promise<ModelReview | null> {
   const first = await callTool({ client, system: SYSTEM, content, tool: REVIEW_TOOL, schema: ModelReviewSchema });
-  if (!first.value) return { review: null, message: null };
-  const bad = unfoundedClaims(first.value.pal_message, claims);
-  if (bad.length === 0) return { review: first.value, message: first.value.pal_message };
-  const second = await callTool({ client, system: SYSTEM, content: [...content, { type: "text", text: reaskInstruction(bad, claims) }], tool: REVIEW_TOOL, schema: ModelReviewSchema });
-  if (!second.value) return { review: first.value, message: null };
-  const stillBad = unfoundedClaims(second.value.pal_message, claims);
-  return { review: second.value, message: stillBad.length === 0 ? second.value.pal_message : null };
+  if (!first.value) return null;
+  const bad = modelClaims(first.value).flatMap((text) => unfoundedClaims(text, claims));
+  if (bad.length === 0) return first.value;
+  const second = await callTool({ client, system: SYSTEM, content: [...content, { type: "text", text: reaskInstruction([...new Set(bad)], claims) }], tool: REVIEW_TOOL, schema: ModelReviewSchema });
+  return second.value ?? first.value;
+}
+
+/** Every string the model wrote that a human will read, for the honesty check. */
+function modelClaims(review: ModelReview): string[] {
+  return [
+    ...review.explanations.map((e) => e.explanation),
+    ...review.additional_flags.map((f) => f.explanation),
+    ...review.questions_for_seller,
+    ...review.reasoning.checked,
+    ...review.reasoning.found,
+    ...review.reasoning.could_not_verify,
+    ...review.reasoning.would_change_my_mind,
+  ];
 }
 
 /**
@@ -277,7 +261,7 @@ export async function reviewCard(
     card && certRecord ? (({ matches: m, explanation }) => ({ record: certRecord, matches: m, explanation }))(compareCertRecord(card, certRecord)) : null;
   if (certCheck) emit({ kind: "certCheck", certCheck });
 
-  let pass: ModelPass = { review: null, message: null };
+  let review: ModelReview | null = null;
   const publicMode = deps.publicMode === true;
   // The box-serial rule has to know whether a vision read is in play before it can decide that a
   // one-character difference is a mismatch, which is why the reads are gathered before the rules.
@@ -324,7 +308,7 @@ export async function reviewCard(
     const facts = ruleFlags.length === 0 ? "The rules raised no flags." : JSON.stringify(ruleFlags, null, 2);
     const cert = certLine(card, certCheck, certLookupFailed);
     const already = reviewReasoning({ ...reasonInput, flags: ruleFlags, overall: overallFromFlags(ruleFlags) });
-    pass = await askModel(
+    review = await askModel(
       deps.client,
       [
         {
@@ -335,7 +319,7 @@ export async function reviewCard(
         },
         ...(card ? [{ type: "text" as const, text: photoFactsBlock(readings, publicMode, card) }] : []),
         { type: "text", text: `Shared chat, in order:\n${transcript(chat) || "(no messages yet)"}` },
-        { type: "text", text: card ? priceLine(priceCheck) : "No price check without a card." },
+        { type: "text", text: card ? priceLine(priceCheck, card) : "No price check without a card." },
         ...(cert ? [{ type: "text" as const, text: cert }] : []),
         { type: "text", text: `Fixed facts. Flags raised by the rules, which will appear in the verdict as given:\n${facts}` },
         {
@@ -347,7 +331,6 @@ export async function reviewCard(
     );
   }
 
-  const review = pass.review;
   // Collapse again after the merge: the model may have added a payment code of its own.
   const flags = collapsePaymentFlags(mergeModelReview(ruleFlags, review, buildGroundingCorpus(card, chat)));
   const overall = overallFromFlags(flags);
@@ -365,11 +348,21 @@ export async function reviewCard(
   ];
   const modelQuestions = review?.questions_for_seller ?? [];
   const questionsForSeller = pickQuestions(withProofQuestions(ours, modelQuestions.length > 0 ? modelQuestions : fallbackQuestions(card, flags)));
-  const body = pass.message ? plainCopy(pass.message) : fallbackMessage(card, flags, priceCheck, certCheck, certLookupFailed);
-  const palMessage = sentences(describeLooking(readings, "card photo", deps.publicMode === true), body);
-
   // The rules' reasons are fixed facts, like their flags. The model may add to a group and never take from one.
   const reasoning = mergeReasoning(reviewReasoning({ ...reasonInput, flags, overall }), review?.reasoning ?? null, claims);
+
+  // The review a buyer reads: a verdict, one line per reason, one line saying what would change it.
+  // Built from the flags and the reasons rather than from prose, so nothing is said twice and the
+  // model cannot pad it. See verdict-message.ts for the shape and why wouldChangeMyMind moved here.
+  const palMessage = verdictMessage({
+    overall,
+    flags,
+    askingPrice: card?.askingPrice ?? null,
+    priceCheck,
+    serial: card?.serial ?? null,
+    wouldChangeMyMind: reasoning.wouldChangeMyMind,
+    scope: card ? null : "No item card yet, so this is the chat only.",
+  });
 
   const verdict: Verdict = {
     dealId: card?.dealId ?? chat.find((m) => m.dealId.length > 0)?.dealId ?? "unknown",
@@ -383,5 +376,8 @@ export async function reviewCard(
     reasoning,
     createdAt: new Date().toISOString(),
   };
-  return { data: verdict, palMessage };
+  // The verdict carries the review the room renders; the result carries the line for the buyer's
+  // private pal chat. apps/web posts the second into that channel, so returning the review for
+  // both printed the whole thing twice on one page.
+  return { data: verdict, palMessage: chatNote(overall) };
 }

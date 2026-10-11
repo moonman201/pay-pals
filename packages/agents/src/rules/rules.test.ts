@@ -236,7 +236,7 @@ describe("stockPhotoRule", () => {
     const flags = stockPhotoRule({ card: fakeSlab.cards[0]!, chat: [], priceCheck: price, photoMatches: [{ photo, source: "the reference set (slab-front.jpg)", distance: 3 }] });
     expect(flags[0]).toMatchObject({ code: "STOCK_OR_REUSED_PHOTO", severity: "caution" });
     expect(flags[0]!.evidence).toContain("the reference set (slab-front.jpg)");
-    expect(flags[0]!.evidence).toContain("3 of 64 bits differ");
+    expect(flags[0]!.evidence).toContain("3 of 64 points differ");
   });
   it("never fires from caption words alone, and is silent with no matches", () => {
     expect(stockPhotoRule({ card: fakeSlab.cards[0]!, chat: [], priceCheck: price })).toHaveLength(0);
@@ -260,7 +260,7 @@ describe("runRules on the fixtures", () => {
     expect(codes).not.toContain("STOCK_OR_REUSED_PHOTO");
     expect(codes.filter((c) => c === "FRIENDS_AND_FAMILY_REQUEST" || c === "OFF_PLATFORM_PAYMENT" || c === "INVITE_REFUSED")).toHaveLength(1);
     const payment = flags.find((f) => f.code === "FRIENDS_AND_FAMILY_REQUEST")!;
-    expect(payment.explanation).toContain("a Friends and Family payment or a payment outside the PayPal checkout");
+    expect(payment.explanation).toContain("Friends and Family or payment outside PayPal");
     expect(payment.evidence).toContain("Friends and Family");
     const allowed = new Set([...fakeSlab.expectedVerdict.requiredFlags, ...fakeSlab.expectedVerdict.optionalFlags]);
     for (const code of codes) expect(allowed.has(code), code).toBe(true);

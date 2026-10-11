@@ -31,7 +31,7 @@ export const inviteRefusedRule: Rule = (input) => {
       "INVITE_REFUSED",
       "stop",
       match ? quoted(match.quote) : "The seller declined the Pay Pals invite",
-      "The seller refused Pay Pals protection and wants an unprotected payment, which is a risk signal. Pay Pals cannot pay this seller.",
+      "Refused Pay Pals protection and wants an unprotected payment.",
     ),
   ];
 };

@@ -35,6 +35,7 @@ import { compareSerials, describeDifference } from "../vision/serial-match";
 import type { ImageFetcher } from "../vision/fetch-image";
 import { describeLooking, itemMissing, itemSerial, packagingSerial, readPhotos, type PhotoReading } from "../vision/read-photo";
 import { arrivalReasoning } from "./arrival-reasons";
+import { withoutCaptionsInObserved } from "./observed-guard";
 
 export interface ArrivalDeps {
   client: ClaudeClient | null;
@@ -83,7 +84,9 @@ export function compareToCard(card: ItemCard, observed: ArrivalCheck["observed"]
     mismatches.push({
       field: "other",
       expected: card.title,
-      observed: `nothing in the box but packaging: "${caption}"`,
+      // The caption stays out of this column: it is the buyer's word, and the column is what the
+      // page renders as "arrived". See observed-guard.ts for the run where it leaked.
+      observed: "no item in the box, only packaging",
       explanation: `The locked card describes ${card.title}, and the box arrived without it: "${caption}"`.slice(0, 300),
     });
     return { mismatches, unsettled };
@@ -184,7 +187,12 @@ export async function checkArrivalAgainstCard(card: ItemCard, arrivalPhotos: Pho
     // no serial at all, because then there is no source to name.
     serialSource: item ? (item.reading.source === "vision" ? ("photo" as const) : ("description" as const)) : null,
   };
-  const comparison = compareToCard(card, observed, { packagingSerial: box?.serial ?? null, missing, photosProvided: arrivalPhotos.length > 0 });
+  const raw = compareToCard(card, observed, { packagingSerial: box?.serial ?? null, missing, photosProvided: arrivalPhotos.length > 0 });
+  // Nothing a caption said reaches the "arrived" column, whoever wrote the mismatch. See observed-guard.ts.
+  const comparison = {
+    mismatches: withoutCaptionsInObserved(raw.mismatches, arrivalPhotos),
+    unsettled: withoutCaptionsInObserved(raw.unsettled, arrivalPhotos),
+  };
   const outcome = outcomeOf(comparison);
   const { mismatches } = comparison;
   // Kept on the check only when the outcome is inconclusive, which is what the contract says.
