@@ -65,7 +65,7 @@ describe("EvidencePackView", () => {
     expect(screen.getAllByRole("alert")[0]).toHaveTextContent("History does not match the hash on the PayPal order");
     unmount();
     render(<EvidencePackView pack={pack({ historyHash: null, historyVerified: null })} deal={emptyBox.deal} role="buyer" />);
-    expect(screen.getByText(/No PayPal order was created, so no history hash was recorded/)).toBeInTheDocument();
+    expect(screen.getByText(/No hash was recorded with an order for this deal/)).toBeInTheDocument();
   });
 
   it("counts chat messages per channel and lists pal messages apart from the shared chat", () => {
@@ -112,13 +112,14 @@ describe("EvidencePackView", () => {
 
   it("on a seeded example deal (fixture order id), labels it and never claims PayPal holds the hash", () => {
     const head = emptyBox.timeline.find((e) => e.kind === "payment_created")!.hash;
-    render(<EvidencePackView pack={pack({ historyHash: head, historyVerified: true, payment: emptyBox.payment })} deal={emptyBox.deal} role="buyer" read={{ kind: "example" }} />);
+    render(<EvidencePackView pack={pack({ historyHash: head, historyVerified: true, payment: emptyBox.payment, historyAnchor: "not_anchored" })} deal={emptyBox.deal} role="buyer" read={{ kind: "example" }} />);
     expect(screen.getAllByText("Example deal, seeded from a scenario").length).toBeGreaterThan(0);
     expect(screen.getAllByTestId("history-badge")[0]).toHaveTextContent(/example deal, no PayPal order/);
-    expect(screen.queryByText(/PayPal's own record holds it/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/corroborated by PayPal/)).not.toBeInTheDocument();
     expect(screen.getByText(new RegExp(`Example order id ${emptyBox.payment!.paypalOrderId}`))).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Confirmed by PayPal" })).not.toBeInTheDocument();
-    expect(screen.getByText(/no PayPal order holds the head/)).toBeInTheDocument();
+    expect(screen.getByTestId("history-anchor")).toHaveAttribute("data-anchor", "not_anchored");
+    expect(screen.getByTestId("history-anchor")).toHaveTextContent("No PayPal order holds this hash.");
   });
 
   it("a real deal keeps the verified claim, and a live read earns the Confirmed by PayPal heading", () => {
@@ -126,14 +127,14 @@ describe("EvidencePackView", () => {
     const realTimeline = emptyBox.timeline.map((e) => (e.kind === "deal_created" ? { ...e, data: undefined } : e));
     render(
       <EvidencePackView
-        pack={pack({ historyHash: head, payment: realPayment, timeline: realTimeline })}
+        pack={pack({ historyHash: head, payment: realPayment, timeline: realTimeline, historyAnchor: "corroborated" })}
         deal={emptyBox.deal}
         role="buyer"
         read={{ kind: "confirmed", order: readOrderFields({ id: "2NW245573K1279237", status: "COMPLETED" }) }}
       />,
     );
     expect(screen.queryByText("Example deal, seeded from a scenario")).not.toBeInTheDocument();
-    expect(screen.getByText(/PayPal's own record holds it/)).toBeInTheDocument();
+    expect(screen.getByTestId("history-anchor")).toHaveAttribute("data-anchor", "corroborated");
     expect(screen.getByRole("heading", { name: "Confirmed by PayPal" })).toBeInTheDocument();
     expect(screen.getByText("2NW245573K1279237")).toBeInTheDocument();
   });
@@ -159,8 +160,8 @@ describe("EvidencePackView", () => {
     const arrivalCheck = {
       dealId: emptyBox.deal.id,
       cardVersion: 1,
-      matches: false,
-      mismatches: [],
+      outcome: "mismatch" as const,
+      mismatches: [{ field: "serial" as const, expected: "AJ164952580", observed: "no console in the photos", explanation: "The box arrived without the item." }],
       observed: { brand: null, model: null, serial: null },
       palMessage: "The console is not there.",
       reasoning,

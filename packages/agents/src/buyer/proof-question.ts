@@ -19,6 +19,8 @@ import { deviceFamily } from "../seller/listing-parse";
 import { isPackagingDescription } from "../vision/description";
 
 export const CONSOLE_SERIAL_QUESTION = "Can you send a close-up of the serial label on the console itself?";
+/** Asked when the item serial and the box label are one character apart and one was read off a photo. */
+export const BOX_LABEL_CLOSE_UP_QUESTION = "Can you send a clearer photo of the serial on the box label?";
 export const DEVICE_SERIAL_QUESTION = "Can you send a close-up of the serial label on the device itself?";
 export const DATED_NOTE_QUESTION = "Can you send one photo of the slab next to a handwritten note with your name and today's date on it?";
 
@@ -54,6 +56,7 @@ export function datedNoteQuestion(card: ItemCard | null): string | null {
 
 /** A model question that asks for the same thing as one of ours. */
 const SAME_ASK: ReadonlyArray<[string, RegExp]> = [
+  [BOX_LABEL_CLOSE_UP_QUESTION, /\bbox label\b|\bserial on the box\b/i],
   [CONSOLE_SERIAL_QUESTION, /\bclose[- ]?up\b|\bphoto of the serial\b|\bserial label\b|\bserial (?:number )?on the console\b/i],
   [DEVICE_SERIAL_QUESTION, /\bclose[- ]?up\b|\bphoto of the serial\b|\bserial label\b|\bserial (?:number )?on the device\b/i],
   [DATED_NOTE_QUESTION, /\bhand-?written\b|\bnote with (?:your )?name\b|\btoday'?s date\b|\bdated note\b/i],

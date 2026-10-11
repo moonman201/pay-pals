@@ -4,7 +4,7 @@
  * seeder stamps it into each seeded deal's deal_created event data as
  * { seedVersion, scenario }; qa asserts on the constant.
  */
-export const SEED_VERSION = "2026-10-08.2";
+export const SEED_VERSION = "2026-10-10.1";
 
 /** The seed stamp on a seeded deal's deal_created event, when it has one. */
 export interface SeedStamp {

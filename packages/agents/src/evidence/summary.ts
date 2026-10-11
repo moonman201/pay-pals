@@ -5,7 +5,8 @@
  * Either way it comes out as short paragraphs, in a fixed order, with no
  * markdown and no heading.
  */
-import type { EvidenceInput } from "@pay-pals/contracts";
+import type { EvidenceInput, Mismatch } from "@pay-pals/contracts";
+import type { HistoryAnchor } from "@pay-pals/contracts";
 import { CONDITION_LABELS, historyMatchesHead, verifyChain } from "@pay-pals/contracts";
 import type { ClaudeClient } from "../claude/client";
 import { callText } from "../claude/text-call";
@@ -56,11 +57,17 @@ export function deterministicSummary(input: EvidenceInput): string {
 
   const arrival: Array<string | null> = [];
   if (arrivalCheck) {
-    if (arrivalCheck.matches) {
+    const detail = (list: readonly Mismatch[]) => list.map((m) => `${m.field}: card says ${m.expected}, arrival shows ${m.observed}`).join("; ");
+    if (arrivalCheck.outcome === "match") {
       arrival.push(`Arrival check: the item matched the locked card${arrivalCheck.observed.serial ? `, serial ${arrivalCheck.observed.serial} confirmed` : ""}.`);
+    } else if (arrivalCheck.outcome === "mismatch") {
+      arrival.push(`Arrival check on ${day(arrivalCheck.createdAt)}: the item did not match the locked card. ${detail(arrivalCheck.mismatches)}.`);
     } else {
-      const details = arrivalCheck.mismatches.map((m) => `${m.field}: card says ${m.expected}, arrival shows ${m.observed}`).join("; ");
-      arrival.push(`Arrival check on ${day(arrivalCheck.createdAt)}: the item did not match the locked card. ${details}.`);
+      // A dispute reviewer must not read this as either finding. Nothing differed and nothing was
+      // confirmed: the comparison could not be settled, and the pack says which comparison and why.
+      arrival.push(
+        `Arrival check on ${day(arrivalCheck.createdAt)}: the comparison could not be settled, so this is neither a match nor a mismatch. ${detail(arrivalCheck.unsettled ?? [])}.`,
+      );
     }
   }
   const arrivalPhotos = input.arrivalPhotos ?? [];
@@ -78,8 +85,11 @@ export function deterministicSummary(input: EvidenceInput): string {
 }
 
 /**
- * The tamper-check sentence. Deliberately the weakest of the three things it
- * could say, because the input cannot yet tell those three apart.
+ * The tamper-check sentence, in the three cases it has to tell apart. Saying
+ * the strongest of them in all three is the overclaim this function exists to
+ * stop: on the seeded empty-box pack it put "the history was not edited after
+ * payment" one paragraph away from a line saying no PayPal order holds the
+ * head.
  *
  * The three cases are:
  *   1. a real PayPal order holds the hash and its copy was read back for this
@@ -89,21 +99,20 @@ export function deterministicSummary(input: EvidenceInput): string {
  *   3. no PayPal order holds it at all. A seeded example deal has placeholder
  *      payment ids, so there is nothing on PayPal's side to compare against.
  *
- * `EvidenceInput` carries no way to tell them apart. `payment.historyHash` is
- * our own stored copy with no provenance, nothing says whether a live read
- * happened, and the only markers for a seeded deal are the `FIXTURE-` id
- * prefix and the seed stamp, which are an apps/web convention rather than a
- * contract. An optional `historyAnchor` field is proposed for exactly this;
- * when it lands, case 1 gets its strong sentence back and the other two say
- * what is actually true of them.
+ * `historyAnchor` on `EvidenceInput` now says which one it is, because apps/web
+ * knows and this package cannot work it out. Absent reads as `recorded_only`,
+ * the conservative case, so a pack stored before that field existed never
+ * starts claiming corroboration it was not built with. Nothing here infers the
+ * case from an order id's shape: a FIXTURE- prefix is a convention, not a
+ * contract.
  *
- * Until then the sentence has to be true in all three at once, so it claims
- * only what we can check on our own side: the stored events reproduce the hash
- * we hold. It says nothing about PayPal's copy either way. In case 1 that is an
- * understatement, which is the right direction to be wrong in. The sentence
- * this replaced asserted PayPal corroboration in all three, and on the seeded
- * empty-box pack it sat on the same page as a paragraph saying no PayPal order
- * holds the head, which is the finding that prompted this.
+ * Each case has a matching variant for a chain that does not reproduce the
+ * hash, because a broken chain means something different in each of them. Under
+ * `corroborated` it means our stored events disagree with the copy PayPal
+ * holds, which is the strongest statement this function ever makes. Under
+ * `recorded_only` it means our own two records disagree and we cannot say which
+ * side PayPal would agree with. Under `not_anchored` there is no second record
+ * at all, so it is only ever a statement about our own chain.
  *
  * Returns null when there is no hash and no events, because then there is
  * nothing to say rather than something weak to say.
@@ -111,13 +120,25 @@ export function deterministicSummary(input: EvidenceInput): string {
 export function tamperCheck(input: EvidenceInput): string | null {
   const { payment, timeline } = input;
   const head = payment?.historyHash ?? null;
+  const anchor: HistoryAnchor = input.historyAnchor ?? "recorded_only";
   const events = `${timeline.length} stored timeline event${timeline.length === 1 ? "" : "s"}`;
-  const notChecked = "Whether PayPal's own copy of that hash matches has not been checked for this pack.";
 
   // The hash ends its own short sentence: the evidence page prints 64 hex characters on a line of
   // their own, so anything after one is left hanging there (see hashEndsItsSentence in copy.ts).
   if (head) {
-    return historyMatchesHead(timeline, head)
+    const reproduce = historyMatchesHead(timeline, head);
+    if (anchor === "not_anchored") {
+      return reproduce
+        ? `Tamper check: the ${events} are hash-chained and reproduce the hash recorded with this payment, so an edit to them would break the chain. No PayPal order holds this hash, because the payment ids on this deal are placeholders, so there is nothing on PayPal's side to compare it against. The hash is ${head}.`
+        : `Tamper check: the ${events} do not reproduce the hash recorded with this payment, so the stored history has changed since that hash was taken. No PayPal order holds this hash either, because the payment ids on this deal are placeholders. The hash is ${head}.`;
+    }
+    if (anchor === "corroborated") {
+      return reproduce
+        ? `Tamper check: the ${events} are hash-chained and reproduce the hash recorded with this payment, and PayPal's own copy of that hash was read back for this pack and carries the same one. The stored history is the history PayPal holds. The hash is ${head}.`
+        : `Tamper check: the ${events} do not reproduce the hash recorded with this payment, and PayPal's own copy of that hash was read back for this pack and carries that same hash. The stored history differs from what PayPal holds. The hash is ${head}.`;
+    }
+    const notChecked = "PayPal's own copy of that hash was not read back for this pack, so this check is against our own record of it and not against PayPal's.";
+    return reproduce
       ? `Tamper check: the ${events} are hash-chained and reproduce the hash recorded with this payment, so an edit to them would break the chain. ${notChecked} The hash is ${head}.`
       : `Tamper check: the ${events} do not reproduce the hash recorded with this payment. The stored history has been changed since that hash was taken, or it is not the history that hash was taken from. ${notChecked} The hash is ${head}.`;
   }
@@ -152,7 +173,24 @@ export function dropHeadingLine(text: string): string {
   return text;
 }
 
-const SYSTEM = [
+/**
+ * What the model may say about the hash, per case. The deterministic sentence
+ * above is only half the fix: last time the facts stopped claiming PayPal
+ * corroboration and the prompt put it straight back, because the prompt still
+ * told the model the hash was the record PayPal checks first. So the model is
+ * told which case it is in and what that case does and does not support,
+ * rather than only being forbidden a phrase.
+ */
+const ANCHOR_INSTRUCTION: Record<HistoryAnchor, string> = {
+  corroborated:
+    "PayPal's own copy of the history hash was read back for this pack. You may say that PayPal's copy carries the same hash, and that the stored history is the history PayPal holds, but only if the facts say the stored events reproduce it. Say nothing about what that entitles anyone to.",
+  recorded_only:
+    "PayPal's copy of the history hash was NOT read back for this pack. Do not say that PayPal holds, confirms or corroborates the hash, and do not say the history was not edited after payment. The facts say whether our own stored events reproduce our own record of the hash, and that is all you may claim. State that limit rather than writing around it.",
+  not_anchored:
+    "No PayPal order holds this hash at all: the payment ids on this deal are placeholders. Do not say PayPal holds, confirms or corroborates anything, and do not say the history was not edited after payment. You may say the stored events are hash-chained and that an edit would break the chain. Say plainly that there is nothing on PayPal's side to compare against.",
+};
+
+const SYSTEM_LINES = [
   "You write the summary at the top of an evidence pack for a PayPal dispute reviewer.",
   "State what was agreed, what was paid, what was shipped and what arrived, in that order, using only the facts given. Keep every identifier (serials, order ids, tracking numbers) exactly as written.",
   "Write short paragraphs separated by a blank line, two or three sentences each, in this order: the deal and the item card; the Buyer Pal's review and anything the seller never answered; the payment; the shipping; what arrived; the history check. Leave out a paragraph when there is nothing to say for it.",
@@ -160,12 +198,14 @@ const SYSTEM = [
   "Plain words, short sentences, no em dashes, no exclamation marks, no opinion about who is at fault. Never write the words verified or authentic: say what a check showed and what it did not show.",
   "A matching serial or grading cert supports what the item card says. It never proves who owns the item and it never proves the item is authentic.",
   "This pack is useful context for whoever reviews the dispute. Never say it guarantees or makes likely any outcome, and never say a refund or a dispute requires it.",
-  // Conditioned with the deterministic sentence above it. Telling the model PayPal holds the hash
-  // would put the claim back in prose after the facts had carefully stopped making it.
   "The deal history is hash-chained, so an edit to a stored event breaks the chain. Say whether the stored events reproduce the hash in the facts, and nothing more about what that entitles anyone to.",
-  "Do not say that PayPal holds, confirms or corroborates the hash, and do not say the history was not edited after payment. The facts you are given say whether our own stored events reproduce it; whether PayPal's copy matches was not checked. Repeat that limit rather than writing around it.",
   "Put the 64-character history hash at the end of its sentence, with a full stop after it and nothing else. The page prints a hash on a line of its own, so a comma or more words after it are left hanging there.",
-].join("\n");
+];
+
+/** The writing rules, plus the one line that says which hash case this pack is in. */
+export function systemFor(anchor: HistoryAnchor): string {
+  return [...SYSTEM_LINES, ANCHOR_INSTRUCTION[anchor]].join("\n");
+}
 
 export async function writeSummary(input: EvidenceInput, client: ClaudeClient | null, publicMode = false): Promise<string> {
   const facts = deterministicSummary(input);
@@ -177,6 +217,6 @@ export async function writeSummary(input: EvidenceInput, client: ClaudeClient | 
     unanswered.length > 0 || (input.shipment?.flags ?? []).length > 0
       ? " State plainly any question the Buyer Pal asked the seller before payment that never got an answer, and any required packing photo the seller shipped without."
       : "";
-  const text = await callText(client, SYSTEM, `Facts, in order:\n${facts}\n\nWrite the summary.${arrivalNote}${gapsNote}${publicNote}`);
+  const text = await callText(client, systemFor(input.historyAnchor ?? "recorded_only"), `Facts, in order:\n${facts}\n\nWrite the summary.${arrivalNote}${gapsNote}${publicNote}`);
   return text ? dropHeadingLine(plainCopy(text, MAX_SUMMARY_LENGTH)) : facts;
 }

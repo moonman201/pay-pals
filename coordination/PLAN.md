@@ -24,7 +24,7 @@ tests/e2e            Playwright runs of the three demo scenarios                
 ```
 Modules talk only through `packages/contracts` interfaces. apps/web is the only place modules are wired together.
 
-## Contracts (v1.7.0, Oct 10. Frozen at v1.6.0 on Oct 8; Matt approved two additive changes on Oct 10, see `coordination/PROPOSAL-contracts-v1.7.0.md`)
+## Contracts (v1.8.0, Oct 10. Frozen at v1.6.0 on Oct 8; Matt approved v1.7.0 and v1.8.0 on Oct 10, see the two PROPOSAL files in `coordination/`)
 
 The TypeScript in `packages/contracts/src` is the contract. This section is the summary. Where they differ, the code wins and the Lead fixes this file.
 
@@ -32,6 +32,16 @@ The TypeScript in `packages/contracts/src` is the contract. This section is the 
 Both additive. Nothing existing changed shape, so every v1.6.0 consumer still compiles and every stored row still parses.
 - **`DEAL_EVENT_KINDS` gains `off_platform_chosen`**, between `state_changed` and `payment_created`. The buyer told Pay Pals they will pay outside Goods and Services; Pay Pals warned them, wrote the line, and stepped back. It is the end of Pay Pals' part, not the start of one. Needs migration 0005 and a re-bundle of `migrations.generated.ts`, because the Postgres enum is generated from this constant.
 - **`PalReasoning`**, optional on `Verdict` and `ArrivalCheck`: `checked`, `found`, `couldNotVerify`, `wouldChangeMyMind`. Four lists of short plain sentences, so a pal's reasons can be laid out, tested and checked one claim at a time. No migration: verdicts round-trip as a single jsonb payload. A group may be empty but not absent, so a pal cannot quietly omit what it could not verify.
+
+### Changes in v1.8.0 (Matt approved, Oct 10)
+All additive and optional. No migration: an evidence pack and an arrival check
+each round-trip as a single jsonb payload, and nothing in the repo parses either
+strictly, so every pack and check stored before today still parses.
+- **`HISTORY_ANCHORS` and `historyAnchor`**, on `EvidencePackSchema` and on `EvidenceInput`: `corroborated`, `recorded_only`, `not_anchored`. Absent reads as `recorded_only`, which never claims corroboration. Nothing may infer the case from an order id's shape; a `FIXTURE-` prefix is a convention, not a contract.
+- **`ArrivalCheck.observed.serialSource`**, `photo` or `description`, set from `PhotoReading.source` where the check is built so both ends read one value.
+- **`ArrivalCheck.outcome` replaces `matches`**, `match | mismatch | inconclusive`, plus an optional `unsettled: Mismatch[]` that is non-empty exactly when the outcome is inconclusive. `mismatches` stays empty on an inconclusive check, because a comparison that could not be settled did not find a difference. **This one is breaking**, chosen over the additive `boolean | null` for a measured reason: widening the boolean produced zero type errors repo-wide while leaving eight sites that would report an unsettled comparison as a confirmed mismatch, one of them persisting it into a table that is never updated in place. Matt took the breaking shape so the compiler names every site; it named 27 across four workspaces.
+  **A correction to the line above: this change DOES need the stored data handled.** The Lead said v1.8.0 needed no migration, which is true of a jsonb payload's ability to parse any shape and false here, because `matches` was renamed rather than added. Every arrival check already in Neon carries `matches` and no `outcome`, and `toArrival` casts rather than parses, so nothing throws and `outcome` is simply `undefined` at runtime. `packages/db`'s `toArrival` translates a legacy row once (`true` to `match`, `false` to `mismatch`, neither to `inconclusive`), a malformed payload never reads as `match`, and `toArrivalRow` writes only the new shape. No data migration: the only arrival rows in Neon are on the two seeded demo deals plus the probe deals, all of which the final deploy re-seeds or deletes.
+- **`ReviewProgress` and `ReviewOptions.onProgress`**, a fourth optional argument to `BuyerPal.review`. **This is a third change, not in the v1.8.0 proposal Matt approved.** Streaming findings to the page needs the agents package to emit while it works, and `review` was a single awaited call, so there was no non-contract way to do it short of moving the orchestration into the UI layer, which the module rules forbid. Events: `stage` for the staged status line, `flag` for a finding (a stop flag must reach the page as soon as it is raised), `priceCheck`, `certCheck`, `photoRead`. The lookups run concurrently, so these arrive in a different order every run and nothing may depend on the order. A throw from `onProgress` must not fail the review. The final `Verdict` stays the only authority; progress is never the record.
 
 ### Deal states
 `DRAFT -> LISTED -> REVIEWED -> AGREED -> PAYMENT_PENDING -> PAID -> SHIPPED -> DELIVERED -> COMPLETE`
@@ -116,18 +126,34 @@ Save every working call as a Postman collection in `docs/postman/`.
 - Grand Prize, or the Best Agentic Commerce honorable mention.
 - One sponsor prize only (rules allow one): **Channel3**. The Buyer Pal's price check must call the Channel3 API for real.
 
-## Decisions (Matt, Oct 6)
+## Decisions 1 to 22 (Matt and the Lead, Oct 6 to Oct 10)
+
+**There are 22, numbered in order, and the list runs to the end of this section.**
+Said plainly because two lanes read this section, reached Decision 13, concluded
+the list ended there and went to work off `WORKLOG.md` instead. The heading used
+to say "Oct 6" while carrying decisions made four days later, which is a good way
+to make a reader skip the ones that matter most. Today's are 12 to 22.
 1. **Overrides.** A buyer can override `caution` flags. A buyer can never override a payment-method flag (`FRIENDS_AND_FAMILY_REQUEST`, `OFF_PLATFORM_PAYMENT`). Pay Pals only ever creates a Goods and Services checkout payment, so those flags end the deal. Encoded as `PAYMENT_METHOD_FLAGS` in `packages/contracts/src/red-flag.ts`.
+
 2. **Who starts a deal.** Either side. The seller usually does; a buyer can paste a listing and invite the seller.
+
 3. **Accounts.** None in v1. A deal link plus the party's email is enough.
+
 4. **Brand names.** Real brand and product names are fine in demo data, UI and video. No copied logos or artwork.
+
 5. **Two-sided agreement (Oct 7).** Both the buyer and the seller agree to a specific card version. The card locks and the deal moves to AGREED when the second agreement lands. A new card version clears both. Shipped Oct 7 as contracts v1.3.0-draft (3b71ad6).
-7. **Buyer starts the deal (Oct 7).** Entry point is a payment screen: "Use Pay Pals Protection," seller PayPal email, listing link. Seller gets an invite link to join and upload photos. State `INVITED` between DRAFT and LISTED. A refusal ("Friends & Family only") is `INVITE_REFUSED`, a payment-method flag, non-overridable. Seller-started stays, secondary. Email delivery of the invite is a stretch; v1 shows a link to send.
-8. **Two demo items (Oct 7).** PS5 (clean deal, empty box) and a PSA-graded Pokemon slab (fake slab). Buyer Pal checks graded items against PSA's cert API; a mismatch is `CERT_MISMATCH`, stop.
-9. **Tamper-evident history (Oct 7).** Every DealEvent carries prevHash and hash (contracts history.ts). The chain head at order creation goes into the PayPal order custom_id (`dealId#hash`) and the payment record. The evidence pack verifies the stored events against it.
-10. **Scenario 3 ship-time check (Oct 7, Matt).** The seller never answers the Buyer Pal's questions and the buyer pays anyway; when the seller ships without the required packing photo the Buyer Pal raises a caution at ship time and the evidence pack calls out the unanswered questions and the missing photo. Approved Oct 8. Contracts v1.6.0-draft: flag code `MISSING_PACKING_PHOTO`, `BuyerPal.checkShipment`, `Shipment.flags?`, `EvidencePack.unansweredQuestions?` and `shipmentFlags?`, event kind `shipment_checked`, `shipments.flags` column (migration 0004).
-11. **Sandbox buyer login on the pay panel (Oct 8, Matt).** On a demo deal with the sandbox gateway, the pay panel shows the PayPal sandbox buyer email and password, labelled as a test account with no real money, so a judge can finish the clean and empty-box scenarios live.
+
 6. **Non-payment stops (Oct 7).** A stop that is not about payment method (price far below market, ship-before-pay) stays overridable with the acknowledgment checkbox and stronger warning wording. Only payment-method flags end the deal.
+
+7. **Buyer starts the deal (Oct 7).** Entry point is a payment screen: "Use Pay Pals Protection," seller PayPal email, listing link. Seller gets an invite link to join and upload photos. State `INVITED` between DRAFT and LISTED. A refusal ("Friends & Family only") is `INVITE_REFUSED`, a payment-method flag, non-overridable. Seller-started stays, secondary. Email delivery of the invite is a stretch; v1 shows a link to send.
+
+8. **Two demo items (Oct 7).** PS5 (clean deal, empty box) and a PSA-graded Pokemon slab (fake slab). Buyer Pal checks graded items against PSA's cert API; a mismatch is `CERT_MISMATCH`, stop.
+
+9. **Tamper-evident history (Oct 7).** Every DealEvent carries prevHash and hash (contracts history.ts). The chain head at order creation goes into the PayPal order custom_id (`dealId#hash`) and the payment record. The evidence pack verifies the stored events against it.
+
+10. **Scenario 3 ship-time check (Oct 7, Matt).** The seller never answers the Buyer Pal's questions and the buyer pays anyway; when the seller ships without the required packing photo the Buyer Pal raises a caution at ship time and the evidence pack calls out the unanswered questions and the missing photo. Approved Oct 8. Contracts v1.6.0-draft: flag code `MISSING_PACKING_PHOTO`, `BuyerPal.checkShipment`, `Shipment.flags?`, `EvidencePack.unansweredQuestions?` and `shipmentFlags?`, event kind `shipment_checked`, `shipments.flags` column (migration 0004).
+
+11. **Sandbox buyer login on the pay panel (Oct 8, Matt).** On a demo deal with the sandbox gateway, the pay panel shows the PayPal sandbox buyer email and password, labelled as a test account with no real money, so a judge can finish the clean and empty-box scenarios live.
 
 12. **Payment stays Goods and Services only (Oct 10, Matt).** Pay Pals only ever
     processes a PayPal Goods and Services checkout payment. It never processes a
@@ -140,6 +166,18 @@ Save every working call as a Postman collection in `docs/postman/`.
     Recording it on the timeline needs one new event kind, which is a contract and
     schema change, so that half is **parked on `coordination/PROPOSAL-contracts-v1.7.0.md`**
     pending Matt. The rest of the decision needs no contract change.
+
+13. **"Verified" on an evidence item (Oct 10, Lead, reconciling the Oct 9 rule).**
+    The Oct 9 wording rule below says never "verified" and never "authentic". Batch
+    item E12 asks for every item in the deal status view to be labelled Verified,
+    Unverified or Missing. These do not conflict, and the distinction is the one
+    section D of that batch is about. "Verified" may describe **an evidence item we
+    checked against something**, and the view must say what it was checked against
+    (a console serial against the box label, a cert against the grader's record, a
+    capture against PayPal's own order). It may never describe **the item itself**:
+    never "verified authentic", never "verified owner", never "verified seller".
+    Where the subject is the goods or the person, say what was checked and against
+    what, as the Oct 9 rule requires.
 
 14. **A reason group may be empty; it may never be padded (Oct 10, Lead).**
     `PalReasoning`'s four groups exist so a pal's reasons can be checked one claim
@@ -247,17 +285,36 @@ Save every working call as a Postman collection in `docs/postman/`.
     the streaming status line and every fix in the Oct 10 batch's section D. It is
     the one to apply when a new case appears that no decision here covers.
 
-13. **"Verified" on an evidence item (Oct 10, Lead, reconciling the Oct 9 rule).**
-    The Oct 9 wording rule below says never "verified" and never "authentic". Batch
-    item E12 asks for every item in the deal status view to be labelled Verified,
-    Unverified or Missing. These do not conflict, and the distinction is the one
-    section D of that batch is about. "Verified" may describe **an evidence item we
-    checked against something**, and the view must say what it was checked against
-    (a console serial against the box label, a cert against the grader's record, a
-    capture against PayPal's own order). It may never describe **the item itself**:
-    never "verified authentic", never "verified owner", never "verified seller".
-    Where the subject is the goods or the person, say what was checked and against
-    what, as the Oct 9 rule requires.
+21. **Only push `main` when the gate is green (Oct 10, Matt).** Every push to
+    `main` deploys to production, because Vercel builds this repo from the GitHub
+    integration and `apps/web/vercel.json` carries `"ignoreCommand": "exit 1"` so
+    that no push is skipped. There is no Vercel CLI on this machine and
+    `.vercel/project.json` holds a `local-sim` placeholder rather than a real
+    project link, so a push **is** the deploy and there is no manual step to hold
+    it back. The gate is the one in [[pay-pals-gate-is-not-just-npm-test]]:
+    `npm run gate` (copy guard, typecheck, build, keyless), the keyed run, and
+    the e2e suite, each exit code read on its own and never piped into something
+    that swallows it. Lane branches and the theme branch are free to be red;
+    `main` is not.
+
+22. **Two things owed at the final deploy and smoke (Oct 10, Matt).**
+    (a) **Re-seed the three demo deals.** They were seeded 2026-10-08 and a
+    seeded verdict is frozen at seed time, so the whole Oct 10 batch is invisible
+    on "See the finished deal": no `PalReasoning` groups, the old PS5 price range,
+    the old tamper wording. It is live on "Play as", which runs the pals for real,
+    and that was confirmed on production. Re-seeding needs `SEED_VERSION` bumped
+    in `apps/web/lib/demo/seed-version.ts` (still `2026-10-08.2`, so the seeder
+    treats the old seeds as current), then `npm run db:delete-seeded-demo-deals
+    -w packages/db`, then a deploy. The seeds are correctly stamped, so the
+    stamp-based selector from Decision 18's round will find them.
+    (b) **Delete the Lead's production smoke deal**, `3e28036c-77f1-49e1-9f5d-f9184fcdbf84`,
+    a clean-ps5 deal started on production on Oct 10 to prove the live model
+    carries the new reason groups. It is **unstamped**, so the delete script will
+    not touch it, by design: a visitor's own deal was never ours to remove. It
+    needs deleting by id, which means the script needs a `--deal <id>` option or
+    an equivalent. qa also left five unfinished probe deals on Oct 10
+    (73c44fa0, 2845c8ea, f0a403dd, 6e077c43, b0b6aa10); none is stamped, none is
+    linked from the landing, and the same option would clear them.
 
 ## Live site review, Oct 7 (Matt). Lane assignments
 Branch `review-oct7`, merged to main 718be0b on Oct 8 and deployed. Each fix is its own commit with tests. Items 1 to 15 done (item 1 and the reused-photo check light up fully once photo files exist; item 4 needs a comp key, see BLOCKERS). Item 16 running against production. Stop rules: a contract or schema change, or a product change, goes to Matt first; everything else keeps moving.

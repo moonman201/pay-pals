@@ -9,6 +9,16 @@
  * the pal can only say the serial was not readable, still a mismatch; with a
  * real photo and vision it sees the box is empty. The vision case runs only
  * when the fixture photos exist and a Claude key is present.
+ *
+ * Corrected 2026-10-10 for contracts v1.8.0, which replaced
+ * `ArrivalCheck.matches: boolean` with a three-value `outcome`. These cases
+ * asserted `matches: false`, which the new union splits into two different
+ * answers, so each one had to be re-decided rather than translated. Every one
+ * of them is `mismatch`, and deliberately so: an empty box is a real
+ * difference from the card, not a comparison that could not be settled. If
+ * any of these ever came back `inconclusive` the scenario would have stopped
+ * working, so the assertions name the outcome they expect rather than any
+ * not-a-match shorthand.
  */
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
@@ -85,7 +95,9 @@ describe("empty-box: arrival check to evidence pack", () => {
     const delivered = await deliverEmptyBox();
     const check = await checkAndRaiseIssue(delivered);
 
-    expect(check.matches).toBe(false);
+    // A mismatch, not inconclusive: nothing arrived, and an absent item is a difference the pal can settle.
+    expect(check.outcome).toBe("mismatch");
+    expect(check.unsettled ?? [], "nothing here is unsettled").toEqual([]);
     expect(check.cardVersion).toBe(delivered.lockedCard.version);
     const fields = check.mismatches.map((m) => m.field);
     for (const field of emptyBox.expectedArrival!.mismatchFields) expect(fields).toContain(field);
@@ -107,7 +119,7 @@ describe("empty-box: arrival check to evidence pack", () => {
     expect(check.palMessage).toContain("does not count");
 
     const { store, dealId } = delivered.seeded;
-    expect((await store.getArrivalCheck(dealId))!.matches).toBe(false);
+    expect((await store.getArrivalCheck(dealId))!.outcome).toBe("mismatch");
     expect((await store.getDeal(dealId))!.state).toBe("ISSUE");
   });
 
@@ -138,7 +150,7 @@ describe("empty-box: arrival check to evidence pack", () => {
     expect(pack.summary).toContain(emptyBox.payment!.paypalOrderId);
     expect(pack.summary).toContain(emptyBox.shipment!.trackingNumber);
     expect(pack.summary).toContain(emptyBox.arrivalPhotos[0]!.whatItShows);
-    expect(pack.arrivalCheck?.matches).toBe(false);
+    expect(pack.arrivalCheck?.outcome).toBe("mismatch");
     expect(pack.payment?.paypalOrderId).toBe(emptyBox.payment!.paypalOrderId);
     expect(pack.shipment?.trackingNumber).toBe(emptyBox.shipment!.trackingNumber);
     expect(pack.timeline.some((e) => e.kind === "state_changed" && e.toState === "ISSUE")).toBe(true);
@@ -166,7 +178,8 @@ describe("empty-box: arrival check to evidence pack", () => {
     const vision = createBuyerPal({ anthropic: visionClient, priceLookup: createFixturePriceLookup(), fetchImage: fileImageFetcher(files) });
     const { data: check } = await vision.checkArrival(delivered.lockedCard, photos);
 
-    expect(check.matches).toBe(false);
+    // Still a mismatch when the pal reads the pictures: it sees foam and a bag and no console.
+    expect(check.outcome).toBe("mismatch");
     // Vision actually ran: the pal says it looked at the photos, not at their descriptions.
     expect(check.palMessage).toMatch(/I looked at/i);
     // Vision sees foam and a bag and no console. The locked card has no console serial, so the

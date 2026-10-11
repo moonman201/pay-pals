@@ -103,9 +103,20 @@ describe("buildEvidencePack", () => {
     // pack to say PayPal's record corroborated the hash, which nothing on EvidenceInput can support.
     expect(verified.data.summary).toContain(`The hash is ${paidEvent.hash}.`);
     expect(verified.data.summary).toContain("reproduce the hash recorded with this payment");
-    expect(verified.data.summary).toContain("has not been checked for this pack");
-    expect(verified.palMessage).toContain("Whether PayPal's copy of that hash matches has not been checked for this pack.");
+    // No historyAnchor on this input, so it must read as recorded_only: our own record, not PayPal's.
+    expect(verified.data.summary).toContain("was not read back for this pack");
+    expect(verified.data.historyAnchor).toBe("recorded_only");
+    expect(verified.palMessage).toContain("PayPal's copy of that hash was not read back for this pack.");
     expect(verified.palMessage).not.toContain("official record of the deal that PayPal can check first");
+
+    const anchored = await buildEvidencePack({ ...input, payment: { ...input.payment!, historyHash: paidEvent.hash }, historyAnchor: "corroborated" }, { anthropic: null });
+    expect(anchored.data.historyAnchor).toBe("corroborated");
+    expect(anchored.data.summary).toContain("The stored history is the history PayPal holds.");
+    expect(anchored.palMessage).toContain("PayPal's own copy was read back and carries the same one.");
+
+    const seeded = await buildEvidencePack({ ...input, payment: { ...input.payment!, historyHash: paidEvent.hash }, historyAnchor: "not_anchored" }, { anthropic: null });
+    expect(seeded.data.summary).toContain("No PayPal order holds this hash");
+    expect(seeded.palMessage).toContain("the payment ids on this deal are placeholders");
     expect(EvidencePackSchema.safeParse(verified.data).success).toBe(true);
 
     const tampered = await buildEvidencePack({ ...input, payment: { ...input.payment!, historyHash: "a".repeat(64) } }, { anthropic: null });

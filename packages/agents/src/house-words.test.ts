@@ -99,7 +99,7 @@ async function scenarioStrings(fixture: ScenarioFixture): Promise<string[]> {
   const lockedCard = fixture.cards.at(-1)!;
   const checklist = await sellerPal.shipmentChecklist(fixture.deal, lockedCard);
   out.push(checklist.palMessage, ...checklist.data.map((item) => item.label));
-  if (fixture.shipment) for (const flag of shipmentFlags(fixture.shipment, checklist.data)) out.push(flag.explanation, flag.evidence);
+  if (fixture.shipment) for (const flag of shipmentFlags(fixture.shipment)) out.push(flag.explanation, flag.evidence);
 
   const arrival = await buyerPal.checkArrival(lockedCard, fixture.arrivalPhotos);
   out.push(arrival.palMessage, arrival.data.palMessage, ...arrival.data.mismatches.map((m) => m.explanation));
@@ -119,7 +119,7 @@ async function scenarioStrings(fixture: ScenarioFixture): Promise<string[]> {
     requestedBy: "buyer",
   };
   const pack = await buildEvidencePack(input, { anthropic: null });
-  out.push(pack.palMessage, pack.data.summary, ...pack.data.unansweredQuestions);
+  out.push(pack.palMessage, pack.data.summary, ...(pack.data.unansweredQuestions ?? []));
   return out.filter((text): text is string => typeof text === "string");
 }
 

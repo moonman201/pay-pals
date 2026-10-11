@@ -19,6 +19,7 @@
  */
 import type { ArrivalCheck, Deal, DealEvent, ItemCard, PaymentRecord, Shipment, Verdict } from "@pay-pals/contracts";
 import { formatMoney, formatTime } from "../format";
+import { ASK_FOR_A_CLEARER_PHOTO, CLAIMS_NEITHER, outcomeOf, unsettledOf } from "./arrival-outcome";
 import { boxSerialStatus } from "./box-serial";
 import { checkOrderHistory } from "./order-history";
 import { FLAG_WORDS } from "./override";
@@ -454,6 +455,30 @@ function shippingGroup(input: StatusInput): StatusGroup {
 
 // -------------------------------------------------------------- the delivery
 
+/**
+ * Where the serial on an arrival check came from, in the Buyer Pal's own
+ * terms (Decision 15: one fact, one wording, not two ends describing it
+ * differently).
+ *
+ *   photo       the pal read the number off the picture
+ *   description the number came out of the caption, so it is the buyer's word
+ *   absent      unknown, and nothing here may assume either
+ */
+function serialProvenance(check: ArrivalCheck): string {
+  const serial = check.observed.serial;
+  if (!serial) return "";
+  switch (check.observed.serialSource) {
+    case "photo":
+      return ` Serial ${serial} was read off the picture of the item itself.`;
+    case "description":
+      return ` The serial ${serial} comes from the description filed with the photo, not from the picture, so it is the buyer's word and not a number the pal read.`;
+    default:
+      // No source on the check, so no claim either way, and not even the words to deny one:
+      // the number is named and where it came from is left unsaid, because it is unknown.
+      return ` The pal reports the serial as ${serial}. This check does not record where that number came from.`;
+  }
+}
+
 function deliveryGroup(input: StatusInput): StatusGroup {
   const items: StatusItem[] = [];
   const deliveredAt = input.shipment?.deliveredAt ?? input.events.find((e) => e.kind === "delivered")?.at ?? null;
@@ -471,26 +496,29 @@ function deliveryGroup(input: StatusInput): StatusGroup {
   const check = input.arrivalCheck;
   if (!check) {
     items.push({ id: "arrival-check", label: "Arrival check against the locked card", status: "missing", detail: "No arrival check on record." });
-  } else if (check.matches) {
-    /*
-      This line used to name the serial and say where the pal got it. The clause is gone, and
-      its absence is deliberate rather than an omission.
-
-      ArrivalCheck.observed carries the serial with no provenance, so this file cannot tell a
-      number the pal read off a picture from one it lifted out of the photo's description. In
-      demo-only mode, which the e2e suite and the public demo both pin, it is the description,
-      and the pal's own "could not check" line two rows below says so. A status line that
-      contradicts the reason block above it is worse than an under-stated one, so this says only
-      what it can defend from what it has: what was compared, against which card version.
-
-      The Lead has proposed `observed.serialSource?: "photo" | "description" | null` to Matt. If
-      that lands, read it and say where the number came from. Do not infer it from anything else.
-    */
+  } else if (outcomeOf(check) === "match") {
     items.push({
       id: "arrival-check",
       label: "Arrival check against the locked card",
       status: "verified",
-      detail: `The Buyer Pal compared the arrival photos against locked card version ${check.cardVersion} and found no difference from the item the card describes.`,
+      detail: `The Buyer Pal compared the arrival photos against locked card version ${check.cardVersion} and found no difference from the item the card describes.${serialProvenance(check)}`,
+    });
+  } else if (outcomeOf(check) === "inconclusive") {
+    /*
+      Unverified, not Missing and certainly not a failure. The pal read both numbers and could
+      not tell them apart, so "Pay Pals checked this and it matched" is false and "it did not
+      match" is equally false. Unverified is exactly the label for a check that ran and did not
+      settle, which the closed union already had.
+
+      The old else branch mapped over `mismatches`, which is empty on an inconclusive check, so
+      left alone it would have printed "found 0 differences:" and an empty list.
+    */
+    const open = unsettledOf(check);
+    items.push({
+      id: "arrival-check",
+      label: "Arrival check against the locked card",
+      status: "unverified",
+      detail: `The Buyer Pal compared the arrival photos against locked card version ${check.cardVersion} and could not settle ${plural(open.length, "comparison", "comparisons")}: ${list(open.map((m) => `${m.field}, the card says ${m.expected} and the arrival shows ${m.observed}`))}. ${CLAIMS_NEITHER} ${ASK_FOR_A_CLEARER_PHOTO}`,
     });
   } else {
     items.push({

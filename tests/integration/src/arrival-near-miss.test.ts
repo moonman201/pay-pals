@@ -1,0 +1,226 @@
+/**
+ * The third arrival outcome, end to end across the modules.
+ *
+ * Contracts v1.8.0 added `inconclusive` for one reason: a serial read off a
+ * photo that is one character from the card. Nothing exercised that case.
+ * None of the three scenario fixtures reaches it, and it cannot be reached
+ * through the e2e suite at all, because that suite runs keyless: with no
+ * model the arrival serial comes out of the photo's caption, which is a
+ * typed number, and the band deliberately does not apply when neither side
+ * was read off a picture. So the only place this case can be pinned is here,
+ * across the Buyer Pal and the evidence pack, with a vision read supplied.
+ *
+ * What is pinned is the behaviour, not the wording:
+ *
+ *   - one character out comes back inconclusive, not mismatch, and what
+ *     could not be settled is in `unsettled` rather than `mismatches`;
+ *   - an inconclusive arrival does not invite a dispute, in the pal's own
+ *     message or in the evidence pack built from it. That is the one with
+ *     consequences: a buyer told to open a dispute over a misread character;
+ *   - the pal names both numbers and claims neither outcome;
+ *   - a serial that is genuinely different is still a mismatch, so the band
+ *     has not swallowed wrong-item detection, which is the thing it must
+ *     never do;
+ *   - the two scoping conditions hold: no band when both numbers were typed
+ *     rather than read, and no band on a short identifier.
+ *
+ * No network and no key: the vision read is supplied by a fake, because the
+ * question is what the comparison does with a given pair of numbers, not
+ * what a model reads off a picture today.
+ *
+ * Written against the contract before packages/agents implemented it, so
+ * six of the seven were red on arrival and went green when builder-agents
+ * landed the second stage of Decision 18.
+ *
+ * Corrected 2026-10-11, and the correction is the lesson. The dispute case
+ * asserted `not.toMatch(/dispute/i)`, and the pal's best message is "Do not
+ * open a dispute on this yet", so the test failed the one sentence it most
+ * wanted. Forbidding a word cannot tell an invitation from a warning, and
+ * here the warning is the point. It now matches the construction, and both
+ * patterns are proved against the mismatch case in the same test: being
+ * able to fail is not the same as failing for the right reason, and the
+ * first version could fail and was still wrong.
+ */
+import { existsSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import { describe, expect, it } from "vitest";
+import { CLEAN_SERIAL, cleanPs5 } from "@pay-pals/contracts";
+import type { ArrivalCheck, ItemCard, Photo } from "@pay-pals/contracts";
+import { buildEvidencePack, createBuyerPal, createFixturePriceLookup } from "@pay-pals/agents";
+import type { EvidenceInput } from "@pay-pals/contracts";
+import { fakeVision } from "./fake-vision";
+import { LOCAL_PHOTO_BASE, fileImageFetcher } from "./local-images";
+import { driveTo, seedFixture } from "./seed";
+
+const REPO_ROOT = resolve(fileURLToPath(import.meta.url), "..", "..", "..", "..");
+/** Any committed image will do: the fake answers whatever it is shown. The file only has to load. */
+const SOME_PHOTO = resolve(REPO_ROOT, "assets", "demo-photos", "clean-ps5", "arrival-console-serial.jpg");
+const PHOTO_URL = `${LOCAL_PHOTO_BASE}/arrival/photo-1.jpg`;
+
+/** One of the three misreads measured on this label: the trailing 0 read as Q. */
+const ONE_CHARACTER_OUT = "AJ16495258Q";
+/** Not a misread of anything: a different unit. */
+const A_DIFFERENT_SERIAL = "BX900000001";
+
+/**
+ * A caption that says nothing about a serial, so the only number in play is
+ * the one the fake reads off the picture. A caption carrying a number would
+ * give the comparison a typed side and change what is being tested.
+ */
+const arrivalPhoto: Photo = {
+  url: PHOTO_URL,
+  whatItShows: "The console that arrived, on a table.",
+  addedBy: "buyer",
+  addedAt: new Date().toISOString(),
+};
+
+/**
+ * Inviting a dispute and warning against one both contain the word
+ * "dispute", and only one of them is the fault. The first version of this
+ * test forbade the word, and failed the best message the pal produced: "Do
+ * not open a dispute on this yet." So these match the construction, not the
+ * subject. Both are proved live in the test below, against the mismatch
+ * case, which really does invite one.
+ */
+const INVITES = /\byou can open\b|\bif you open\b|\bso you can open\b|\battach this pack\b|\bopen a dispute to\b/i;
+const DISCOURAGES = /\bdo not open a dispute\b|\bdon't open a dispute\b|\bnothing to dispute\b|\bno dispute\b|\bnot .{0,16}dispute yet\b/i;
+
+const lockedCard: ItemCard = { ...cleanPs5.cards.at(-1)!, lockedAt: new Date().toISOString() };
+const fetchLocalFile = fileImageFetcher({ [PHOTO_URL]: SOME_PHOTO });
+
+/** The arrival check for a photo the pal "reads" the given serial off. */
+async function checkWithVisionSerial(serial: string, card: ItemCard = lockedCard): Promise<ArrivalCheck> {
+  const pal = createBuyerPal({
+    anthropic: fakeVision({ brand: card.brand, model: card.model, serial, serial_on: "item", item_present: true }),
+    priceLookup: createFixturePriceLookup(),
+    fetchImage: fetchLocalFile,
+  });
+  const { data } = await pal.checkArrival(card, [arrivalPhoto]);
+  return data;
+}
+
+/** The evidence pack for an arrival check, summary and pal message together, as a buyer would read them. */
+async function packFor(check: ArrivalCheck): Promise<string> {
+  const seeded = await seedFixture(cleanPs5);
+  await driveTo(seeded, "AGREED");
+  const input: EvidenceInput = {
+    deal: (await seeded.store.getDeal(seeded.dealId))!,
+    lockedCard,
+    verdicts: [],
+    arrivalCheck: { ...check, dealId: seeded.dealId },
+    messages: await seeded.store.listMessages(seeded.dealId),
+    payment: null,
+    shipment: null,
+    timeline: await seeded.store.listEvents(seeded.dealId),
+    arrivalPhotos: [arrivalPhoto],
+    requestedBy: "buyer",
+  };
+  const { data: pack, palMessage } = await buildEvidencePack(input, { anthropic: null });
+  return `${pack.summary} ${palMessage}`;
+}
+
+/** The same arrival with no model at all, so the number can only come from the caption. */
+async function checkWithTypedSerial(serial: string): Promise<ArrivalCheck> {
+  const pal = createBuyerPal({ anthropic: null, priceLookup: createFixturePriceLookup() });
+  const photo: Photo = { ...arrivalPhoto, url: "/fixtures/clean-ps5/arrival-console-serial.jpg", whatItShows: `The label on the console that arrived. The number under the barcode is ${serial}.` };
+  const { data } = await pal.checkArrival(lockedCard, [photo]);
+  return data;
+}
+
+describe("an arrival serial one character from the card", () => {
+  it("has a photo to read, so the fake stands in for a model and not for a missing file", () => {
+    expect(existsSync(SOME_PHOTO), `${SOME_PHOTO} is missing`).toBe(true);
+    expect(readFileSync(SOME_PHOTO).byteLength).toBeGreaterThan(0);
+    expect(lockedCard.serial, "the clean card carries the serial this band is measured against").toBe(CLEAN_SERIAL);
+    expect(ONE_CHARACTER_OUT).not.toBe(CLEAN_SERIAL);
+    expect(ONE_CHARACTER_OUT.length, "the band only applies from 8 characters up").toBeGreaterThanOrEqual(8);
+  });
+
+  it("is inconclusive, and what could not be settled is not filed as a difference", async () => {
+    const check = await checkWithVisionSerial(ONE_CHARACTER_OUT);
+    console.log(`near miss: outcome=${check.outcome} observed=${JSON.stringify(check.observed)}\n  unsettled: ${JSON.stringify(check.unsettled)}\n  pal: ${check.palMessage}`);
+
+    expect(check.outcome).toBe("inconclusive");
+    expect(check.mismatches, "an unsettled comparison is not a difference").toEqual([]);
+    expect(check.unsettled ?? [], "inconclusive has to say what it could not settle").not.toEqual([]);
+    expect(check.unsettled!.some((u) => u.field === "serial")).toBe(true);
+    // The read came off the picture, which is the only reason the band applied at all.
+    expect(check.observed.serialSource).toBe("photo");
+  });
+
+  it("does not invite a dispute, in the pal's message or in the pack built from it", async () => {
+    const near = await checkWithVisionSerial(ONE_CHARACTER_OUT);
+    const wrong = await checkWithVisionSerial(A_DIFFERENT_SERIAL);
+    const nearPack = await packFor(near);
+    const wrongPack = await packFor(wrong);
+    console.log(`inconclusive pal: ${near.palMessage}\ninconclusive pack: ${nearPack}\n\nmismatch pal: ${wrong.palMessage}\nmismatch pack: ${wrongPack}`);
+
+    // Both patterns are live, proved here rather than assumed: the mismatch is the case that
+    // really does invite one, in the pal's words and in the pack's, so a pattern that matched
+    // nothing would fail on these two lines before it could pass anywhere by accident.
+    expect(wrong.palMessage, "the mismatch invites a dispute, so INVITES matches real inviting text").toMatch(INVITES);
+    expect(wrongPack, "the mismatch pack invites one too").toMatch(INVITES);
+
+    // The property: an unsettled comparison may not put a dispute in front of the buyer as the next step.
+    expect(near.palMessage, `an unsettled comparison must not invite a dispute: "${near.palMessage}"`).not.toMatch(INVITES);
+    expect(nearPack, `the pack built from it must not invite one either: "${nearPack}"`).not.toMatch(INVITES);
+
+    // And when it does raise the subject, it has to be to wave the buyer off it. Saying the
+    // word is not the fault; the fault is leaving a dispute looking like the next step.
+    if (/dispute/i.test(near.palMessage)) {
+      expect(near.palMessage, `the pal mentions a dispute, so it has to be discouraging one: "${near.palMessage}"`).toMatch(DISCOURAGES);
+    }
+    if (/dispute/i.test(nearPack)) {
+      expect(nearPack, `the pack mentions a dispute, so it has to be discouraging one: "${nearPack}"`).toMatch(DISCOURAGES);
+    }
+
+    // And the two patterns are two patterns: if DISCOURAGES also matched the inviting case,
+    // the check above would pass on anything and prove nothing.
+    expect(wrong.palMessage, "the mismatch invites and does not discourage").not.toMatch(DISCOURAGES);
+    expect(wrongPack, "nor does the pack built from it").not.toMatch(DISCOURAGES);
+  });
+
+  it("names both numbers and claims neither outcome", async () => {
+    const check = await checkWithVisionSerial(ONE_CHARACTER_OUT);
+    expect(check.palMessage).toContain(CLEAN_SERIAL);
+    expect(check.palMessage).toContain(ONE_CHARACTER_OUT);
+    expect(check.palMessage, "it may not say the arrival matched").not.toMatch(/matches the locked card|What arrived matches/i);
+    expect(check.palMessage, "and it may not say the arrival is the wrong item").not.toMatch(/not the item on the card|is not the item/i);
+  });
+});
+
+describe("what the band must never swallow", () => {
+  it("a genuinely different serial is still a mismatch", async () => {
+    const check = await checkWithVisionSerial(A_DIFFERENT_SERIAL);
+    console.log(`different serial: outcome=${check.outcome}\n  pal: ${check.palMessage}`);
+
+    expect(check.outcome).toBe("mismatch");
+    expect(check.unsettled ?? []).toEqual([]);
+    expect(check.mismatches.some((m) => m.field === "serial" && m.observed.includes(A_DIFFERENT_SERIAL))).toBe(true);
+    // The buyer is told plainly, and the pack is offered: this is the case where that is right.
+    expect(check.palMessage).toMatch(INVITES);
+  });
+
+  it("does not apply when both numbers were typed rather than read off a picture", async () => {
+    const check = await checkWithTypedSerial(ONE_CHARACTER_OUT);
+    console.log(`typed, one character out: outcome=${check.outcome} source=${check.observed.serialSource}\n  pal: ${check.palMessage}`);
+
+    expect(check.observed.serial, "the number came out of the caption").toBe(ONE_CHARACTER_OUT);
+    expect(check.observed.serialSource).not.toBe("photo");
+    expect(check.outcome, "two typed numbers that differ by one character differ for some other reason").toBe("mismatch");
+    expect(check.unsettled ?? []).toEqual([]);
+  });
+
+  it("does not apply to a short identifier, where one edit is a large part of the number", async () => {
+    // Seven characters, under the eight the band starts at.
+    const shortCard: ItemCard = { ...lockedCard, serial: "AB12345", boxSerial: null };
+    const check = await checkWithVisionSerial("AB12745", shortCard);
+    console.log(`short identifier: outcome=${check.outcome}\n  pal: ${check.palMessage}`);
+
+    expect(shortCard.serial!.length).toBeLessThan(8);
+    expect(check.observed.serialSource).toBe("photo");
+    expect(check.outcome, "one edit in seven characters is too large a share to call a misread").toBe("mismatch");
+    expect(check.unsettled ?? []).toEqual([]);
+  });
+});

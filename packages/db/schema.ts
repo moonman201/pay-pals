@@ -146,7 +146,14 @@ export const verdicts = pgTable(
       .references(() => deals.id, { onDelete: "cascade" }),
     kind: verdictKindEnum("kind").notNull(),
     cardVersion: integer("card_version").notNull(),
-    /** go | caution | stop for reviews; "match" | "mismatch" for arrival checks. Indexed for the timeline. */
+    /**
+     * go | caution | stop for reviews; match | mismatch | inconclusive for
+     * arrival checks. Written on insert and never read back: every reader takes
+     * the payload instead, so this is a column for queries we have not written
+     * yet. Arrival rows stored before contracts v1.8.0 hold match or mismatch
+     * from the old two-value shape; toArrival translates those on read and does
+     * not rewrite this column.
+     */
     outcome: text("outcome").notNull(),
     payload: jsonb("payload").$type<Verdict | ArrivalCheck>().notNull(),
     createdAt: timestamps.createdAt,

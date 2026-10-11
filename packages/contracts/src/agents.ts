@@ -2,13 +2,13 @@
  * Interfaces packages/agents implements. apps/web calls only these.
  * Every result carries a short pal message for the chat pane.
  */
-import type { ArrivalCheck, CertRecord, PriceCheck, Verdict } from "./verdict";
+import type { ArrivalCheck, CertCheck, CertRecord, PriceCheck, Verdict } from "./verdict";
 import type { CardField, ItemCard, Photo } from "./item-card";
 import type { DealEvent, Message } from "./messages";
 import type { ChecklistItem } from "./shipping";
 import type { RedFlag } from "./red-flag";
 import type { Deal, Party } from "./deal";
-import type { EvidencePack } from "./evidence";
+import type { EvidencePack, HistoryAnchor } from "./evidence";
 import type { PaymentRecord } from "./payment";
 import type { Shipment } from "./shipping";
 
@@ -63,13 +63,46 @@ export interface SellerPal {
   shipmentChecklist(deal: Deal, lockedCard: ItemCard): Promise<PalResult<ChecklistItem[]>>;
 }
 
+/**
+ * What a review reports while it is still running, so the page can show a
+ * finding the moment it lands rather than after the whole review (Matt's
+ * Decision 19). A review's lookups run concurrently, so these arrive in a
+ * different order every run: nothing may depend on the order, and the UI must
+ * not let a buyer agree until the review is complete.
+ *
+ * `stage` drives the staged status line. `flag` is the one that matters most: a
+ * stop flag should reach the page as soon as the rule or the model raises it.
+ * The final Verdict is still the only authority; progress is never the record.
+ */
+export type ReviewProgress =
+  | { kind: "stage"; /** One short plain clause: "checking the price", "reading the photos". */ stage: string }
+  | { kind: "flag"; flag: RedFlag }
+  | { kind: "priceCheck"; priceCheck: PriceCheck | null }
+  | { kind: "certCheck"; certCheck: CertCheck | null }
+  | { kind: "photoRead"; /** Which photo, by url. */ url: string; readable: boolean };
+
+export interface ReviewOptions {
+  /**
+   * Called as findings land, zero or more times, before `review` resolves.
+   * Never called after it resolves. A throw from here must not fail the review:
+   * a page that cannot receive progress still gets its verdict.
+   */
+  onProgress?: (event: ReviewProgress) => void;
+}
+
 export interface BuyerPal {
   /**
    * Review the card and the shared chat before money moves.
    * Deterministic rules run first. The model may add flags and wording but
    * never removes or downgrades a flag a rule raised.
+   * The independent lookups (price, cert, photo reads) run concurrently.
    */
-  review(card: ItemCard | null, chatTranscript: Message[], context?: ReviewContext): Promise<PalResult<Verdict>>;
+  review(
+    card: ItemCard | null,
+    chatTranscript: Message[],
+    context?: ReviewContext,
+    options?: ReviewOptions,
+  ): Promise<PalResult<Verdict>>;
   /**
    * Check a shipment at ship time: required checklist items not done and
    * packing photos missing raise MISSING_PACKING_PHOTO (caution). Deterministic.
@@ -91,6 +124,13 @@ export interface EvidenceInput {
   timeline: DealEvent[];
   /** Photos the buyer took on arrival. apps/web passes them; the pack includes them. */
   arrivalPhotos?: Photo[];
+  /**
+   * Where the hash on `payment` stands against PayPal's own copy. apps/web knows
+   * this and the agents package cannot work it out, so it is passed in rather
+   * than inferred. Absent is read as "recorded_only", which never claims
+   * corroboration. See HISTORY_ANCHORS in evidence.ts.
+   */
+  historyAnchor?: HistoryAnchor;
   requestedBy: "buyer" | "seller";
 }
 

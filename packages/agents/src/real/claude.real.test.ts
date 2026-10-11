@@ -10,7 +10,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import Anthropic from "@anthropic-ai/sdk";
 import type { Photo, Verdict } from "@pay-pals/contracts";
-import { CLEAN_MODEL, CLEAN_SERIAL, cleanPs5, hasStop, fakeSlab } from "@pay-pals/contracts";
+import { CLEAN_SERIAL, cleanPs5, hasStop, fakeSlab } from "@pay-pals/contracts";
 import type { ImageFetcher } from "../vision/fetch-image";
 import { readPhoto } from "../vision/read-photo";
 import { createBuyerPal } from "../buyer/buyer-pal";
@@ -135,7 +135,7 @@ describe.skipIf(!enabled)("real Claude vision on the demo photos", () => {
     mediaType: "image/jpeg",
   });
   const read = (photo: Photo) =>
-    readPhoto(photo, { client: anthropic, fetchImage: fromDisk, photoBaseUrl: "https://demo.invalid", hints: { brand: "Sony", model: `PlayStation 5 disc edition, ${CLEAN_MODEL}` } });
+    readPhoto(photo, { client: anthropic, fetchImage: fromDisk, photoBaseUrl: "https://demo.invalid", hints: { brand: "Sony", model: cleanPs5.cards[0]!.model } });
 
   it.each([1, 2])("the wide console back reads as unreadable, not as a serial (run %i)", async () => {
     const reading = await read(cleanPs5.cards[0]!.photos[0]!);

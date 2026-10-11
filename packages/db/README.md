@@ -71,6 +71,42 @@ Children are removed by the schema's cascades. `--explain <dealId>` prints
 every factor for one deal. The same logic is exported as
 `deleteSeededDemoDeals(db, { dryRun, keepSeedVersion })`.
 
+### Removing named deals
+
+The sweep will not touch an unstamped deal, which is right but leaves no way
+to clear something like a smoke-test deal or an abandoned probe. `--id` does
+that, one named deal at a time:
+
+```
+npm run db:delete-seeded-demo-deals -w packages/db -- --id <uuid> --id <uuid>        # lists what would go
+npm run db:delete-seeded-demo-deals -w packages/db -- --id <uuid> --id <uuid> --yes  # deletes
+```
+
+Each id is a separate `--id` flag and must be a full uuid. There is no
+prefix, comma list or range form, so every deal a run deletes is written out
+on the command line. A shortened id is refused, not matched as a prefix.
+
+It is all or nothing. If any id is not a deal in this database, nothing is
+deleted and the run exits 2 naming the ids it refused, so one typo cannot
+take the rest of the list with it while reporting success.
+
+If an id carries a seed stamp the run says so before deleting it, because a
+stamped deal is a demo seed and the sweep is the right tool for those. It is
+a warning, not a block. `--keep-seed` is refused alongside `--id`: it
+protects seeds from the sweep and would do nothing here.
+
+Exported as `deleteDealsById(db, { ids, dryRun })`.
+
+### What goes with a deal
+
+Seven tables cascade on `deal_id`: `item_cards`, `messages`, `verdicts`,
+`payments`, `shipments`, `evidence_packs` and `deal_events`. Both delete
+paths rely on that rather than removing children themselves.
+
+`webhook_receipts` is keyed by PayPal's own event id, carries no `deal_id`
+and stays. That is deliberate: it is what keeps a replayed webhook
+idempotent, and dropping it would let an old event be processed again.
+
 ## Tests
 
 `npm test -w packages/db` runs one conformance suite three ways:

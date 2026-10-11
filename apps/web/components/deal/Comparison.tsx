@@ -1,6 +1,12 @@
 import { CautionIcon, CheckIcon, StopIcon } from "../ui/icons";
 
-export type ComparisonStatus = "match" | "mismatch" | "unknown";
+/**
+ * `unsettled` is not `unknown`. Unknown means nobody could read the field.
+ * Unsettled means both sides were read and the two cannot be told apart, which
+ * is the serial near-miss band (Decision 18). It gets the caution colour, so it
+ * reads as neither a pass nor a failure.
+ */
+export type ComparisonStatus = "match" | "mismatch" | "unsettled" | "unknown";
 
 export interface ComparisonRow {
   label: string;
@@ -15,26 +21,29 @@ export interface ComparisonRow {
 const ROW_STYLE: Record<ComparisonStatus, string> = {
   match: "bg-go-soft text-ink",
   mismatch: "bg-stop-soft text-ink",
+  unsettled: "bg-caution-soft text-ink",
   unknown: "bg-wash text-muted",
 };
 
 const RIGHT_STYLE: Record<ComparisonStatus, string> = {
   match: "text-go",
   mismatch: "text-stop font-bold",
+  unsettled: "text-caution font-semibold",
   unknown: "text-muted",
 };
 
 function StatusMark({ status }: { status: ComparisonStatus }) {
   if (status === "match") return <CheckIcon size={16} className="text-go" />;
   if (status === "mismatch") return <StopIcon size={16} className="text-stop" />;
+  if (status === "unsettled") return <CautionIcon size={16} className="text-caution" />;
   return <CautionIcon size={16} className="text-muted" />;
 }
 
 /**
  * Two columns, one row per field: what one record says against what the
- * other says. Mismatched rows sit on the stop colour, matches on go, and a
- * row nobody could read stays neutral. A table, so a reader with a screen
- * reader hears the pairs.
+ * other says. Mismatched rows sit on the stop colour, matches on go, a row
+ * the pal could not settle on the caution colour, and a row nobody could read
+ * stays neutral. A table, so a reader with a screen reader hears the pairs.
  */
 export function Comparison({ leftTitle, rightTitle, rows, caption }: { leftTitle: string; rightTitle: string; rows: ComparisonRow[]; caption: string }) {
   return (

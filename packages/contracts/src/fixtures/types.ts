@@ -7,7 +7,7 @@ import type { ItemCard, Photo } from "../item-card";
 import type { DealEvent, Message } from "../messages";
 import type { RedFlagCode } from "../red-flag";
 import type { Shipment } from "../shipping";
-import type { CertRecord, PriceCheck, VerdictOverall, MismatchField } from "../verdict";
+import type { ArrivalOutcome, CertRecord, MismatchField, PriceCheck, VerdictOverall } from "../verdict";
 import type { PaymentRecord } from "../payment";
 
 export interface ExpectedVerdict {
@@ -21,7 +21,8 @@ export interface ExpectedVerdict {
 }
 
 export interface ExpectedArrival {
-  matches: boolean;
+  /** match, mismatch or inconclusive. Tracks ArrivalCheck.outcome. */
+  outcome: ArrivalOutcome;
   /** Every field listed here must appear in mismatches. */
   mismatchFields: MismatchField[];
 }

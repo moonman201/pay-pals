@@ -5,9 +5,11 @@ import { fixtureById } from "../../scenarios";
 import type { Services } from "../../services";
 import { FlowError, notFound } from "../errors";
 import { absoluteCard, absoluteMessages, absolutePhotos, absoluteUrl } from "../photo-urls";
+import { historyAnchorFor } from "../history-anchor";
+import { readPayPalOrder } from "../paypal-read";
 import { mustDeal, note, say } from "./shared";
 
-type EvidenceServices = Pick<Services, "store" | "buildEvidencePack">;
+type EvidenceServices = Pick<Services, "store" | "buildEvidencePack"> & Partial<Pick<Services, "paypal" | "modes">>;
 
 /** Maps a photo the builder returned (absolute URL) back to the stored photo (relative URL) when it is one of ours. */
 function relativizer(stored: readonly Photo[]): (photo: Photo) => Photo {
@@ -41,6 +43,14 @@ export async function buildEvidenceFor(services: EvidenceServices, deal: Deal, r
     store.listEvents(deal.id),
   ]);
   const arrivalPhotos = arrivalCheck ? arrivalPhotosFrom(deal, timeline, arrivalCheck) : [];
+  /*
+    Where the hash stands against PayPal's own copy, decided here because this is where the
+    live read is, and passed to the builder rather than inferred from an order id's shape
+    (Decision 17). The seeder has no gateway, so a pack built during seeding falls to the
+    conservative case, which is right: nothing was read.
+  */
+  const read = services.paypal && services.modes ? await readPayPalOrder(services.paypal, payment, services.modes.paypal) : ({ kind: "failed" } as const);
+  const historyAnchor = historyAnchorFor(read, payment);
   const result = await services.buildEvidencePack({
     deal,
     lockedCard: absoluteCard(lockedCard),
@@ -51,6 +61,7 @@ export async function buildEvidenceFor(services: EvidenceServices, deal: Deal, r
     shipment: shipment ? { ...shipment, packingPhotos: absolutePhotos(shipment.packingPhotos) } : null,
     timeline,
     arrivalPhotos: absolutePhotos(arrivalPhotos),
+    historyAnchor,
     requestedBy,
   });
   // Tamper-evident history: the head recorded on the PayPal order, and whether the stored events still reproduce it.
@@ -66,6 +77,7 @@ export async function buildEvidenceFor(services: EvidenceServices, deal: Deal, r
     photos: result.data.photos.map(toRelative),
     historyHash,
     historyVerified,
+    historyAnchor,
   });
   await note(services, deal.id, "evidence_built", pack.builtBy, "Evidence pack built: useful context for a PayPal dispute.");
   await say(services, deal.id, requestedBy === "buyer" ? "buyer_pal" : "seller_pal", pack.builtBy, result.palMessage);

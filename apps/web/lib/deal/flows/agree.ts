@@ -10,6 +10,7 @@ import { otherRole, type Role } from "../../role";
 import type { Services } from "../../services";
 import { FlowError } from "../errors";
 import { BLOCKED_SENTENCE, gateFor, type Gate } from "../override";
+import { AGREE_WHILE_REVIEWING, isReviewing } from "../review-registry";
 import { expectState, mustCurrentCard, mustDeal, note, say } from "./shared";
 
 function partyName(deal: Deal, role: Role): string {
@@ -28,6 +29,10 @@ async function buyerGate(services: Services, dealId: string, override: boolean):
 
 export async function agree(services: Services, dealId: string, role: Role, override: boolean): Promise<Deal> {
   const deal = await mustDeal(services, dealId);
+  // Decision 19, enforced on the server. A disabled button is a courtesy; this is the rule.
+  // Checked before the state, so the answer says the review is running rather than naming a
+  // state that is about to change.
+  if (isReviewing(dealId)) throw new FlowError(AGREE_WHILE_REVIEWING, 409);
   expectState(deal, "REVIEWED");
   if (role === "buyer" && !deal.buyer) throw new FlowError("No buyer has joined this deal yet.", 409);
   const alreadyMine = role === "buyer" ? deal.buyerAgreedAt : deal.sellerAgreedAt;

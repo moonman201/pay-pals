@@ -4,7 +4,7 @@
  */
 import { expect, type Page } from "@playwright/test";
 import type { ScenarioFixture } from "@pay-pals/contracts";
-import { waitForHydration } from "./helpers";
+import { waitForHydration, waitForReviewIdle } from "./helpers";
 
 /** The finished deal the landing page links to for a scenario: its href and id. */
 export async function finishedDeal(page: Page, fixture: ScenarioFixture): Promise<{ href: string; dealId: string }> {
@@ -19,14 +19,15 @@ export async function finishedDeal(page: Page, fixture: ScenarioFixture): Promis
 }
 
 /**
- * Open a page for a screenshot: motion off, hydrated, every image loaded
- * (the page is scrolled through once so lazy images below the fold load),
- * back at the top.
+ * Open a page for a screenshot: motion off, hydrated, the review finished
+ * rather than still streaming in, every image loaded (the page is scrolled
+ * through once so lazy images below the fold load), back at the top.
  */
 export async function openSettled(page: Page, path: string): Promise<void> {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto(path, { waitUntil: "networkidle" });
   await waitForHydration(page);
+  await waitForReviewIdle(page);
   await page.evaluate(async () => {
     const step = window.innerHeight;
     for (let y = 0; y < document.documentElement.scrollHeight; y += step) {

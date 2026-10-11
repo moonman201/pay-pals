@@ -27,6 +27,7 @@
 import { and, eq, inArray, isNotNull, sql } from "drizzle-orm";
 import { deals, itemCards, payments } from "../../schema";
 import type { Db } from "./db";
+import { seedVersionOf } from "./seed-stamp";
 
 export const FINISHED_STATES = ["COMPLETE", "BLOCKED", "ISSUE"] as const;
 export const FIXTURE_ORDER_PREFIX = "FIXTURE-";
@@ -54,18 +55,6 @@ export interface DeleteSeededResult {
   candidates: SeededDealCandidate[];
   deleted: number;
 }
-
-/**
- * data->>'seedVersion' of the deal's first deal_created event. The outer
- * column is written out as "deals"."id": inside a select list Drizzle
- * renders ${deals.id} as a bare "id", which the subquery would resolve to
- * the event's own id and read back null.
- */
-const seedVersionOf = sql<string | null>`(
-  select e.data->>'seedVersion' from deal_events e
-  where e.deal_id = "deals"."id" and e.kind = 'deal_created'
-  order by e.at, e.id limit 1
-)`;
 
 function paymentSubqueries(db: Db) {
   const anyPayment = db.select({ one: sql`1` }).from(payments).where(eq(payments.dealId, deals.id));
