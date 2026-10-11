@@ -1,7 +1,7 @@
 import type { Deal, DealEvent, ScenarioId } from "@pay-pals/contracts";
 import { cleanPs5, emptyBox, fakeSlab } from "@pay-pals/contracts";
 import { describe, expect, it, vi } from "vitest";
-import { resolveSeededDeals, type SeededLookup } from "./live-seeded";
+import { resolveFinishedDeal, resolveSeededDeals, type SeededLookup } from "./live-seeded";
 import { SEED_VERSION } from "./seed-version";
 import type { DealFinder } from "./seed-fixtures";
 
@@ -80,6 +80,23 @@ describe("resolveSeededDeals", () => {
     const log = vi.fn();
     expect(await resolveSeededDeals({ "clean-ps5": "clean-1" }, lookup({}), finder, log)).toEqual({});
     expect(log).toHaveBeenCalledWith(expect.stringContaining("query failed"));
+  });
+
+  it("asks the store even when this process never seeded that scenario", async () => {
+    // The route resolves by scenario with no starting id, and so does a landing render on an
+    // instance whose own seeding failed for one scenario. Both must still find the live deal.
+    const fresh = deal("clean-2", "clean-ps5");
+    const store = lookup({}, { "clean-2": stamped("clean-2", "clean-ps5") });
+    const finder: DealFinder = { findDeals: vi.fn(async ({ scenario }) => (scenario === "clean-ps5" ? [fresh] : [])) };
+    expect(await resolveFinishedDeal("clean-ps5", null, store, finder)).toBe("clean-2");
+    expect(store.getDeal).not.toHaveBeenCalled();
+    expect(await resolveSeededDeals({ "clean-ps5": undefined }, store, finder)).toEqual({ "clean-ps5": "clean-2" });
+  });
+
+  it("resolves one scenario on its own, which is what the id-free route calls", async () => {
+    const present = { "clean-1": deal("clean-1", "clean-ps5") };
+    expect(await resolveFinishedDeal("clean-ps5", "clean-1", lookup(present), null)).toBe("clean-1");
+    expect(await resolveFinishedDeal("empty-box", "gone", lookup(present), null)).toBeNull();
   });
 
   it("has nothing to resolve when nothing was seeded", async () => {

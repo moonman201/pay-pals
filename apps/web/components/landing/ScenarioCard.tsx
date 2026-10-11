@@ -30,8 +30,17 @@ function OutcomeMark({ kind }: { kind: Outcome["kind"] }) {
   );
 }
 
-/** One demo scenario. Posting the form creates a fresh copy of it and opens the deal room. */
-export function ScenarioCard({ fixture, finishedDealId }: { fixture: ScenarioFixture; finishedDealId: string | null }) {
+/**
+ * One demo scenario. Posting the form creates a fresh copy of it and opens
+ * the deal room.
+ *
+ * The finished-deal link carries the scenario, never a deal id. An href with
+ * an id in it is only correct until the next re-seed, and a landing page in
+ * a cache, a tab, a bookmark or a screenshot keeps the id it was printed
+ * with forever. /deals/finished/<scenario> resolves the current one at
+ * request time, so a page rendered last week still works.
+ */
+export function ScenarioCard({ fixture, hasFinishedDeal }: { fixture: ScenarioFixture; hasFinishedDeal: boolean }) {
   const ending = ENDINGS[fixture.id];
   return (
     <article className="flex flex-col rounded-2xl border border-line bg-surface p-5 shadow-card">
@@ -54,9 +63,9 @@ export function ScenarioCard({ fixture, finishedDealId }: { fixture: ScenarioFix
           Play as seller
         </button>
       </form>
-      {finishedDealId ? (
+      {hasFinishedDeal ? (
         // The finished deal is the payoff, so it gets a pressable control, not a caption.
-        <Link href={`/deals/${finishedDealId}?as=buyer`} className={`theme-buyer mt-2 w-full ${buttonClass("secondary")}`}>
+        <Link href={`/deals/finished/${fixture.id}?as=buyer`} className={`theme-buyer mt-2 w-full ${buttonClass("secondary")}`}>
           See the finished deal
           <ArrowIcon size={16} />
         </Link>

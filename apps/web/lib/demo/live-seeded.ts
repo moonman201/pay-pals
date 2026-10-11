@@ -23,13 +23,24 @@ export interface SeededLookup extends EventReader {
 
 type Log = (line: string) => void;
 
-async function resolveOne(scenario: ScenarioId, id: string, lookup: SeededLookup, finder: DealFinder | null, log?: Log): Promise<string | null> {
-  try {
-    const deal = await lookup.getDeal(id);
-    if (deal) return id;
-  } catch (error) {
-    log?.(`[pay-pals] demo: could not read the seeded ${scenario} deal (${error instanceof Error ? error.message : String(error)})`);
-    return null;
+/**
+ * The finished demo deal for one scenario, as it stands right now.
+ *
+ * The id this process seeded is only a starting guess: it is checked, and
+ * when it is gone (or was never there) the store is asked for the current
+ * seed-stamped finished deal instead. The landing and /deals/finished/[id]
+ * both call this, so there is one answer to "which deal is the example" and
+ * not two that can disagree.
+ */
+export async function resolveFinishedDeal(scenario: ScenarioId, startingId: string | null, lookup: SeededLookup, finder: DealFinder | null, log?: Log): Promise<string | null> {
+  if (startingId) {
+    try {
+      const deal = await lookup.getDeal(startingId);
+      if (deal) return startingId;
+    } catch (error) {
+      log?.(`[pay-pals] demo: could not read the seeded ${scenario} deal (${error instanceof Error ? error.message : String(error)})`);
+      return null;
+    }
   }
   if (!finder) {
     log?.(`[pay-pals] demo: the seeded ${scenario} deal is gone and this store cannot look one up, so the landing will not link to it`);
@@ -51,7 +62,7 @@ async function resolveOne(scenario: ScenarioId, id: string, lookup: SeededLookup
 /** The ids as they stand now. Any scenario whose deal is gone is left out. */
 export async function resolveSeededDeals(seeded: SeededIds, lookup: SeededLookup, finder: DealFinder | null = null, log?: Log): Promise<SeededIds> {
   const entries = Object.entries(seeded) as [ScenarioId, string | undefined][];
-  const resolved = await Promise.all(entries.map(([scenario, id]) => (id ? resolveOne(scenario, id, lookup, finder, log) : Promise.resolve(null))));
+  const resolved = await Promise.all(entries.map(([scenario, id]) => resolveFinishedDeal(scenario, id ?? null, lookup, finder, log)));
   const out: SeededIds = {};
   for (const [i, [scenario]] of entries.entries()) {
     const id = resolved[i];
