@@ -19,7 +19,15 @@ export async function waitForHydration(page: Page): Promise<void> {
   // (an evidence page with nothing to build) have no button at all. The first visit to a route on the
   // dev server compiles it, which can take most of a minute.
   await page.waitForFunction(
-    () => Array.from(document.body.querySelectorAll("*")).some((el) => Object.keys(el).some((k) => k.startsWith("__reactProps"))),
+    () => {
+      // On a cold start this can run before the body exists, and reading querySelectorAll off
+      // null threw "Cannot read properties of null" out of a helper six specs call, which passed
+      // on a re-run and so looked like a flake rather than a bug. No body yet is simply "not
+      // hydrated yet": return false and let the poll come round again.
+      const body = document.body;
+      if (!body) return false;
+      return Array.from(body.querySelectorAll("*")).some((el) => Object.keys(el).some((k) => k.startsWith("__reactProps")));
+    },
     undefined,
     { timeout: PAL_TIMEOUT },
   );
