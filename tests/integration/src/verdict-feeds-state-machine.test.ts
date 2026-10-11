@@ -267,7 +267,10 @@ describe("buyer-first: a refused invite blocks the deal with no card", () => {
     expect(refused.raisedByRule).toBe(true);
     expect(isPaymentMethodFlag(refused)).toBe(true);
     expect(PAYMENT_METHOD_FLAGS).toContain("INVITE_REFUSED");
-    expect(refused.explanation).toContain("refused Pay Pals protection");
+    // Corrected 2026-10-11: case only. The explanation used to carry this mid-sentence and now
+    // opens with it, under Matt's rule 2, so the R is capital. The expectation was wrong, not the
+    // product string, and lowercasing the string to suit a test would be the wrong way round.
+    expect(refused.explanation).toMatch(/refused Pay Pals protection/i);
     await store.saveVerdict(verdict);
 
     expect(canTransition("INVITED", "REVIEWED")).toBe(true);

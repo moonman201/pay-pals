@@ -109,10 +109,33 @@ describe("empty-box: arrival check to evidence pack", () => {
     expect(check.mismatches).toHaveLength(1);
     expect(fields, "no serial row: the card has no serial to be wrong about").not.toContain("serial");
 
+    /*
+     * Corrected 2026-10-11. This matched a list of phrasings, and the phrasing
+     * changed for a good reason: the keyed gate caught the pal interpolating a
+     * photo's caption into `observed`, which put AJ164952580 in the "arrived"
+     * column of a comparison where nothing of the sort had arrived.
+     * builder-agents stopped the empty-box branch quoting the caption and added
+     * an observed-guard post-check, and the sentence became "no item in the box,
+     * only packaging". The test was pinning words; what it should pin is the
+     * property the guard now enforces, which survives the next rewording where
+     * a phrase list will not.
+     */
     const missing = check.mismatches.find((m) => m.field === "other")!;
     expect(missing.expected).toContain(delivered.lockedCard.model!);
-    expect(missing.observed).toMatch(/nothing in the box|no console|not present/i);
     expect(missing.explanation).toContain(delivered.lockedCard.model!);
+
+    // It says the item is not there, in whatever words.
+    expect(missing.observed).toMatch(/\b(no|nothing|not)\b/i);
+    // And it carries no caption. The arrival captions are the only text in play that could
+    // reach this field, and the serial in one of them is the value that actually got through.
+    for (const photo of delivered.seeded.arrivalPhotos) {
+      const words = photo.whatItShows.split(/\s+/).filter(Boolean);
+      for (let i = 0; i + 5 <= words.length; i += 1) {
+        const run = words.slice(i, i + 5).join(" ");
+        expect(missing.observed, `a caption reached the arrived column: "${run}"`).not.toContain(run);
+      }
+    }
+    expect(missing.observed, "the box label's number is not something that arrived").not.toContain(EMPTY_BOX_LOCKED_SERIAL);
     expect(check.observed.serial).toBeNull();
     // The box label that did arrive is not the item, and the pal says so rather than counting it.
     expect(check.palMessage).toContain(EMPTY_BOX_LOCKED_SERIAL);
@@ -186,7 +209,8 @@ describe("empty-box: arrival check to evidence pack", () => {
     // mismatch is the item, not a serial: the same single "other" row the keyless path produces.
     const other = check.mismatches.find((m) => m.field === "other")!;
     expect(other).toBeDefined();
-    expect(other.observed).toMatch(/nothing in the box|no console|not present|empty/i);
+    expect(other.observed).toMatch(/\b(no|nothing|not)\b/i);
+    expect(other.observed, "the box label's number is not something that arrived").not.toContain(EMPTY_BOX_LOCKED_SERIAL);
     expect(check.mismatches.map((m) => m.field)).not.toContain("serial");
     expect(check.palMessage).toContain("without the item");
     expect(check.palMessage).not.toMatch(/photo description/i);
