@@ -10,7 +10,7 @@
 import { expect, test } from "@playwright/test";
 import { FAKE_SLAB_CERT, fakeSlab } from "@pay-pals/contracts";
 import { WEB_PRESENT } from "./env";
-import { expectState, expectStateAfterPal, panel, pressAction, snapshot, startDemo } from "./helpers";
+import { expectState, expectStateAfterPal, panel, pressAction, snapshot, startDemo, timelineItems } from "./helpers";
 
 test.describe("fake slab stopped", () => {
   test.skip(!WEB_PRESENT, "apps/web is not on this branch yet, nothing to load");
@@ -20,7 +20,7 @@ test.describe("fake slab stopped", () => {
     await expectState(page, "Listed");
 
     // Buyer-started: the invite went out, the seller joined, then the card was listed.
-    const timeline = panel(page, "Timeline").getByRole("listitem");
+    const timeline = await timelineItems(page);
     await expect(timeline.filter({ hasText: "Waiting for the seller." })).toHaveCount(1);
     await expect(timeline.filter({ hasText: `${fakeSlab.seller.displayName} joined the deal.` })).toHaveCount(1);
     await expect(timeline.filter({ hasText: "Listed." })).toHaveCount(1);

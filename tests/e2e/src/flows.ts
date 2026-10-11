@@ -5,7 +5,7 @@
  */
 import { expect, type Page } from "@playwright/test";
 import type { ScenarioFixture } from "@pay-pals/contracts";
-import { PAL_TIMEOUT, addAllDemoPhotos, expectState, expectStateAfterPal, joinPath, openRoomAs, panel, pressAction, waitForHydration } from "./helpers";
+import { PAL_TIMEOUT, addAllDemoPhotos, expectState, expectStateAfterPal, joinPath, openRoomAs, panel, pressAction, timelineItems, waitForHydration } from "./helpers";
 
 /**
  * The seller opens the invite link and joins with the scenario's listing text
@@ -93,7 +93,7 @@ export async function answerPalWithDemoPhoto(page: Page, dealId: string, reply: 
   // The Seller Pal builds the new version before the room refreshes.
   await expectStateAfterPal(page, "Listed");
   await expect(panel(page, "Item card").getByRole("tab", { name: "Version 2" })).toBeVisible();
-  await expect(panel(page, "Timeline").getByRole("listitem").filter({ hasText: "Card changed. It needs a fresh review." })).toBeVisible();
+  await expect((await timelineItems(page)).filter({ hasText: "Card changed. It needs a fresh review." })).toBeVisible();
 }
 
 /**
@@ -122,7 +122,7 @@ export async function agreeAsSeller(page: Page, dealId: string, version: number)
   await expectState(page, "Agreed, card locked");
   await expect(panel(page, "Item card").getByText(`Locked, version ${version}`)).toBeVisible();
 
-  const agreedLines = panel(page, "Timeline").getByRole("listitem").filter({ hasText: `agreed to card version ${version}.` });
+  const agreedLines = (await timelineItems(page)).filter({ hasText: `agreed to card version ${version}.` });
   await expect(agreedLines).toHaveCount(2);
   await expect(agreedLines.filter({ hasText: "The buyer agreed" })).toHaveCount(1);
   await expect(agreedLines.filter({ hasText: "The seller agreed" })).toHaveCount(1);

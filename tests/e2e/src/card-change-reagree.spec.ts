@@ -9,7 +9,7 @@ import { expect, test } from "@playwright/test";
 import { cleanPs5 } from "@pay-pals/contracts";
 import { WEB_PRESENT } from "./env";
 import { CONSOLE_PROOF_QUESTION, agreeAsBuyer, agreeAsSeller, answerPalWithDemoPhoto, expectAskedQuestion, reviewAsBuyer } from "./flows";
-import { expectState, openRoomAs, panel, snapshot, startDemo } from "./helpers";
+import { expectState, openRoomAs, panel, snapshot, startDemo, timelineItems } from "./helpers";
 
 test.describe("card change after one side agreed", () => {
   test.skip(!WEB_PRESENT, "apps/web is not on this branch yet, nothing to load");
@@ -41,7 +41,7 @@ test.describe("card change after one side agreed", () => {
     await agreeAsSeller(page, dealId, 2);
 
     // Three agreements in all: the buyer to version 1 (the seller changed the card instead), then both to version 2.
-    const agreedLines = panel(page, "Timeline").getByRole("listitem").filter({ hasText: "agreed to card version" });
+    const agreedLines = (await timelineItems(page)).filter({ hasText: "agreed to card version" });
     await expect(agreedLines).toHaveCount(3);
     await expect(agreedLines.filter({ hasText: "The buyer agreed to card version 1." })).toHaveCount(1);
     await expect(agreedLines.filter({ hasText: "card version 2." })).toHaveCount(2);

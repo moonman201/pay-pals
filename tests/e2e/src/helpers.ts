@@ -137,6 +137,33 @@ export function panel(page: Page, title: string | RegExp): Locator {
   return page.locator("section").filter({ has: page.getByRole("heading", { name: title, exact: true }) });
 }
 
+/**
+ * The timeline's events, with the expander opened first.
+ *
+ * Matt's rule 4 collapsed the timeline, so its list items are not visible
+ * and `getByRole("listitem")` returns nothing: eight specs went red at
+ * once. One helper rather than an open at each of the ten call sites,
+ * because this is the third thing the suite has learned about the page's
+ * structure in two days and the other two cost us a judge-facing bug
+ * between them.
+ *
+ * It opens the expander if there is one and says nothing if there is not.
+ * Tolerance is safe here and only here: every caller then asserts on the
+ * items, so an expander that existed and did not open fails those
+ * assertions rather than passing quietly.
+ */
+export async function timelineItems(page: Page): Promise<Locator> {
+  const timeline = panel(page, "Timeline");
+  await expect(timeline).toBeVisible();
+  const details = timeline.locator("details");
+  if ((await details.count()) > 0) {
+    await details.first().evaluate((el) => {
+      (el as HTMLDetailsElement).open = true;
+    });
+  }
+  return timeline.getByRole("listitem");
+}
+
 /** Press a button in the "Next step" panel, where the transition-table moves live. */
 export async function pressAction(page: Page, label: string): Promise<void> {
   await panel(page, "Next step").getByRole("button", { name: label }).click();

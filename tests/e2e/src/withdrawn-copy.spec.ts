@@ -24,9 +24,10 @@ import { ALL_FIXTURES } from "@pay-pals/contracts";
 import { WEB_PRESENT } from "./env";
 import { waitForHydration, waitForReviewIdle } from "./helpers";
 import { finishedDeal } from "./layout-helpers";
-import { breaches, parseMarkdownRules, parseRules, withdrawnClaims, COPY_RULES_FILE, MARKDOWN_RULES_FILE, PAGE_CLAIMS } from "./withdrawn-copy";
+import { WITHDRAWN_CLAIMS } from "@pay-pals/contracts";
+import { breaches, pageClaims, parseRules, pendingMigration, sharedClaims, COPY_RULES_FILE, PAGE_CLAIMS } from "./withdrawn-copy";
 
-const CLAIMS = withdrawnClaims();
+const CLAIMS = pageClaims();
 
 /** What a visitor reads: rendered text, not markup, so a class name or a URL cannot trip it. */
 async function visibleText(page: Page): Promise<string> {
@@ -44,18 +45,23 @@ async function expectNoWithdrawnClaims(page: Page, where: string): Promise<void>
 test.describe("withdrawn copy never reaches a page", () => {
   test.skip(!WEB_PRESENT, "apps/web is not on this branch yet, nothing to load");
 
-  test("the rules come from the two tables that already exist, and both are still there", () => {
-    const fromCode = parseRules(readFileSync(COPY_RULES_FILE, "utf8"));
-    const fromMarkdown = parseMarkdownRules(readFileSync(MARKDOWN_RULES_FILE, "utf8"));
-    // If either drops, that table was refactored and these pages are being checked against a
-    // handful of rules rather than all of them. Numbers, so neither can rot quietly to one.
-    expect(fromCode.length, `rules parsed out of ${COPY_RULES_FILE}`).toBeGreaterThanOrEqual(15);
-    expect(fromMarkdown.length, `rules parsed out of ${MARKDOWN_RULES_FILE}`).toBeGreaterThanOrEqual(10);
-    for (const parsed of [fromCode, fromMarkdown]) {
-      const ids = new Set(parsed.map((r) => r.id));
-      for (const id of ["D8", "D9", "D10", "D11"]) expect([...ids], `${id} is in the table`).toContain(id);
-    }
-    expect(CLAIMS.length).toBe(fromCode.length + fromMarkdown.length + PAGE_CLAIMS.length);
+  test("the shared list is applied whole, and apps/web's leftovers are applied on top", () => {
+    // The policy comes from packages/contracts now. Every pattern in it reaches these pages.
+    const shared = sharedClaims();
+    expect(shared.length, "patterns in WITHDRAWN_CLAIMS").toBe(WITHDRAWN_CLAIMS.reduce((n, c) => n + c.patterns.length, 0));
+    expect([...new Set(WITHDRAWN_CLAIMS.map((c) => c.id))].sort()).toEqual(["D8", "D9", "D10", "D11"].sort());
+    for (const claim of shared) expect(CLAIMS.map((c) => c.pattern.source), `${claim.id} reaches the pages`).toContain(claim.pattern.source);
+
+    // apps/web has not migrated. Its table is still parsed, and only for what the shared list
+    // does not already carry; if that parse ever returns nothing the table changed shape.
+    const source = readFileSync(COPY_RULES_FILE, "utf8");
+    const parsed = parseRules(source);
+    expect(parsed.length, `rules parsed out of ${COPY_RULES_FILE}`).toBeGreaterThanOrEqual(15);
+    const extra = pendingMigration(source);
+    console.log(
+      `${extra.length} of ${parsed.length} apps/web rules are not in WITHDRAWN_CLAIMS by exact pattern, an upper bound since a shared pattern that is a superset still counts:\n  ${[...new Set(extra.map((e) => e.pattern.source))].join("\n  ")}`,
+    );
+    expect(CLAIMS.length).toBe(shared.length + extra.length + PAGE_CLAIMS.length);
   });
 
   test("the guard can fail: the withdrawn sentences are still caught", () => {
@@ -69,8 +75,18 @@ test.describe("withdrawn copy never reaches a page", () => {
     for (const sample of samples) {
       expect(breaches(sample, CLAIMS), `a withdrawn claim went unnoticed: "${sample}"`).not.toEqual([]);
     }
-    // And it does not fire on the sentence the rules actually want.
-    expect(breaches("A matching cert supports the listing. It is not a check that the item is genuine.", CLAIMS)).toEqual([]);
+    // And it does not fire on the sentences the rules actually want, including the one the slab
+    // room really says, where the denial is a contraction and sits immediately before the claim.
+    for (const honest of [
+      "A matching cert supports the listing. It is not a check that the item is genuine.",
+      "Cert 72096346 matches PSA (demo record)'s record. The slab exists. That doesn't prove the seller has it.",
+      "Pay Pals never guarantees a refund.",
+    ]) {
+      expect(breaches(honest, CLAIMS), `an honest sentence was called a breach: "${honest}"`).toEqual([]);
+    }
+
+    // A denial elsewhere in the sentence is not a denial of this claim, so this is still caught.
+    expect(breaches("We guarantee a refund, and this is not a scam.", CLAIMS), "a far-away negation excused a claim").not.toEqual([]);
   });
 
   test("the landing page", async ({ page }) => {

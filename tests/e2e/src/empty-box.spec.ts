@@ -8,7 +8,7 @@ import { expect, test } from "@playwright/test";
 import { EMPTY_BOX_LOCKED_SERIAL, emptyBox } from "@pay-pals/contracts";
 import { WEB_PRESENT } from "./env";
 import { CONSOLE_PROOF_QUESTION, driveToDelivered, runArrivalCheck } from "./flows";
-import { expectState, openRoomAs, panel, pressAction, snapshot, startDemo } from "./helpers";
+import { expectState, openRoomAs, panel, pressAction, snapshot, startDemo, timelineItems } from "./helpers";
 
 /**
  * The arrived column says the item is not there, whether the pal saw the
@@ -51,10 +51,10 @@ test.describe("empty box arrives", () => {
     // in apps/web's own ShipmentSummary test, filed in REVIEW.md for builder-web.
     await expect(shipmentCheck).toContainText(/photo of the item going into the box/i);
     await expect(shipmentCheck).toContainText(/packing/i);
-    await expect(panel(page, "Timeline").getByRole("listitem").filter({ hasText: "Buyer Pal shipment check" })).toHaveCount(1);
+    await expect((await timelineItems(page)).filter({ hasText: "Buyer Pal shipment check" })).toHaveCount(1);
     await openRoomAs(page, dealId, "seller");
     await expect(page.getByRole("list", { name: "Buyer Pal shipment check" }).getByText("caution", { exact: true })).toBeVisible();
-    await expect(panel(page, "Timeline").getByRole("listitem").filter({ hasText: "Buyer Pal shipment check" })).toHaveCount(1);
+    await expect((await timelineItems(page)).filter({ hasText: "Buyer Pal shipment check" })).toHaveCount(1);
     await openRoomAs(page, dealId, "buyer");
     const shipped = await snapshot(page, dealId);
     expect(shipped.shipment?.flags?.map((f) => f.code)).toEqual(["MISSING_PACKING_PHOTO"]);
@@ -96,7 +96,7 @@ test.describe("empty box arrives", () => {
       await issueStep.getByRole("button", { name: "Open the issue" }).click();
     }
     await expectState(page, "Issue open");
-    const issueLine = panel(page, "Timeline").getByRole("listitem").filter({ hasText: "Issue opened: what arrived does not match the locked card" });
+    const issueLine = (await timelineItems(page)).filter({ hasText: "Issue opened: what arrived does not match the locked card" });
     await expect(issueLine).toBeVisible();
     if (stepOpened) await expect(issueLine).toContainText("The box arrived empty.");
 
