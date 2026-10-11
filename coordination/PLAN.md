@@ -126,16 +126,26 @@ Save every working call as a Postman collection in `docs/postman/`.
 
 ## Decisions (Matt, Oct 6)
 1. **Overrides.** A buyer can override `caution` flags. A buyer can never override a payment-method flag (`FRIENDS_AND_FAMILY_REQUEST`, `OFF_PLATFORM_PAYMENT`). Pay Pals only ever creates a Goods and Services checkout payment, so those flags end the deal. Encoded as `PAYMENT_METHOD_FLAGS` in `packages/contracts/src/red-flag.ts`.
+
 2. **Who starts a deal.** Either side. The seller usually does; a buyer can paste a listing and invite the seller.
+
 3. **Accounts.** None in v1. A deal link plus the party's email is enough.
+
 4. **Brand names.** Real brand and product names are fine in demo data, UI and video. No copied logos or artwork.
+
 5. **Two-sided agreement (Oct 7).** Both the buyer and the seller agree to a specific card version. The card locks and the deal moves to AGREED when the second agreement lands. A new card version clears both. Shipped Oct 7 as contracts v1.3.0-draft (3b71ad6).
-7. **Buyer starts the deal (Oct 7).** Entry point is a payment screen: "Use Pay Pals Protection," seller PayPal email, listing link. Seller gets an invite link to join and upload photos. State `INVITED` between DRAFT and LISTED. A refusal ("Friends & Family only") is `INVITE_REFUSED`, a payment-method flag, non-overridable. Seller-started stays, secondary. Email delivery of the invite is a stretch; v1 shows a link to send.
-8. **Two demo items (Oct 7).** PS5 (clean deal, empty box) and a PSA-graded Pokemon slab (fake slab). Buyer Pal checks graded items against PSA's cert API; a mismatch is `CERT_MISMATCH`, stop.
-9. **Tamper-evident history (Oct 7).** Every DealEvent carries prevHash and hash (contracts history.ts). The chain head at order creation goes into the PayPal order custom_id (`dealId#hash`) and the payment record. The evidence pack verifies the stored events against it.
-10. **Scenario 3 ship-time check (Oct 7, Matt).** The seller never answers the Buyer Pal's questions and the buyer pays anyway; when the seller ships without the required packing photo the Buyer Pal raises a caution at ship time and the evidence pack calls out the unanswered questions and the missing photo. Approved Oct 8. Contracts v1.6.0-draft: flag code `MISSING_PACKING_PHOTO`, `BuyerPal.checkShipment`, `Shipment.flags?`, `EvidencePack.unansweredQuestions?` and `shipmentFlags?`, event kind `shipment_checked`, `shipments.flags` column (migration 0004).
-11. **Sandbox buyer login on the pay panel (Oct 8, Matt).** On a demo deal with the sandbox gateway, the pay panel shows the PayPal sandbox buyer email and password, labelled as a test account with no real money, so a judge can finish the clean and empty-box scenarios live.
+
 6. **Non-payment stops (Oct 7).** A stop that is not about payment method (price far below market, ship-before-pay) stays overridable with the acknowledgment checkbox and stronger warning wording. Only payment-method flags end the deal.
+
+7. **Buyer starts the deal (Oct 7).** Entry point is a payment screen: "Use Pay Pals Protection," seller PayPal email, listing link. Seller gets an invite link to join and upload photos. State `INVITED` between DRAFT and LISTED. A refusal ("Friends & Family only") is `INVITE_REFUSED`, a payment-method flag, non-overridable. Seller-started stays, secondary. Email delivery of the invite is a stretch; v1 shows a link to send.
+
+8. **Two demo items (Oct 7).** PS5 (clean deal, empty box) and a PSA-graded Pokemon slab (fake slab). Buyer Pal checks graded items against PSA's cert API; a mismatch is `CERT_MISMATCH`, stop.
+
+9. **Tamper-evident history (Oct 7).** Every DealEvent carries prevHash and hash (contracts history.ts). The chain head at order creation goes into the PayPal order custom_id (`dealId#hash`) and the payment record. The evidence pack verifies the stored events against it.
+
+10. **Scenario 3 ship-time check (Oct 7, Matt).** The seller never answers the Buyer Pal's questions and the buyer pays anyway; when the seller ships without the required packing photo the Buyer Pal raises a caution at ship time and the evidence pack calls out the unanswered questions and the missing photo. Approved Oct 8. Contracts v1.6.0-draft: flag code `MISSING_PACKING_PHOTO`, `BuyerPal.checkShipment`, `Shipment.flags?`, `EvidencePack.unansweredQuestions?` and `shipmentFlags?`, event kind `shipment_checked`, `shipments.flags` column (migration 0004).
+
+11. **Sandbox buyer login on the pay panel (Oct 8, Matt).** On a demo deal with the sandbox gateway, the pay panel shows the PayPal sandbox buyer email and password, labelled as a test account with no real money, so a judge can finish the clean and empty-box scenarios live.
 
 12. **Payment stays Goods and Services only (Oct 10, Matt).** Pay Pals only ever
     processes a PayPal Goods and Services checkout payment. It never processes a
@@ -148,6 +158,18 @@ Save every working call as a Postman collection in `docs/postman/`.
     Recording it on the timeline needs one new event kind, which is a contract and
     schema change, so that half is **parked on `coordination/PROPOSAL-contracts-v1.7.0.md`**
     pending Matt. The rest of the decision needs no contract change.
+
+13. **"Verified" on an evidence item (Oct 10, Lead, reconciling the Oct 9 rule).**
+    The Oct 9 wording rule below says never "verified" and never "authentic". Batch
+    item E12 asks for every item in the deal status view to be labelled Verified,
+    Unverified or Missing. These do not conflict, and the distinction is the one
+    section D of that batch is about. "Verified" may describe **an evidence item we
+    checked against something**, and the view must say what it was checked against
+    (a console serial against the box label, a cert against the grader's record, a
+    capture against PayPal's own order). It may never describe **the item itself**:
+    never "verified authentic", never "verified owner", never "verified seller".
+    Where the subject is the goods or the person, say what was checked and against
+    what, as the Oct 9 rule requires.
 
 14. **A reason group may be empty; it may never be padded (Oct 10, Lead).**
     `PalReasoning`'s four groups exist so a pal's reasons can be checked one claim
@@ -285,18 +307,6 @@ Save every working call as a Postman collection in `docs/postman/`.
     an equivalent. qa also left five unfinished probe deals on Oct 10
     (73c44fa0, 2845c8ea, f0a403dd, 6e077c43, b0b6aa10); none is stamped, none is
     linked from the landing, and the same option would clear them.
-
-13. **"Verified" on an evidence item (Oct 10, Lead, reconciling the Oct 9 rule).**
-    The Oct 9 wording rule below says never "verified" and never "authentic". Batch
-    item E12 asks for every item in the deal status view to be labelled Verified,
-    Unverified or Missing. These do not conflict, and the distinction is the one
-    section D of that batch is about. "Verified" may describe **an evidence item we
-    checked against something**, and the view must say what it was checked against
-    (a console serial against the box label, a cert against the grader's record, a
-    capture against PayPal's own order). It may never describe **the item itself**:
-    never "verified authentic", never "verified owner", never "verified seller".
-    Where the subject is the goods or the person, say what was checked and against
-    what, as the Oct 9 rule requires.
 
 ## Live site review, Oct 7 (Matt). Lane assignments
 Branch `review-oct7`, merged to main 718be0b on Oct 8 and deployed. Each fix is its own commit with tests. Items 1 to 15 done (item 1 and the reused-photo check light up fully once photo files exist; item 4 needs a comp key, see BLOCKERS). Item 16 running against production. Stop rules: a contract or schema change, or a product change, goes to Matt first; everything else keeps moving.
