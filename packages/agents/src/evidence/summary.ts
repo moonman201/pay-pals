@@ -5,7 +5,7 @@
  * Either way it comes out as short paragraphs, in a fixed order, with no
  * markdown and no heading.
  */
-import type { EvidenceInput } from "@pay-pals/contracts";
+import type { EvidenceInput, Mismatch } from "@pay-pals/contracts";
 import type { HistoryAnchor } from "@pay-pals/contracts";
 import { CONDITION_LABELS, historyMatchesHead, verifyChain } from "@pay-pals/contracts";
 import type { ClaudeClient } from "../claude/client";
@@ -57,11 +57,17 @@ export function deterministicSummary(input: EvidenceInput): string {
 
   const arrival: Array<string | null> = [];
   if (arrivalCheck) {
-    if (arrivalCheck.matches) {
+    const detail = (list: readonly Mismatch[]) => list.map((m) => `${m.field}: card says ${m.expected}, arrival shows ${m.observed}`).join("; ");
+    if (arrivalCheck.outcome === "match") {
       arrival.push(`Arrival check: the item matched the locked card${arrivalCheck.observed.serial ? `, serial ${arrivalCheck.observed.serial} confirmed` : ""}.`);
+    } else if (arrivalCheck.outcome === "mismatch") {
+      arrival.push(`Arrival check on ${day(arrivalCheck.createdAt)}: the item did not match the locked card. ${detail(arrivalCheck.mismatches)}.`);
     } else {
-      const details = arrivalCheck.mismatches.map((m) => `${m.field}: card says ${m.expected}, arrival shows ${m.observed}`).join("; ");
-      arrival.push(`Arrival check on ${day(arrivalCheck.createdAt)}: the item did not match the locked card. ${details}.`);
+      // A dispute reviewer must not read this as either finding. Nothing differed and nothing was
+      // confirmed: the comparison could not be settled, and the pack says which comparison and why.
+      arrival.push(
+        `Arrival check on ${day(arrivalCheck.createdAt)}: the comparison could not be settled, so this is neither a match nor a mismatch. ${detail(arrivalCheck.unsettled ?? [])}.`,
+      );
     }
   }
   const arrivalPhotos = input.arrivalPhotos ?? [];
