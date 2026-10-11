@@ -28,13 +28,18 @@
  * question is what the comparison does with a given pair of numbers, not
  * what a model reads off a picture today.
  *
- * STATE, 2026-10-10: six of these seven are red, and should be. `arrival.ts`
- * in packages/agents still returns the old boolean, so `outcome` is
- * undefined and nothing here can pass until builder-agents lands the second
- * stage of Decision 18. They are written against the contract rather than
- * against today's code on purpose: this is the case the contract change
- * exists for, and it had no coverage at all. The one that passes is the
- * premise, which has to hold whatever the code does.
+ * Written against the contract before packages/agents implemented it, so
+ * six of the seven were red on arrival and went green when builder-agents
+ * landed the second stage of Decision 18.
+ *
+ * Corrected 2026-10-11, and the correction is the lesson. The dispute case
+ * asserted `not.toMatch(/dispute/i)`, and the pal's best message is "Do not
+ * open a dispute on this yet", so the test failed the one sentence it most
+ * wanted. Forbidding a word cannot tell an invitation from a warning, and
+ * here the warning is the point. It now matches the construction, and both
+ * patterns are proved against the mismatch case in the same test: being
+ * able to fail is not the same as failing for the right reason, and the
+ * first version could fail and was still wrong.
  */
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -70,6 +75,17 @@ const arrivalPhoto: Photo = {
   addedAt: new Date().toISOString(),
 };
 
+/**
+ * Inviting a dispute and warning against one both contain the word
+ * "dispute", and only one of them is the fault. The first version of this
+ * test forbade the word, and failed the best message the pal produced: "Do
+ * not open a dispute on this yet." So these match the construction, not the
+ * subject. Both are proved live in the test below, against the mismatch
+ * case, which really does invite one.
+ */
+const INVITES = /\byou can open\b|\bif you open\b|\bso you can open\b|\battach this pack\b|\bopen a dispute to\b/i;
+const DISCOURAGES = /\bdo not open a dispute\b|\bdon't open a dispute\b|\bnothing to dispute\b|\bno dispute\b|\bnot .{0,16}dispute yet\b/i;
+
 const lockedCard: ItemCard = { ...cleanPs5.cards.at(-1)!, lockedAt: new Date().toISOString() };
 const fetchLocalFile = fileImageFetcher({ [PHOTO_URL]: SOME_PHOTO });
 
@@ -82,6 +98,26 @@ async function checkWithVisionSerial(serial: string, card: ItemCard = lockedCard
   });
   const { data } = await pal.checkArrival(card, [arrivalPhoto]);
   return data;
+}
+
+/** The evidence pack for an arrival check, summary and pal message together, as a buyer would read them. */
+async function packFor(check: ArrivalCheck): Promise<string> {
+  const seeded = await seedFixture(cleanPs5);
+  await driveTo(seeded, "AGREED");
+  const input: EvidenceInput = {
+    deal: (await seeded.store.getDeal(seeded.dealId))!,
+    lockedCard,
+    verdicts: [],
+    arrivalCheck: { ...check, dealId: seeded.dealId },
+    messages: await seeded.store.listMessages(seeded.dealId),
+    payment: null,
+    shipment: null,
+    timeline: await seeded.store.listEvents(seeded.dealId),
+    arrivalPhotos: [arrivalPhoto],
+    requestedBy: "buyer",
+  };
+  const { data: pack, palMessage } = await buildEvidencePack(input, { anthropic: null });
+  return `${pack.summary} ${palMessage}`;
 }
 
 /** The same arrival with no model at all, so the number can only come from the caption. */
@@ -114,25 +150,35 @@ describe("an arrival serial one character from the card", () => {
   });
 
   it("does not invite a dispute, in the pal's message or in the pack built from it", async () => {
-    const check = await checkWithVisionSerial(ONE_CHARACTER_OUT);
-    expect(check.palMessage, "a misread character must not send a buyer to a dispute").not.toMatch(/dispute/i);
+    const near = await checkWithVisionSerial(ONE_CHARACTER_OUT);
+    const wrong = await checkWithVisionSerial(A_DIFFERENT_SERIAL);
+    const nearPack = await packFor(near);
+    const wrongPack = await packFor(wrong);
+    console.log(`inconclusive pal: ${near.palMessage}\ninconclusive pack: ${nearPack}\n\nmismatch pal: ${wrong.palMessage}\nmismatch pack: ${wrongPack}`);
 
-    const seeded = await seedFixture(cleanPs5);
-    await driveTo(seeded, "AGREED");
-    const input: EvidenceInput = {
-      deal: (await seeded.store.getDeal(seeded.dealId))!,
-      lockedCard,
-      verdicts: [],
-      arrivalCheck: { ...check, dealId: seeded.dealId },
-      messages: await seeded.store.listMessages(seeded.dealId),
-      payment: null,
-      shipment: null,
-      timeline: await seeded.store.listEvents(seeded.dealId),
-      arrivalPhotos: [arrivalPhoto],
-      requestedBy: "buyer",
-    };
-    const { data: pack, palMessage } = await buildEvidencePack(input, { anthropic: null });
-    expect(`${pack.summary} ${palMessage}`, "the pack must not call an unsettled comparison a dispute").not.toMatch(/dispute/i);
+    // Both patterns are live, proved here rather than assumed: the mismatch is the case that
+    // really does invite one, in the pal's words and in the pack's, so a pattern that matched
+    // nothing would fail on these two lines before it could pass anywhere by accident.
+    expect(wrong.palMessage, "the mismatch invites a dispute, so INVITES matches real inviting text").toMatch(INVITES);
+    expect(wrongPack, "the mismatch pack invites one too").toMatch(INVITES);
+
+    // The property: an unsettled comparison may not put a dispute in front of the buyer as the next step.
+    expect(near.palMessage, `an unsettled comparison must not invite a dispute: "${near.palMessage}"`).not.toMatch(INVITES);
+    expect(nearPack, `the pack built from it must not invite one either: "${nearPack}"`).not.toMatch(INVITES);
+
+    // And when it does raise the subject, it has to be to wave the buyer off it. Saying the
+    // word is not the fault; the fault is leaving a dispute looking like the next step.
+    if (/dispute/i.test(near.palMessage)) {
+      expect(near.palMessage, `the pal mentions a dispute, so it has to be discouraging one: "${near.palMessage}"`).toMatch(DISCOURAGES);
+    }
+    if (/dispute/i.test(nearPack)) {
+      expect(nearPack, `the pack mentions a dispute, so it has to be discouraging one: "${nearPack}"`).toMatch(DISCOURAGES);
+    }
+
+    // And the two patterns are two patterns: if DISCOURAGES also matched the inviting case,
+    // the check above would pass on anything and prove nothing.
+    expect(wrong.palMessage, "the mismatch invites and does not discourage").not.toMatch(DISCOURAGES);
+    expect(wrongPack, "nor does the pack built from it").not.toMatch(DISCOURAGES);
   });
 
   it("names both numbers and claims neither outcome", async () => {
@@ -152,8 +198,8 @@ describe("what the band must never swallow", () => {
     expect(check.outcome).toBe("mismatch");
     expect(check.unsettled ?? []).toEqual([]);
     expect(check.mismatches.some((m) => m.field === "serial" && m.observed.includes(A_DIFFERENT_SERIAL))).toBe(true);
-    // The buyer is told plainly, and the pack is on the table.
-    expect(check.palMessage).toMatch(/dispute/i);
+    // The buyer is told plainly, and the pack is offered: this is the case where that is right.
+    expect(check.palMessage).toMatch(INVITES);
   });
 
   it("does not apply when both numbers were typed rather than read off a picture", async () => {
