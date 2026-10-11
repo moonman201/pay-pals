@@ -8,6 +8,25 @@ import type { ClaudeClient } from "../claude/client";
 
 export type FakeResponder = (params: Anthropic.MessageCreateParamsNonStreaming) => unknown;
 
+/**
+ * The name of the tool a request offered, or null.
+ *
+ * `params.tools` is `ToolUnion[]`, which includes the SDK's server-side tools,
+ * and not all of those carry a `name`. Reading `.name` off the union directly
+ * does not typecheck, and because test files were excluded from `typecheck`
+ * until now, 22 call sites did it anyway. This is the one place that narrows
+ * it, so the tests say what they mean and the compiler agrees.
+ */
+export function toolName(params: Anthropic.MessageCreateParamsNonStreaming, index = 0): string | null {
+  const tool = params.tools?.[index];
+  return tool && "name" in tool ? tool.name : null;
+}
+
+/** True when the request offered this tool first. The common assertion in the pal tests. */
+export function offersTool(params: Anthropic.MessageCreateParamsNonStreaming, name: string): boolean {
+  return toolName(params) === name;
+}
+
 export interface FakeClaude extends ClaudeClient {
   calls: Anthropic.MessageCreateParamsNonStreaming[];
 }
@@ -20,11 +39,11 @@ export function fakeClaude(respond: FakeResponder): FakeClaude {
       async create(params) {
         calls.push(params);
         const input = respond(params);
-        const toolName = params.tools?.[0]?.name ?? "tool";
+        const name = toolName(params) ?? "tool";
         const content =
           input === null || input === undefined
             ? [{ type: "text", text: "I have nothing to add." }]
-            : [{ type: "tool_use", id: "toolu_fake", name: toolName, input }];
+            : [{ type: "tool_use", id: "toolu_fake", name, input }];
         return {
           id: "msg_fake",
           type: "message",

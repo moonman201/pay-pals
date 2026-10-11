@@ -1,0 +1,22 @@
+// Typechecks everything tsconfig.json builds, plus the test files and the
+// test helpers that it excludes. `npm run typecheck` uses this one; the build
+// still uses tsconfig.json, so nothing test-shaped reaches dist.
+//
+// The `exclude` below is the whole point and the easy thing to get wrong.
+// tsconfig `exclude` REPLACES the inherited array rather than merging with it.
+// Leave it out and this file silently inherits
+//   ["src/**/*.test.ts", "src/testing/**"]
+// from the parent: the config looks wired up, `typecheck` exits 0, and not one
+// extra line is checked. That is the failure shape of this whole week, a check
+// that appears to run and is looking at the wrong thing.
+//
+// This package excluded two things, so lifting both was a second decision.
+// The helpers under src/testing are in, deliberately. fake-claude.ts is the
+// file whose unnarrowed ToolUnion read produced 22 of the 30 errors found when
+// the exclusion came off, and a helper every test leans on is the last thing
+// that should be exempt from checking.
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "noEmit": true },
+  "exclude": ["dist"]
+}

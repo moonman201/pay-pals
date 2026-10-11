@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { ArrivalCheckSchema, CLEAN_SERIAL, EMPTY_BOX_LOCKED_SERIAL, FAKE_SLAB_CERT, VerdictSchema, cleanPs5, emptyBox, fakeSlab, hasStop } from "@pay-pals/contracts";
 import { createFixtureCertLookup } from "../cert/fixture-lookup";
 import { createFixturePriceLookup } from "../price/fixture-lookup";
-import { fakeClaude, promptText } from "../testing/fake-claude";
+import { fakeClaude, offersTool, promptText } from "../testing/fake-claude";
 import { says } from "../testing/builders";
 import { asFetched, pictureA, pictureANearDuplicate, pictureC } from "../testing/images";
 import { createBuyerPal } from "./buyer-pal";
@@ -163,10 +163,10 @@ describe("BuyerPal.review photo honesty (J3)", () => {
   const reading = { brand: "Sony", model: "PlayStation 5", serial: CLEAN_SERIAL, serial_on: "item", item_present: true };
 
   it("with no image read: tells the model nothing was looked at, re-asks once, then falls back to the rules-only text", async () => {
-    const model = fakeClaude((params) => (params.tools?.[0]?.name === "submit_review" ? { ...quietModel(), pal_message: claim } : reading));
+    const model = fakeClaude((params) => (offersTool(params, "submit_review") ? { ...quietModel(), pal_message: claim } : reading));
     const pal = createBuyerPal({ anthropic: model, priceLookup, fetchImage: async () => null, photoBaseUrl: "https://pay-pals.example" });
     const { data: verdict, palMessage } = await pal.review(card, chat);
-    const reviewCalls = model.calls.filter((c) => c.tools?.[0]?.name === "submit_review");
+    const reviewCalls = model.calls.filter((c) => offersTool(c, "submit_review"));
     expect(reviewCalls).toHaveLength(2);
     expect(promptText(reviewCalls[0]!)).toContain("None of the photos was looked at.");
     expect(promptText(reviewCalls[0]!)).toContain("Not looked at (the file could not be loaded)");
@@ -180,7 +180,7 @@ describe("BuyerPal.review photo honesty (J3)", () => {
   it("with no image read: a clean second answer is kept", async () => {
     let reviews = 0;
     const model = fakeClaude((params) => {
-      if (params.tools?.[0]?.name !== "submit_review") return reading;
+      if (!offersTool(params, "submit_review")) return reading;
       reviews += 1;
       return { ...quietModel(), pal_message: reviews === 1 ? claim : "The seller's captions say the serial is on the console and the box. Price is fair. Ask for a settings screen photo." };
     });
@@ -190,10 +190,10 @@ describe("BuyerPal.review photo honesty (J3)", () => {
   });
 
   it("with images read: the model is told what was read, photo claims are kept, and the message says it looked", async () => {
-    const model = fakeClaude((params) => (params.tools?.[0]?.name === "submit_review" ? { ...quietModel(), pal_message: claim } : reading));
+    const model = fakeClaude((params) => (offersTool(params, "submit_review") ? { ...quietModel(), pal_message: claim } : reading));
     const pal = createBuyerPal({ anthropic: model, priceLookup, fetchImage: async () => asFetched(pictureA()), photoBaseUrl: "https://pay-pals.example" });
     const { palMessage } = await pal.review(card, chat);
-    const reviewCalls = model.calls.filter((c) => c.tools?.[0]?.name === "submit_review");
+    const reviewCalls = model.calls.filter((c) => offersTool(c, "submit_review"));
     expect(reviewCalls).toHaveLength(1);
     expect(promptText(reviewCalls[0]!)).toContain(`Read by the vision model: brand Sony, model PlayStation 5, serial ${CLEAN_SERIAL} on the item, the item is in the picture.`);
     expect(palMessage).toContain("I looked at the 3 card photos.");

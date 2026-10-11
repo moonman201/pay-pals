@@ -9,7 +9,7 @@ import { CLEAN_SERIAL, cleanPs5, emptyBox, fakeSlab } from "@pay-pals/contracts"
 import { createBuyerPal } from "./buyer-pal";
 import { createFixtureCertLookup } from "../cert/fixture-lookup";
 import { createFixturePriceLookup } from "../price/fixture-lookup";
-import { fakeClaude, promptText } from "../testing/fake-claude";
+import { fakeClaude, offersTool, promptText } from "../testing/fake-claude";
 import { addModelReasons, mergeReasoning, MAX_REASONS_PER_GROUP, tidyReasons } from "./reasoning";
 import { CONSOLE_SERIAL_QUESTION } from "./proof-question";
 
@@ -160,7 +160,7 @@ describe("an unreadable serial becomes a reason rather than a mismatch", () => {
   };
 
   it("says it could not read the number, and says a close-up would settle it", async () => {
-    const client = fakeClaude((params) => (params.tools?.[0]?.name === "report_photo_reading" ? reading : null));
+    const client = fakeClaude((params) => (offersTool(params, "report_photo_reading") ? reading : null));
     const buyerPal = createBuyerPal({ anthropic: client, priceLookup: createFixturePriceLookup(), fetchImage: async () => ({ data: "aGk=", mediaType: "image/png" }), photoBaseUrl: "https://example.test" });
     const { data: verdict } = await buyerPal.review(card, cleanPs5.chat.slice(0, 2), { seller: cleanPs5.seller });
 
@@ -175,10 +175,10 @@ describe("an unreadable serial becomes a reason rather than a mismatch", () => {
   });
 
   it("tells the review model the reasons already written, so it adds rather than repeats", async () => {
-    const client = fakeClaude((params) => (params.tools?.[0]?.name === "report_photo_reading" ? reading : null));
+    const client = fakeClaude((params) => (offersTool(params, "report_photo_reading") ? reading : null));
     const buyerPal = createBuyerPal({ anthropic: client, priceLookup: createFixturePriceLookup(), fetchImage: async () => ({ data: "aGk=", mediaType: "image/png" }), photoBaseUrl: "https://example.test" });
     await buyerPal.review(card, cleanPs5.chat.slice(0, 2), { seller: cleanPs5.seller });
-    const reviewCall = client.calls.find((c) => c.tools?.[0]?.name === "submit_review")!;
+    const reviewCall = client.calls.find((c) => offersTool(c, "submit_review"))!;
     const sent = promptText(reviewCall);
     expect(sent).toContain("Reasons already worked out, which will appear as given");
     expect(sent).toContain("could not read it");

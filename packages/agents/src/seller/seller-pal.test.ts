@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { CLEAN_SERIAL, EMPTY_BOX_LOCKED_SERIAL, FAKE_SLAB_CERT, ItemCardSchema, cleanPs5, emptyBox, fakeSlab } from "@pay-pals/contracts";
 import { CONSOLE_SERIAL_QUESTION } from "../buyer/proof-question";
-import { fakeClaude, promptText } from "../testing/fake-claude";
+import { fakeClaude, offersTool, promptText } from "../testing/fake-claude";
 import { CardLockedError } from "./apply-request";
 import { MissingPriceError } from "./build-card";
 import { parseListing } from "./listing-parse";
@@ -88,7 +88,7 @@ describe("SellerPal.buildCard", () => {
 
   it("uses the model's draft but never a serial the model made up", async () => {
     const model = fakeClaude((params) => {
-      if (params.tools?.[0]?.name !== "draft_item_card") return null;
+      if (!offersTool(params, "draft_item_card")) return null;
       return {
         title: "Sony PlayStation 5 disc edition with the original box",
         brand: "Sony",
@@ -111,7 +111,7 @@ describe("SellerPal.buildCard", () => {
 
   it("corrects a model draft that names the product family as the brand", async () => {
     const model = fakeClaude((params) => {
-      if (params.tools?.[0]?.name !== "draft_item_card") return null;
+      if (!offersTool(params, "draft_item_card")) return null;
       return { title: "PlayStation 5 disc edition", brand: "PlayStation", model: "PS5 disc edition, CFI-1015A", condition_grade: "good", condition_notes: "Works.", included: ["Console"], asking_price: 420 };
     });
     const { data: card } = await createSellerPal({ anthropic: model }).buildCard(buildInput(cleanPs5));
@@ -140,7 +140,7 @@ describe("SellerPal.buildCard", () => {
 
   it("reads both serials with vision when the photos can be fetched", async () => {
     const model = fakeClaude((params) => {
-      if (params.tools?.[0]?.name !== "report_photo_reading") return null;
+      if (!offersTool(params, "report_photo_reading")) return null;
       const onBox = promptText(params).includes("box label");
       return { brand: "Sony", model: "PlayStation 5", serial: "aj 164952580", serial_on: onBox ? "packaging" : "item", item_present: true };
     });
@@ -230,7 +230,7 @@ describe("SellerPal.applyRequest", () => {
 
   it("reads the close-up with vision when the image loads", async () => {
     const model = fakeClaude((params) =>
-      params.tools?.[0]?.name === "report_photo_reading"
+      offersTool(params, "report_photo_reading")
         ? { brand: "Sony", model: "PlayStation 5", serial: "aj 164952580", serial_on: "item", item_present: true }
         : { sentence: "Close-up of the serial sticker on the back of the console" },
     );

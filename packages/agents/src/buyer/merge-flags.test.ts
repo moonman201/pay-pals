@@ -6,7 +6,22 @@ import { capModelSeverity, mergeModelReview } from "./merge-flags";
 
 const ff: RedFlag = { code: "FRIENDS_AND_FAMILY_REQUEST", severity: "stop", evidence: "Seller wrote: \"Send it F&F\"", explanation: "No protection.", raisedByRule: true };
 const urgency: RedFlag = { code: "URGENCY_PRESSURE", severity: "caution", evidence: "Seller wrote: \"has to be today\"", explanation: "Rushing you.", raisedByRule: true };
-const empty = { additional_flags: [], severity_raises: [], explanations: [], questions_for_seller: [], pal_message: "." };
+/**
+ * A model review that says nothing, spread into each case below.
+ *
+ * `reasoning` is here because `ModelReview` is the schema's *output* type and
+ * the field carries a `.default({})`: zod fills it when the model omits it, so
+ * a literal standing in for a parsed review has to carry it too. Leaving it
+ * out typechecked only while test files were excluded from `typecheck`.
+ */
+const empty = {
+  additional_flags: [],
+  severity_raises: [],
+  explanations: [],
+  questions_for_seller: [],
+  pal_message: ".",
+  reasoning: { checked: [], found: [], could_not_verify: [], would_change_my_mind: [] },
+};
 
 describe("mergeModelReview", () => {
   it("returns the rule flags untouched when the model has nothing", () => {
