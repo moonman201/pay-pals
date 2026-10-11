@@ -4,6 +4,7 @@
  */
 import type {
   ArrivalCheck,
+  ArrivalOutcome,
   Deal,
   DealEvent,
   EvidencePack,
@@ -13,6 +14,7 @@ import type {
   Shipment,
   Verdict,
 } from "@pay-pals/contracts";
+import { ARRIVAL_OUTCOMES } from "@pay-pals/contracts";
 import { EventNotHashedError } from "../errors";
 import type { NewEvent } from "../event-chain";
 import { fromCents, toCents } from "../money";
@@ -201,12 +203,69 @@ export function toVerdictRow(v: Verdict): typeof verdicts.$inferInsert {
   return { dealId: v.dealId, kind: "review", cardVersion: v.cardVersion, outcome: v.overall, payload: v, createdAt: date(v.createdAt) };
 }
 
+/**
+ * The outcome column takes the contract's three values as they are, so an
+ * inconclusive check is stored as "inconclusive" and not folded into one of
+ * the other two. This row is never updated in place, so a value written here
+ * is the permanent record of what the pal concluded.
+ */
 export function toArrivalRow(c: ArrivalCheck): typeof verdicts.$inferInsert {
-  return { dealId: c.dealId, kind: "arrival", cardVersion: c.cardVersion, outcome: c.matches ? "match" : "mismatch", payload: c, createdAt: date(c.createdAt) };
+  return { dealId: c.dealId, kind: "arrival", cardVersion: c.cardVersion, outcome: c.outcome, payload: c, createdAt: date(c.createdAt) };
 }
 
 export const toVerdict = (row: VerdictRow): Verdict => row.payload as Verdict;
-export const toArrival = (row: VerdictRow): ArrivalCheck => row.payload as ArrivalCheck;
+
+/**
+ * The outcome of a stored arrival payload, translating rows written before
+ * contracts v1.8.0.
+ *
+ * `matches` was renamed to `outcome`, not added alongside it, so every arrival
+ * check already in the database carries `matches` and no `outcome`. The payload
+ * is read with a cast and not a parse, so without this those rows would hand a
+ * reader `outcome: undefined` under a type that says it cannot be.
+ *
+ * `matches: true` becomes "match" and `false` becomes "mismatch". That is
+ * faithful rather than a guess: when those rows were written there were only
+ * two answers a check could give.
+ *
+ * Everything else lands on "inconclusive": a payload that is not an object, one
+ * carrying neither field, or an `outcome` string that is not one of the three.
+ * Nothing unrecognised is allowed to read as "match", because that would turn a
+ * storage artefact into a reassuring claim about someone's parcel (Decision 20).
+ */
+function arrivalOutcomeOf(payload: unknown): ArrivalOutcome {
+  if (typeof payload !== "object" || payload === null) return "inconclusive";
+  const { outcome, matches } = payload as { outcome?: unknown; matches?: unknown };
+  if (typeof outcome === "string" && (ARRIVAL_OUTCOMES as readonly string[]).includes(outcome)) return outcome as ArrivalOutcome;
+  if (matches === true) return "match";
+  if (matches === false) return "mismatch";
+  return "inconclusive";
+}
+
+/**
+ * Every stored arrival check passes through here, so the legacy shape is
+ * translated once at this boundary rather than in each reader (Decision 15).
+ * `matches` is dropped on the way out, so a caller only ever sees the current
+ * shape and cannot read the old field by accident.
+ *
+ * A legacy row translated to "inconclusive" carries no `unsettled` list, since
+ * there is nothing in the row to build one from and inventing entries would be
+ * a claim the stored check never made.
+ *
+ * The legacy branch can be deleted once no arrival rows written before v1.8.0
+ * remain. The final deploy re-seeds the demo deals and clears the probe deals,
+ * which rewrites those in the new shape; any arrival check on a deal that
+ * neither path reaches keeps the branch needed. This finds them, read only:
+ *   select id, deal_id from verdicts
+ *   where kind = 'arrival' and payload->>'outcome' is null;
+ */
+export function toArrival(row: VerdictRow): ArrivalCheck {
+  const payload = row.payload as ArrivalCheck & { matches?: unknown };
+  const outcome = arrivalOutcomeOf(payload);
+  if (typeof payload !== "object" || payload === null) return { outcome } as ArrivalCheck;
+  const { matches: _legacyMatches, ...rest } = payload;
+  return { ...rest, outcome };
+}
 
 export function toEvidenceRow(p: EvidencePack): typeof evidencePacks.$inferInsert {
   return { dealId: p.dealId, builtBy: p.builtBy, summary: p.summary, pack: p, createdAt: date(p.builtAt) };

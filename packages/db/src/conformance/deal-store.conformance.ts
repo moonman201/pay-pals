@@ -631,7 +631,7 @@ export function runDealStoreConformance(name: string, makeStore: StoreFactory) {
         const check = {
           dealId: deal.id,
           cardVersion: 1,
-          matches: false,
+          outcome: "mismatch" as const,
           mismatches: [{ field: "serial" as const, expected: "AH912345678", observed: "AJ204567113", explanation: "The box label shows a different serial and the box is empty." }],
           observed: { brand: "Sony", model: null, serial: "AJ204567113" },
           palMessage: "This is not the console on the card. The box arrived empty.",
@@ -639,6 +639,29 @@ export function runDealStoreConformance(name: string, makeStore: StoreFactory) {
         };
         await store.saveArrivalCheck(check);
         expect(await store.getArrivalCheck(deal.id)).toEqual(check);
+      });
+
+      it("round-trips an inconclusive arrival check, keeping unsettled comparisons apart from mismatches", async () => {
+        const store = await makeStore();
+        const deal = await store.createDeal({ startedBy: "seller", seller, buyer });
+        // The serial near-miss band: one character apart, so neither outcome is honest.
+        const check = {
+          dealId: deal.id,
+          cardVersion: 1,
+          outcome: "inconclusive" as const,
+          mismatches: [],
+          unsettled: [{ field: "serial" as const, expected: "AJ164952580", observed: "AJ16495258O", explanation: "One character apart, which is the shape of a misread." }],
+          observed: { brand: "Sony", model: "CFI-1015A", serial: "AJ16495258O", serialSource: "photo" as const },
+          palMessage: "I could not settle the serial. The read is one character from the card.",
+          createdAt: "2026-10-26T16:05:00.000Z",
+        };
+        await store.saveArrivalCheck(check);
+        const stored = await store.getArrivalCheck(deal.id);
+        expect(stored).toEqual(check);
+        // The third value survives the trip rather than collapsing into match or mismatch.
+        expect(stored?.outcome).toBe("inconclusive");
+        expect(stored?.mismatches).toEqual([]);
+        expect(stored?.unsettled).toHaveLength(1);
       });
 
       it("upserts the payment by order id and finds it by deal or order", async () => {

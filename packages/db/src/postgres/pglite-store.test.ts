@@ -46,4 +46,29 @@ describe("postgres store on pglite", () => {
     const rows = await client.query<{ asking_price_cents: number }>("select asking_price_cents from item_cards where deal_id = $1", [deal.id]);
     expect(rows.rows[0]?.asking_price_cents).toBe(47550);
   });
+
+  // The outcome column is bare text with no enum and no check constraint, so the
+  // third arrival value needs no migration. This reads the column itself rather
+  // than the payload, because the payload would round-trip any string at all.
+  it("writes every arrival outcome to the outcome column as it stands, inconclusive included", async () => {
+    const { ARRIVAL_OUTCOMES, getFixture } = await import("@pay-pals/contracts");
+    const fx = getFixture("clean-ps5");
+    for (const outcome of ARRIVAL_OUTCOMES) {
+      const deal = await store.createDeal({ startedBy: "seller", seller: fx.seller });
+      await store.saveArrivalCheck({
+        dealId: deal.id,
+        cardVersion: 1,
+        outcome,
+        mismatches: [],
+        ...(outcome === "inconclusive"
+          ? { unsettled: [{ field: "serial" as const, expected: "AJ164952580", observed: "AJ16495258O", explanation: "One character apart, which is the shape of a misread." }] }
+          : {}),
+        observed: { brand: "Sony", model: "CFI-1015A", serial: "AJ164952580" },
+        palMessage: `Arrival check recorded as ${outcome}.`,
+        createdAt: "2026-10-26T16:00:00.000Z",
+      });
+      const rows = await client.query<{ outcome: string }>("select outcome from verdicts where deal_id = $1 and kind = 'arrival'", [deal.id]);
+      expect(rows.rows.map((r) => r.outcome)).toEqual([outcome]);
+    }
+  });
 });
