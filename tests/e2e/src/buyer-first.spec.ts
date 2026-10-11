@@ -9,7 +9,7 @@ import { expect, test } from "@playwright/test";
 import { cleanPs5 } from "@pay-pals/contracts";
 import { WEB_PRESENT } from "./env";
 import { joinAsSeller } from "./flows";
-import { expectState, joinPath, panel, snapshot, startBuyerFirst } from "./helpers";
+import { expectState, joinPath, panel, snapshot, startBuyerFirst, timelineItems } from "./helpers";
 
 const LISTING_URL = "https://marketplace.example/listings/5120";
 
@@ -39,7 +39,7 @@ test.describe("buyer-first start", () => {
     await expect(panel(page, "Next step").getByRole("link", { name: "seller's join page" })).toHaveAttribute("href", joinPath(dealId));
     await expect(page.getByRole("button", { name: /^Agree/ })).toHaveCount(0);
 
-    const timeline = panel(page, "Timeline").getByRole("listitem");
+    const timeline = await timelineItems(page);
     await expect(timeline.filter({ hasText: "invited the seller" })).toHaveCount(1);
     await expect(timeline.filter({ hasText: "Invite link created for the seller" })).toHaveCount(1);
     await expect(timeline.filter({ hasText: "Waiting for the seller." })).toHaveCount(1);
@@ -64,7 +64,7 @@ test.describe("buyer-first start", () => {
     await expect(page.getByRole("banner").getByText(`You are the seller, ${cleanPs5.seller.displayName}`, { exact: false })).toBeVisible();
     await expect(panel(page, "Item card")).toBeVisible();
     await expect(panel(page, "Item card").getByText("Version 1, draft")).toBeVisible();
-    const after = panel(page, "Timeline").getByRole("listitem");
+    const after = await timelineItems(page);
     await expect(after.filter({ hasText: `${cleanPs5.seller.displayName} joined the deal.` })).toHaveCount(1);
     await expect(after.filter({ hasText: "Seller Pal built card version 1." })).toHaveCount(1);
     await expect(after.filter({ hasText: "Listed." })).toHaveCount(1);

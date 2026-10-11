@@ -8,7 +8,7 @@
 import { expect, test } from "@playwright/test";
 import { fakeSlab } from "@pay-pals/contracts";
 import { WEB_PRESENT } from "./env";
-import { PAL_TIMEOUT, expectState, expectStateAfterPal, joinPath, openRoomAs, panel, pressAction, snapshot, startBuyerFirst, waitForHydration } from "./helpers";
+import { PAL_TIMEOUT, expectState, expectStateAfterPal, joinPath, openRoomAs, panel, pressAction, snapshot, startBuyerFirst, timelineItems, waitForHydration } from "./helpers";
 
 const REASON = "Friends and Family only, I am not paying fees.";
 
@@ -42,7 +42,7 @@ test.describe("seller refuses the invite", () => {
     await openRoomAs(page, dealId, "buyer");
     await expectState(page, "Waiting for the seller");
     await expect(panel(page, "Item card")).toHaveCount(0);
-    const timeline = panel(page, "Timeline").getByRole("listitem");
+    const timeline = await timelineItems(page);
     const declinedLine = timeline.filter({ hasText: "declined Pay Pals protection" });
     await expect(declinedLine).toHaveCount(1);
     await expect(declinedLine).toContainText(REASON);
