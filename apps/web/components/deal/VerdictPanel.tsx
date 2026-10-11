@@ -12,6 +12,7 @@ import { PalWork } from "../pal/PalWork";
 import { Badge, type Tone } from "../ui/Badge";
 import { CautionIcon, CheckIcon, StopIcon } from "../ui/icons";
 import { Panel } from "../ui/Panel";
+import { TAP_LINK_WRAPPING } from "../ui/tap";
 import { Comparison } from "./Comparison";
 import { FlagEvidence } from "./FlagEvidence";
 
@@ -104,7 +105,7 @@ export function VerdictPanel({ verdict, currentVersion, locked, cardTitle = null
             href={gradedPriceSearchUrl(graded)}
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-1 inline-block font-semibold text-[var(--accent-ink)] underline underline-offset-2"
+            className={`${TAP_LINK_WRAPPING} mt-1 font-semibold text-[var(--accent-ink)] underline underline-offset-2`}
           >
             {GRADED_PRICE_LINK_TEXT}
           </a>

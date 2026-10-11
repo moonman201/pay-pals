@@ -1,5 +1,6 @@
 import { visibleEvidence } from "@/lib/deal/flag-evidence";
 import { messageAnchor } from "@/lib/deal/evidence-source";
+import { TAP_LINK_WRAPPING } from "../ui/tap";
 
 /**
  * The line a pal quotes to back a flag up: the seller's own words, or the
@@ -20,7 +21,7 @@ export function FlagEvidence({ evidence, always = false, sourceMessageId = null 
       {/* When the quote came from the chat, it links to the message rather than leaving the reader to find it. */}
       <p className="mt-0.5 text-xs leading-relaxed text-muted">
         {sourceMessageId ? (
-          <a href={`#${messageAnchor(sourceMessageId)}`} className="underline underline-offset-2 hover:text-[var(--accent-ink)]" data-testid="evidence-link">
+          <a href={`#${messageAnchor(sourceMessageId)}`} className={`${TAP_LINK_WRAPPING} underline underline-offset-2 hover:text-[var(--accent-ink)]`} data-testid="evidence-link">
             {quote}
           </a>
         ) : (

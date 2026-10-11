@@ -42,7 +42,7 @@ export function Timeline({ deal, events }: { deal: Deal; events: DealEvent[] }) 
           Show the timeline
         </summary>
         <ol className="relative mt-3 space-y-3 border-l border-line pl-5">
-          {rows.map(({ event, became, hashes }) => {
+          {rows.map(({ event, became, note, hashes }) => {
             const pal = event.actor === "buyer_pal" ? "buyer" : event.actor === "seller_pal" ? "seller" : null;
             return (
               <li key={event.id} className="relative text-sm" data-testid="timeline-row">
@@ -52,6 +52,12 @@ export function Timeline({ deal, events }: { deal: Deal; events: DealEvent[] }) 
                   <span className={`absolute -left-[25px] top-1.5 h-2.5 w-2.5 rounded-full ${DOT[event.kind] ?? "bg-line"}`} aria-hidden />
                 )}
                 <p className="leading-snug">{event.summary}</p>
+                {/* What the folded state change said, on the rare occasion it was not just the state's own name. */}
+                {note ? (
+                  <p className="leading-snug text-[var(--accent-ink)]" data-testid="timeline-note">
+                    {note}
+                  </p>
+                ) : null}
                 <p className="text-[11px] text-muted">
                   {EVENT_KIND_LABELS[event.kind]}, {actorLabel(event.actor, deal)}
                   {became ? `, now ${STATE_LABELS[became]}` : ""}, {formatTime(event.at)}

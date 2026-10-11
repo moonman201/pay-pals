@@ -1,6 +1,7 @@
 import { countStatuses, splitUnreached, STATUS_LEGEND, STATUS_WORDS, type StatusGroup, type StatusLabel, type StatusNote } from "@/lib/deal/status-view";
 import type { Deal } from "@pay-pals/contracts";
 import { Panel } from "../ui/Panel";
+import { TAP_LINK } from "../ui/tap";
 import { CautionIcon, CheckIcon, StopIcon } from "../ui/icons";
 
 const STYLE: Record<StatusLabel, { chip: string; rail: string; icon: typeof CheckIcon }> = {
@@ -45,7 +46,7 @@ function Note({ note }: { note: StatusNote }) {
   return (
     <p className="mt-2 text-sm leading-relaxed text-muted" data-testid="status-note">
       {note.text}{" "}
-      <a href={note.href} className="font-semibold text-[var(--accent-ink)] underline underline-offset-2">
+      <a href={note.href} className={`${TAP_LINK} font-semibold text-[var(--accent-ink)] underline underline-offset-2`}>
         {note.linkText}
       </a>
       .

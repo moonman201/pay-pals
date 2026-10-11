@@ -31,6 +31,7 @@ import { VerdictDiffPanel } from "./VerdictDiffPanel";
 import { VerdictPanel } from "./VerdictPanel";
 import Link from "next/link";
 import { Panel } from "../ui/Panel";
+import { TAP_LINK } from "../ui/tap";
 import { ArrivalStep } from "./steps/ArrivalStep";
 import { InvitePanel } from "./steps/InvitePanel";
 import { IssueStep } from "./steps/IssueStep";
@@ -160,7 +161,7 @@ export function DealRoom({ snapshot, role }: { snapshot: DealSnapshot; role: Rol
             <Panel title="You have not joined yet" accent>
               <p className="text-sm">
                 The buyer invited you. Open the{" "}
-                <Link href={`/deals/${deal.id}/join?as=seller`} className="font-semibold text-[var(--accent-ink)] underline-offset-2 hover:underline">
+                <Link href={`/deals/${deal.id}/join?as=seller`} className={`${TAP_LINK} font-semibold text-[var(--accent-ink)] underline-offset-2 hover:underline`}>
                   join page
                 </Link>{" "}
                 to add your photos, or to say you will not use Pay Pals.
