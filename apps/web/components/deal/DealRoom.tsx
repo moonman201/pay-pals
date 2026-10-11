@@ -176,7 +176,7 @@ export function DealRoom({ snapshot, role }: { snapshot: DealSnapshot; role: Rol
             />
           ) : null}
           {verdictDiff ? <VerdictDiffPanel diff={verdictDiff} /> : null}
-          <StatusView groups={statusGroups} />
+          <StatusView groups={statusGroups} deal={deal} />
           {snapshot.payment ? (
             <PaymentSummary
               payment={snapshot.payment}

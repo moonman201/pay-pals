@@ -9,6 +9,7 @@ export function Panel({
   accent = false,
   labelAs = "heading",
   label,
+  id,
 }: {
   title?: ReactNode;
   aside?: ReactNode;
@@ -25,12 +26,16 @@ export function Panel({
   labelAs?: "heading" | "region";
   /** The accessible name when labelAs is "region". Needed only when the title is not plain text. */
   label?: string;
+  /** An anchor, so another panel can say "it is up there" and link rather than repeat it. */
+  id?: string;
 }) {
   const titleClass = `text-sm font-bold uppercase tracking-wide ${accent ? "text-[var(--accent-ink)]" : "text-muted"}`;
   const heading = labelAs === "heading";
   return (
     <section
-      className={`rounded-xl border border-line bg-surface shadow-sm ${className}`}
+      id={id}
+      // A linked panel must not land under the sticky header, and must not jump for someone who asked for less motion.
+      className={`scroll-mt-4 rounded-xl border border-line bg-surface shadow-sm ${className}`}
       {...(heading ? {} : { role: "region", "aria-label": label ?? (typeof title === "string" ? title : undefined) })}
     >
       {title ? (
