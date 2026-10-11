@@ -53,7 +53,9 @@ test.describe("seller refuses the invite", () => {
     await expectStateAfterPal(page, "Blocked");
 
     const review = panel(page, "Buyer Pal review");
-    await expect(review.getByText("Stop", { exact: true })).toBeVisible();
+    // The verdict is a headline now ("Stop. Don't pay."), so the block's own data says which
+    // verdict it is and the spec stops restating the copy.
+    await expect(review.getByTestId("verdict")).toHaveAttribute("data-overall", "stop");
     const flags = review.getByRole("list", { name: "Red flags" }).getByRole("listitem");
     const refused = flags.filter({ hasText: "refused Pay Pals protection" });
     await expect(refused).toHaveCount(1);

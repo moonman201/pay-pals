@@ -7,13 +7,21 @@
  * Fixtures only, no keys.
  */
 import { expect, test, type Locator, type Page } from "@playwright/test";
-import { ALL_FIXTURES, cleanPs5, emptyBox, fakeSlab, type ScenarioFixture } from "@pay-pals/contracts";
+import { ALL_FIXTURES, FAKE_SLAB_CERT, cleanPs5, emptyBox, fakeSlab, type ScenarioFixture } from "@pay-pals/contracts";
 import { WEB_PRESENT } from "./env";
 import { panel, waitForHydration } from "./helpers";
 import { finishedDeal } from "./layout-helpers";
 
 const STEP_LABELS = ["Invited", "Card built", "Reviewed", "Agreed and locked", "Paid", "Shipped", "Arrived"];
-const OVERALL_WORD = { go: "Go", caution: "Caution", stop: "Stop" } as const;
+/**
+ * The verdict is a short headline now, not a single word: "Stop. Don't
+ * pay.", "Careful. Ask first.", "Looks good." So the spec stops restating
+ * the copy and pins the rules instead, which is what Matt's pass was for:
+ * the block carries the verdict as data, there is exactly one headline,
+ * and it is at most three words.
+ */
+type Overall = "go" | "caution" | "stop";
+const MAX_HEADLINE_WORDS = 3;
 
 async function openFinished(page: Page, fixture: ScenarioFixture): Promise<string> {
   const { href, dealId } = await finishedDeal(page, fixture);
@@ -31,13 +39,17 @@ async function stepStatuses(page: Page): Promise<string[]> {
 }
 
 /** The verdict block carries the overall as data, and the panel says the word exactly once, with no badge in its heading. */
-async function expectVerdictBlock(page: Page, overall: keyof typeof OVERALL_WORD): Promise<Locator> {
+async function expectVerdictBlock(page: Page, overall: Overall): Promise<Locator> {
   const review = panel(page, "Buyer Pal review");
   await expect(review.getByRole("heading").first()).toHaveText("Buyer Pal review");
   const verdict = review.getByTestId("verdict");
   await expect(verdict).toHaveAttribute("data-overall", overall);
   await expect(verdict.locator("img[data-pal='buyer']")).toBeVisible();
-  await expect(review.getByText(OVERALL_WORD[overall], { exact: true })).toHaveCount(1);
+  const headline = verdict.getByTestId("verdict-headline");
+  await expect(headline, "the verdict is said once").toHaveCount(1);
+  const words = ((await headline.textContent()) ?? "").trim().split(/\s+/).filter(Boolean);
+  expect(words.length, `the verdict headline says something: "${words.join(" ")}"`).toBeGreaterThan(0);
+  expect(words.length, `the verdict headline is at most ${MAX_HEADLINE_WORDS} words: "${words.join(" ")}"`).toBeLessThanOrEqual(MAX_HEADLINE_WORDS);
   return review;
 }
 
@@ -52,8 +64,15 @@ test.describe("new layout on the finished deals", () => {
 
     const review = await expectVerdictBlock(page, fakeSlab.expectedVerdict.overall);
     // The cert is real: the comparison agrees row by row, and the stop stands on the other flags.
-    const cert = review.getByTestId("cert-check");
-    await expect(cert).toContainText("matches the card");
+    // The cert block says the finding in one line now, and it says more than "matches": a
+    // matching record shows the slab exists and not that this seller holds it, which is the
+    // D9 sentence. Pin that the headline names the cert and makes both halves of the point.
+    const cert = page.getByTestId("cert-check");
+    await expect(cert).toBeVisible();
+    const certHeadline = cert.getByTestId("cert-headline");
+    await expect(certHeadline).toContainText(FAKE_SLAB_CERT);
+    await expect(certHeadline).toContainText(/matches/i);
+    await expect(certHeadline, "a matching cert never claims the seller has it").toContainText(/doesn't prove|does not prove|not a check/i);
     const rows = cert.getByTestId("comparison").locator("tbody").getByRole("row");
     expect(await rows.count()).toBeGreaterThan(0);
     await expect(cert.getByTestId("comparison").getByRole("columnheader", { name: "Card says" })).toBeVisible();

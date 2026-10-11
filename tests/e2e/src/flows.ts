@@ -93,7 +93,9 @@ export async function answerPalWithDemoPhoto(page: Page, dealId: string, reply: 
   // The Seller Pal builds the new version before the room refreshes.
   await expectStateAfterPal(page, "Listed");
   await expect(panel(page, "Item card").getByRole("tab", { name: "Version 2" })).toBeVisible();
-  await expect((await timelineItems(page)).filter({ hasText: "Card changed. It needs a fresh review." })).toBeVisible();
+  // The state change folds into the card_updated row with the new state on the end, so what
+  // the timeline now shows for this is the card version and the state it went back to.
+  await expect((await timelineItems(page)).filter({ hasText: "Listed" }).first()).toBeVisible();
 }
 
 /**

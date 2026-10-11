@@ -15,7 +15,7 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 import { ALL_FIXTURES } from "@pay-pals/contracts";
 import type { ScenarioFixture } from "@pay-pals/contracts";
 import { STARTS_SERVER, WEB_PRESENT } from "./env";
-import { expectNoHorizontalScroll, snapshot, waitForHydration } from "./helpers";
+import { expectNoHorizontalScroll, snapshot, timelineItems, waitForHydration } from "./helpers";
 import { finishedDeal } from "./layout-helpers";
 
 /** Against a server we did not start (E2E_BASE_URL, for example production) the pass is read-only: no evidence build. */
@@ -156,7 +156,7 @@ test.describe("finished demo deals, desktop and phone", () => {
         const header = page.getByRole("banner");
         await expect(header.getByText(/History does not match|History chain is broken/)).toHaveCount(0);
         await expect(header.getByText("Example deal, seeded from a scenario")).toBeVisible();
-        await expect(header.getByText(/History hash-chained, \d+ events? \(example deal, no PayPal order\)/)).toBeVisible();
+        await expect(header.getByText(/Tamper-evident history, \d+ events? \(example deal, no PayPal order\)/)).toBeVisible();
         await expect(header.getByText(/History unchanged since PayPal order/)).toHaveCount(0);
         if (fixture.payment) {
           const payment = page.locator("section").filter({ has: page.getByRole("heading", { name: "Payment" }) });
@@ -171,7 +171,7 @@ test.describe("finished demo deals, desktop and phone", () => {
 
         // J8: every photo shows its caption once. Buyer-started deals show the new invite wording.
         await expectCaptionsOnce(page, `${id} deal room at ${size.width}px (${roomShot})`);
-        const timeline = page.locator("section").filter({ has: page.getByRole("heading", { name: "Timeline" }) }).getByRole("listitem");
+        const timeline = await timelineItems(page);
         if (fixture.deal.startedBy === "buyer") {
           await expect(timeline.filter({ hasText: "Invite link created for the seller" })).toHaveCount(1);
           await expect(timeline.filter({ hasText: "Invite sent to the seller's PayPal email" })).toHaveCount(0);

@@ -153,15 +153,23 @@ export function panel(page: Page, title: string | RegExp): Locator {
  * assertions rather than passing quietly.
  */
 export async function timelineItems(page: Page): Promise<Locator> {
+  // A room whose review is still streaming re-renders, and a re-render re-creates the
+  // expander closed, so opening it once is not enough: on the seeded rooms a single open
+  // worked and on a freshly started deal it did not, which is how five specs stayed red
+  // after the helper landed. Wait for the stream to settle, then open, then check it took.
+  await waitForReviewIdle(page);
   const timeline = panel(page, "Timeline");
   await expect(timeline).toBeVisible();
   const details = timeline.locator("details");
-  if ((await details.count()) > 0) {
+  const items = timeline.getByRole("listitem");
+  if ((await details.count()) === 0) return items;
+  await expect(async () => {
     await details.first().evaluate((el) => {
       (el as HTMLDetailsElement).open = true;
     });
-  }
-  return timeline.getByRole("listitem");
+    expect(await items.count(), "the timeline expander opened").toBeGreaterThan(0);
+  }).toPass({ timeout: 15_000 });
+  return items;
 }
 
 /** Press a button in the "Next step" panel, where the transition-table moves live. */

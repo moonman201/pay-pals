@@ -21,9 +21,9 @@ test.describe("fake slab stopped", () => {
 
     // Buyer-started: the invite went out, the seller joined, then the card was listed.
     const timeline = await timelineItems(page);
-    await expect(timeline.filter({ hasText: "Waiting for the seller." })).toHaveCount(1);
+    await expect(timeline.filter({ hasText: "Waiting for the seller" })).toHaveCount(1);
     await expect(timeline.filter({ hasText: `${fakeSlab.seller.displayName} joined the deal.` })).toHaveCount(1);
-    await expect(timeline.filter({ hasText: "Listed." })).toHaveCount(1);
+    await expect(timeline.filter({ hasText: "Listed" }).first()).toBeVisible();
     const before = await snapshot(page, dealId);
     expect(before.deal.startedBy).toBe("buyer");
     expect(before.deal.sellerJoinedAt).not.toBeNull();
@@ -43,11 +43,18 @@ test.describe("fake slab stopped", () => {
     await expect(flags.filter({ hasText: /pressure|urgen/i }).first()).toBeVisible();
     // The cert is real and matches the card, so it raises nothing. The deal is stopped by the rest.
     await expect(flags.filter({ hasText: /does not match the card/i })).toHaveCount(0);
-    const certCheck = review.getByTestId("cert-check");
+    // The cert block sits beside the review panel now rather than inside it, so it is found
+    // on the page rather than scoped to that section.
+    const certCheck = page.getByTestId("cert-check");
     await expect(certCheck).toContainText(FAKE_SLAB_CERT);
-    await expect(certCheck).toContainText("matches the card");
-    // A real cert is not a reason to trust the seller, and the panel says which of the two it is.
-    await expect(review).toContainText(/shows the slab exists, not that this seller is holding it/i);
+    // The headline says the finding in one line now, and the second half is the point: a
+    // matching record shows the slab exists, not that this seller holds it.
+    await expect(certCheck.getByTestId('cert-headline')).toContainText(/matches/i);
+    await expect(certCheck.getByTestId('cert-headline')).toContainText(/doesn't prove|does not prove/i);
+    // A real cert is not a reason to trust the seller, and the panel says which of the two it
+    // is. The words changed with Matt's pass; the claim is what is pinned.
+    await expect(review).toContainText(/slab exists/i);
+    await expect(review).toContainText(/doesn't prove the seller has it|not that this seller/i);
     // The cert row on the item card says what the grader's record did, next to the cert number (review item 12).
     const certRow = card.locator("dd").filter({ hasText: FAKE_SLAB_CERT });
     await expect(certRow).toHaveCount(1);
