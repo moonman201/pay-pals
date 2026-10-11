@@ -187,7 +187,7 @@ export const emptyBox: ScenarioFixture = {
     { id: "e14", dealId, kind: "delivered", actor: "buyer", summary: "Buyer confirmed delivery.", at: at(5 * 24 * 60) },
     { id: "e15", dealId, kind: "state_changed", actor: "system", summary: "Delivered.", fromState: "SHIPPED", toState: "DELIVERED", at: at(5 * 24 * 60) },
     { id: "e16", dealId, kind: "arrival_checked", actor: "buyer_pal", summary: `Arrival does not match. The locked card describes a PlayStation 5 with ${EMPTY_BOX_LOCKED_SERIAL} on its box label and no serial ever read off the console. The box arrived with the foam and a plastic bag and no console.`, at: at(5 * 24 * 60 + 20) },
-    { id: "e17", dealId, kind: "state_changed", actor: "buyer_pal", summary: "Issue opened.", fromState: "DELIVERED", toState: "ISSUE", at: at(5 * 24 * 60 + 20) },
+    { id: "e17", dealId, kind: "state_changed", actor: "buyer", summary: "Issue opened: what arrived does not match the locked card. The box arrived empty.", fromState: "DELIVERED", toState: "ISSUE", at: at(5 * 24 * 60 + 20) },
     { id: "e18", dealId, kind: "evidence_built", actor: "buyer_pal", summary: "Evidence pack built for a PayPal dispute.", at: at(5 * 24 * 60 + 22) },
   ]),
 };
