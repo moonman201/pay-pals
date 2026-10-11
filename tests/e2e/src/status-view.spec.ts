@@ -26,9 +26,10 @@
  * rather than one assertion. Fixtures only, no keys.
  */
 import { expect, test, type Page } from "@playwright/test";
-import { ALL_FIXTURES } from "@pay-pals/contracts";
+import { ALL_FIXTURES, type ScenarioFixture } from "@pay-pals/contracts";
 import { WEB_PRESENT } from "./env";
 import { panel, waitForHydration, waitForReviewIdle } from "./helpers";
+import { finishedDeal } from "./layout-helpers";
 
 interface StatusRow {
   group: string;
@@ -68,13 +69,14 @@ async function statusRows(page: Page): Promise<StatusRow[]> {
   );
 }
 
-/** The finished seeded deal the landing page offers for a scenario. */
-async function openFinishedDeal(page: Page, name: string): Promise<void> {
-  await page.goto("/");
-  const card = page.getByRole("article").filter({ has: page.getByRole("heading", { name }) });
-  const link = card.getByRole("link", { name: "See the finished deal" });
-  await expect(link, `the landing page offers the finished ${name} deal`).toBeVisible();
-  await page.goto((await link.getAttribute("href"))!);
+/**
+ * The finished seeded deal the landing page offers for a scenario. The one
+ * helper does the finding, so there is a single place that knows how a
+ * landing card turns into a deal room; this spec used to have a third copy
+ * of it, reading the id out of the href.
+ */
+async function openFinishedDeal(page: Page, fixture: ScenarioFixture): Promise<void> {
+  await finishedDeal(page, fixture);
   await waitForHydration(page);
   // The review streams, and a half-filled one would give a different set of rows.
   await waitForReviewIdle(page);
@@ -85,7 +87,7 @@ test.describe("the deal status view", () => {
 
   for (const fixture of ALL_FIXTURES) {
     test(`${fixture.id}: a Verified line names the comparison it passed`, async ({ page }) => {
-      await openFinishedDeal(page, fixture.name);
+      await openFinishedDeal(page, fixture);
 
       const status = panel(page, "Deal status");
       await expect(status, `${fixture.id}: the deal room shows the status view`).toBeVisible();
@@ -128,7 +130,7 @@ test.describe("the deal status view", () => {
   test("the carrier number and the buyer's word stay Unverified, and keep saying why", async ({ page }) => {
     // The empty-box deal is the one that reaches shipping and delivery with both lines on it.
     const fixture = ALL_FIXTURES.find((f) => f.id === "empty-box")!;
-    await openFinishedDeal(page, fixture.name);
+    await openFinishedDeal(page, fixture);
     const rows = await statusRows(page);
 
     const tracking = rows.find((r) => /tracking number/i.test(r.label));
@@ -146,7 +148,7 @@ test.describe("the deal status view", () => {
 
   test("the arrival line says what was compared, and claims a serial's source only from the check", async ({ page }) => {
     const fixture = ALL_FIXTURES.find((f) => f.id === "clean-ps5")!;
-    await openFinishedDeal(page, fixture.name);
+    await openFinishedDeal(page, fixture);
     const rows = await statusRows(page);
 
     const arrival = rows.find((r) => /arrival check/i.test(r.label));

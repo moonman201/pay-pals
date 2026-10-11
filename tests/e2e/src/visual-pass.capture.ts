@@ -14,8 +14,12 @@ import { mkdirSync, statSync } from "node:fs";
 import { resolve } from "node:path";
 import { chromium, type Browser } from "@playwright/test";
 import { ALL_FIXTURES } from "@pay-pals/contracts";
+import { BASE_URL } from "./env";
+import { DEAL_ID_IN_URL } from "./layout-helpers";
 
-const BASE = process.env.E2E_BASE_URL ?? "http://localhost:3100";
+// The suite's own base: E2E_BASE_URL when set, otherwise this worktree's port. Hard-coding 3100
+// stopped being right when each worktree started choosing its own.
+const BASE = BASE_URL;
 const SET = process.argv[2] ?? "before";
 const OUT = resolve(process.cwd(), "..", "..", "docs", "visual-pass", SET);
 const WIDTHS = [1280, 390] as const;
@@ -40,8 +44,13 @@ async function finishedDeals(browser: Browser): Promise<Record<string, string>> 
   for (const fixture of ALL_FIXTURES) {
     const card = page.getByRole("article").filter({ has: page.getByRole("heading", { name: fixture.name }) });
     const href = await card.getByRole("link", { name: "See the finished deal" }).getAttribute("href");
-    const id = href ? /\/deals\/([^/?]+)/.exec(href)?.[1] : null;
-    if (!id) throw new Error(`No finished deal on the landing page for ${fixture.id} ("${fixture.name}")`);
+    if (!href) throw new Error(`No finished deal on the landing page for ${fixture.id} ("${fixture.name}")`);
+    // Follow the link rather than read an id out of it. The landing links by scenario now and
+    // resolves the deal per request, so the href has no id in it to read; when it did, a capture
+    // run after a re-seed would have filed one deal under another's name or shot a dead page.
+    await page.goto(new URL(href, BASE).toString(), { waitUntil: "networkidle" });
+    const id = DEAL_ID_IN_URL.exec(page.url())?.[1];
+    if (!id) throw new Error(`${fixture.id}: ${href} did not land on a deal room (${page.url()})`);
     out[fixture.id] = id;
   }
   await context.close();
