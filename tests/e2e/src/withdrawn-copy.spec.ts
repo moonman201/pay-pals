@@ -1,33 +1,27 @@
 /**
  * No page a judge opens carries a claim Matt withdrew.
  *
- * Matt's addition to the refresh plan, and it is the right instrument: a
+ * Matt's addition to the refresh plan, and the right instrument: a
  * sentence should not be defended by a pixel count. The landing was
  * carrying "the strongest warning sign" and the slab card's "$400 ... $140"
  * price claim, both withdrawn, while every suite was green, because the
- * three existing guards read source files and the visual baselines, which
- * had the words in the picture, passed under a two percent pixel
- * tolerance. This reads the text a visitor sees.
+ * other guards read source files and the visual baselines, which had the
+ * words in the picture, passed under a two percent pixel tolerance.
  *
- * The rules are not written here. They are parsed out of apps/web's own
- * copy-rules table at run time, so this covers the withdrawn claims as a
- * class and a rule added there reaches the pages without anyone copying
- * it. See withdrawn-copy.ts for why that file is read rather than
- * imported, and for the two claims that belong to a page rather than to
- * the code.
+ * The rules and the denial rule both come from `packages/contracts`. This
+ * spec adds only what no table carries yet: see withdrawn-copy.ts.
  *
  * Fixtures only, no keys.
  */
 import { readFileSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
-import { ALL_FIXTURES } from "@pay-pals/contracts";
+import { ALL_FIXTURES, WITHDRAWN_CLAIMS, withdrawnClaimsIn } from "@pay-pals/contracts";
 import { WEB_PRESENT } from "./env";
 import { waitForHydration, waitForReviewIdle } from "./helpers";
 import { finishedDeal } from "./layout-helpers";
-import { WITHDRAWN_CLAIMS } from "@pay-pals/contracts";
-import { breaches, pageClaims, parseRules, pendingMigration, sharedClaims, COPY_RULES_FILE, PAGE_CLAIMS } from "./withdrawn-copy";
+import { breaches, localClaims, parseRules, pendingMigration, COPY_RULES_FILE, PAGE_CLAIMS } from "./withdrawn-copy";
 
-const CLAIMS = pageClaims();
+const LOCAL = localClaims();
 
 /** What a visitor reads: rendered text, not markup, so a class name or a URL cannot trip it. */
 async function visibleText(page: Page): Promise<string> {
@@ -35,9 +29,9 @@ async function visibleText(page: Page): Promise<string> {
 }
 
 async function expectNoWithdrawnClaims(page: Page, where: string): Promise<void> {
-  const found = breaches(await visibleText(page), CLAIMS);
+  const found = breaches(await visibleText(page), LOCAL);
   expect(
-    found.map((f) => `[${f.claim.id}] "${f.line}" (${f.claim.why})`),
+    found.map((f) => `[${f.id}] "${f.line}" (${f.why})`),
     `${where} carries copy that was withdrawn`,
   ).toEqual([]);
 }
@@ -45,48 +39,43 @@ async function expectNoWithdrawnClaims(page: Page, where: string): Promise<void>
 test.describe("withdrawn copy never reaches a page", () => {
   test.skip(!WEB_PRESENT, "apps/web is not on this branch yet, nothing to load");
 
-  test("the shared list is applied whole, and apps/web's leftovers are applied on top", () => {
-    // The policy comes from packages/contracts now. Every pattern in it reaches these pages.
-    const shared = sharedClaims();
-    expect(shared.length, "patterns in WITHDRAWN_CLAIMS").toBe(WITHDRAWN_CLAIMS.reduce((n, c) => n + c.patterns.length, 0));
-    expect([...new Set(WITHDRAWN_CLAIMS.map((c) => c.id))].sort()).toEqual(["D8", "D9", "D10", "D11"].sort());
-    for (const claim of shared) expect(CLAIMS.map((c) => c.pattern.source), `${claim.id} reaches the pages`).toContain(claim.pattern.source);
+  test("the shared list is applied whole, and apps/web's leftovers on top", () => {
+    expect([...new Set(WITHDRAWN_CLAIMS.map((c) => c.id))].sort()).toEqual(["D10", "D11", "D8", "D9"]);
 
-    // apps/web has not migrated. Its table is still parsed, and only for what the shared list
-    // does not already carry; if that parse ever returns nothing the table changed shape.
     const source = readFileSync(COPY_RULES_FILE, "utf8");
     const parsed = parseRules(source);
     expect(parsed.length, `rules parsed out of ${COPY_RULES_FILE}`).toBeGreaterThanOrEqual(15);
     const extra = pendingMigration(source);
-    console.log(
-      `${extra.length} of ${parsed.length} apps/web rules are not in WITHDRAWN_CLAIMS by exact pattern, an upper bound since a shared pattern that is a superset still counts:\n  ${[...new Set(extra.map((e) => e.pattern.source))].join("\n  ")}`,
-    );
-    expect(CLAIMS.length).toBe(shared.length + extra.length + PAGE_CLAIMS.length);
+    console.log(`${extra.length} of ${parsed.length} apps/web rules are not in WITHDRAWN_CLAIMS by exact pattern, an upper bound since a shared pattern that is a superset still counts`);
+    expect(LOCAL.length).toBe(extra.length + PAGE_CLAIMS.length);
   });
 
-  test("the guard can fail: the withdrawn sentences are still caught", () => {
-    // The two the landing really carried, and a third in other words. If this ever passes an
-    // empty list the patterns have stopped matching and every page check below means nothing.
-    const samples = [
+  test("the guard can fail, and does not fail an honest denial", () => {
+    // The two the landing really carried, a third in other words, and one the shared list
+    // learned the hard way. If any goes unnoticed the page checks below mean nothing.
+    for (const sample of [
       "A refusal to use Pay Pals is the strongest warning sign.",
       "A graded Pokemon card that sells for about $400 is listed at $140.",
       "This proves the seller owns the item.",
-    ];
-    for (const sample of samples) {
-      expect(breaches(sample, CLAIMS), `a withdrawn claim went unnoticed: "${sample}"`).not.toEqual([]);
+      "We guarantee a refund, and this is not a scam.",
+    ]) {
+      expect(breaches(sample, LOCAL), `a withdrawn claim went unnoticed: "${sample}"`).not.toEqual([]);
     }
-    // And it does not fire on the sentences the rules actually want, including the one the slab
-    // room really says, where the denial is a contraction and sits immediately before the claim.
+
+    // And the sentences the rules actually want, through the whole guard rather than through
+    // the shared list alone: three of these are live on the rooms today and the first version
+    // of this guard failed all three, because apps/web's rules reached them without that
+    // table's own denial exemption.
     for (const honest of [
       "A matching cert supports the listing. It is not a check that the item is genuine.",
       "Cert 72096346 matches PSA (demo record)'s record. The slab exists. That doesn't prove the seller has it.",
-      "Pay Pals never guarantees a refund.",
+      "Nothing here proves the seller owns the item.",
+      "A matching serial or cert number supports the listing. It is not a check that the seller owns the item, and not a check that the item is genuine.",
+      "Card serial AJ164952580 compared with AJ164952580, the number the seller photographed on the box: the same number. A matching serial supports the listing. It is not a check of ownership and not a check that the item is genuine.",
     ]) {
-      expect(breaches(honest, CLAIMS), `an honest sentence was called a breach: "${honest}"`).toEqual([]);
+      expect(breaches(honest, LOCAL), `an honest sentence was called a breach: "${honest}"`).toEqual([]);
+      expect(withdrawnClaimsIn(honest), `the shared list called it a breach: "${honest}"`).toEqual([]);
     }
-
-    // A denial elsewhere in the sentence is not a denial of this claim, so this is still caught.
-    expect(breaches("We guarantee a refund, and this is not a scam.", CLAIMS), "a far-away negation excused a claim").not.toEqual([]);
   });
 
   test("the landing page", async ({ page }) => {
