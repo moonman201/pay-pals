@@ -75,8 +75,18 @@ test.describe("withdrawn copy never reaches a page", () => {
     for (const sample of samples) {
       expect(breaches(sample, CLAIMS), `a withdrawn claim went unnoticed: "${sample}"`).not.toEqual([]);
     }
-    // And it does not fire on the sentence the rules actually want.
-    expect(breaches("A matching cert supports the listing. It is not a check that the item is genuine.", CLAIMS)).toEqual([]);
+    // And it does not fire on the sentences the rules actually want, including the one the slab
+    // room really says, where the denial is a contraction and sits immediately before the claim.
+    for (const honest of [
+      "A matching cert supports the listing. It is not a check that the item is genuine.",
+      "Cert 72096346 matches PSA (demo record)'s record. The slab exists. That doesn't prove the seller has it.",
+      "Pay Pals never guarantees a refund.",
+    ]) {
+      expect(breaches(honest, CLAIMS), `an honest sentence was called a breach: "${honest}"`).toEqual([]);
+    }
+
+    // A denial elsewhere in the sentence is not a denial of this claim, so this is still caught.
+    expect(breaches("We guarantee a refund, and this is not a scam.", CLAIMS), "a far-away negation excused a claim").not.toEqual([]);
   });
 
   test("the landing page", async ({ page }) => {

@@ -41,16 +41,37 @@ export interface PageClaim {
   /** Matt's batch item, or "page" for one that belongs only to a rendered page. */
   id: string;
   pattern: RegExp;
-  /** Text that also matches this is denying the claim, which is what the rules ask for. */
-  unless?: RegExp;
+  /** A denial close before the match means the page is saying the right thing. */
+  unless?: boolean;
+  /** Whether apps/web's own table marks this rule as allowing a denial. Recorded, not used. */
+  tableSaysUnless?: boolean;
   why: string;
 }
 
 /** `{ rule: "D8", pattern: /…/i, instead: "…", unless: NEGATED }`, one per line in that table. */
 const RULE_LINE = /\{\s*rule:\s*"([^"]+)",\s*pattern:\s*\/((?:[^/\\]|\\.)+)\/([gimsuy]*)\s*,\s*instead:\s*(?:"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')(\s*,\s*unless:\s*NEGATED)?\s*\}/g;
 
-/** The negation guard apps/web uses: a line that denies the claim is the sentence the rules want. */
-const NEGATED = /\b(not|never|neither|cannot)\b/i;
+/**
+ * A denial of a withdrawn claim is the sentence the rules want, and the
+ * slab room says one: "Cert 72096346 matches PSA (demo record)'s record.
+ * The slab exists. That doesn't prove the seller has it." Without this the
+ * guard fails the best sentence on the page, which is the mistake the
+ * dispute assertion already taught me once.
+ *
+ * Two differences from the `unless: NEGATED` apps/web uses on one rule.
+ * It reads contractions, because "doesn't" is how that sentence is written
+ * and `\b(not|never)\b` cannot see it. And it only counts a negator close
+ * before the match, rather than anywhere on the line, so "guarantees a
+ * refund, and this is not a scam" is still caught: a denial somewhere else
+ * in the sentence is not a denial of this claim.
+ */
+const NEGATOR = /\b(not|never|neither|cannot|nothing|no)\b|n['\u2019]t\b/i;
+/** How far back a denial can sit and still be denying this claim. */
+const NEGATION_REACH = 48;
+
+export function deniedBefore(line: string, index: number): boolean {
+  return NEGATOR.test(line.slice(Math.max(0, index - NEGATION_REACH), index));
+}
 
 /**
  * apps/web's table, parsed as text because tests/e2e cannot import across
@@ -66,7 +87,12 @@ export function parseRules(source: string): PageClaim[] {
     out.push({
       id: m[1]!,
       pattern: new RegExp(m[2]!, m[3]!.includes("i") ? "i" : ""),
-      unless: m[4] ? NEGATED : undefined,
+      // Every claim allows a denial on a page, not only the one rule whose table entry says so.
+      // The exemption belongs to the medium: in source, those strings are UI fragments, while on
+      // a page the honest sentence and the claim sit in the same document and only their shape
+      // tells them apart. apps/web's own `unless` is kept in the parse for the record.
+      unless: true,
+      tableSaysUnless: m[4] !== undefined,
       why: `apps/web copy rule ${m[1]!}`,
     });
   }
@@ -104,9 +130,16 @@ export const PAGE_CLAIMS: PageClaim[] = [
   { id: "page", pattern: /worth (about|around|roughly)?\s*\$\d/i, why: "same claim in other words" },
 ];
 
-/** The shared policy as page claims, with its own wording carried into the failure message. */
+/**
+ * The shared policy as page claims, with its own wording carried into the
+ * failure message. Every one of them allows a denial: on a rendered page,
+ * unlike in a Markdown file, the honest sentence and the claim sit in the
+ * same document, so a file-level exception cannot tell them apart.
+ */
 export function sharedClaims(): PageClaim[] {
-  return WITHDRAWN_CLAIMS.flatMap((claim) => claim.patterns.map((pattern) => ({ id: claim.id, pattern, why: `${claim.why}. Instead: ${claim.instead}` })));
+  return WITHDRAWN_CLAIMS.flatMap((claim) =>
+    claim.patterns.map((pattern) => ({ id: claim.id, pattern, unless: true, why: `${claim.why}. Instead: ${claim.instead}` })),
+  );
 }
 
 export function pageClaims(): PageClaim[] {
@@ -118,8 +151,9 @@ export function breaches(text: string, claims: PageClaim[]): { claim: PageClaim;
   const found: { claim: PageClaim; line: string }[] = [];
   for (const line of text.split("\n").map((l) => l.trim()).filter(Boolean)) {
     for (const claim of claims) {
-      if (!claim.pattern.test(line)) continue;
-      if (claim.unless?.test(line)) continue;
+      const match = claim.pattern.exec(line);
+      if (!match) continue;
+      if (claim.unless && deniedBefore(line, match.index)) continue;
       found.push({ claim, line });
     }
   }
