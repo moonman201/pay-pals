@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { EvidenceInput } from "@pay-pals/contracts";
+import type { EvidenceInput, HistoryAnchor } from "@pay-pals/contracts";
 import { EMPTY_BOX_LOCKED_SERIAL, cleanPs5, emptyBox } from "@pay-pals/contracts";
 import { fakeClaude } from "../testing/fake-claude";
 import { dropHeadingLine, deterministicSummary, tamperCheck, writeSummary } from "./summary";
@@ -25,36 +25,77 @@ function proseClient(text: string) {
 }
 
 /**
- * The tamper check. Until EvidenceInput can tell a corroborated hash from an
- * unread one from a deal with no PayPal order behind it, the sentence claims
- * only what we can check on our own side. These tests pin that it never
- * reaches for PayPal in any of its forms, because the overclaim this replaced
- * sat on the seeded empty-box pack one paragraph away from a line saying no
- * PayPal order holds the head.
+ * The tamper check, in all three anchoring cases. The rule under every one of
+ * them: the sentence may claim PayPal's side only when historyAnchor says
+ * PayPal's side was actually read, and absent must read as the conservative
+ * case so a pack stored before the field existed never starts claiming
+ * corroboration. The overclaim these replaced sat on the seeded empty-box pack
+ * one paragraph away from a line saying no PayPal order holds the head.
  */
-describe("the tamper check never claims PayPal corroborated anything", () => {
+describe("the tamper check tells the three anchoring cases apart", () => {
   // A real head from the chain, so historyMatchesHead actually verifies.
   const head = emptyBox.timeline.find((e) => e.kind === "payment_created")!.hash;
-  const withHash = (): EvidenceInput => ({ ...input(emptyBox), payment: { ...emptyBox.payment!, historyHash: head } });
+  const withHash = (anchor?: HistoryAnchor): EvidenceInput => ({
+    ...input(emptyBox),
+    payment: { ...emptyBox.payment!, historyHash: head },
+    ...(anchor ? { historyAnchor: anchor } : {}),
+  });
+  const broken = (anchor?: HistoryAnchor): EvidenceInput => ({
+    ...input(emptyBox),
+    payment: { ...emptyBox.payment!, historyHash: "a".repeat(64) },
+    ...(anchor ? { historyAnchor: anchor } : {}),
+  });
 
-  /** Phrases that assert PayPal's side, none of which the input can support today. */
-  const PAYPAL_CLAIMS = [/\bnot edited after payment\b/i, /PayPal (?:holds|confirms|corroborates|has)\b/i, /\brecorded on the PayPal order\b/i, /what PayPal holds/i];
+  /** Phrases that assert PayPal's side. Only "corroborated" may use any of them. */
+  const PAYPAL_CLAIMS = [/\bnot edited after payment\b/i, /PayPal(?:'s)? (?:own )?cop(?:y|ies) (?:carries|matches|holds)/i, /the history PayPal holds/i];
 
-  it("says the chain reproduces our own hash, and says PayPal's copy was not checked", () => {
-    const sentence = tamperCheck(withHash())!;
-    expect(sentence).toContain("are hash-chained and reproduce the hash recorded with this payment");
-    expect(sentence).toContain("an edit to them would break the chain");
-    expect(sentence).toContain("Whether PayPal's own copy of that hash matches has not been checked for this pack.");
+  it("corroborated: says PayPal's copy was read back and carries the same hash", () => {
+    const sentence = tamperCheck(withHash("corroborated"))!;
+    expect(sentence).toContain("reproduce the hash recorded with this payment");
+    expect(sentence).toContain("PayPal's own copy of that hash was read back for this pack and carries the same one");
+    expect(sentence).toContain("The stored history is the history PayPal holds.");
     expect(sentence.trimEnd().endsWith(`The hash is ${head}.`)).toBe(true);
+  });
+
+  it("corroborated and broken: says the stored history differs from what PayPal holds", () => {
+    const sentence = tamperCheck(broken("corroborated"))!;
+    expect(sentence).toContain("do not reproduce the hash recorded with this payment");
+    expect(sentence).toContain("The stored history differs from what PayPal holds.");
+  });
+
+  it("recorded_only: says the check is against our own record, not PayPal's", () => {
+    const sentence = tamperCheck(withHash("recorded_only"))!;
+    expect(sentence).toContain("an edit to them would break the chain");
+    expect(sentence).toContain("was not read back for this pack, so this check is against our own record of it and not against PayPal's");
     for (const claim of PAYPAL_CLAIMS) expect(sentence).not.toMatch(claim);
   });
 
-  it("says the chain is broken without reaching for PayPal either way", () => {
-    const sentence = tamperCheck({ ...input(emptyBox), payment: { ...emptyBox.payment!, historyHash: "a".repeat(64) } })!;
+  it("recorded_only and broken: says our own two records disagree, and reaches no further", () => {
+    const sentence = tamperCheck(broken("recorded_only"))!;
     expect(sentence).toContain("do not reproduce the hash recorded with this payment");
     expect(sentence).toContain("has been changed since that hash was taken");
-    expect(sentence).toContain("has not been checked for this pack");
     for (const claim of PAYPAL_CLAIMS) expect(sentence).not.toMatch(claim);
+  });
+
+  it("not_anchored: says no PayPal order holds the hash and why", () => {
+    const sentence = tamperCheck(withHash("not_anchored"))!;
+    expect(sentence).toContain("an edit to them would break the chain");
+    expect(sentence).toContain("No PayPal order holds this hash, because the payment ids on this deal are placeholders");
+    expect(sentence).toContain("nothing on PayPal's side to compare it against");
+    for (const claim of PAYPAL_CLAIMS) expect(sentence).not.toMatch(claim);
+  });
+
+  it("not_anchored and broken: says both halves, and still claims nothing of PayPal", () => {
+    const sentence = tamperCheck(broken("not_anchored"))!;
+    expect(sentence).toContain("do not reproduce the hash recorded with this payment");
+    expect(sentence).toContain("No PayPal order holds this hash either");
+    for (const claim of PAYPAL_CLAIMS) expect(sentence).not.toMatch(claim);
+  });
+
+  it("absent reads as recorded_only, so an older pack never starts claiming corroboration", () => {
+    expect(tamperCheck(withHash())).toBe(tamperCheck(withHash("recorded_only")));
+    expect(tamperCheck(broken())).toBe(tamperCheck(broken("recorded_only")));
+    for (const claim of PAYPAL_CLAIMS) expect(tamperCheck(withHash())!).not.toMatch(claim);
   });
 
   it("with no hash at all, says there is nothing on PayPal's side to compare against", () => {
@@ -76,25 +117,46 @@ describe("the tamper check never claims PayPal corroborated anything", () => {
     expect(sentence).toContain("the first break is at event 3");
   });
 
-  it("keeps the claim out of the model's prose too, not just the facts", async () => {
+  /**
+   * The prompt is the half that bit last time: the facts stopped claiming
+   * corroboration and the system prompt put it straight back. So the model is
+   * told which case it is in, not merely forbidden a phrase.
+   */
+  it.each([
+    ["corroborated", "PayPal's own copy of the history hash was read back for this pack.", true],
+    ["recorded_only", "PayPal's copy of the history hash was NOT read back for this pack.", false],
+    ["not_anchored", "No PayPal order holds this hash at all", false],
+  ] as const)("tells the model it is in the %s case", async (anchor, expected, mayClaim) => {
     let system = "";
-    const client = fakeClaude((params) => {
+    const client = fakeClaude(() => null);
+    client.messages.create = async (params) => {
       system = String(params.system);
-      return null;
-    });
+      return { content: [{ type: "text", text: "A summary." }], stop_reason: "end_turn" } as never;
+    };
+    await writeSummary(withHash(anchor), client);
+    expect(system).toContain(expected);
+    if (!mayClaim) expect(system).toContain("do not say the history was not edited after payment");
+    expect(system).not.toContain("official record of the deal that PayPal can check first");
+    // Exactly one case line, so two cannot be in the prompt at once.
+    const cases = ["was read back for this pack.", "was NOT read back for this pack.", "No PayPal order holds this hash at all"].filter((c) => system.includes(c));
+    expect(cases).toHaveLength(1);
+  });
+
+  it("an older pack with no anchor gets the conservative prompt", async () => {
+    let system = "";
+    const client = fakeClaude(() => null);
     client.messages.create = async (params) => {
       system = String(params.system);
       return { content: [{ type: "text", text: "A summary." }], stop_reason: "end_turn" } as never;
     };
     await writeSummary(withHash(), client);
-    expect(system).toContain("Do not say that PayPal holds, confirms or corroborates the hash");
-    expect(system).toContain("do not say the history was not edited after payment");
-    expect(system).not.toContain("official record of the deal that PayPal can check first");
+    expect(system).toContain("was NOT read back for this pack.");
   });
 
   it("the seeded empty-box pack no longer contradicts itself about who holds the hash", () => {
-    const summary = deterministicSummary(withHash());
+    const summary = deterministicSummary({ ...withHash("not_anchored") });
     for (const claim of PAYPAL_CLAIMS) expect(summary).not.toMatch(claim);
+    expect(summary).toContain("No PayPal order holds this hash");
   });
 });
 

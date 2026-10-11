@@ -33,6 +33,13 @@ export interface RuleInput {
   inviteDeclined?: boolean;
   /** Card photos found to be the same picture as a known photo, from the image check. */
   photoMatches?: PhotoMatch[];
+  /**
+   * True when this review read a serial off one of the card's photos with the
+   * vision model, so a transcription slip is a live possibility and the
+   * near-miss band applies. False when every number in play was typed or came
+   * from a caption. See serial-match.ts.
+   */
+  serialReadFromPhoto?: boolean;
 }
 
 export type Rule = (input: RuleInput) => RedFlag[];

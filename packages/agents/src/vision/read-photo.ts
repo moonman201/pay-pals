@@ -172,10 +172,24 @@ export async function readPhoto(photo: Photo, deps: ReadPhotoDeps): Promise<Phot
   };
 }
 
-export async function readPhotos(photos: Photo[], deps: ReadPhotoDeps): Promise<PhotoReading[]> {
-  const readings: PhotoReading[] = [];
-  for (const photo of photos) readings.push(await readPhoto(photo, deps));
-  return readings;
+/**
+ * Reads every photo. The reads are independent, so they go out together rather
+ * than one after another: on the clean deal's three card photos that is the
+ * difference between three round trips and one. The returned array stays in
+ * the order it was given, whatever order the answers arrive in.
+ *
+ * `onRead` fires as each one lands, for a caller streaming progress. It is
+ * called inside the same try the read is in, so a throw from it would fail
+ * that read; callers pass an emitter that cannot throw (see progress.ts).
+ */
+export async function readPhotos(photos: Photo[], deps: ReadPhotoDeps, onRead?: (reading: PhotoReading) => void): Promise<PhotoReading[]> {
+  return Promise.all(
+    photos.map(async (photo) => {
+      const reading = await readPhoto(photo, deps);
+      onRead?.(reading);
+      return reading;
+    }),
+  );
 }
 
 /**

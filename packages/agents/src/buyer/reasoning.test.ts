@@ -208,6 +208,8 @@ describe("the arrival check explains itself too", () => {
   it("says a caption-sourced serial is the buyer's word, in the message and in both groups", async () => {
     const { data: check, palMessage } = await pal().checkArrival(cleanPs5.cards.at(-1)!, cleanPs5.arrivalPhotos);
     expect(check.observed.serial).toBe(CLEAN_SERIAL);
+    // Published for apps/web, from the same reading the message and the reasons used.
+    expect(check.observed.serialSource).toBe("description");
     expect(palMessage).not.toContain("confirmed on the item itself");
     expect(check.reasoning!.found.join(" ")).toContain("the buyer's word, not a number I read off the picture");
     expect(check.reasoning!.couldNotVerify.join(" ")).toContain("did not read that serial off the picture myself");

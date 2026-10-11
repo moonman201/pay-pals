@@ -23,10 +23,22 @@ import type { CertCheck, ItemCard, Party, PriceCheck, RedFlag, VerdictOverall } 
 import { PAYMENT_METHOD_FLAGS } from "@pay-pals/contracts";
 import { deviceFamily } from "../seller/listing-parse";
 import { normalizeSerial } from "../vision/description";
+import { compareSerials, describeDifference } from "../vision/serial-match";
 import { itemSerial, type PhotoReading } from "../vision/read-photo";
 import { datedNoteQuestion, serialCloseUpQuestion } from "./proof-question";
 import { tidyReasons, type ReasonLine } from "./reasoning";
 import type { PalReasoning } from "@pay-pals/contracts";
+
+/**
+ * The card's two serials when they are one edit apart and a photo read is in
+ * play, so neither "they match" nor "they differ" is honest. Null otherwise.
+ * See serial-match.ts.
+ */
+export function nearMissSerials(card: ItemCard | null, serialReadFromPhoto: boolean): { serial: string; boxSerial: string; where: string } | null {
+  if (!card?.serial || !card.boxSerial) return null;
+  if (compareSerials(card.serial, card.boxSerial, { readFromPhoto: serialReadFromPhoto }) !== "near") return null;
+  return { serial: card.serial, boxSerial: card.boxSerial, where: describeDifference(card.serial, card.boxSerial) };
+}
 
 export interface ReviewReasonInput {
   card: ItemCard | null;
@@ -41,6 +53,8 @@ export interface ReviewReasonInput {
   photoMatchRan: boolean;
   /** False when no Claude client was available, so the review is rules only. */
   modelAvailable: boolean;
+  /** True when a serial was read off one of the card's photos, so the near-miss band applies. */
+  serialReadFromPhoto: boolean;
 }
 
 const has = (flags: readonly RedFlag[], code: RedFlag["code"]): boolean => flags.some((f) => f.code === code);
@@ -102,6 +116,8 @@ function found(input: ReviewReasonInput): ReasonLine[] {
   if (card?.serial && card.boxSerial && normalizeSerial(card.serial) === normalizeSerial(card.boxSerial)) {
     lines.push(`The serial on the card and the number on the box label are the same, ${card.serial}.`);
   }
+  const near = nearMissSerials(card, input.serialReadFromPhoto);
+  if (near) lines.push(`The serial on the card is ${near.serial} and the number read off the box label is ${near.boxSerial}: ${near.where}.`);
   if (certCheck && certCheck.matches !== null) lines.push(certCheck.explanation);
   return lines;
 }
@@ -141,6 +157,12 @@ function couldNotVerify(input: ReviewReasonInput): ReasonLine[] {
   if (card.boxSerial && !card.serial) {
     lines.push("The number I have is on the box label. A box is not the console, so it does not show which unit is inside.");
   }
+  // The near-miss band claims neither a match nor a mismatch, so the thing it could not settle has
+  // to be said out loud. Dropping the flag and saying nothing would be the quiet kind of untruth.
+  const near = nearMissSerials(card, input.serialReadFromPhoto);
+  if (near) {
+    lines.push(`I cannot tell whether ${near.serial} and ${near.boxSerial} are the same number: ${near.where}, which is what a misread of one character looks like. I am not calling that a match and I am not calling it a mismatch.`);
+  }
 
   if (certLookupFailed && card.certNumber) lines.push(`I could not reach the grader to check cert ${card.certNumber}, so that check did not happen.`);
   if (certCheck?.record.provider === "fixture") lines.push("The cert record behind that check is a demo record standing in for the grader, not a live lookup.");
@@ -176,7 +198,10 @@ function wouldChangeMyMind(input: ReviewReasonInput): ReasonLine[] {
   if (has(flags, "NAME_MISMATCH")) lines.push("An explanation of why the PayPal name is not the seller's name, or a payment to an address that matches, would change this.");
   if (has(flags, "SHIP_BEFORE_PAY_TRICK")) lines.push("The seller shipping only after the Goods and Services payment is captured would change this.");
 
-  // The same two asks the seller gets, worded as what they would settle, so the panels agree.
+  // The same asks the seller gets, worded as what they would settle, so the panels agree.
+  if (nearMissSerials(card, input.serialReadFromPhoto)) {
+    lines.push("A clearer photo of the box label would settle whether those two numbers are the same, because one of the two was read off a picture and could be a character out.");
+  }
   if (datedNoteQuestion(card)) lines.push("One photo of the slab next to a handwritten note with the seller's name and today's date would show who is holding it.");
   const closeUp = serialCloseUpQuestion(card);
   if (closeUp) {

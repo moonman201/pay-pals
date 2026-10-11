@@ -132,6 +132,9 @@ export async function checkArrivalAgainstCard(card: ItemCard, arrivalPhotos: Pho
     brand: first(readings, (r) => r.brand),
     model: first(readings, (r) => r.model),
     serial: item?.serial ?? null,
+    // Published so apps/web reads the provenance rather than guessing at it. Null when there is
+    // no serial at all, because then there is no source to name.
+    serialSource: item ? (item.reading.source === "vision" ? ("photo" as const) : ("description" as const)) : null,
   };
   const mismatches = compareToCard(card, observed, { packagingSerial: box?.serial ?? null, missing, photosProvided: arrivalPhotos.length > 0 });
   const matches = mismatches.length === 0;
@@ -139,7 +142,8 @@ export async function checkArrivalAgainstCard(card: ItemCard, arrivalPhotos: Pho
   const unreadable = mismatches.some((m) => m.field === "serial") && observed.serial === null && !missing;
   // Where the number came from. A serial lifted out of the buyer's caption is the buyer's word: it is
   // evidence, but the pal did not see it, so it may not be called confirmed on the item itself.
-  const serialSeen = item?.reading.source === "vision";
+  // observed.serialSource publishes the same fact, so the page says it too instead of guessing.
+  const serialSeen = observed.serialSource === "photo";
 
   const palMessage = sentences(
     arrivalPhotos.length === 0 ? "I have no arrival photos to check yet. Add a photo of the serial on the item itself." : null,
