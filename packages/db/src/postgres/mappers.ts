@@ -201,8 +201,14 @@ export function toVerdictRow(v: Verdict): typeof verdicts.$inferInsert {
   return { dealId: v.dealId, kind: "review", cardVersion: v.cardVersion, outcome: v.overall, payload: v, createdAt: date(v.createdAt) };
 }
 
+/**
+ * The outcome column takes the contract's three values as they are, so an
+ * inconclusive check is stored as "inconclusive" and not folded into one of
+ * the other two. This row is never updated in place, so a value written here
+ * is the permanent record of what the pal concluded.
+ */
 export function toArrivalRow(c: ArrivalCheck): typeof verdicts.$inferInsert {
-  return { dealId: c.dealId, kind: "arrival", cardVersion: c.cardVersion, outcome: c.matches ? "match" : "mismatch", payload: c, createdAt: date(c.createdAt) };
+  return { dealId: c.dealId, kind: "arrival", cardVersion: c.cardVersion, outcome: c.outcome, payload: c, createdAt: date(c.createdAt) };
 }
 
 export const toVerdict = (row: VerdictRow): Verdict => row.payload as Verdict;
