@@ -205,18 +205,11 @@ textarea::placeholder {
   display: inline-flex;
 }
 
-@media (prefers-color-scheme: light) {
-  :root:not([data-theme="dark"]) .hero-art {
-    filter: none;
-  }
-  :root:not([data-theme="dark"]) .day-only {
-    display: inline-flex;
-  }
-  :root:not([data-theme="dark"]) .night-only {
-    display: none;
-  }
-}
-
+/*
+ * No prefers-color-scheme block, for the reason in tokens.css: night is
+ * the site for everyone who has not chosen, so the device decides nothing
+ * here either, and the toggle's two halves follow the attribute alone.
+ */
 :root[data-theme="light"] .hero-art {
   filter: none;
 }

@@ -1,8 +1,8 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import {
   applyThemeMode,
   currentThemeMode,
-  deviceThemeMode,
+  DEFAULT_THEME_MODE,
   isThemeMode,
   otherThemeMode,
   storeThemeMode,
@@ -12,7 +12,6 @@ import {
   THEME_STORAGE_KEY,
 } from "./theme";
 
-const view = (dark: boolean) => ({ matchMedia: vi.fn(() => ({ matches: dark })) }) as unknown as Window;
 const blocked = {
   getItem: () => {
     throw new Error("storage is blocked");
@@ -37,18 +36,25 @@ describe("the colour mode", () => {
     expect(otherThemeMode("light")).toBe("dark");
   });
 
-  it("reads the device setting when nothing is stored", () => {
-    expect(deviceThemeMode(view(true))).toBe("dark");
-    expect(deviceThemeMode(view(false))).toBe("light");
-    expect(currentThemeMode(document.documentElement, view(true))).toBe("dark");
-    expect(currentThemeMode(document.documentElement, view(false))).toBe("light");
+  it("is night for a visitor who has not chosen, whatever their device is set to", () => {
+    // Nothing here can be told what the device says, because nothing reads it: the
+    // default is a constant, not a query. That is the whole of G16 in one line.
+    expect(DEFAULT_THEME_MODE).toBe("dark");
+    expect(currentThemeMode(document.documentElement)).toBe("dark");
+    expect(currentThemeMode(null)).toBe("dark");
+    expect(currentThemeMode(undefined)).toBe("dark");
   });
 
-  it("lets the attribute on the page beat the device", () => {
+  it("falls back to night on a junk attribute rather than guessing from somewhere else", () => {
+    document.documentElement.setAttribute(THEME_ATTRIBUTE, "navy");
+    expect(currentThemeMode(document.documentElement)).toBe("dark");
+  });
+
+  it("lets the attribute on the page decide, which is the visitor's own choice", () => {
     applyThemeMode(document.documentElement, "light");
-    expect(currentThemeMode(document.documentElement, view(true))).toBe("light");
+    expect(currentThemeMode(document.documentElement)).toBe("light");
     applyThemeMode(document.documentElement, "dark");
-    expect(currentThemeMode(document.documentElement, view(false))).toBe("dark");
+    expect(currentThemeMode(document.documentElement)).toBe("dark");
   });
 
   it("keeps a choice and reads it back", () => {
@@ -67,7 +73,8 @@ describe("the colour mode", () => {
     expect(storedThemeMode(blocked)).toBeNull();
     expect(() => storeThemeMode(blocked, "dark")).not.toThrow();
     expect(storedThemeMode(null)).toBeNull();
-    expect(deviceThemeMode(null)).toBe("light");
+    // No stored choice is night, same as any other visitor who has not chosen.
+    expect(currentThemeMode(document.documentElement)).toBe("dark");
   });
 
   it("boots from the same key and attribute the toggle writes, and swallows a storage error", () => {

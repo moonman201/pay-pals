@@ -1,9 +1,12 @@
 /**
- * Two layers, two modes: the boxes are navy in both, the page behind them
- * swaps, the device setting decides and the visitor's choice beats it.
- * These read the files rather than a browser, because what matters is that
- * nothing is forced on the document and that neither mode's block in the
- * stylesheet can be overruled by the other.
+ * Two layers, two modes: the boxes are navy in both and the page behind
+ * them swaps. Night is the site for every visitor who has not chosen, and
+ * a choice is the only thing that changes it (G16).
+ *
+ * These read the files rather than a browser, because what has to hold is
+ * structural: night is in the server's HTML so it needs no JavaScript, and
+ * no rule anywhere reads the device, so none can repaint a page against a
+ * choice the visitor made.
  */
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
@@ -18,10 +21,7 @@ const tokens = read("tokens.css");
 const globals = read("globals.css");
 
 const BOX_PALETTE = ":root,\n.in-box {";
-const DAY_MEDIA = "@media (prefers-color-scheme: light) {";
-const DAY_BY_DEVICE = ':root:not([data-theme="dark"]) .on-page {';
 const DAY_BY_CHOICE = ':root[data-theme="light"] .on-page {';
-const PAGE_BY_DEVICE = ':root:not([data-theme="dark"]) {';
 const PAGE_BY_CHOICE = ':root[data-theme="light"] {';
 
 /** The body of one block, found by its selector and closed by brace counting. */
@@ -36,7 +36,7 @@ function block(css: string, selector: string): string {
   throw new Error(`unclosed block for ${selector}`);
 }
 
-const declarations = (body: string) => new Map([...body.matchAll(/^\s*(--[a-z0-9-]+):\s*([^;]+);/gm)].map((m) => [m[1], m[2].trim()] as const));
+const declarations = (body: string) => new Map([...body.matchAll(/^\s*(--[a-z0-9-]+):\s*([^;]+);/gm)].map((m) => [m[1] ?? "", (m[2] ?? "").trim()] as const));
 
 /** Every .tsx under apps/web, so a new page region cannot be added without a side on it. */
 function sources(dir: string): string[] {
@@ -49,9 +49,8 @@ function sources(dir: string): string[] {
 }
 
 describe("the shipped theme", () => {
-  it("forces no mode on the document, so the device setting decides", () => {
-    expect(layout).not.toMatch(/data-theme/);
-    expect(layout).toMatch(/<html lang="en" suppressHydrationWarning>/);
+  it("renders night on the document, so a visitor with no choice gets it without JavaScript", () => {
+    expect(layout).toMatch(/<html lang="en" data-theme="dark" suppressHydrationWarning>/);
     expect(layout).toMatch(/<ThemeScript \/>/);
   });
 
@@ -59,6 +58,14 @@ describe("the shipped theme", () => {
     expect(THEME_BOOT_SCRIPT).toContain(THEME_STORAGE_KEY);
     expect(THEME_BOOT_SCRIPT).toContain(THEME_ATTRIBUTE);
     expect(THEME_BOOT_SCRIPT.startsWith("try{")).toBe(true);
+  });
+
+  it("boots from the stored choice and nothing else, so the device cannot decide", () => {
+    expect(THEME_BOOT_SCRIPT).toContain("localStorage.getItem");
+    expect(THEME_BOOT_SCRIPT).not.toContain("matchMedia");
+    expect(THEME_BOOT_SCRIPT).not.toContain("prefers-color-scheme");
+    // Its one write is guarded by the stored value being one of the two modes.
+    expect(THEME_BOOT_SCRIPT).toMatch(/if\(m==="light"\|\|m==="dark"\)document\.documentElement\.setAttribute/);
   });
 
   it("keeps the boxes navy in both modes, from one block shared by :root and .in-box", () => {
@@ -74,38 +81,42 @@ describe("the shipped theme", () => {
     expect(tokens).toMatch(/\.on-page,\n\.in-box \{\n {2}color: var\(--ink\);\n\}/);
   });
 
-  it("swaps the page layer by the device setting, with night as the default", () => {
-    expect(tokens).toContain(DAY_MEDIA);
-    expect(tokens).not.toContain("prefers-color-scheme: dark");
-    expect(globals).not.toContain("prefers-color-scheme: dark");
-    const day = declarations(block(tokens, DAY_BY_DEVICE));
+  it("gets into day one way only, which is the visitor asking for it", () => {
+    const day = declarations(block(tokens, DAY_BY_CHOICE));
     expect(day.get("--ink")).toBe("#10213a");
     expect(day.get("--surface")).toBe("#ffffff");
+    // One day page block and one day on-page block. A second way in is a second thing to keep in step.
+    expect(tokens.match(/:root\[data-theme="light"\]/g)).toHaveLength(2);
   });
 
-  it("lets a stored night choice stand on a device set to light", () => {
-    const media = block(tokens, DAY_MEDIA);
-    const selectors = [...media.matchAll(/^ {2}(:root[^{]*)\{/gm)].map((m) => m[1].trim());
-    expect(selectors).toHaveLength(2);
-    for (const selector of selectors) expect(selector).toContain(':not([data-theme="dark"])');
+  it("reads the device setting in neither stylesheet, so no rule can overrule a choice", () => {
+    // A prefers-color-scheme block would be the one rule able to repaint a page
+    // against an explicit choice, because a media query and an attribute selector
+    // have to be ordered against each other by hand. So it does not exist, and
+    // that is checked here rather than its ordering being checked.
+    for (const css of [tokens, globals]) {
+      expect(css).not.toContain("prefers-color-scheme");
+      expect(css).not.toContain(':not([data-theme=');
+    }
+    expect(tokens).not.toContain("@media");
+    expect([...globals.matchAll(/@media \(?([a-z-]+)/g)].map((m) => m[1])).toEqual(["prefers-reduced-motion", "min-width", "print"]);
   });
 
-  it("lets a stored day choice stand on a device set to dark, from outside the media query", () => {
-    const mediaEnd = tokens.indexOf(DAY_MEDIA) + block(tokens, DAY_MEDIA).length;
-    expect(tokens.indexOf(DAY_BY_CHOICE)).toBeGreaterThan(mediaEnd);
-    expect(tokens.indexOf(PAGE_BY_CHOICE)).toBeGreaterThan(mediaEnd);
-    // Night needs no block of its own, being :root itself, so a day choice has nothing to fight.
-    expect(tokens).not.toContain('[data-theme="dark"] .on-page');
-    expect(tokens).not.toContain('[data-theme="dark"] {');
+  it("needs no night block, night being :root itself, so a day choice has nothing to fight", () => {
+    expect(tokens).not.toContain('[data-theme="dark"]');
+    expect(globals).not.toContain('[data-theme="dark"]');
   });
 
-  it("gives the two ways into day the same tokens and the same values", () => {
-    expect(declarations(block(tokens, DAY_BY_CHOICE))).toEqual(declarations(block(tokens, DAY_BY_DEVICE)));
-    expect(declarations(block(tokens, PAGE_BY_CHOICE))).toEqual(declarations(block(tokens, PAGE_BY_DEVICE)));
+  it("hangs the mode-dependent rules in globals on the day attribute alone", () => {
+    for (const rule of [".hero-art", ".day-only", ".night-only"]) {
+      expect(globals, rule).toContain(`:root[data-theme="light"] ${rule} {`);
+    }
+    // Night is the bare rule, so the toggle shows the right half before any script runs.
+    expect(globals).toMatch(/\n\.night-only \{\n {2}display: inline-flex;\n\}/);
   });
 
   it("gives every token the page layer swaps a value in both modes", () => {
-    const day = declarations(block(tokens, DAY_BY_DEVICE));
+    const day = declarations(block(tokens, DAY_BY_CHOICE));
     const night = declarations(block(tokens, BOX_PALETTE));
     expect(day.size).toBeGreaterThan(20);
     for (const name of day.keys()) expect(night.get(name), `${name} has no night value`).toBeTruthy();
@@ -134,7 +145,8 @@ describe("the shipped theme", () => {
   });
 
   it("carries the mode through hydration as well, for the error shell the boot script cannot reach", () => {
-    // notFound() answers with a bare html document: no layout, no stylesheet, no script run.
+    // notFound() answers with a bare html document: no layout, so no data-theme, no
+    // stylesheet, and the script that arrives in the payload is never run.
     expect(layout).toMatch(/<ThemeSync \/>/);
     const notFound = read("deals/[id]/not-found.tsx");
     expect(notFound).toMatch(/<ThemeToggle \/>/);

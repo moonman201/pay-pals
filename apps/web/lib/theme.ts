@@ -1,14 +1,22 @@
 /**
  * The colour mode, which is the page layer behind the boxes: day is a
  * white page, night is the navy page the site shipped with. The boxes are
- * navy in both. The device setting decides until the visitor picks a mode,
- * and then their pick is kept. See app/tokens.css for what each one paints.
+ * navy in both.
+ *
+ * Night is the default for every visitor, whatever their device is set to
+ * (G16), and the only thing that changes it is the visitor's own choice,
+ * which is kept. The device setting is read nowhere: not here, not in the
+ * boot script, and there is no prefers-color-scheme rule in the stylesheets
+ * either. See app/tokens.css for what each mode paints.
  */
 
 export type ThemeMode = "light" | "dark";
 
-/** On the html element. No attribute means "follow the device". */
+/** On the html element. The server renders "dark" and the boot script may replace it. */
 export const THEME_ATTRIBUTE = "data-theme";
+
+/** Night, for anyone who has not chosen. Rendered by layout.tsx, so it needs no JavaScript. */
+export const DEFAULT_THEME_MODE: ThemeMode = "dark";
 
 export const THEME_STORAGE_KEY = "pay-pals-theme";
 
@@ -39,14 +47,15 @@ export function storeThemeMode(storage: Pick<Storage, "setItem"> | null | undefi
   }
 }
 
-export function deviceThemeMode(view: Pick<Window, "matchMedia"> | null | undefined): ThemeMode {
-  return view?.matchMedia?.("(prefers-color-scheme: dark)")?.matches ? "dark" : "light";
-}
-
-/** What the page is showing now: the attribute when one is set, the device otherwise. */
-export function currentThemeMode(root: Element | null | undefined, view: Pick<Window, "matchMedia"> | null | undefined): ThemeMode {
+/**
+ * What the page is showing now: the attribute, which layout.tsx always
+ * renders. The fallback is night rather than the device, so the one page
+ * without a root layout (Next's error shell) agrees with every other page
+ * instead of taking the device's word for it.
+ */
+export function currentThemeMode(root: Element | null | undefined): ThemeMode {
   const chosen = root?.getAttribute(THEME_ATTRIBUTE);
-  return isThemeMode(chosen) ? chosen : deviceThemeMode(view);
+  return isThemeMode(chosen) ? chosen : DEFAULT_THEME_MODE;
 }
 
 export function applyThemeMode(root: Element | null | undefined, mode: ThemeMode): void {

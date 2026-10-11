@@ -11,7 +11,7 @@ import { MoonIcon, SunIcon } from "./icons";
  */
 export function ThemeToggle({ className = "" }: { className?: string }) {
   function flip() {
-    const next = otherThemeMode(currentThemeMode(document.documentElement, window));
+    const next = otherThemeMode(currentThemeMode(document.documentElement));
     applyThemeMode(document.documentElement, next);
     storeThemeMode(window.localStorage, next);
   }

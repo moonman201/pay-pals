@@ -23,15 +23,15 @@ describe("ThemeSync", () => {
     expect(mode()).toBe("light");
   });
 
-  it("leaves the device in charge when no choice is stored", () => {
+  it("writes night when no choice is stored, so the error shell matches every other page", () => {
     render(<ThemeSync />);
-    expect(mode()).toBeNull();
+    expect(mode()).toBe("dark");
   });
 
-  it("ignores a junk stored value rather than writing it onto the document", () => {
+  it("treats a junk stored value as no choice, which is night", () => {
     window.localStorage.setItem(THEME_STORAGE_KEY, "navy");
     render(<ThemeSync />);
-    expect(mode()).toBeNull();
+    expect(mode()).toBe("dark");
   });
 
   it("changes nothing where the boot script already ran", () => {

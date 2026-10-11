@@ -53,14 +53,14 @@
  * ring or a gold stepper circle clears 3:1 on white.
  *
  * Which mode is on:
- *   nothing stored    the device setting, through prefers-color-scheme
+ *   nothing stored    night, whatever the device says
  *   data-theme=light  day, whatever the device says
  *   data-theme=dark   night, whatever the device says
- * The day blocks carry :not([data-theme="dark"]), so a stored night
- * choice cannot be overruled by a device set to light, and they need
- * [data-theme="light"] to apply against a device set to dark, so neither
- * choice can be overruled by the other. layout.tsx forces nothing; the
- * attribute is only ever written by the visitor's own choice.
+ * Night is the default for everyone (G16), so layout.tsx renders
+ * data-theme="dark" on the html element and the boot script only ever
+ * replaces it from a stored choice. The device never decides, and no
+ * prefers-color-scheme rule exists that could repaint a page against a
+ * choice the visitor made.
  *
  * WCAG contrast, computed from these values. AA is 4.5:1 for body text,
  * 3:1 for large text and UI parts. The box column is both modes, because
@@ -226,66 +226,13 @@
 }
 
 /*
- * Day, from the device setting. The guard means a visitor who chose night
- * keeps night on a device set to light.
- */
-@media (prefers-color-scheme: light) {
-  :root:not([data-theme="dark"]) {
-    color-scheme: light;
-
-    --bg: #ffffff;
-    --bg-room: #ffffff;
-  }
-
-  :root:not([data-theme="dark"]) .on-page {
-    --surface: #ffffff;
-    --wash: #f3f6fb;
-    --ink: #10213a;
-    --muted: #4f5f78;
-    --line: #d9e1ec;
-    --shadow: 0 1px 2px rgb(16 33 58 / 0.06), 0 6px 18px -8px rgb(16 33 58 / 0.18);
-    --hero-frame: #ffffff;
-
-    --buyer: #0070e0;
-    --buyer-ink: #003087;
-    --buyer-soft: #e7f0fc;
-    --buyer-line: #b5d0f3;
-    --buyer-contrast: #ffffff;
-    --buyer-glow: #7ec4ff;
-
-    --seller: #b78500;
-    --seller-ink: #6b4a00;
-    --seller-soft: #fbf3dc;
-    --seller-line: #e8d28f;
-    --seller-contrast: #1f1500;
-    --seller-glow: #ffd36a;
-
-    --go: #157a45;
-    --go-soft: #e4f5ea;
-    --go-line: #a7dbbd;
-    --go-contrast: #ffffff;
-    --chip-go: #e4f5ea;
-    --chip-go-ink: #157a45;
-
-    --caution: #9a5600;
-    --caution-soft: #fdf0d9;
-    --caution-line: #efcc84;
-    --caution-contrast: #ffffff;
-    --chip-caution: #fdf0d9;
-    --chip-caution-ink: #9a5600;
-
-    --stop: #c0262d;
-    --stop-soft: #fdebeb;
-    --stop-line: #f2b3b6;
-    --stop-contrast: #ffffff;
-    --chip-stop: #fdebeb;
-    --chip-stop-ink: #c0262d;
-  }
-}
-
-/*
- * Day, chosen by the visitor. Same values, and it applies on a device set
- * to dark, which the media query above cannot do.
+ * Day, and the only way to get it: the visitor asked for it.
+ *
+ * There is no prefers-color-scheme block here on purpose. Night is the
+ * site for every visitor who has not chosen (G16), so the device setting
+ * decides nothing, and a device-driven day block would be the one rule
+ * able to repaint a page against an explicit choice. With it gone that
+ * cannot happen by construction rather than by guard.
  */
 :root[data-theme="light"] {
   color-scheme: light;
