@@ -45,7 +45,23 @@ export interface IssueChoice {
 export function issueOpened(events: readonly DealEvent[]): { at: string; summary: string } | null {
   const opened = [...events].reverse().find((e) => e.kind === "state_changed" && e.toState === "ISSUE");
   const summary = opened?.summary?.trim();
-  return opened && summary ? { at: opened.at, summary } : null;
+  return opened && summary && carriesAReason(summary) ? { at: opened.at, summary } : null;
+}
+
+/**
+ * Whether the summary says why, or only that.
+ *
+ * reportIssue writes "Issue opened: {reason}.{ details}". A deal seeded from
+ * a fixture carries the bare "Issue opened." instead, and printing that under
+ * a heading promising the buyer's own words would be a section that claims
+ * more than it holds: nobody chose those words, the code wrote them.
+ *
+ * So the section appears only when a reason follows the lead-in. On a seeded
+ * deal there is nothing to show and nothing is shown, which is the honest
+ * answer until the fixture carries one.
+ */
+function carriesAReason(summary: string): boolean {
+  return summary.replace(/^issue opened/i, "").replace(/[\s.:,;-]+/g, "") !== "";
 }
 
 /** What the issue step offers, in order, for this state. */
