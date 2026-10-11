@@ -11,7 +11,9 @@ import { REFERENCE_RANGE_NOTE } from "./review";
 
 const priceLookup = createFixturePriceLookup();
 const certLookup = createFixtureCertLookup();
-const quietModel = () => ({ additional_flags: [], severity_raises: [], explanations: [], questions_for_seller: [], pal_message: "Looks fine to me." });
+const quietModel = () => ({ additional_flags: [], severity_raises: [], explanations: [], questions_for_seller: [], reasoning: { checked: [], found: [], could_not_verify: [], would_change_my_mind: [] } });
+/** A model whose reason line makes a claim the examination cannot support. */
+const claiming = (text: string) => ({ ...quietModel(), reasoning: { checked: [], found: [text], could_not_verify: [], would_change_my_mind: [] } });
 const FORBIDDEN = "could not open the photo files";
 
 describe("BuyerPal.review on fake-slab", () => {
@@ -31,8 +33,11 @@ describe("BuyerPal.review on fake-slab", () => {
     expect(codes).not.toContain("CERT_MISMATCH");
     expect(verdict.certCheck?.matches).toBe(true);
     expect(verdict.certCheck?.record.certNumber).toBe(FAKE_SLAB_CERT);
-    expect(palMessage).toBe(verdict.palMessage);
+    // The chat gets a pointer, the room gets the review. They are deliberately not the same string.
+    expect(palMessage).toBe("Review done: Stop. Details above.");
+    expect(verdict.palMessage.split("\n")[0]).toBe("Stop. Don't pay.");
     expect(palMessage).not.toMatch(/[—!]/);
+    expect(verdict.palMessage).not.toMatch(/[—!]/);
   });
 
   it("stops even when the model tries to drop and downgrade the rule flags, and a model-added refusal does not displace the rule's flag", async () => {
@@ -45,7 +50,7 @@ describe("BuyerPal.review on fake-slab", () => {
       ],
       explanations: [],
       questions_for_seller: ["Can you ship today?"],
-      pal_message: "Great deal, pay now!",
+      reasoning: { checked: [], found: [], could_not_verify: [], would_change_my_mind: [] },
     }));
     const pal = createBuyerPal({ anthropic: model, priceLookup, certLookup });
     const { data: verdict } = await pal.review(card, fakeSlab.chat);
@@ -56,8 +61,11 @@ describe("BuyerPal.review on fake-slab", () => {
     expect(verdict.flags.find((f) => f.code === "FRIENDS_AND_FAMILY_REQUEST")!.severity).toBe("stop");
     expect(verdict.flags.find((f) => f.code === "PRICE_FAR_BELOW_MARKET")!.severity).toBe("stop");
     expect(verdict.flags.find((f) => f.code === "URGENCY_PRESSURE")!.severity).toBe("caution");
-    expect(verdict.palMessage).toContain("Great deal, pay now.");
-    expect(verdict.palMessage).toContain("The card photo could not be loaded, so this check used the photo description.");
+    // Corrected 2026-10-11: the model used to write this paragraph and the test checked its words
+    // came through. It no longer writes it, so the assertion is the stronger one: a model selling
+    // the deal cannot put a syllable of that into what the buyer reads.
+    expect(verdict.palMessage).not.toContain("Great deal, pay now.");
+    expect(verdict.palMessage.split("\n")[0]).toBe("Stop. Don't pay.");
   });
 
   it("stops with no model, says the range is a reference, and shows the model the fixed facts", async () => {
@@ -65,9 +73,9 @@ describe("BuyerPal.review on fake-slab", () => {
     const { data: verdict } = await offline.review(card, fakeSlab.chat);
     expect(verdict.overall).toBe("stop");
     expect(verdict.questionsForSeller).toEqual([DATED_NOTE_QUESTION]);
-    expect(verdict.palMessage).toContain("That shows the slab exists, not that this seller is holding it.");
+    expect(verdict.reasoning!.found.join(" ")).toContain("That shows the slab exists, not that this seller is holding it.");
     expect(verdict.palMessage).not.toMatch(/verif|authentic/i);
-    expect(verdict.palMessage).toContain(REFERENCE_RANGE_NOTE);
+    expect(verdict.reasoning!.couldNotVerify.join(" ")).toContain("stand-in");
 
     const model = fakeClaude(quietModel);
     await createBuyerPal({ anthropic: model, priceLookup, certLookup }).review(card, fakeSlab.chat);
@@ -97,9 +105,9 @@ describe("BuyerPal.review on fake-slab", () => {
     expect(verdict.overall).toBe("go");
     expect(verdict.flags).toEqual([]);
     expect(verdict.certCheck?.matches).toBe(true);
-    expect(palMessage).toContain(`PSA has a record for cert ${FAKE_SLAB_CERT} that matches this card`);
-    expect(palMessage).toContain("That shows the slab exists, not that this seller is holding it.");
-    expect(palMessage).not.toMatch(/verif|authentic/i);
+    expect(verdict.reasoning!.found.join(" ")).toContain(`PSA has a record for cert ${FAKE_SLAB_CERT} that matches this card`);
+    expect(verdict.reasoning!.found.join(" ")).toContain("That shows the slab exists, not that this seller is holding it.");
+    expect(verdict.palMessage).not.toMatch(/verif|authentic/i);
   });
 
   it("J2: an unknown cert with the fixture lookup is not checked, raises no flag, and never claims a PSA lookup", async () => {
@@ -109,26 +117,26 @@ describe("BuyerPal.review on fake-slab", () => {
     expect(verdict.flags.map((f) => f.code)).not.toContain("CERT_MISMATCH");
     expect(verdict.certCheck?.matches).toBeNull();
     expect(verdict.certCheck?.explanation).toBe("The cert number was not checked against PSA (no PSA access on this server).");
-    expect(palMessage).toContain("The cert number was not checked against PSA (no PSA access on this server).");
-    expect(palMessage).not.toMatch(/PSA'?s? (?:own )?database|checked PSA|PSA has no record/i);
+    expect(verdict.reasoning!.couldNotVerify.join(" ")).toContain("The cert number was not checked against PSA (no PSA access on this server).");
+    expect(verdict.palMessage).not.toMatch(/PSA'?s? (?:own )?database|checked PSA|PSA has no record/i);
 
-    const model = fakeClaude(() => ({ ...quietModel(), pal_message: "Looks fine. The cert number was not checked against PSA (no PSA access on this server)." }));
-    const { palMessage: withModel } = await createBuyerPal({ anthropic: model, priceLookup, certLookup }).review(unknownCert, chat);
+    const model = fakeClaude(() => quietModel());
+    const { data: withModel } = await createBuyerPal({ anthropic: model, priceLookup, certLookup }).review(unknownCert, chat);
     const shown = promptText(model.calls[0]!);
     expect(shown).toContain("PSA was not contacted");
     expect(shown).toContain("do not mention PSA's database");
-    expect(withModel).toContain("not checked against PSA");
+    expect(withModel.reasoning!.couldNotVerify.join(" ")).toContain("not checked against PSA");
   });
 
   it("J2: a model that claims a PSA lookup for an unchecked cert is re-asked, then replaced by the rules-only text", async () => {
     const unknownCert = { ...card, certNumber: "49172834", askingPrice: 3400 };
     const chat = [says("buyer", "Hi."), says("seller", "Photos are up.")];
-    const model = fakeClaude(() => ({ ...quietModel(), pal_message: "When we checked PSA's own database with the cert number given, PSA has no record of it." }));
-    const { palMessage } = await createBuyerPal({ anthropic: model, priceLookup, certLookup }).review(unknownCert, chat);
+    const model = fakeClaude(() => claiming("When we checked PSA's own database with the cert number given, PSA has no record of it."));
+    const { data: verdict } = await createBuyerPal({ anthropic: model, priceLookup, certLookup }).review(unknownCert, chat);
     expect(model.calls).toHaveLength(2);
     expect(promptText(model.calls[1]!)).toContain("claims that cannot be supported");
-    expect(palMessage).not.toMatch(/PSA'?s? own database|PSA has no record/);
-    expect(palMessage).toContain("The cert number was not checked against PSA (no PSA access on this server).");
+    expect(JSON.stringify(verdict.reasoning)).not.toMatch(/PSA'?s? own database|PSA has no record/);
+    expect(verdict.reasoning!.couldNotVerify.join(" ")).toContain("The cert number was not checked against PSA (no PSA access on this server).");
   });
 
   it("J2: the demo record for the fake slab still stops and says demo record; a real PSA not-found still stops", async () => {
@@ -151,8 +159,8 @@ describe("BuyerPal.review on fake-slab", () => {
     const noPrice = { async priceRange() { return { marketLow: 0, marketHigh: 0, currency: "USD" as const, sources: [{ name: "No reliable market price found" }], provider: "channel3" as const, checkedAt: new Date().toISOString() }; } };
     const { data: verdict, palMessage } = await createBuyerPal({ anthropic: null, priceLookup: noPrice }).review(cleanPs5.cards[0]!, cleanPs5.chat.slice(0, 2));
     expect(verdict.flags.map((f) => f.code)).not.toContain("PRICE_FAR_BELOW_MARKET");
-    expect(palMessage).toContain("No reliable market price was found");
-    expect(palMessage).not.toMatch(/\$0/);
+    expect(verdict.reasoning!.couldNotVerify.join(" ")).toMatch(/No market price came back|No price check for a graded card/);
+    expect(verdict.palMessage).not.toMatch(/\$0/);
   });
 });
 
@@ -163,7 +171,7 @@ describe("BuyerPal.review photo honesty (J3)", () => {
   const reading = { brand: "Sony", model: "PlayStation 5", serial: CLEAN_SERIAL, serial_on: "item", item_present: true };
 
   it("with no image read: tells the model nothing was looked at, re-asks once, then falls back to the rules-only text", async () => {
-    const model = fakeClaude((params) => (offersTool(params, "submit_review") ? { ...quietModel(), pal_message: claim } : reading));
+    const model = fakeClaude((params) => (offersTool(params, "submit_review") ? claiming(claim) : reading));
     const pal = createBuyerPal({ anthropic: model, priceLookup, fetchImage: async () => null, photoBaseUrl: "https://pay-pals.example" });
     const { data: verdict, palMessage } = await pal.review(card, chat);
     const reviewCalls = model.calls.filter((c) => offersTool(c, "submit_review"));
@@ -171,9 +179,9 @@ describe("BuyerPal.review photo honesty (J3)", () => {
     expect(promptText(reviewCalls[0]!)).toContain("None of the photos was looked at.");
     expect(promptText(reviewCalls[0]!)).toContain("Not looked at (the file could not be loaded)");
     expect(promptText(reviewCalls[1]!)).toContain('"stock photo"');
-    expect(palMessage).not.toMatch(/stock photo|real, working unit|photo matches/);
-    expect(palMessage).toContain("3 of the 3 card photos could not be loaded, so this check used the photo descriptions for those.");
-    expect(palMessage).toContain("This looks fair.");
+    expect(verdict.palMessage).not.toMatch(/stock photo|real, working unit|photo matches/);
+    expect(verdict.reasoning!.couldNotVerify.join(" ")).toContain("did not read the 3 photo files");
+    expect(verdict.palMessage.split("\n")[0]).toBe("Looks fair.");
     expect(verdict.overall).toBe("go");
   });
 
@@ -182,27 +190,26 @@ describe("BuyerPal.review photo honesty (J3)", () => {
     const model = fakeClaude((params) => {
       if (!offersTool(params, "submit_review")) return reading;
       reviews += 1;
-      return { ...quietModel(), pal_message: reviews === 1 ? claim : "The seller's captions say the serial is on the console and the box. Price is fair. Ask for a settings screen photo." };
+      return reviews === 1 ? claiming(claim) : quietModel();
     });
-    const { palMessage } = await createBuyerPal({ anthropic: model, priceLookup, fetchImage: async () => null }).review(card, chat);
+    const { data: verdict } = await createBuyerPal({ anthropic: model, priceLookup, fetchImage: async () => null }).review(card, chat);
     expect(reviews).toBe(2);
-    expect(palMessage).toContain("The seller's captions say the serial is on the console and the box.");
+    expect(verdict.palMessage).not.toMatch(/stock photo|I can see|photo matches/);
   });
 
   it("with images read: the model is told what was read, photo claims are kept, and the message says it looked", async () => {
-    const model = fakeClaude((params) => (offersTool(params, "submit_review") ? { ...quietModel(), pal_message: claim } : reading));
+    const model = fakeClaude((params) => (offersTool(params, "submit_review") ? claiming(claim) : reading));
     const pal = createBuyerPal({ anthropic: model, priceLookup, fetchImage: async () => asFetched(pictureA()), photoBaseUrl: "https://pay-pals.example" });
-    const { palMessage } = await pal.review(card, chat);
+    const { data: verdict } = await pal.review(card, chat);
     const reviewCalls = model.calls.filter((c) => offersTool(c, "submit_review"));
     expect(reviewCalls).toHaveLength(1);
     expect(promptText(reviewCalls[0]!)).toContain(`Read by the vision model: brand Sony, model PlayStation 5, serial ${CLEAN_SERIAL} on the item, the item is in the picture.`);
-    expect(palMessage).toContain("I looked at the 3 card photos.");
-    expect(palMessage).toContain("not a stock photo listing");
+    expect(verdict.reasoning!.checked.join(" ")).toContain("card photos, against the brand, model and serial");
   });
 
   it("with no model at all the rules-only message makes no photo claim", async () => {
-    const { palMessage } = await createBuyerPal({ anthropic: null, priceLookup }).review(card, chat);
-    expect(palMessage).not.toMatch(/stock photo|I can see|photo matches|I looked at/);
+    const { data: verdict } = await createBuyerPal({ anthropic: null, priceLookup }).review(card, chat);
+    expect(verdict.palMessage).not.toMatch(/stock photo|I can see|photo matches|I looked at/);
   });
 });
 
@@ -263,9 +270,9 @@ describe("BuyerPal.review with no card", () => {
     expect(codes).not.toContain("MISSING_SERIAL");
     const refusal = verdict.flags.find((f) => f.code === "INVITE_REFUSED")!;
     expect(refusal.evidence).toContain("Friends & Family only or I sell it to the next guy");
-    expect(refusal.explanation).toContain("refused Pay Pals protection and wants a Friends and Family payment");
-    expect(palMessage).toContain("no item card yet");
-    expect(palMessage).toContain("the seller refusing Pay Pals protection");
+    expect(refusal.explanation).toContain("Refused Pay Pals protection and wants Friends and Family");
+    expect(verdict.palMessage).toContain("No item card yet");
+    expect(verdict.palMessage).toContain("Refused Pay Pals protection");
   });
 
   it("inviteDeclined in the context is enough on its own", async () => {
@@ -282,7 +289,7 @@ describe("BuyerPal.review with no card", () => {
     expect(verdict.overall).toBe("go");
     expect(promptText(model.calls[0]!)).toContain("There is no item card yet");
     const offline = await createBuyerPal({ anthropic: null, priceLookup }).review(null, chat);
-    expect(offline.palMessage).toContain("could not check the price, the serial, the photos or a grading cert");
+    expect(offline.data.reasoning!.couldNotVerify.join(" ")).toContain("could not check the price, the serial, the photos or a grading cert");
   });
 });
 
@@ -297,8 +304,8 @@ describe("BuyerPal.review on clean-ps5", () => {
       expect(verdict.certCheck).toBeUndefined();
       expect(VerdictSchema.safeParse(verdict).success).toBe(true);
     }
-    const { palMessage } = await createBuyerPal({ anthropic: null, priceLookup }).review(card, cleanPs5.chat);
-    expect(palMessage).toContain(REFERENCE_RANGE_NOTE);
+    const { data: verdict } = await createBuyerPal({ anthropic: null, priceLookup }).review(card, cleanPs5.chat);
+    expect(verdict.reasoning!.couldNotVerify.join(" ")).toContain("stand-in for this demo");
   });
 
   it("drops a model flag built from its own unanswered questions, so the clean deal stays go", async () => {
@@ -314,7 +321,7 @@ describe("BuyerPal.review on clean-ps5", () => {
       severity_raises: [],
       explanations: [],
       questions_for_seller: ["Where did you buy it?"],
-      pal_message: "Mostly fine.",
+      reasoning: { checked: [], found: [], could_not_verify: [], would_change_my_mind: [] },
     }));
     const { data: verdict } = await createBuyerPal({ anthropic: model, priceLookup }).review(cleanPs5.cards.at(-1)!, cleanPs5.chat);
     expect(verdict.overall).toBe("go");
@@ -328,7 +335,7 @@ describe("BuyerPal.review on clean-ps5", () => {
       severity_raises: [],
       explanations: [],
       questions_for_seller: ["Where will it ship from?", "How long have you owned it?", "Can you add a photo of the HDMI port?", "Any warranty left?", "Do you have the receipt?"],
-      pal_message: "Price is fair. One question first.",
+      reasoning: { checked: [], found: [], could_not_verify: [], would_change_my_mind: [] },
     }));
     const { data: verdict } = await createBuyerPal({ anthropic: model, priceLookup }).review(cleanPs5.cards.at(-1)!, cleanPs5.chat);
     expect(verdict.overall).toBe("caution");
@@ -376,7 +383,10 @@ describe("BuyerPal.checkArrival", () => {
     for (const field of emptyBox.expectedArrival!.mismatchFields) expect(check.mismatches.map((m) => m.field)).toContain(field);
     const missing = check.mismatches[0]!;
     expect(missing.expected).toBe(card.title);
-    expect(missing.observed).toContain("Two white foam inserts and a crumpled clear plastic bag. Nothing between them.");
+    // The caption is the buyer's word, so it stays out of the "arrived" column and lives in the
+    // explanation, which can say whose words they are. See observed-guard.ts.
+    expect(missing.observed).toBe("no item in the box, only packaging");
+    expect(missing.explanation).toContain("Two white foam inserts and a crumpled clear plastic bag. Nothing between them.");
     expect(missing.explanation).toContain(`The locked card describes ${card.title}`);
     expect(missing.explanation).toContain("the box arrived without it");
     // The card never carried the console's own serial, so nothing claims one arrived.
@@ -409,7 +419,8 @@ describe("BuyerPal.checkArrival", () => {
     expect(check.outcome).toBe("mismatch");
     expect(check.observed.serial).toBeNull();
     expect(check.mismatches.map((m) => m.field)).toEqual(["other"]);
-    expect(check.mismatches[0]!.observed).toContain("Two white foam inserts");
+    expect(check.mismatches[0]!.observed).toBe("no item in the box, only packaging");
+    expect(check.mismatches[0]!.explanation).toContain("Two white foam inserts");
     expect(check.mismatches[0]!.explanation).toContain("the box arrived without it");
     expect(palMessage).toContain("I looked at the 2 arrival photos.");
     expect(palMessage).toContain("The box arrived without the item.");

@@ -47,19 +47,19 @@ describe("public mode is presentation only", () => {
   });
 
   it("review: the model is told not to talk about loading, an echo of it is stripped, and the claim guard still holds", async () => {
-    const echo = fakeClaude((params) => (offersTool(params, "submit_review") ? { ...quiet(), pal_message: "None of the three photos on the card could be loaded, so I only have the seller's word. Price is fair." } : null));
-    const { data: verdict, palMessage } = await createBuyerPal({ anthropic: echo, priceLookup, publicMode: true, fetchImage: async () => null, photoBaseUrl: "https://pay-pals.example" }).review(cleanPs5.cards[0]!, cleanPs5.chat.slice(0, 2));
+    const echo = fakeClaude((params) => (offersTool(params, "submit_review") ? { ...quiet(), reasoning: { checked: [], found: ["None of the three photos on the card could be loaded, so I only have the seller's word."], could_not_verify: [], would_change_my_mind: [] } } : null));
+    const { data: verdict } = await createBuyerPal({ anthropic: echo, priceLookup, publicMode: true, fetchImage: async () => null, photoBaseUrl: "https://pay-pals.example" }).review(cleanPs5.cards[0]!, cleanPs5.chat.slice(0, 2));
     const reviews = echo.calls.filter((c) => offersTool(c, "submit_review"));
     expect(reviews).toHaveLength(2);
     expect(promptText(reviews[0]!)).toContain("Do not mention whether photo files loaded, opened or could be viewed");
     expect(promptText(reviews[0]!)).not.toContain("the file could not be loaded");
-    expect(palMessage).not.toMatch(LOADING);
-    expect(palMessage).not.toMatch(/could be loaded/);
+    expect(verdict.palMessage).not.toMatch(LOADING);
+    expect(JSON.stringify(verdict.reasoning)).not.toMatch(/could be loaded/);
     expect(verdict.overall).toBe("go");
 
-    const claims = fakeClaude((params) => (offersTool(params, "submit_review") ? { ...quiet(), pal_message: "Not a stock photo listing, I can see the serial." } : null));
+    const claims = fakeClaude((params) => (offersTool(params, "submit_review") ? { ...quiet(), reasoning: { checked: [], found: ["Not a stock photo listing, I can see the serial."], could_not_verify: [], would_change_my_mind: [] } } : null));
     const guarded = await createBuyerPal({ anthropic: claims, priceLookup, publicMode: true, fetchImage: async () => null }).review(cleanPs5.cards[0]!, cleanPs5.chat.slice(0, 2));
-    expect(guarded.palMessage).not.toMatch(/stock photo|I can see/);
+    expect(JSON.stringify(guarded.data.reasoning)).not.toMatch(/stock photo|I can see/);
     expect(guarded.palMessage).not.toMatch(LOADING);
   });
 

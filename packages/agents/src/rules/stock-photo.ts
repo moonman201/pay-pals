@@ -29,9 +29,10 @@ export const stockPhotoRule: Rule = ({ card, photoMatches }) => {
     flag(
       "STOCK_OR_REUSED_PHOTO",
       "caution",
-      // The evidence line names its source and its distance. It was already honest; it is unchanged.
-      `Photo "${best.photo.whatItShows}" is the same picture as ${best.source} (${best.distance} of 64 bits differ)${others > 0 ? `; ${others} more photo${others === 1 ? "" : "s"} matched too` : ""}`,
-      "This is the same picture as one Pay Pals already holds, so it was not taken of this seller's item for this listing. Pay Pals compares against its own set of pictures only, so this says nothing about where else the picture appears.",
+      // Plain sentence first, since this is the line the room shows; the precise source and
+      // distance follow it, because evidence is where that precision belongs (Oct 11 rule 6).
+      `Exact match to a listing photo already on file. ${best.source}, ${best.distance} of 64 points differ${others > 0 ? `; ${others} more photo${others === 1 ? "" : "s"} matched too` : ""}`,
+      "His only photo matches a listing photo already on file.",
     ),
   ];
 };

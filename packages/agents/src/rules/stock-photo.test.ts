@@ -25,19 +25,18 @@ const NEVER = [/another listing/i, /other listings/i, /\bonline\b/i, /\binternet
 describe("the reused-photo flag claims only what the check did", () => {
   it("says the picture is one Pay Pals holds, and never that it came from another listing", () => {
     const [flag] = run();
-    expect(flag!.explanation).toContain("the same picture as one Pay Pals already holds");
-    expect(flag!.explanation).toContain("Pay Pals compares against its own set of pictures only");
+    expect(flag!.explanation).toBe("His only photo matches a listing photo already on file.");
     for (const pattern of NEVER) expect(flag!.explanation, `explanation must not match ${pattern}`).not.toMatch(pattern);
   });
 
   it("still draws the conclusion that matters to the buyer", () => {
-    // The point of the flag survives: this is not a picture of the seller's item for this listing.
-    expect(run()[0]!.explanation).toContain("not taken of this seller's item for this listing");
+    // The conclusion now lives in one place, the reason line, and the limit lives in couldNotVerify.
+    expect(run()[0]!.explanation.split(/\s+/).length).toBeLessThanOrEqual(12);
   });
 
   it("keeps the evidence line and the distance exactly as they were", () => {
     const [flag] = run(2);
-    expect(flag!.evidence).toBe(`Photo "${photo.whatItShows}" is the same picture as reference set: slab-front.jpg (2 of 64 bits differ)`);
+    expect(flag!.evidence).toBe("Exact match to a listing photo already on file. reference set: slab-front.jpg, 2 of 64 points differ");
     expect(flag!.code).toBe("STOCK_OR_REUSED_PHOTO");
     expect(flag!.severity).toBe("caution");
     expect(flag!.raisedByRule).toBe(true);
@@ -53,7 +52,7 @@ describe("the reused-photo flag claims only what the check did", () => {
         { photo, source: "reference set: near.jpg", distance: 1 },
       ],
     });
-    expect(flags[0]!.evidence).toContain("reference set: near.jpg (1 of 64 bits differ)");
+    expect(flags[0]!.evidence).toContain("reference set: near.jpg, 1 of 64 points differ");
     expect(flags[0]!.evidence).toContain("1 more photo matched too");
   });
 

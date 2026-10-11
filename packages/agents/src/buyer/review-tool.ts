@@ -27,7 +27,6 @@ export const ModelReviewSchema = z.object({
   severity_raises: z.array(z.object({ code: z.enum(RED_FLAG_CODES), severity: z.enum(RED_FLAG_SEVERITIES) })).default([]),
   explanations: z.array(z.object({ code: z.enum(RED_FLAG_CODES), explanation: clip(300) })).default([]),
   questions_for_seller: z.array(clip(300)).default([]),
-  pal_message: clip(800),
   reasoning: z
     .object({
       checked: z.array(clip(300)).default([]),
@@ -92,14 +91,10 @@ export const REVIEW_TOOL: Anthropic.Tool = {
         description: "Up to three specific things the buyer should get from the seller before paying, things they can act on first (a photo of a part, the serial, a receipt). Empty when the deal is a stop or when nothing is missing.",
         items: { type: "string" },
       },
-      pal_message: {
-        type: "string",
-        description: "Two to four short sentences to the buyer. Plain words. No em dashes, no exclamation marks, no hype.",
-      },
       reasoning: {
         type: "object",
         description:
-          "What you can add to the pal's reasons that the rules and the lookups have not already said. The four groups are shown to the buyer and to the seller as the pal's working. Leave a group empty rather than padding it; the lines already there are kept whatever you send.",
+          "What you can add to the pal's reasons that the rules and the lookups have not already said. Keep every line to about twelve words, one fact each, plain words. The four groups are shown to the buyer and to the seller as the pal's working. Leave a group empty rather than padding it; the lines already there are kept whatever you send.",
         properties: {
           checked: {
             type: "array",
@@ -125,7 +120,7 @@ export const REVIEW_TOOL: Anthropic.Tool = {
         additionalProperties: false,
       },
     },
-    required: ["additional_flags", "severity_raises", "explanations", "questions_for_seller", "pal_message", "reasoning"],
+    required: ["additional_flags", "severity_raises", "explanations", "questions_for_seller", "reasoning"],
     additionalProperties: false,
   },
 };

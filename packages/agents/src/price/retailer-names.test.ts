@@ -92,7 +92,7 @@ describe("no retailer reaches the model or the buyer", () => {
   const chat = cleanPs5.chat.slice(0, 2);
 
   it("the price line gives the range, the provider, the counts and the method note only", async () => {
-    const model = fakeClaude((params) => (offersTool(params, "submit_review") ? { additional_flags: [], severity_raises: [], explanations: [], questions_for_seller: [], pal_message: "Stop, the price is far below market." } : null));
+    const model = fakeClaude((params) => (offersTool(params, "submit_review") ? { additional_flags: [], severity_raises: [], explanations: [], questions_for_seller: [], reasoning: { checked: [], found: [], could_not_verify: [], would_change_my_mind: [] } } : null));
     const { data: verdict, palMessage } = await createBuyerPal({ anthropic: model, priceLookup }).review(card, chat);
     const shown = promptText(model.calls.find((c) => offersTool(c, "submit_review"))!);
     expectNoRetailer("the model prompt", shown);
@@ -100,7 +100,7 @@ describe("no retailer reaches the model or the buyer", () => {
     expect(shown).toContain("Name no shop or website in your message");
 
     expect(verdict.overall).toBe("stop");
-    expectNoRetailer("the pal message", palMessage);
+    expectNoRetailer("the review", verdict.palMessage);
     for (const flag of verdict.flags) {
       expectNoRetailer(`${flag.code} evidence`, flag.evidence);
       expectNoRetailer(`${flag.code} explanation`, flag.explanation);
@@ -112,22 +112,23 @@ describe("no retailer reaches the model or the buyer", () => {
   it("a model that names a shop is re-asked, then replaced by the rules-only message", async () => {
     const model = fakeClaude((params) =>
       offersTool(params, "submit_review")
-        ? { additional_flags: [], severity_raises: [], explanations: [], questions_for_seller: [], pal_message: "Walmart and gamestop.com list this for about $500, so $150 is far too low." }
+        ? { additional_flags: [], severity_raises: [], explanations: [], questions_for_seller: [], reasoning: { checked: [], found: ["Walmart and gamestop.com list this for about $500, so $150 is far too low."], could_not_verify: [], would_change_my_mind: [] } }
         : null,
     );
-    const { palMessage } = await createBuyerPal({ anthropic: model, priceLookup }).review(card, chat);
+    const { data: verdict } = await createBuyerPal({ anthropic: model, priceLookup }).review(card, chat);
     const reviews = model.calls.filter((c) => offersTool(c, "submit_review"));
     expect(reviews).toHaveLength(2);
     expect(promptText(reviews[1]!)).toContain("do not name a shop or website");
-    expectNoRetailer("the pal message", palMessage);
-    expect(palMessage).toContain("a price far below market");
+    expectNoRetailer("the review", verdict.palMessage);
+    expectNoRetailer("the reasons", JSON.stringify(verdict.reasoning));
+    expect(verdict.palMessage).toContain("Priced at about");
   });
 
   it("the rules-only message and the evidence summary name no shop", async () => {
     const offline = createBuyerPal({ anthropic: null, priceLookup });
     const fair = await offline.review({ ...card, askingPrice: 420 }, chat);
-    expectNoRetailer("the rules-only message", fair.palMessage);
-    expect(fair.palMessage).toContain("$349.99 to $384.99");
+    expectNoRetailer("the rules-only message", fair.data.palMessage);
+    expect(fair.data.palMessage).toContain("$349.99 to $384.99");
     for (const question of fair.data.questionsForSeller) expectNoRetailer("a question", question);
 
     const low = await offline.review(card, chat);

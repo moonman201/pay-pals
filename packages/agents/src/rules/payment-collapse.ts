@@ -12,9 +12,10 @@ import type { RedFlag, RedFlagCode } from "@pay-pals/contracts";
 export const PAYMENT_FLAG_ORDER: readonly RedFlagCode[] = ["INVITE_REFUSED", "FRIENDS_AND_FAMILY_REQUEST", "OFF_PLATFORM_PAYMENT"];
 
 function demandWords(codes: Set<RedFlagCode>): string {
+  // Short enough to sit in a reason line of about twelve words.
   const parts = [
-    codes.has("FRIENDS_AND_FAMILY_REQUEST") ? "a Friends and Family payment" : null,
-    codes.has("OFF_PLATFORM_PAYMENT") ? "a payment outside the PayPal checkout" : null,
+    codes.has("FRIENDS_AND_FAMILY_REQUEST") ? "Friends and Family" : null,
+    codes.has("OFF_PLATFORM_PAYMENT") ? "payment outside PayPal" : null,
   ].filter((p): p is string => p !== null);
   return parts.length > 0 ? parts.join(" or ") : "an unprotected payment";
 }
@@ -29,8 +30,8 @@ export function collapsePaymentFlags(flags: readonly RedFlag[]): RedFlag[] {
   const demand = demandWords(codes);
   const explanation =
     kept.code === "INVITE_REFUSED"
-      ? `The seller refused Pay Pals protection and wants ${demand}, which is a risk signal. Pay Pals cannot pay this seller.`
-      : `The seller wants ${demand}, which has no buyer protection, so Pay Pals will not move money this way.`;
+      ? `Refused Pay Pals protection and wants ${demand}.`
+      : `Wants ${demand}. That has no buyer protection.`;
   const merged: RedFlag = { ...kept, severity: "stop", explanation: explanation.slice(0, 300) };
 
   return flags.filter((f) => f === kept || !PAYMENT_FLAG_ORDER.includes(f.code)).map((f) => (f === kept ? merged : f));

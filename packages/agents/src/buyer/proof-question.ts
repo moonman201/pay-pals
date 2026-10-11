@@ -62,12 +62,45 @@ const SAME_ASK: ReadonlyArray<[string, RegExp]> = [
   [DATED_NOTE_QUESTION, /\bhand-?written\b|\bnote with (?:your )?name\b|\btoday'?s date\b|\bdated note\b/i],
 ];
 
+/**
+ * The thing a question asks for, so two questions after the same artefact
+ * collapse to one. Asking for a clearer photo of the console label and a
+ * sharper photo of the console label is one ask, and spending two of three
+ * slots on it costs the seller a question they could have answered.
+ */
+const ARTEFACT: ReadonlyArray<[string, RegExp]> = [
+  ["dated note", /\bhand-?written\b|\bnote with\b|\btoday'?s date\b|\bdated note\b/i],
+  ["box label", /\bbox(?:'s)? (?:label|registration)\b|\blabel on the box\b|\bserial on the box\b/i],
+  ["item serial", /\bserial\b[^.?]{0,40}\b(?:console|device|item|unit|back)\b|\b(?:console|device|item)\b[^.?]{0,40}\bserial\b|\bserial (?:label|sticker|number)\b/i],
+  ["in-hand photo", /\bin (?:your|his|her|their) own hands\b|\btaken today\b|\bholding\b/i],
+  ["receipt", /\breceipt\b|\bproof of purchase\b|\binvoice\b/i],
+];
+
+function artefactOf(question: string): string | null {
+  return ARTEFACT.find(([, pattern]) => pattern.test(question))?.[0] ?? null;
+}
+
+/** Drops any later question chasing an artefact an earlier one already asked for. */
+export function oneQuestionPerArtefact(questions: readonly string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const question of questions) {
+    const key = artefactOf(question);
+    if (key !== null) {
+      if (seen.has(key)) continue;
+      seen.add(key);
+    }
+    out.push(question);
+  }
+  return out;
+}
+
 /** Our questions first, then the others with any repeat of the same ask removed. */
 export function withProofQuestions(ours: Array<string | null>, others: string[]): string[] {
   const asked = ours.filter((q): q is string => typeof q === "string" && q.length > 0);
-  if (asked.length === 0) return others;
+  if (asked.length === 0) return oneQuestionPerArtefact(others);
   const patterns = asked.map((q) => SAME_ASK.find(([text]) => text === q)?.[1]).filter((p): p is RegExp => p !== undefined);
   const normalized = (q: string) => q.toLowerCase().replace(/\s+/g, " ").trim();
   const mine = new Set(asked.map(normalized));
-  return [...asked, ...others.filter((q) => !mine.has(normalized(q)) && !patterns.some((p) => p.test(q)))];
+  return oneQuestionPerArtefact([...asked, ...others.filter((q) => !mine.has(normalized(q)) && !patterns.some((p) => p.test(q)))]);
 }

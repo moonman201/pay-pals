@@ -7,7 +7,7 @@ import type { ChecklistItem, ItemCard, PalResult, RedFlag, Shipment } from "@pay
 import { sentences } from "../copy";
 
 const PHOTO_ITEM = /\bphoto\b/i;
-export const MISSING_PHOTO_EXPLANATION = "The seller shipped without the photo of the item going into the box, so there is no proof of what was packed.";
+export const MISSING_PHOTO_EXPLANATION = "Shipped with no photo of the item going into the box.";
 export const NO_PACKING_PHOTOS_EVIDENCE = "No packing photos were added to the shipment";
 
 function flagFor(item: ChecklistItem): RedFlag {
@@ -15,7 +15,7 @@ function flagFor(item: ChecklistItem): RedFlag {
     code: "MISSING_PACKING_PHOTO",
     severity: "caution",
     evidence: `Packing step not done: ${item.label}`,
-    explanation: PHOTO_ITEM.test(item.label) ? MISSING_PHOTO_EXPLANATION : `The seller shipped without finishing a required step (${item.label}), so the shipment record is incomplete.`,
+    explanation: PHOTO_ITEM.test(item.label) ? MISSING_PHOTO_EXPLANATION : `Shipped without finishing a required step: ${item.label}.`,
     raisedByRule: true,
   };
 }

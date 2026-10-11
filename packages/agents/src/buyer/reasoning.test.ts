@@ -116,18 +116,18 @@ describe("the rules fill all four groups with no model at all", () => {
     const couldNot = verdict.reasoning!.couldNotVerify.join(" ");
     expect(couldNot).toContain("did not read the 4 photo files");
     expect(couldNot).not.toContain("no photos");
-    expect(couldNot).toContain("reference range for this demo");
+    expect(couldNot).toMatch(/stand-ins? for this demo/);
   });
 
   it("names the demo cert record rather than letting it pass for the grader", async () => {
     const { data: verdict } = await pal().review(fakeSlab.cards.at(-1)!, fakeSlab.chat, { seller: fakeSlab.seller });
-    expect(verdict.reasoning!.couldNotVerify.join(" ")).toContain("demo record standing in for the grader");
+    expect(verdict.reasoning!.couldNotVerify.join(" ")).toMatch(/stand-ins? for this demo/);
   });
 
   it("gives the scam deal the one thing that would change it, and does not pretend anything else would", async () => {
     const { data: verdict } = await pal().review(fakeSlab.cards.at(-1)!, fakeSlab.chat, { seller: fakeSlab.seller });
     expect(verdict.overall).toBe("stop");
-    expect(verdict.reasoning!.wouldChangeMyMind.join(" ")).toContain("Goods and Services checkout");
+    expect(verdict.reasoning!.wouldChangeMyMind.join(" ")).toContain("agrees to Goods and Services");
   });
 });
 
@@ -135,7 +135,7 @@ describe("the reasons agree with the questions for the seller", () => {
   it("offers the close-up as what would change its mind exactly when it asks for one", async () => {
     const { data: verdict } = await pal().review(emptyBox.cards[0]!, emptyBox.chat, { seller: emptyBox.seller });
     expect(verdict.questionsForSeller).toContain(CONSOLE_SERIAL_QUESTION);
-    expect(verdict.reasoning!.wouldChangeMyMind.join(" ")).toContain("close-up of the serial label on the console itself");
+    expect(verdict.reasoning!.wouldChangeMyMind.join(" ")).toContain("close-up of the serial label on the console");
   });
 
   it("does not offer the close-up once the card carries the serial and no question asks for it", async () => {
@@ -165,12 +165,12 @@ describe("an unreadable serial becomes a reason rather than a mismatch", () => {
     const { data: verdict } = await buyerPal.review(card, cleanPs5.chat.slice(0, 2), { seller: cleanPs5.seller });
 
     const couldNot = verdict.reasoning!.couldNotVerify.join(" ");
-    expect(couldNot).toContain("A serial is in one of the photos but I could not read it");
+    expect(couldNot).toContain("A serial is in one photo but I could not read it");
     expect(couldNot).toContain("the sticker is a thin strip in a wide shot of the whole console");
     expect(couldNot).not.toContain("AJ16495258Q");
 
     // Item 3: the two halves agree. The gap named in couldNotVerify is the thing wouldChangeMyMind asks for.
-    expect(verdict.reasoning!.wouldChangeMyMind.join(" ")).toContain("close-up of the serial label on the console itself");
+    expect(verdict.reasoning!.wouldChangeMyMind.join(" ")).toContain("close-up of the serial label on the console");
     expect(verdict.questionsForSeller).toContain(CONSOLE_SERIAL_QUESTION);
   });
 

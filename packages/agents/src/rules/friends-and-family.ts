@@ -23,7 +23,7 @@ export const friendsAndFamilyRule: Rule = (input) => {
       "FRIENDS_AND_FAMILY_REQUEST",
       "stop",
       quoted(match.quote),
-      "The seller wants a Friends and Family payment, which has no buyer protection, so Pay Pals will not move money this way.",
+      "Wants a Friends and Family payment. That has no buyer protection.",
     ),
   ];
 };

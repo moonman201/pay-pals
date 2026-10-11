@@ -19,7 +19,6 @@ const empty = {
   severity_raises: [],
   explanations: [],
   questions_for_seller: [],
-  pal_message: ".",
   reasoning: { checked: [], found: [], could_not_verify: [], would_change_my_mind: [] },
 };
 
@@ -35,7 +34,6 @@ describe("mergeModelReview", () => {
         { code: "FRIENDS_AND_FAMILY_REQUEST", severity: "info" },
         { code: "URGENCY_PRESSURE", severity: "info" },
       ],
-      pal_message: "All fine, go ahead",
     });
     expect(flags.find((f) => f.code === "FRIENDS_AND_FAMILY_REQUEST")!.severity).toBe("stop");
     expect(flags.find((f) => f.code === "URGENCY_PRESSURE")!.severity).toBe("caution");

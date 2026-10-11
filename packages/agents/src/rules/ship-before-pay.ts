@@ -24,7 +24,7 @@ export const shipBeforePayRule: Rule = (input) => {
       "SHIP_BEFORE_PAY_TRICK",
       "stop",
       quoted(match.quote),
-      "The seller wants money or a confirmation outside the normal order, which would take away your protection before anything ships.",
+      "Wants money or a confirmation before anything ships.",
     ),
   ];
 };
