@@ -141,8 +141,16 @@ describe.skipIf(!enabled)("real Claude vision on the demo photos", () => {
     const reading = await read(cleanPs5.cards[0]!.photos[0]!);
     console.log(`console-back: serial=${reading.serial} illegible=${reading.serialIllegible} reason=${reading.serialIllegibleReason}`);
     expect(reading.serial).toBeNull();
-    // Model and brand are large print and must still come through.
-    expect(reading.model).toMatch(/CFI-1015A/i);
+    /**
+     * Something identifying the product still comes through off the large print, which is what
+     * shows the gate narrowed the serial rather than blinding the read.
+     *
+     * Relaxed 2026-10-11 after this failed on a repeat run reading "PlayStation 5" where it had
+     * read "CFI-1015A". Both are printed on that panel and both are correct, so pinning one of
+     * them was pinning a wording again. The serial assertion above is the one that matters and it
+     * held on every run.
+     */
+    expect(reading.model).toMatch(/CFI-?\s*1015A|PlayStation\s*5/i);
   }, ONE_READ_MS);
 
   it("the serial close-up still reads, so the gate did not just turn every serial off", async () => {
@@ -178,8 +186,20 @@ describe.skipIf(!enabled)("real Claude vision on the demo photos", () => {
     for (const group of ["checked", "found", "couldNotVerify", "wouldChangeMyMind"] as const) expect(Array.isArray(reasoning[group])).toBe(true);
     expect(reasoning.checked.length).toBeGreaterThan(0);
     expect(reasoning.couldNotVerify.length).toBeGreaterThan(0);
-    // The wide shot is the only photo of the console itself, so the number is not available and the pal must say so.
-    expect(reasoning.couldNotVerify.join(" ")).toMatch(/could not read it/i);
+    /**
+     * Corrected 2026-10-11. This matched the literal phrase "could not read it", which the
+     * shortening pass changed, so a wording edit turned the keyed gate red on a test whose point
+     * has nothing to do with wording. It now pins the property: whatever the sentence is, the
+     * pal has to say a serial was there and could not be read off the console, and has to ask
+     * for the close-up. The exact words are allowed to move; the admission is not.
+     */
+    const couldNot = reasoning.couldNotVerify.join(" ");
+    expect(couldNot).toMatch(/serial/i);
+    expect(couldNot).toMatch(/could not read|not readable|too unclear|unreadable/i);
+    // Deliberately no assertion that AJ164952580 is absent here. The first draft of this fix had
+    // one and it failed on the third run, correctly: the card carries that number on its box
+    // label, so a line reading "whether the console serial matches the box serial AJ164952580"
+    // is honest. Banning the string would have pinned a wording again, one layer down.
     expect(reasoning.wouldChangeMyMind.join(" ")).toMatch(/close-up of the serial label/i);
     expect(verdict.questionsForSeller).toContain(CONSOLE_SERIAL_QUESTION);
   }, PAL_RUN_MS);
