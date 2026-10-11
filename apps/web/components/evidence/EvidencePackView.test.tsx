@@ -253,4 +253,29 @@ describe("EvidencePackView", () => {
     render(<EvidencePackView pack={pack({ historyHash: head, historyVerified: true })} deal={emptyBox.deal} role="buyer" events={emptyBox.timeline} />);
     expect(screen.getByText(/events at the time the pack was built/)).toBeInTheDocument();
   });
+
+  /*
+    The buyer's own account of what went wrong. It lives on the state change
+    that opened the issue and nowhere else: the chat message about it names
+    the enum's label, not the words the buyer picked. A dispute reviewer reads
+    this pack for exactly that, so it sits by the arrival check rather than at
+    the bottom of a list of every event.
+  */
+  it("carries the reason the buyer gave, in their own words, near the arrival check", () => {
+    const opened = emptyBox.timeline.find((e) => e.kind === "state_changed" && e.toState === "ISSUE")!;
+    const said = "Issue opened: what arrived does not match the locked card. The box arrived empty.";
+    const live = emptyBox.timeline.map((e) => (e.id === opened.id ? { ...e, summary: said } : e));
+    render(<EvidencePackView pack={pack()} deal={emptyBox.deal} role="buyer" events={live} />);
+    expect(screen.getByTestId("pack-issue-reason")).toHaveTextContent("The box arrived empty.");
+    // Above the chat, not buried in the trailing list of events.
+    const reason = screen.getByTestId("pack-issue-reason");
+    const chat = screen.getByRole("heading", { name: "Chat" });
+    expect(reason.compareDocumentPosition(chat) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("offers no issue section on a deal where nobody opened one", () => {
+    const noIssue = emptyBox.timeline.filter((e) => !(e.kind === "state_changed" && e.toState === "ISSUE"));
+    render(<EvidencePackView pack={pack()} deal={emptyBox.deal} role="buyer" events={noIssue} />);
+    expect(screen.queryByTestId("pack-issue-reason")).not.toBeInTheDocument();
+  });
 });

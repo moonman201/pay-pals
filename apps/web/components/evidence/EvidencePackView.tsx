@@ -5,6 +5,7 @@ import { anchorCopy, anchorOf } from "@/lib/deal/history-anchor";
 import { historyStatus } from "@/lib/deal/history-status";
 import { priceRangeLine, priceSourceNote } from "@/lib/deal/price-copy";
 import { summariseSources } from "@/lib/deal/price-sources";
+import { issueOpened } from "@/lib/deal/issue";
 import { isExampleDeal } from "@/lib/deal/snapshot";
 import type { PayPalReadResult } from "@/lib/deal/paypal-confirmation";
 import { PayPalConfirmation } from "../deal/PayPalConfirmation";
@@ -79,6 +80,8 @@ export function EvidencePackView({
   read?: PayPalReadResult;
 }) {
   const live = events ?? pack.timeline;
+  // Read from the events, the same place the room's timeline reads it.
+  const issue = issueOpened(live);
   const card = pack.lockedCard;
   const sellerPhotos = pack.photos.filter((p) => p.addedBy === "seller");
   const buyerPhotos = pack.photos.filter((p) => p.addedBy === "buyer");
@@ -310,6 +313,19 @@ export function EvidencePackView({
             <p>No arrival check on record.</p>
           )}
         </Section>
+
+        {/*
+          The buyer's own account of what went wrong, next to the check it
+          follows from. It lives on the state change that opened the issue
+          and nowhere else, and a dispute reviewer reading this pack wants
+          it here rather than at the bottom of a list of every event.
+        */}
+        {issue ? (
+          <Section title="Why the buyer opened an issue">
+            <p data-testid="pack-issue-reason">{issue.summary}</p>
+            <p className="mt-1 text-xs text-muted">Opened {formatTime(issue.at)}. The buyer's words, as they chose them.</p>
+          </Section>
+        ) : null}
 
         <Section title={`Seller's photos (${sellerPhotos.length})`}>
           <p className="mb-2 text-xs text-muted">From the locked card and the packing step.</p>

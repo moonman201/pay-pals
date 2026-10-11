@@ -3,6 +3,7 @@ import type { PayPalReadResult } from "@/lib/deal/paypal-confirmation";
 import type { RecordedInput } from "@/lib/deal/recorded";
 import { Badge } from "../ui/Badge";
 import { Panel } from "../ui/Panel";
+import { TAP_LINK } from "../ui/tap";
 import { PayPalConfirmation } from "./PayPalConfirmation";
 import { RecordedByPayPals } from "./RecordedByPayPals";
 
@@ -40,7 +41,7 @@ export function PaymentSummary({ payment, read, record, dealId, events }: Props)
       {approve ? (
         <p className="mb-3 text-sm">
           The order is waiting for the buyer&apos;s approval.{" "}
-          <a href={approve} target="_blank" rel="noreferrer" className="font-semibold text-[var(--accent-ink)] underline-offset-2 hover:underline">
+          <a href={approve} target="_blank" rel="noreferrer" className={`${TAP_LINK} font-semibold text-[var(--accent-ink)] underline-offset-2 hover:underline`}>
             Approve it in the PayPal sandbox
           </a>
           , then press &quot;I approved in PayPal, capture now&quot; in the pay panel.

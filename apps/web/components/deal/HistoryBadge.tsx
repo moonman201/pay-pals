@@ -61,7 +61,7 @@ export function HistoryBadge({ events, historyHash, example = false, source = "p
       data-testid="history-badge"
       data-status={status.kind}
       title={titleFor(source, example ? null : historyHash, example, orderId)}
-      className={`inline-flex min-h-8 items-center gap-1.5 rounded-full border py-0.5 pl-1 pr-2.5 text-xs font-semibold underline-offset-2 hover:underline ${tone} ${className}`}
+      className={`inline-flex min-h-11 items-center gap-1.5 rounded-full border py-0.5 pl-1 pr-2.5 text-xs font-semibold underline-offset-2 hover:underline ${tone} ${className}`}
     >
       {status.kind === "verified" || bad ? (
         <Seal verified={status.kind === "verified"} />
