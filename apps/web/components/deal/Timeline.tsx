@@ -33,8 +33,6 @@ export function Timeline({ deal, events }: { deal: Deal; events: DealEvent[] }) 
       title="Timeline"
       id="timeline"
       aside={<span className="text-xs text-muted">{events.length} events</span>}
-      labelAs="region"
-      label="Timeline"
     >
       <details className="group" data-testid="timeline-details">
         <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 text-sm font-bold text-[var(--accent-ink)] [&::-webkit-details-marker]:hidden">
