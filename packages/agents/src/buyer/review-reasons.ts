@@ -101,6 +101,11 @@ function found(input: ReviewReasonInput): ReasonLine[] {
   if (card && input.seller?.displayName && !has(flags, "NAME_MISMATCH")) {
     lines.push(`The PayPal address that gets paid has the seller's name in it.`);
   }
+  // Same gap the PayPal-address check had: the picture check ran and its result went unreported
+  // when it found nothing. "We only match against our own file" is the limit, not the outcome.
+  if (input.photoMatchRan && !has(flags, "STOCK_OR_REUSED_PHOTO")) {
+    lines.push("None of the photos matches one already on file.");
+  }
   const item = itemSerial(readings);
   if (item) lines.push(`I read ${item.serial} off the item itself in one of the photos.`);
   if (card?.serial && card.boxSerial && normalizeSerial(card.serial) === normalizeSerial(card.boxSerial)) {
@@ -140,11 +145,18 @@ function couldNotVerify(input: ReviewReasonInput): ReasonLine[] {
   }
 
   // Item 2's consequence: a serial that is in the picture and unreadable is a thing we do not know, not a thing to skip over.
+  //
+  // These two were separate lines and are two halves of one fact whenever both fire: no number off
+  // the console, and the box label is what we have instead. On the clean deal's first card they sat
+  // one above the other saying it twice. They stay separate where only one applies, because then
+  // each is the whole fact on its own.
   const unreadable = unreadableSerial(readings);
-  if (unreadable) {
+  const boxOnly = card.boxSerial !== null && card.boxSerial !== undefined && !card.serial;
+  if (unreadable && boxOnly) {
+    lines.push(`A serial is in one photo but I could not read it: ${unreadable.serialIllegibleReason}. The only number I have is the box label's, which does not say which console is inside.`);
+  } else if (unreadable) {
     lines.push(`A serial is in one photo but I could not read it: ${unreadable.serialIllegibleReason}.`);
-  }
-  if (card.boxSerial && !card.serial) {
+  } else if (boxOnly) {
     lines.push("The only serial is on the box label, which does not say which console is inside.");
   }
   // The near-miss band claims neither a match nor a mismatch, so the thing it could not settle has
