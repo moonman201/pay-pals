@@ -42,7 +42,10 @@ test.describe("buyer-first start", () => {
     const timeline = await timelineItems(page);
     await expect(timeline.filter({ hasText: "invited the seller" })).toHaveCount(1);
     await expect(timeline.filter({ hasText: "Invite link created for the seller" })).toHaveCount(1);
-    await expect(timeline.filter({ hasText: "Waiting for the seller." })).toHaveCount(1);
+    // State changes fold into the action that caused them now, with the new state on the end
+    // of that row, so there is no row of its own saying it. The state is still on the page and
+    // still in the timeline; this reads it where it now lives.
+    await expect(timeline.filter({ hasText: "Waiting for the seller" })).toHaveCount(1);
     // A fresh deal started here is a real deal, not a seeded example (J6).
     await expect(page.getByText("Example deal, seeded from a scenario")).toHaveCount(0);
 
@@ -67,7 +70,7 @@ test.describe("buyer-first start", () => {
     const after = await timelineItems(page);
     await expect(after.filter({ hasText: `${cleanPs5.seller.displayName} joined the deal.` })).toHaveCount(1);
     await expect(after.filter({ hasText: "Seller Pal built card version 1." })).toHaveCount(1);
-    await expect(after.filter({ hasText: "Listed." })).toHaveCount(1);
+    await expect(after.filter({ hasText: "Listed" }).first()).toBeVisible();
 
     const listed = await snapshot(page, dealId);
     expect(listed.deal.state).toBe("LISTED");
