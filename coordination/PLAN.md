@@ -126,7 +126,13 @@ Save every working call as a Postman collection in `docs/postman/`.
 - Grand Prize, or the Best Agentic Commerce honorable mention.
 - One sponsor prize only (rules allow one): **Channel3**. The Buyer Pal's price check must call the Channel3 API for real.
 
-## Decisions (Matt, Oct 6)
+## Decisions 1 to 22 (Matt and the Lead, Oct 6 to Oct 10)
+
+**There are 22, numbered in order, and the list runs to the end of this section.**
+Said plainly because two lanes read this section, reached Decision 13, concluded
+the list ended there and went to work off `WORKLOG.md` instead. The heading used
+to say "Oct 6" while carrying decisions made four days later, which is a good way
+to make a reader skip the ones that matter most. Today's are 12 to 22.
 1. **Overrides.** A buyer can override `caution` flags. A buyer can never override a payment-method flag (`FRIENDS_AND_FAMILY_REQUEST`, `OFF_PLATFORM_PAYMENT`). Pay Pals only ever creates a Goods and Services checkout payment, so those flags end the deal. Encoded as `PAYMENT_METHOD_FLAGS` in `packages/contracts/src/red-flag.ts`.
 
 2. **Who starts a deal.** Either side. The seller usually does; a buyer can paste a listing and invite the seller.
