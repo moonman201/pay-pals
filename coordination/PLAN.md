@@ -300,13 +300,18 @@ to make a reader skip the ones that matter most. Today's are 12 to 22.
 22. **Two things owed at the final deploy and smoke (Oct 10, Matt).**
     (a) **Re-seed the three demo deals.** They were seeded 2026-10-08 and a
     seeded verdict is frozen at seed time, so the whole Oct 10 batch is invisible
-    on "See the finished deal": no `PalReasoning` groups, the old PS5 price range,
-    the old tamper wording. It is live on "Play as", which runs the pals for real,
-    and that was confirmed on production. Re-seeding needs `SEED_VERSION` bumped
-    in `apps/web/lib/demo/seed-version.ts` (still `2026-10-08.2`, so the seeder
-    treats the old seeds as current), then `npm run db:delete-seeded-demo-deals
-    -w packages/db`, then a deploy. The seeds are correctly stamped, so the
-    stamp-based selector from Decision 18's round will find them.
+    on the finished-deal pages: no `PalReasoning` groups, the old PS5 price range,
+    the old tamper wording. **Done on Oct 11** at Matt's instruction rather than at
+    the end: `SEED_VERSION` is now `2026-10-10.1`, the three stale seeds were swept
+    and the demo deals re-seeded on current code, verified on production.
+    The procedure, for the next time, and **the command changed on Oct 11**: bump
+    `SEED_VERSION` in `apps/web/lib/demo/seed-version.ts`, then
+    `npm run db:delete-seeded-demo-deals -w packages/db -- --sweep --keep-seed <version> --yes`,
+    then push, because a cold start is what re-seeds. The sweep is now opt-in and a
+    deleting sweep must say what it keeps: `--sweep --yes` with no `--keep-seed` is
+    refused, and `--keep-seed none` is the spelled-out way to delete every stamped
+    seed. The old form, with no mode, now exits 2. Building the id list for `--id`
+    in zsh needs `${=ARGS}`; an unsplit variable is refused with that advice.
     (b) **Delete the Lead's production smoke deal**, `3e28036c-77f1-49e1-9f5d-f9184fcdbf84`,
     a clean-ps5 deal started on production on Oct 10 to prove the live model
     carries the new reason groups. It is **unstamped**, so the delete script will

@@ -47,9 +47,15 @@ generated module is stale; `npm run db:bundle -w packages/db` refreshes it.
 Before a redeploy re-seeds the demo, clear the old seeds:
 
 ```
-npm run db:delete-seeded-demo-deals -w packages/db -- --keep-seed 2026-10-08.1        # lists what would go
-npm run db:delete-seeded-demo-deals -w packages/db -- --keep-seed 2026-10-08.1 --yes  # deletes
+npm run db:delete-seeded-demo-deals -w packages/db -- --sweep --keep-seed 2026-10-08.1        # lists what would go
+npm run db:delete-seeded-demo-deals -w packages/db -- --sweep --keep-seed 2026-10-08.1 --yes  # deletes
 ```
+
+The mode is always named. `--sweep`, `--id` and `--explain` are the three,
+there is no default, and a run with no mode does nothing. A deleting sweep
+also has to say what it keeps: pass `--keep-seed <version>`, or
+`--keep-seed none` to delete every stamped seed including the live ones.
+Listing needs neither.
 
 What selects a deal is our seed stamp: the `data.seedVersion` the seeder
 writes on the `deal_created` event. A stamped deal is ours to delete, an
@@ -96,6 +102,23 @@ a warning, not a block. `--keep-seed` is refused alongside `--id`: it
 protects seeds from the sweep and would do nothing here.
 
 Exported as `deleteDealsById(db, { ids, dryRun })`.
+
+### Building the id list in a shell
+
+Generating the flags into a variable is the one place this has gone wrong, so
+quote it correctly:
+
+```sh
+ARGS=$(sed 's/^/--id /' ids.txt | paste -sd' ' -)
+npm run db:delete-seeded-demo-deals -w packages/db -- ${=ARGS}   # zsh splits with ${= }
+```
+
+zsh does not split an unquoted variable into words, so `-- $ARGS` sends the
+whole list as a single argument. The parser refuses that: an argument it does
+not recognise stops the run and says so, rather than being skipped. Before
+`--sweep` became explicit, a skipped argument meant the run fell through to
+the sweep and offered to delete the live demo seeds. See the Oct 11 entry in
+`coordination/WORKLOG.md`.
 
 ### What goes with a deal
 

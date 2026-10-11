@@ -1,21 +1,30 @@
 /**
- * Deletes demo deals from DATABASE_URL so a redeploy can re-seed them. Two
- * modes, and neither deletes anything without --yes.
+ * Deletes demo deals from DATABASE_URL so a redeploy can re-seed them. The
+ * mode is always named and nothing is deleted without --yes. An argument it
+ * does not recognise stops the run rather than being skipped, because a
+ * skipped argument used to mean the sweep ran when a by-id run was meant.
  *
- * The sweep takes deals carrying our seed stamp, so a judge's own run stays.
- * Seeds stamped with the current version are kept when it is passed with
- * --keep-seed.
- *   npm run db:delete-seeded-demo-deals -w packages/db -- --keep-seed 2026-10-08.1            (list only)
- *   npm run db:delete-seeded-demo-deals -w packages/db -- --keep-seed 2026-10-08.1 --yes      (delete)
- *   npm run db:delete-seeded-demo-deals -w packages/db -- --explain <dealId>                  (one deal, every factor)
- * Without --keep-seed every finished stamped scenario deal is listed, the current seeds included.
+ * --sweep takes deals carrying our seed stamp, so a judge's own run stays. A
+ * deleting sweep has to say which seeds it keeps.
+ *   -- --sweep                                            (list every stamped candidate)
+ *   -- --sweep --keep-seed 2026-10-08.1                    (list, keeping the live seeds)
+ *   -- --sweep --keep-seed 2026-10-08.1 --yes              (delete the stale ones)
+ *   -- --sweep --keep-seed none --yes                      (delete every stamped seed, live ones included)
  *
  * --id removes named deals the sweep will not touch, such as a smoke-test
  * deal or an abandoned probe. Each id is spelled out in full and matched
  * exactly; there is no prefix or pattern form. One unknown id refuses the
  * whole call.
- *   npm run db:delete-seeded-demo-deals -w packages/db -- --id <uuid> --id <uuid>              (list only)
- *   npm run db:delete-seeded-demo-deals -w packages/db -- --id <uuid> --id <uuid> --yes        (delete)
+ *   -- --id <uuid> --id <uuid>                             (list only)
+ *   -- --id <uuid> --id <uuid> --yes                       (delete)
+ *
+ *   -- --explain <dealId>                                  (one deal, every factor, reads only)
+ *
+ * Each line above is prefixed by: npm run db:delete-seeded-demo-deals -w packages/db
+ *
+ * Building the --id list in a shell variable needs care: zsh does not split an
+ * unquoted variable into words, so "-- $ARGS" arrives as one argument. Use
+ * "-- ${=ARGS}". The parser refuses that shape rather than guessing.
  *
  * Argument handling lives in src/postgres/delete-cli-args.ts, where it is tested.
  */
@@ -83,7 +92,7 @@ const connection = connectPostgres(url);
   }
 
   const preview = await deleteSeededDemoDeals(connection.db, { keepSeedVersion: args.keepSeedVersion, dryRun: true });
-  console.log(args.keepSeedVersion ? `Keeping seeds stamped ${args.keepSeedVersion}.` : "No --keep-seed given: the current seeds go too.");
+  console.log(args.keepSeedVersion ? `Keeping seeds stamped ${args.keepSeedVersion}.` : "Keeping no seed: every stamped candidate below goes, the live ones included.");
   if (preview.candidates.length === 0) {
     console.log("No finished demo deals to delete.");
     return;
