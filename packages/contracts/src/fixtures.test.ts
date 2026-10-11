@@ -128,7 +128,7 @@ describe("scenario fixtures", () => {
     expect(fx.arrivalPhotos.some((p) => /foam insert/i.test(p.whatItShows))).toBe(true);
     // captions describe what is visible, never the conclusion
     for (const photo of [...fx.listingPhotos, ...fx.arrivalPhotos]) expect(photo.whatItShows).not.toMatch(/reused|no console|empty|scam|fake/i);
-    expect(fx.expectedArrival?.matches).toBe(false);
+    expect(fx.expectedArrival?.outcome).toBe("mismatch");
     expect(fx.expectedArrival?.mismatchFields).toContain("other");
   });
 });

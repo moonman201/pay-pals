@@ -166,7 +166,7 @@ export const emptyBox: ScenarioFixture = {
   ],
   // The locked card never got a serial off the console, so the mismatch is not a
   // serial that differs: it is that no console arrived at all.
-  expectedArrival: { matches: false, mismatchFields: ["other"] },
+  expectedArrival: { outcome: "mismatch", mismatchFields: ["other"] },
   timeline: chainEvents([
     { id: "e1", dealId, kind: "deal_created", actor: "seller", summary: "Marcus B. started a deal.", at: at(0) },
     { id: "e2", dealId, kind: "card_updated", actor: "seller_pal", summary: `Seller Pal built card version 1. The box label reads ${EMPTY_BOX_LOCKED_SERIAL}. The sticker on the console is in the wide shot but not readable.`, at: at(1) },

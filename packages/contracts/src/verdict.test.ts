@@ -5,7 +5,7 @@
  * with them round-trips.
  */
 import { describe, expect, it } from "vitest";
-import { ArrivalCheckSchema, PalReasoningSchema, VerdictSchema } from "./verdict";
+import { ARRIVAL_OUTCOMES, ArrivalCheckSchema, PalReasoningSchema, VerdictSchema } from "./verdict";
 
 const reasoning = {
   checked: ["The serial on the back of the console, against the serial on the box label."],
@@ -51,7 +51,7 @@ describe("the reasons are optional on both pal results", () => {
     const check = {
       dealId: "d1",
       cardVersion: 1,
-      matches: true,
+      outcome: "match",
       mismatches: [],
       observed: { brand: "Sony", model: "CFI-1015A", serial: "AJ164952580" },
       palMessage: "That is the console on the card.",
@@ -71,7 +71,7 @@ describe("where an arrival serial came from", () => {
   const base = {
     dealId: "d1",
     cardVersion: 1,
-    matches: true,
+    outcome: "match",
     mismatches: [],
     palMessage: "That is the console on the card.",
     createdAt: "2026-10-10T12:00:00.000Z",
@@ -94,5 +94,46 @@ describe("where an arrival serial came from", () => {
 
   it("refuses a source it does not know, so a third case cannot be invented in passing", () => {
     expect(ArrivalCheckSchema.safeParse({ ...base, observed: { brand: null, model: null, serial: "X", serialSource: "guess" } }).success).toBe(false);
+  });
+});
+
+/**
+ * Contracts v1.8.0: an arrival outcome is a three-value union, not a boolean.
+ * It replaced `matches: boolean` on purpose. Widening that boolean to
+ * `boolean | null` produced zero type errors across this repo while leaving
+ * eight sites that would have called an unsettled comparison a confirmed
+ * mismatch, one of them writing that into an append-only table. A union cannot
+ * be read as a truth value by accident.
+ */
+describe("the arrival outcome", () => {
+  const base = {
+    dealId: "d1",
+    cardVersion: 1,
+    mismatches: [],
+    observed: { brand: "Sony", model: "CFI-1015A", serial: "AJ164952580" },
+    palMessage: "That is the console on the card.",
+    createdAt: "2026-10-10T12:00:00.000Z",
+  };
+
+  it("names exactly three outcomes, so a fourth cannot arrive unnoticed", () => {
+    expect([...ARRIVAL_OUTCOMES]).toEqual(["match", "mismatch", "inconclusive"]);
+  });
+
+  for (const outcome of ARRIVAL_OUTCOMES) {
+    it(`round-trips ${outcome}`, () => {
+      expect(ArrivalCheckSchema.parse({ ...base, outcome }).outcome).toBe(outcome);
+    });
+  }
+
+  it("refuses a boolean where the outcome goes, so an old caller cannot limp on", () => {
+    expect(ArrivalCheckSchema.safeParse({ ...base, matches: true }).success).toBe(false);
+    expect(ArrivalCheckSchema.safeParse({ ...base, outcome: true }).success).toBe(false);
+  });
+
+  it("carries unsettled comparisons apart from mismatches, because an unsettled check found no difference", () => {
+    const unsettled = [{ field: "serial" as const, expected: "AJ164952580", observed: "AJ16495258O", explanation: "One character apart, which is the shape of a misread." }];
+    const parsed = ArrivalCheckSchema.parse({ ...base, outcome: "inconclusive", unsettled });
+    expect(parsed.mismatches).toEqual([]);
+    expect(parsed.unsettled).toEqual(unsettled);
   });
 });

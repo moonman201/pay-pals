@@ -170,7 +170,7 @@ export const cleanPs5: ScenarioFixture = {
   arrivalPhotos: [
     { url: "/fixtures/clean-ps5/arrival-console-serial.jpg", whatItShows: `Close-up of the label on the back of the console that arrived. The number under the barcode is ${CLEAN_SERIAL}.`, addedBy: "buyer", addedAt: at(5 * 24 * 60 + 20) },
   ],
-  expectedArrival: { matches: true, mismatchFields: [] },
+  expectedArrival: { outcome: "match", mismatchFields: [] },
   timeline: chainEvents([
     { id: "e1", dealId, kind: "deal_created", actor: "buyer", summary: "Priya S. started a deal from a listing and invited the seller.", at: at(0) },
     { id: "e1b", dealId, kind: "seller_invited", actor: "system", summary: "Invite link created for the seller. The buyer sends it.", at: at(0) },

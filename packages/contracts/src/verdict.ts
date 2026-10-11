@@ -104,12 +104,35 @@ export const MismatchSchema = z.object({
 });
 export type Mismatch = z.infer<typeof MismatchSchema>;
 
+/**
+ * How an arrival compared with the locked card.
+ *
+ * `inconclusive` is the case this union exists for: a comparison that could not
+ * be settled, where the honest answer is neither "the right item" nor "the wrong
+ * item". Today it is the serial near-miss band (PLAN.md Decision 18), where an
+ * OCR read differs from the card by one character and a misread is more likely
+ * than a different unit.
+ *
+ * This replaced a `matches: boolean`, deliberately breaking every consumer, so
+ * that the compiler names each one. Widening the boolean to `boolean | null`
+ * instead produced **zero** type errors across this repo while leaving eight
+ * sites that would have reported an unsettled comparison as a confirmed
+ * mismatch, one of them persisting that into an append-only table. A string
+ * union cannot be read as a truth value by accident.
+ */
+export const ARRIVAL_OUTCOMES = ["match", "mismatch", "inconclusive"] as const;
+export type ArrivalOutcome = (typeof ARRIVAL_OUTCOMES)[number];
+
 export const ArrivalCheckSchema = z.object({
   dealId: z.string().min(1),
   /** Version of the locked card the arrival was compared against. */
   cardVersion: z.number().int().positive(),
-  matches: z.boolean(),
+  /** match, mismatch, or inconclusive. See ARRIVAL_OUTCOMES. */
+  outcome: z.enum(ARRIVAL_OUTCOMES),
+  /** What positively differed. Empty on a match, and empty on an inconclusive check too: an unsettled comparison is not a difference. */
   mismatches: z.array(MismatchSchema),
+  /** Comparisons that could not be settled. Non-empty exactly when outcome is inconclusive. */
+  unsettled: z.array(MismatchSchema).optional(),
   /** What the pal read from the arrival photos, as best it could. */
   observed: z.object({
     brand: z.string().nullable(),
