@@ -1,8 +1,13 @@
 /**
- * Finds card photos that are the same picture as a known photo: another
- * finished deal's photos or the reference set apps/web passes in. Hashes are
- * perceptual (vision/phash.ts) and cached per URL for the life of the pal.
- * With no loadable images this finds nothing, so the rule stays silent.
+ * Finds card photos that are the same picture as one the caller already holds.
+ * Hashes are perceptual (vision/phash.ts) and cached per URL for the life of
+ * the pal. With no loadable images this finds nothing, so the rule stays
+ * silent.
+ *
+ * The corpus is whatever the caller supplies and nothing more. This function
+ * cannot tell where a picture appears in the world, only whether it is one of
+ * the pictures it was handed, so every sentence written off a match has to say
+ * so. See stock-photo.ts.
  */
 import type { Photo } from "@pay-pals/contracts";
 import type { PhotoMatch } from "../rules/types";
@@ -11,7 +16,11 @@ import { NEAR_DUPLICATE_DISTANCE, hammingDistance, imageHash } from "../vision/p
 
 export interface KnownPhoto {
   url: string;
-  /** Where the photo came from, for the flag's evidence: "the clean-ps5 demo deal", "reference set: slab-front.jpg". */
+  /**
+   * Where the photo came from, named in the flag's evidence so a reader can
+   * see what it was compared against: "reference set: slab-front.jpg". It is
+   * the only account of the corpus the buyer gets, so it stays specific.
+   */
   source: string;
 }
 

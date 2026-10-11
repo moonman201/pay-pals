@@ -1,8 +1,22 @@
 /**
- * STOCK_OR_REUSED_PHOTO: a card photo is the same picture as a photo from
- * somewhere else (another deal, a reference set). Caution. Comes only from
- * the image check in buyer/photo-match.ts, never from caption words, so with
- * no loadable images the rule is silent.
+ * STOCK_OR_REUSED_PHOTO: a card photo is the same picture as one Pay Pals
+ * already holds. Caution. Comes only from the image check in
+ * buyer/photo-match.ts, never from caption words, so with no loadable images
+ * the rule is silent.
+ *
+ * What the check actually does, because the wording has to match it. Each card
+ * photo is fetched, reduced to a perceptual hash (vision/phash.ts) and compared
+ * by Hamming distance against the hashes of a corpus the caller supplies. The
+ * corpus is Pay Pals' own reference set and nothing else: apps/web builds it
+ * from the files it ships under public/fixtures/reference.
+ *
+ * So the honest claim is "this is a picture Pay Pals already holds", and the
+ * honest conclusion is that the buyer has not been shown a photo taken of this
+ * seller's item for this listing. The claim this used to make, that the photo
+ * came "from another listing", was never checked: Pay Pals does not search the
+ * web and cannot know where else a picture appears. The computation was real
+ * and the sentence about it was not, which is the shape of overclaim the Oct 10
+ * honesty pass exists to remove.
  */
 import type { Rule } from "./types";
 import { flag } from "./text";
@@ -15,8 +29,9 @@ export const stockPhotoRule: Rule = ({ card, photoMatches }) => {
     flag(
       "STOCK_OR_REUSED_PHOTO",
       "caution",
+      // The evidence line names its source and its distance. It was already honest; it is unchanged.
       `Photo "${best.photo.whatItShows}" is the same picture as ${best.source} (${best.distance} of 64 bits differ)${others > 0 ? `; ${others} more photo${others === 1 ? "" : "s"} matched too` : ""}`,
-      "A photo on this card is the same picture as one from another listing, so you have not seen the seller's own item.",
+      "This is the same picture as one Pay Pals already holds, so it was not taken of this seller's item for this listing. Pay Pals compares against its own set of pictures only, so this says nothing about where else the picture appears.",
     ),
   ];
 };

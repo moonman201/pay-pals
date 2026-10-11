@@ -16,7 +16,12 @@ export interface BuyerPalOptions {
   priceLookup: MarketPriceLookup;
   /** Grading certificate lookup. Without it a card with a certNumber is not checked. */
   certLookup?: CertLookup | null;
-  /** Photos from other finished deals and the reference set. A card photo that is the same picture raises STOCK_OR_REUSED_PHOTO. */
+  /**
+   * The pictures Pay Pals already holds. A card photo that is the same picture
+   * raises STOCK_OR_REUSED_PHOTO. Today apps/web passes its reference set and
+   * nothing else, so the flag means "a picture we hold", never "a picture on
+   * another listing": nothing here searches the web. See stock-photo.ts.
+   */
   knownPhotos?: KnownPhoto[];
   /** Base URL for app-relative photo paths such as /fixtures/clean-ps5/front.jpg. Defaults to PAY_PALS_PHOTO_BASE_URL or NEXT_PUBLIC_APP_URL. */
   photoBaseUrl?: string | null;
