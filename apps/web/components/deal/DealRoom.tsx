@@ -11,6 +11,7 @@ import { dealStatusView } from "@/lib/deal/status-view";
 import { diffVerdicts, lastTwoVerdicts } from "@/lib/deal/verdict-diff";
 import { dealApi, postJson } from "@/lib/client/api";
 import { streamReview } from "@/lib/client/review-stream";
+import { isConfirmedMismatch } from "@/lib/deal/arrival-outcome";
 import { agreeLockedLine, applyProgress, IDLE_REVIEW, startedReview, type LiveReviewState } from "@/lib/deal/live-review";
 import { palChannel, type Role } from "@/lib/role";
 import { ActionBar } from "./ActionBar";
@@ -234,7 +235,9 @@ export function DealRoom({ snapshot, role }: { snapshot: DealSnapshot; role: Rol
                 <IssueStep
                   dealId={deal.id}
                   state={state}
-                  preselect={snapshot.arrivalCheck && !snapshot.arrivalCheck.matches ? "arrival_mismatch" : undefined}
+                  // Only a confirmed mismatch preselects the wrong-item reason. An unsettled comparison is
+                  // not a finding against the seller, so it must not fill that in for the buyer.
+                  preselect={isConfirmedMismatch(snapshot.arrivalCheck) ? "arrival_mismatch" : undefined}
                   onDone={() => { setIssueOpen(false); refresh(); }}
                   onClose={() => setIssueOpen(false)}
                 />

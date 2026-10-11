@@ -336,7 +336,7 @@ describe("the delivery", () => {
     const check = {
       dealId: cleanPs5.deal.id,
       cardVersion: lockedCard.version,
-      matches: true,
+      outcome: "match" as const,
       mismatches: [],
       observed: { brand: "Sony", model: "PlayStation 5", serial: "AJ164952580" },
       palMessage: "It is the same console.",
@@ -352,7 +352,7 @@ describe("the delivery", () => {
     const base = {
       dealId: cleanPs5.deal.id,
       cardVersion: lockedCard.version,
-      matches: true,
+      outcome: "match" as const,
       mismatches: [],
       palMessage: "It is the same console.",
       createdAt: "2026-10-09T12:30:00.000Z",
@@ -385,7 +385,7 @@ describe("the delivery", () => {
     const check = {
       dealId: cleanPs5.deal.id,
       cardVersion: lockedCard.version,
-      matches: true,
+      outcome: "match" as const,
       mismatches: [],
       observed: { brand: "Sony", model: "PlayStation 5", serial: null, serialSource: null },
       palMessage: "Nothing contradicts the card.",
@@ -401,7 +401,7 @@ describe("the delivery", () => {
     const check = {
       dealId: cleanPs5.deal.id,
       cardVersion: lockedCard.version,
-      matches: false,
+      outcome: "mismatch" as const,
       mismatches: [{ field: "serial" as const, expected: "AJ164952580", observed: "nothing in the box", explanation: "The box was empty." }],
       observed: { brand: null, model: null, serial: null },
       palMessage: "The console is not there.",
@@ -410,6 +410,40 @@ describe("the delivery", () => {
     const line = item(dealStatusView(input({ arrivalCheck: check })), "delivery", "arrival-check");
     expect(line.status).toBe("unverified");
     expect(line.detail).toContain("nothing in the box");
+  });
+
+  it("does not verify an arrival check it could not settle, and does not report it as a difference either", () => {
+    const check = {
+      dealId: cleanPs5.deal.id,
+      cardVersion: lockedCard.version,
+      outcome: "inconclusive" as const,
+      // Empty on an inconclusive check, which is the trap: a branch counting this would say "0 differences".
+      mismatches: [],
+      unsettled: [
+        {
+          field: "serial" as const,
+          expected: "AJ164952580",
+          observed: "AJ16495258O",
+          explanation: "They differ only at character 11, 0 against O.",
+        },
+      ],
+      observed: { brand: "Sony", model: "PlayStation 5", serial: "AJ16495258O" },
+      palMessage: "I cannot tell whether those are the same number.",
+      createdAt: "2026-10-09T12:30:00.000Z",
+    };
+    const line = item(dealStatusView(input({ arrivalCheck: check })), "delivery", "arrival-check");
+
+    // Unverified: a check that ran and did not settle is neither a pass nor a failure.
+    expect(line.status).toBe("unverified");
+    expect(line.detail).toMatch(/could not settle 1 comparison/);
+    // Both numbers named, so a reader can see what the pal was looking at.
+    expect(line.detail).toContain("AJ164952580");
+    expect(line.detail).toContain("AJ16495258O");
+    expect(line.detail).toContain("not calling that a match and not calling it a mismatch");
+    expect(line.detail).toMatch(/clearer photo of that label/);
+    // Never the mismatch wording, and never the empty-list artifact.
+    expect(line.detail).not.toMatch(/found \d+ differences?/);
+    expect(line.detail).not.toMatch(/0 differences|: \./);
   });
 
   it("says the evidence pack is useful context for a dispute and never promises an outcome", () => {

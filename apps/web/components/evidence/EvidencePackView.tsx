@@ -1,5 +1,6 @@
 import { CONDITION_LABELS, type Deal, type DealEvent, type EvidencePack, type Message } from "@pay-pals/contracts";
 import { boxSerialLabel, boxSerialStatus } from "@/lib/deal/box-serial";
+import { CLAIMS_NEITHER, unsettledOf } from "@/lib/deal/arrival-outcome";
 import { anchorCopy, anchorOf } from "@/lib/deal/history-anchor";
 import { historyStatus } from "@/lib/deal/history-status";
 import { priceRangeLine, priceSourceNote } from "@/lib/deal/price-copy";
@@ -291,6 +292,17 @@ export function EvidencePackView({
                     <li key={m.field}>{m.field}: card says {m.expected}, arrived {m.observed}. {m.explanation}</li>
                   ))}
                 </ul>
+              ) : null}
+              {/* mismatches is empty on an inconclusive check, so what could not be settled needs saying too. */}
+              {unsettledOf(pack.arrivalCheck).length > 0 ? (
+                <>
+                  <p className="mt-1">{CLAIMS_NEITHER} What it could not settle:</p>
+                  <ul className="mt-1 list-disc pl-5" data-testid="pack-unsettled">
+                    {unsettledOf(pack.arrivalCheck).map((m) => (
+                      <li key={m.field}>{m.field}: card says {m.expected}, arrived {m.observed}. {m.explanation}</li>
+                    ))}
+                  </ul>
+                </>
               ) : null}
               <PalReasons reasoning={pack.arrivalCheck.reasoning} pal="buyer" className="mt-3" />
             </>

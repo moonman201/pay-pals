@@ -160,8 +160,8 @@ describe("EvidencePackView", () => {
     const arrivalCheck = {
       dealId: emptyBox.deal.id,
       cardVersion: 1,
-      matches: false,
-      mismatches: [],
+      outcome: "mismatch" as const,
+      mismatches: [{ field: "serial" as const, expected: "AJ164952580", observed: "no console in the photos", explanation: "The box arrived without the item." }],
       observed: { brand: null, model: null, serial: null },
       palMessage: "The console is not there.",
       reasoning,
