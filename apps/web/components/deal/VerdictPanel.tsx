@@ -1,12 +1,13 @@
-import { isPaymentMethodFlag, type RedFlag, type Verdict } from "@pay-pals/contracts";
+import { isPaymentMethodFlag, type ItemCard, type RedFlag, type Verdict } from "@pay-pals/contracts";
 import { certRows } from "@/lib/deal/cert-compare";
-import { certSentence } from "@/lib/deal/cert-copy";
+import { certHeadline } from "@/lib/deal/cert-copy";
+import { GRADED_PRICE_LINK_TEXT, GRADED_PRICE_NOTE, gradedPriceSearchUrl, isGradedCard } from "@/lib/deal/graded-price";
+import { reviewLead } from "@/lib/deal/review-lead";
 import { FLAG_WORDS } from "@/lib/deal/override";
 import { hasUsableRange, priceRangeLine, priceSourceNote } from "@/lib/deal/price-copy";
 import { methodNote, priceText, retailRange, summariseSources } from "@/lib/deal/price-sources";
-import { OVERALL_LABELS } from "@/lib/labels";
 import { PalAvatar } from "../pal/PalAvatar";
-import { PalReasons } from "../pal/PalReasons";
+import { PalWork } from "../pal/PalWork";
 import { Badge, type Tone } from "../ui/Badge";
 import { CautionIcon, CheckIcon, StopIcon } from "../ui/icons";
 import { Panel } from "../ui/Panel";
@@ -37,9 +38,11 @@ interface Props {
   cardGrade?: string | null;
   /** What the seller is asking, to sit beside the retail range. From the same card as the title and the grade. */
   askingPrice?: number | null;
+  /** The card itself, for the one case where no price may be shown at all: a graded slab. */
+  card?: ItemCard | null;
 }
 
-export function VerdictPanel({ verdict, currentVersion, locked, cardTitle = null, cardGrade = null, askingPrice = null }: Props) {
+export function VerdictPanel({ verdict, currentVersion, locked, cardTitle = null, cardGrade = null, askingPrice = null, card = null }: Props) {
   const stale = !locked && verdict.cardVersion > 0 && verdict.cardVersion !== currentVersion;
   // Matt, Oct 9: the listings behind the range are a count, a split and prices. Never the shop names.
   const sources = summariseSources(verdict.priceCheck);
@@ -48,9 +51,12 @@ export function VerdictPanel({ verdict, currentVersion, locked, cardTitle = null
   // The prices the lookup actually returned, as opposed to the band derived from them. Null when
   // it returned no new listing, and then the panel is exactly what it was before.
   const retail = retailRange(verdict.priceCheck);
+  // A graded card gets no price block at all, whatever the lookup returned for it.
+  const graded = isGradedCard(card) ? card : null;
+  const lead = reviewLead(verdict);
   const style = VERDICT_STYLE[verdict.overall];
   return (
-    <Panel title="Buyer Pal review">
+    <Panel title="Buyer Pal review" id="buyer-pal-review">
       {stale ? (
         <p className="mb-3 rounded-lg bg-caution-soft px-3 py-2 text-xs text-caution">
           This review was for card version {verdict.cardVersion}. The card is now version {currentVersion}, so it needs another look.
@@ -60,14 +66,47 @@ export function VerdictPanel({ verdict, currentVersion, locked, cardTitle = null
       <div className={`motion-reveal flex gap-3 rounded-xl border p-4 sm:gap-4 ${style.box}`} data-testid="verdict" data-overall={verdict.overall}>
         <PalAvatar pal="buyer" size={56} className="mt-0.5" />
         <div className="min-w-0 flex-1">
-          <p className={`flex items-center gap-2 text-3xl font-black leading-none tracking-tight ${style.word}`}>
+          <p className={`flex items-center gap-2 text-3xl font-black leading-none tracking-tight ${style.word}`} data-testid="verdict-headline">
             <VerdictIcon overall={verdict.overall} />
-            {OVERALL_LABELS[verdict.overall]}
+            {lead.headline}
           </p>
-          <p className="mt-2 text-sm leading-relaxed text-ink">{verdict.palMessage}</p>
+          {lead.reasons.length > 0 ? (
+            <ul className="mt-3 space-y-1 text-sm leading-relaxed text-ink" data-testid="verdict-reasons">
+              {lead.reasons.map((reason) => (
+                <li key={reason} className="flex gap-2">
+                  <span aria-hidden="true" className={style.word}>
+                    &bull;
+                  </span>
+                  <span className="min-w-0">{reason}</span>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          {lead.lookAgain ? (
+            <p className="mt-3 text-sm leading-relaxed text-ink" data-testid="look-again">
+              <span className="font-bold">I&apos;d look again if</span> {lead.lookAgain}
+            </p>
+          ) : null}
         </div>
       </div>
 
+      {graded ? (
+        /*
+          No range, no band, no listing count. A graded card is one slab and
+          Channel3 prices retail stock, so any number here would be invented.
+        */
+        <div className="mt-4 rounded-lg bg-wash p-3 text-sm" data-testid="price-check">
+          <p className="font-semibold">{GRADED_PRICE_NOTE}</p>
+          <a
+            href={gradedPriceSearchUrl(graded)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-1 inline-block font-semibold text-[var(--accent-ink)] underline underline-offset-2"
+          >
+            {GRADED_PRICE_LINK_TEXT}
+          </a>
+        </div>
+      ) : (
       <div className="mt-4 rounded-lg bg-wash p-3 text-sm" data-testid="price-check">
         {retail ? (
           <dl
@@ -115,27 +154,28 @@ export function VerdictPanel({ verdict, currentVersion, locked, cardTitle = null
           </div>
         ) : null}
       </div>
+      )}
 
       {verdict.certCheck ? (
         <div className="mt-4 rounded-lg bg-wash p-3 text-sm" data-testid="cert-check">
-          <p className="font-semibold">
-            Cert {verdict.certCheck.record.certNumber}:{" "}
-            <span className={verdict.certCheck.matches === true ? "text-go" : verdict.certCheck.matches === false ? "text-stop" : "text-muted"}>
-              {verdict.certCheck.matches === true ? "matches the card" : verdict.certCheck.matches === false ? "does not match the card" : "could not be compared"}
-            </span>
+          {/*
+            One header line, then the table. The closing paragraph used to
+            repeat this sentence in other words, which is the thing Matt's
+            rule 1 is about: the table is the detail, this is the finding.
+          */}
+          <p className="font-semibold" data-testid="cert-headline">
+            {certHeadline(verdict.certCheck)}
           </p>
-          <p className="mt-1">{certSentence(verdict.certCheck, cardGrade).text}</p>
           <Comparison
             leftTitle="Card says"
             rightTitle={`${verdict.certCheck.record.provider === "psa" ? "PSA" : "PSA (demo record)"} says`}
             rows={certRows(verdict.certCheck, cardTitle, cardGrade)}
             caption="The item card against the grader's record for this cert number"
           />
-          {verdict.certCheck.matches !== null ? <p className="mt-1 text-xs text-muted">{verdict.certCheck.explanation}</p> : null}
         </div>
       ) : null}
 
-      <PalReasons reasoning={verdict.reasoning} pal="buyer" only={["checked", "found", "couldNotVerify"]} className="mt-4" />
+      <PalWork reasoning={verdict.reasoning} />
 
       {verdict.flags.length > 0 ? (
         <ul className="mt-4 space-y-2" aria-label="Red flags">
@@ -172,8 +212,6 @@ export function VerdictPanel({ verdict, currentVersion, locked, cardTitle = null
         </div>
       ) : null}
 
-      {/* The ask sits with the questions for the seller, which is what it is, rather than repeating them higher up. */}
-      <PalReasons reasoning={verdict.reasoning} pal="buyer" only={["wouldChangeMyMind"]} className="mt-4" />
     </Panel>
   );
 }
