@@ -236,7 +236,7 @@ describe("stockPhotoRule", () => {
     const flags = stockPhotoRule({ card: fakeSlab.cards[0]!, chat: [], priceCheck: price, photoMatches: [{ photo, source: "the reference set (slab-front.jpg)", distance: 3 }] });
     expect(flags[0]).toMatchObject({ code: "STOCK_OR_REUSED_PHOTO", severity: "caution" });
     expect(flags[0]!.evidence).toContain("the reference set (slab-front.jpg)");
-    expect(flags[0]!.evidence).toContain("3 of 64 points differ");
+    expect(flags[0]!.evidence).toContain("differ by 3 of 64 bits");
   });
   it("never fires from caption words alone, and is silent with no matches", () => {
     expect(stockPhotoRule({ card: fakeSlab.cards[0]!, chat: [], priceCheck: price })).toHaveLength(0);
