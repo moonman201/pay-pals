@@ -13,6 +13,17 @@ const chat = [
 ];
 
 describe("evidenceSourceId", () => {
+  it("reads past the frame the pal writes around a quote", () => {
+    // The real shape on the seeded slab deal. The frame was never said by anyone,
+    // so matching the whole string against the chat found nothing.
+    expect(evidenceSourceId('Seller wrote: "I am not sending a photo with my name on it, I am at work."', chat)).toBe("m3");
+  });
+
+  it("reads past a frame that comes after the quote too", () => {
+    const photoEvidence = 'Photo "I am not sending a photo with my name on it" is the same picture as reference set: slab-listing.jpg (0 of 64 bits differ)';
+    expect(evidenceSourceId(photoEvidence, chat)).toBe("m3");
+  });
+
   it("finds the message a quote was taken from", () => {
     expect(evidenceSourceId("Need the $140 by Friends and Family or Zelle within the hour", chat)).toBe("m2");
     expect(evidenceSourceId("I am not sending a photo with my name on it", chat)).toBe("m3");

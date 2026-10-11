@@ -25,8 +25,22 @@ function norm(text: string): string {
     .trim();
 }
 
+/**
+ * The part of an evidence line that is actually the quote.
+ *
+ * A pal writes the quote inside a frame of its own: `Seller wrote: "..."`,
+ * or `Photo "..." is the same picture as ...`. Matching the whole string
+ * against the chat finds nothing, because the frame was never said by
+ * anyone. The longest run between quote marks is the quote.
+ */
+function quotedSpan(evidence: string): string {
+  const spans = [...evidence.matchAll(/["“]([^"”]{4,})["”]/g)].map((m) => m[1]!);
+  if (spans.length === 0) return evidence;
+  return spans.reduce((longest, span) => (span.length > longest.length ? span : longest));
+}
+
 export function evidenceSourceId(evidence: string | null | undefined, messages: readonly Message[]): string | null {
-  const quote = norm(evidence ?? "");
+  const quote = norm(quotedSpan(evidence ?? ""));
   if (quote.length < MIN_QUOTE) return null;
   const hits = messages.filter((m) => norm(m.text).includes(quote));
   return hits.length === 1 ? hits[0]!.id : null;
