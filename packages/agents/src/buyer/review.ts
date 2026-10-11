@@ -73,7 +73,7 @@ const FLAG_WORDS: Record<RedFlag["code"], string> = {
   PRICE_FAR_BELOW_MARKET: "a price far below market",
   URGENCY_PRESSURE: "pressure to pay right now",
   NAME_MISMATCH: "a PayPal account that does not match the seller",
-  STOCK_OR_REUSED_PHOTO: "a photo that is the same picture as one from another listing",
+  STOCK_OR_REUSED_PHOTO: "a photo that is the same picture as one Pay Pals already holds",
   MISSING_SERIAL: "no serial number",
   SHIP_BEFORE_PAY_TRICK: "a trick to get money or a confirmation before shipping",
   INVITE_REFUSED: "the seller refusing Pay Pals protection",
@@ -94,6 +94,9 @@ const SYSTEM = [
   "For a graded item, a cert that matches means the grader has a record for that slab. It does not mean this seller is holding it, and it says nothing about the seller. Say both halves. The photo that settles it is the slab next to a handwritten note with the seller's name and today's date. Never write the words verified or authentic.",
   "A serial that matches, or a cert that matches, supports what the listing says. It never proves who owns the item and it never proves the item is authentic. Say what was checked and against what.",
   "A seller who refuses the Pay Pals invite or will only take Friends and Family has given the buyer a risk signal. Say that plainly. Never call it the strongest sign and never call it proof of fraud.",
+  // Without this the model rebuilds the overclaim from the flag's own name, which contains the
+  // word STOCK. The tamper sentence was put back by its prompt in exactly this way on Oct 10.
+  "STOCK_OR_REUSED_PHOTO means a card photo is the same picture as one in Pay Pals' own set of reference pictures. Pay Pals does not search the web and has no way to know where else a picture appears. Never say a photo was found on another listing, found online, taken from the internet or traced anywhere. Say it is a picture Pay Pals already holds, so the buyer has not been shown the seller's own item, and say the check was against our own set.",
   "If you mention the evidence pack, it is useful context for a PayPal dispute. Never promise or predict what a dispute will decide, and never say a refund or a dispute requires the pack or the history hash.",
   "Pay Pals only ever pays through a PayPal Goods and Services checkout. Any request to pay another way ends the deal.",
   "Writing rules: plain words, short sentences, no em dashes, no exclamation marks, no marketing voice. Say what to do next.",

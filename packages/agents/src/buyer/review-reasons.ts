@@ -93,7 +93,7 @@ function checked(input: ReviewReasonInput): ReasonLine[] {
     lines.push(`The PayPal address on the card, ${card.sellerPaypalEmail}, against the seller's name on the deal, ${seller.displayName.replace(/\.$/, "")}.`);
   }
   if (input.photoMatchRan) {
-    lines.push("The card's photos, against the listing pictures Pay Pals keeps, to see whether any of them has been used somewhere else.");
+    lines.push("The card's photos, against the reference pictures Pay Pals holds, to see whether any of them is a picture Pay Pals has already seen.");
   }
   return lines;
 }
@@ -174,8 +174,15 @@ function couldNotVerify(input: ReviewReasonInput): ReasonLine[] {
     lines.push("The market range is a reference range for this demo, not a live quote.");
   }
 
-  if (!input.photoMatchRan && photos > 0) {
-    lines.push("I did not compare these pictures against other listings, so I cannot say whether any of them appears somewhere else.");
+  // The limit on the picture check, which until now was never stated. Pay Pals compares against a
+  // set it holds; it does not search the web, and a reader who is not told that will assume the
+  // stronger check happened. Decision 20.
+  if (photos > 0) {
+    lines.push(
+      input.photoMatchRan
+        ? "I compared these pictures against Pay Pals' own set only. I did not search the web, so I cannot say whether any of them appears on a listing somewhere else."
+        : "I did not compare these pictures against the set Pay Pals holds, so I cannot say whether any of them is one it has seen before.",
+    );
   }
   if (!has(flags, "NAME_MISMATCH") && !input.seller) {
     lines.push("I was not given the seller's name on the account, so I could not check it against the PayPal address on the card.");

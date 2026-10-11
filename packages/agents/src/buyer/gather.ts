@@ -69,7 +69,8 @@ export interface PhotoMatchResult {
 
 export async function gatherPhotoMatches(card: ItemCard | null, deps: PhotoMatchDeps | null | undefined, emit: Emit): Promise<PhotoMatchResult> {
   if (!card || !deps || deps.knownPhotos.length === 0) return { photoMatches: [], ran: false };
-  emit({ kind: "stage", stage: "comparing the photos against other listings" });
+  // The status line a judge watches, so it says what the check is: our own set, not a web search.
+  emit({ kind: "stage", stage: "comparing the photos against the pictures Pay Pals holds" });
   try {
     return { photoMatches: await findReusedPhotos(card.photos, deps), ran: true };
   } catch (error) {

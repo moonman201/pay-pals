@@ -35,9 +35,18 @@ const GENERIC_SHOP_WORDS = new Set(["retail", "store", "shop", "market", "online
  *   - a refused invite is a risk signal, never the strongest sign and never
  *     proof of fraud;
  *   - the evidence pack is useful context for a dispute, never a guaranteed
- *     or likely outcome, and no refund or dispute requires it.
+ *     or likely outcome, and no refund or dispute requires it;
+ *   - a reused-photo match is against Pay Pals' own set of pictures. Nothing
+ *     searches the web, so where else a picture appears is never known. These
+ *     patterns are the belt to the prompt's braces: the prompt tells the model
+ *     the right claim, and this catches it if it says the old one anyway.
  */
 const OVERCLAIMS: readonly RegExp[] = [
+  /\bon (?:another|a different|some other) listing\b/i,
+  /\bfrom (?:another|a different|some other) listing\b/i,
+  /\b(?:found|appears?|appearing|posted|seen|listed) (?:it )?(?:online|on the (?:web|internet))\b/i,
+  /\breverse image search\b/i,
+  /\b(?:taken|lifted|copied|stolen) from (?:the )?(?:internet|web|another seller|someone else)\b/i,
   /\bverif(?:y|ies|ied|ying|ication)\b/i,
   /\bauthentic(?:ated|ation|ity)?\b/i,
   /\bstrongest\b/i,
@@ -127,5 +136,6 @@ export function reaskInstruction(claims: string[], context: ClaimContext): strin
   reasons.push("never write verified or authentic; say what a check showed and what it did not show");
   reasons.push("a refused invite or a Friends and Family demand is a risk signal, never the strongest sign and never proof of fraud");
   reasons.push("the evidence pack is useful context for a PayPal dispute; never promise an outcome and never say a refund or a dispute requires it");
+  reasons.push("a reused-photo match is against Pay Pals' own set of pictures; never say a photo was found on another listing or anywhere online, because nothing searched for it");
   return `Your draft message contained claims that cannot be supported: ${claims.map((c) => `"${c}"`).join(", ")}. Reasons: ${reasons.join("; ")}. Rewrite the message without any such claim. State only what was actually examined.`;
 }
