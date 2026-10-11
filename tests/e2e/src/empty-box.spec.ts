@@ -10,8 +10,20 @@ import { WEB_PRESENT } from "./env";
 import { CONSOLE_PROOF_QUESTION, driveToDelivered, runArrivalCheck } from "./flows";
 import { expectState, openRoomAs, panel, pressAction, snapshot, startDemo } from "./helpers";
 
-/** How the row reads whether the pal saw the photos or went by their descriptions: no console arrived. */
-const MISSING = /nothing in the box|no console|not present|arrived empty/i;
+/**
+ * The arrived column says the item is not there, whether the pal saw the
+ * photos or went by their descriptions.
+ *
+ * Corrected 2026-10-11, for the same reason as the sibling assertion in
+ * tests/integration: this was a list of phrasings, and the phrasing changed
+ * when builder-agents stopped the empty-box branch quoting a photo's caption
+ * into `observed`, which had put AJ164952580 in the arrived column of a
+ * comparison where nothing of the sort arrived. It became "no item in the
+ * box, only packaging". Pin the claim rather than the words: the row says
+ * something is absent, and it does not report the box label's number as
+ * something that arrived.
+ */
+const MISSING = /\b(no|nothing|not)\b/i;
 
 test.describe("empty box arrives", () => {
   test.skip(!WEB_PRESENT, "apps/web is not on this branch yet, nothing to load");
@@ -32,7 +44,13 @@ test.describe("empty box arrives", () => {
     await expect(shipmentCheck).toBeVisible();
     await expect(shipmentCheck.getByText("Buyer Pal:", { exact: true })).toBeVisible();
     await expect(shipmentCheck.getByText("caution", { exact: true })).toBeVisible();
-    await expect(shipmentCheck).toContainText("The seller shipped without the photo of the item going into the box");
+    // Corrected 2026-10-11: this pinned the sentence "The seller shipped without the photo of the
+    // item going into the box", which became "Shipped with no photo of the item going into the box."
+    // The expectation was wrong, not the copy. What the check has to say is which photo is missing
+    // and that it is the packing step, so that is what is pinned; the same stale sentence is still
+    // in apps/web's own ShipmentSummary test, filed in REVIEW.md for builder-web.
+    await expect(shipmentCheck).toContainText(/photo of the item going into the box/i);
+    await expect(shipmentCheck).toContainText(/packing/i);
     await expect(panel(page, "Timeline").getByRole("listitem").filter({ hasText: "Buyer Pal shipment check" })).toHaveCount(1);
     await openRoomAs(page, dealId, "seller");
     await expect(page.getByRole("list", { name: "Buyer Pal shipment check" }).getByText("caution", { exact: true })).toBeVisible();
@@ -52,7 +70,12 @@ test.describe("empty box arrives", () => {
     // the item itself. The box label that did arrive is named and set aside, not counted as the console.
     const missingRow = result.getByRole("row").filter({ hasText: "other" });
     await expect(missingRow).toBeVisible();
-    await expect(missingRow).toContainText(MISSING);
+    // The arrived cell, not the whole row: toContainText joins a row's cells with no separator, so
+    // "...original box" + "no item..." reads as "boxno item" and a word-boundary match cannot see it.
+    const arrived = missingRow.getByRole("cell").last();
+    await expect(arrived).toContainText(MISSING);
+    // The box label's number is not something that arrived, and it is the value that once got here.
+    await expect(arrived).not.toContainText(EMPTY_BOX_LOCKED_SERIAL);
     // The serial row is still shown, as nothing to compare rather than as a contradiction.
     const serialRow = result.getByRole("row").filter({ hasText: "serial" });
     await expect(serialRow).toHaveCount(1);
@@ -96,7 +119,16 @@ test.describe("empty box arrives", () => {
 
     const arrivalCheck = page.locator("section").filter({ has: page.getByRole("heading", { name: "Arrival check" }) });
     await expect(arrivalCheck).toContainText(EMPTY_BOX_LOCKED_SERIAL);
-    await expect(arrivalCheck).toContainText(MISSING);
+    // The pack has no comparison table, so there is no cell to read. Take what the check itself
+    // recorded as the arrived side and require the page to show that, rather than a phrase this
+    // test invents: the page and the record then cannot drift apart without one of them failing.
+    const res = await page.request.get(`/api/deals/${dealId}`);
+    expect(res.ok(), `GET the deal -> ${res.status()}`).toBe(true);
+    const { arrivalCheck: recorded } = (await res.json()) as { arrivalCheck: { mismatches: { field: string; observed: string }[] } | null };
+    const observed = recorded?.mismatches.find((m) => m.field === "other")?.observed;
+    expect(observed, "the check recorded an 'other' difference").toBeTruthy();
+    expect(observed, "and it says something is absent").toMatch(MISSING);
+    await expect(arrivalCheck).toContainText(observed!);
 
     // What the seller never answered, and the ship-time caution, both in the pack.
     // Exactly one thing asked and never got: the close-up. The seller's "I agree" line is not an answer.
@@ -109,7 +141,9 @@ test.describe("empty box arrives", () => {
     const shipmentSection = page.locator("section").filter({ has: page.getByRole("heading", { name: "Shipment" }) });
     const evidenceCheck = shipmentSection.getByRole("list", { name: "Buyer Pal shipment check" });
     await expect(evidenceCheck.getByText("caution", { exact: true })).toBeVisible();
-    await expect(evidenceCheck).toContainText("The seller shipped without the photo of the item going into the box");
+    // Same correction as the room's copy of this, above: the sentence changed, the claim did not.
+    await expect(evidenceCheck).toContainText(/photo of the item going into the box/i);
+    await expect(evidenceCheck).toContainText(/packing/i);
     await expect(page.locator("section").filter({ has: page.getByRole("heading", { name: "Summary" }) })).toContainText(/packing photo|going into the box/i);
   });
 });

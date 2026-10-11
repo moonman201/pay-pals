@@ -15,7 +15,7 @@
   "scripts": {
     "build": "npm run build --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
-    "check:copy": "node scripts/check-public-copy.mjs",
+    "check:copy": "tsx scripts/check-public-copy.ts",
     "gate": "npm run check:copy && npm run typecheck && npm run build && SKIP_REAL_TESTS=1 npm test",
     "test": "npm test --workspaces --if-present",
     "test:e2e": "npm run e2e -w tests/e2e",

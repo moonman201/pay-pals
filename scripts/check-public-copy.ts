@@ -14,18 +14,21 @@
  * to forbid it or to withdraw it, which is why ALLOWED exists and why every
  * entry in it has to carry a reason.
  *
- * Usage: node scripts/check-public-copy.mjs
+ * Usage: npx tsx scripts/check-public-copy.ts
  */
+import { WITHDRAWN_CLAIMS } from "@pay-pals/contracts";
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 
-/** D8 to D11. Each pattern is the claim, not the wording, so rephrasing does not escape it. */
-const RULES = [
-  { id: "D8", why: "refusing Pay Pals is a risk signal, never the strongest sign and never proof of fraud", patterns: [/strongest (scam sign|sign|warning sign|stop)/i, /proof of (fraud|a scam)/i] },
-  { id: "D9", why: "a serial or cert supports the listing; it never proves ownership or authenticity", patterns: [/proves? (ownership|authenticity|the seller owns)/i, /verified (authentic|owner|genuine)/i, /proves (it is|they are) (genuine|authentic)/i] },
-  { id: "D10", why: "the evidence pack is useful context for a dispute, never a guaranteed outcome", patterns: [/guarantees? (a )?(refund|outcome|win)/i, /get your money back/i, /will (win|be refunded)/i] },
-  { id: "D11", why: "the audit chain is the official record PayPal can check first; a refund or dispute never requires it", patterns: [/(refund|dispute) requires (the|this|our)/i, /required for a (refund|dispute)/i] },
-];
+/**
+ * The policy is NOT defined here any more. It lives in
+ * packages/contracts/src/withdrawn-claims.ts and every guard reads that one
+ * list, because on 2026-10-11 qa found this table and apps/web's had already
+ * drifted: "This proves the seller owns the item" was forbidden here and
+ * allowed in a React component. Three tables for one policy is three chances
+ * to disagree, and it had already taken one.
+ */
+const RULES = WITHDRAWN_CLAIMS.map((claim) => ({ id: claim.id, why: claim.why, patterns: claim.patterns }));
 
 /**
  * Deliberate, reviewed exceptions. A file that states a rule, or that keeps an
