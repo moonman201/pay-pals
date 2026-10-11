@@ -188,7 +188,7 @@ describe("an unreadable serial becomes a reason rather than a mismatch", () => {
 describe("the arrival check explains itself too", () => {
   it("names the missing item, what it could not read from it, and what would change it", async () => {
     const { data: check } = await pal().checkArrival(emptyBox.cards.at(-1)!, emptyBox.arrivalPhotos);
-    expect(check.matches).toBe(false);
+    expect(check.outcome).toBe("mismatch");
     const reasoning = check.reasoning!;
     expect(reasoning.found.join(" ")).toContain("nothing else");
     expect(reasoning.couldNotVerify.join(" ")).toContain("nothing to read a serial from");

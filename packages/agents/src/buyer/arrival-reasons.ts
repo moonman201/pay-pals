@@ -15,13 +15,16 @@ export interface ArrivalReasonInput {
   card: ItemCard;
   readings: PhotoReading[];
   observed: ArrivalCheck["observed"];
+  /** What positively differed. */
   mismatches: Mismatch[];
+  /** What could not be settled either way. Non-empty exactly when the outcome is inconclusive. */
+  unsettled: Mismatch[];
   /** The photo that shows the item is not in the box, if any. */
   missing: PhotoReading | null;
 }
 
 export function arrivalReasoning(input: ArrivalReasonInput): PalReasoning {
-  const { card, readings, observed, mismatches, missing } = input;
+  const { card, readings, observed, mismatches, unsettled, missing } = input;
   const read = readings.filter((r) => r.imageStatus === "read").length;
   const expected = card.serial ?? card.boxSerial ?? null;
   const box = packagingSerial(readings);
@@ -58,7 +61,9 @@ export function arrivalReasoning(input: ArrivalReasonInput): PalReasoning {
   }
   if (box) found.push(`The box label reads ${box.serial}. A label is not the item, so it does not settle which unit was inside.`);
   for (const mismatch of mismatches) found.push(mismatch.explanation);
-  if (mismatches.length === 0 && readings.length > 0) {
+  // An unsettled comparison is deliberately not listed here: nothing was found to differ. It belongs
+  // in couldNotVerify, which is the whole distinction the three-value outcome draws.
+  if (mismatches.length === 0 && unsettled.length === 0 && readings.length > 0) {
     found.push(observed.serial ? "Nothing about what arrived contradicts the locked card." : "Nothing about what arrived contradicts the locked card, and the card had no serial of its own to check against.");
   }
 
@@ -79,6 +84,10 @@ export function arrivalReasoning(input: ArrivalReasonInput): PalReasoning {
     if (observed.serial && !serialSeen) {
       couldNotVerify.push("I did not read that serial off the picture myself. It rests on the description filed with the photo, so it is as good as the buyer's word and no better.");
     }
+    // The band's own line. It says both numbers and which way the evidence leans, and it is the
+    // reason the outcome is inconclusive rather than a mismatch.
+    const nearMiss = unsettled.find((m) => m.field === "serial" && observed.serial !== null);
+    if (nearMiss) couldNotVerify.push(nearMiss.explanation);
     if (missing) couldNotVerify.push("With no item in the box there is nothing to read a serial from, so I cannot say what was shipped or when it left.");
     if (!card.serial && card.boxSerial) couldNotVerify.push("The card never carried the console's own serial, only the box label's number, so an exact match on the item was never available to me.");
   }
@@ -88,6 +97,8 @@ export function arrivalReasoning(input: ArrivalReasonInput): PalReasoning {
   if (missing) {
     wouldChangeMyMind.push("A photo of the item itself, with its serial readable, would change this.");
     wouldChangeMyMind.push("A second parcel arriving with the console in it would change this.");
+  } else if (unsettled.some((m) => m.field === "serial" && observed.serial !== null)) {
+    wouldChangeMyMind.push("A clearer close-up of that serial label would settle it, because the two numbers are one character apart and one of them was read off a photo.");
   } else if (!observed.serial && readings.length > 0) {
     wouldChangeMyMind.push("A close-up of the serial label on the item that arrived would change this, because then there is a number to match.");
   } else if (mismatches.length > 0) {

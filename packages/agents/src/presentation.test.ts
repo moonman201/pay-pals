@@ -32,7 +32,7 @@ describe("public mode is presentation only", () => {
     const pub = await createBuyerPal({ anthropic: null, priceLookup, publicMode: true }).checkArrival(emptyBox.cards[0]!, emptyBox.arrivalPhotos);
     expect(normal.palMessage).toMatch(LOADING);
     expect(pub.palMessage).not.toMatch(LOADING);
-    expect(pub.data.matches).toBe(normal.data.matches);
+    expect(pub.data.outcome).toBe(normal.data.outcome);
     expect(pub.data.mismatches).toEqual(normal.data.mismatches);
     expect(pub.palMessage).toContain(`The box label shows ${EMPTY_BOX_LOCKED_SERIAL}, which does not count`);
 

@@ -368,7 +368,9 @@ describe("BuyerPal.checkArrival", () => {
     const card = emptyBox.cards[0]!;
     const { data: check, palMessage } = await pal.checkArrival(card, emptyBox.arrivalPhotos);
     expect(ArrivalCheckSchema.safeParse(check).success).toBe(true);
-    expect(check.matches).toBe(false);
+    expect(check.outcome).toBe("mismatch");
+    expect(check.outcome).toBe(emptyBox.expectedArrival!.outcome);
+    expect(check.unsettled ?? []).toEqual([]);
     expect(check.mismatches.map((m) => m.field)).toEqual(["other"]);
     expect(emptyBox.expectedArrival!.mismatchFields).toEqual(["other"]);
     for (const field of emptyBox.expectedArrival!.mismatchFields) expect(check.mismatches.map((m) => m.field)).toContain(field);
@@ -404,7 +406,7 @@ describe("BuyerPal.checkArrival", () => {
     expect(fetched).toEqual(["https://pay-pals.example/fixtures/empty-box/arrival-box-open-empty.jpg", "https://pay-pals.example/fixtures/empty-box/arrival-box-label.jpg"]);
     expect(model.calls).toHaveLength(2);
     expect(model.calls[0]!.messages[0]!.content[0]).toMatchObject({ type: "image" });
-    expect(check.matches).toBe(false);
+    expect(check.outcome).toBe("mismatch");
     expect(check.observed.serial).toBeNull();
     expect(check.mismatches.map((m) => m.field)).toEqual(["other"]);
     expect(check.mismatches[0]!.observed).toContain("Two white foam inserts");
@@ -443,7 +445,7 @@ describe("BuyerPal.checkArrival", () => {
    */
   it("clean-ps5: matches true, and only the vision path calls the serial confirmed on the item", async () => {
     const offline = await createBuyerPal({ anthropic: null, priceLookup }).checkArrival(cleanPs5.cards.at(-1)!, cleanPs5.arrivalPhotos);
-    expect(offline.data.matches).toBe(true);
+    expect(offline.data.outcome).toBe("match");
     expect(offline.data.observed.serial).toBe(CLEAN_SERIAL);
     expect(offline.data.observed.serialSource).toBe("description");
     expect(offline.palMessage).not.toContain("confirmed on the item itself");
@@ -456,27 +458,36 @@ describe("BuyerPal.checkArrival", () => {
 
     const model = fakeClaude(() => ({ brand: "Sony", model: "PlayStation 5", serial: CLEAN_SERIAL, serial_on: "item", item_present: true }));
     const vision = await createBuyerPal({ anthropic: model, priceLookup, fetchImage: async () => asFetched(pictureA()), photoBaseUrl: "https://pay-pals.example" }).checkArrival(cleanPs5.cards.at(-1)!, cleanPs5.arrivalPhotos);
-    expect(vision.data.matches).toBe(true);
+    expect(vision.data.outcome).toBe("match");
     expect(vision.data.observed.serialSource).toBe("photo");
     expect(vision.palMessage).toContain("I looked at the arrival photo.");
     expect(vision.palMessage).toContain(`Serial ${CLEAN_SERIAL} confirmed on the item itself.`);
     expect(vision.data.reasoning!.found.join(" ")).toContain(`I read ${CLEAN_SERIAL} off the item itself in the arrival photo.`);
   });
 
-  it("a box label alone never satisfies the item serial, even when it matches the card", async () => {
+  /**
+   * Corrected on 2026-10-10 with the three-value outcome. This used to assert
+   * matches false, which told the buyer the wrong item arrived when nothing
+   * had been found to differ at all: no serial could be read, so no comparison
+   * happened. That is inconclusive, and the box label still does not stand in.
+   */
+  it("a box label alone never satisfies the item serial, and not reading one is not a mismatch", async () => {
     const pal = createBuyerPal({ anthropic: null, priceLookup });
     const { data: check, palMessage } = await pal.checkArrival(emptyBox.cards[0]!, [emptyBox.arrivalPhotos[1]!]);
-    expect(check.matches).toBe(false);
-    expect(check.mismatches.map((m) => m.field)).toEqual(["serial"]);
-    expect(check.mismatches[0]!.observed).toBe("not readable in the arrival photos");
+    expect(check.outcome).toBe("inconclusive");
+    expect(check.mismatches).toEqual([]);
+    expect(check.unsettled!.map((m) => m.field)).toEqual(["serial"]);
+    expect(check.unsettled![0]!.observed).toBe("not readable in the arrival photos");
     expect(palMessage).toContain("which does not count");
+    expect(palMessage).toContain("not the same as saying the wrong item arrived");
   });
 
   it("a different serial on the item is named as a different unit", async () => {
     const pal = createBuyerPal({ anthropic: null, priceLookup });
     const photos = [{ ...cleanPs5.arrivalPhotos[0]!, whatItShows: "Back of a white PlayStation 5 console. The label shows serial AJ100000001." }];
     const { data: check } = await pal.checkArrival(cleanPs5.cards.at(-1)!, photos);
-    expect(check.matches).toBe(false);
+    expect(check.outcome).toBe("mismatch");
+    expect(check.unsettled ?? []).toEqual([]);
     expect(check.mismatches[0]).toMatchObject({ field: "serial", expected: CLEAN_SERIAL, observed: "AJ100000001" });
   });
 });
