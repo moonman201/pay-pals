@@ -16,8 +16,8 @@ import { PalReasons } from "./PalReasons";
  * on this page is still one click away, and a reader who wants only the
  * verdict is no longer made to read past it.
  */
-export function PalWork({ reasoning, className = "" }: { reasoning: PalReasoning | null | undefined; className?: string }) {
-  if (!hasAnyReason(reasoning, ["checked", "couldNotVerify"])) return null;
+export function PalWork({ reasoning, restOfAsks = [], className = "" }: { reasoning: PalReasoning | null | undefined; restOfAsks?: readonly string[]; className?: string }) {
+  if (!hasAnyReason(reasoning, ["checked", "couldNotVerify"]) && restOfAsks.length === 0) return null;
   return (
     <details className={`group mt-4 rounded-lg border border-line bg-wash ${className}`} data-testid="pal-work">
       <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 px-3 text-sm font-bold text-[var(--accent-ink)] [&::-webkit-details-marker]:hidden">
@@ -28,6 +28,21 @@ export function PalWork({ reasoning, className = "" }: { reasoning: PalReasoning
       </summary>
       <div className="px-3 pb-3">
         <PalReasons reasoning={reasoning} pal="buyer" only={["checked", "couldNotVerify"]} />
+        {restOfAsks.length > 0 ? (
+          /*
+            The asks the "I'd look again if" line had no room for. Rule 4
+            outranks rule 1: that line may be short, it may not be the only
+            place an ask lived and then lose it.
+          */
+          <section className="mt-3 rounded-lg border border-[var(--accent-line)] bg-[var(--accent-soft)] p-3" data-testid="rest-of-asks">
+            <h4 className="text-sm font-bold text-[var(--accent-ink)]">What else would change my mind</h4>
+            <ul className="mt-2 list-disc space-y-1 pl-5 text-sm leading-relaxed">
+              {restOfAsks.map((ask) => (
+                <li key={ask}>{ask}</li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
       </div>
     </details>
   );

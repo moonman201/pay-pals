@@ -290,6 +290,21 @@ describe("VerdictPanel", () => {
     expect(screen.getByTestId("verdict").textContent?.match(/would change this/g)).toHaveLength(1);
   });
 
+  it("keeps every ask on the page when the lead has room for only two", () => {
+    // Rule 4 over rule 1: the lead may be short, it may not be the only place
+    // an ask lived and then drop it. Two up top, the rest behind the disclosure.
+    const five = ["One would change this.", "Two would change this.", "Three would change this.", "Four would change this.", "Five would change this."];
+    const v = verdict({ reasoning: { checked: [], found: [], couldNotVerify: [], wouldChangeMyMind: five } });
+    render(<VerdictPanel verdict={v} currentVersion={1} locked={false} />);
+    expect(screen.getByTestId("look-again")).toHaveTextContent("One would change this. two would change this.");
+    const rest = screen.getByTestId("rest-of-asks");
+    for (const ask of five.slice(2)) expect(rest).toHaveTextContent(ask);
+    // And the page as a whole still carries all five. Case-insensitive, because
+    // joining the second into the sentence lowercases its first letter on purpose.
+    const page = document.body.textContent!.toLowerCase();
+    for (const ask of five) expect(page, ask).toContain(ask.toLowerCase());
+  });
+
   it("renders no expander at all for a verdict with no reasons on it", () => {
     render(<VerdictPanel verdict={verdict()} currentVersion={1} locked={false} />);
     expect(screen.queryByTestId("pal-work")).not.toBeInTheDocument();

@@ -177,6 +177,7 @@ export function DealRoom({ snapshot, role }: { snapshot: DealSnapshot; role: Rol
               cardGrade={currentCard?.grade ?? null}
               askingPrice={currentCard?.askingPrice ?? null}
               card={currentCard ?? null}
+              chat={shared}
             />
           ) : null}
           {verdictDiff ? <VerdictDiffPanel diff={verdictDiff} /> : null}
@@ -250,7 +251,10 @@ export function DealRoom({ snapshot, role }: { snapshot: DealSnapshot; role: Rol
               {role === "buyer" && state === "DELIVERED" && !snapshot.arrivalCheck ? (
                 <ArrivalStep dealId={deal.id} suggestions={snapshot.demo?.arrivalPhotos ?? []} uploadsEnabled={snapshot.uploadsEnabled} onDone={refresh} />
               ) : null}
-              {role === "buyer" && canChooseOffPlatform(state, snapshot.events) ? <OffPlatformStep dealId={deal.id} onDone={refresh} /> : null}
+              {role === "buyer" && canChooseOffPlatform(state, snapshot.events) ? (
+                /* The Next step panel prints the Goods and Services rule on a blocked deal, so this one does not repeat it. */
+                <OffPlatformStep dealId={deal.id} onDone={refresh} rulePrinted={state === "BLOCKED"} />
+              ) : null}
             </>
           )}
         </div>

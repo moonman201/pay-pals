@@ -4,6 +4,7 @@ import { isTerminal, type Deal, type Message } from "@pay-pals/contracts";
 import { useState } from "react";
 import { formatTime } from "@/lib/format";
 import { actorLabel } from "@/lib/labels";
+import { messageAnchor } from "@/lib/deal/evidence-source";
 import type { Role } from "@/lib/role";
 import { PalAvatar } from "../pal/PalAvatar";
 import { PhotoGrid } from "../photos/PhotoGrid";
@@ -30,7 +31,8 @@ export function SharedChat({ deal, role, messages, onSend }: Props) {
           const mine = m.author === role;
           const pal = m.author === "buyer_pal" || m.author === "seller_pal";
           return (
-            <li key={m.id} className={`flex gap-2 `}>
+            // Anchored, so a flag's evidence quote can link to the message it came from.
+            <li key={m.id} id={messageAnchor(m.id)} className={`flex scroll-mt-4 gap-2 `}>
               {pal ? <PalAvatar pal={m.author === "buyer_pal" ? "buyer" : "seller"} size={24} className="mt-1.5" /> : null}
               <div className={`max-w-[85%] rounded-xl px-3 py-2 `}>
                 <p className={`text-[11px] font-semibold ${mine ? "opacity-80" : "text-muted"}`}>{actorLabel(m.author, deal)}</p>

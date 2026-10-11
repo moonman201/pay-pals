@@ -1,8 +1,9 @@
-import { isPaymentMethodFlag, type ItemCard, type RedFlag, type Verdict } from "@pay-pals/contracts";
+import { isPaymentMethodFlag, type ItemCard, type Message, type RedFlag, type Verdict } from "@pay-pals/contracts";
 import { certRows } from "@/lib/deal/cert-compare";
 import { certHeadline } from "@/lib/deal/cert-copy";
 import { GRADED_PRICE_LINK_TEXT, GRADED_PRICE_NOTE, gradedPriceSearchUrl, isGradedCard } from "@/lib/deal/graded-price";
 import { reviewLead } from "@/lib/deal/review-lead";
+import { evidenceSourceId } from "@/lib/deal/evidence-source";
 import { FLAG_WORDS } from "@/lib/deal/override";
 import { hasUsableRange, priceRangeLine, priceSourceNote } from "@/lib/deal/price-copy";
 import { methodNote, priceText, retailRange, summariseSources } from "@/lib/deal/price-sources";
@@ -40,9 +41,11 @@ interface Props {
   askingPrice?: number | null;
   /** The card itself, for the one case where no price may be shown at all: a graded slab. */
   card?: ItemCard | null;
+  /** The shared chat, so a flag's quote can link to the message it was taken from. */
+  chat?: readonly Message[];
 }
 
-export function VerdictPanel({ verdict, currentVersion, locked, cardTitle = null, cardGrade = null, askingPrice = null, card = null }: Props) {
+export function VerdictPanel({ verdict, currentVersion, locked, cardTitle = null, cardGrade = null, askingPrice = null, card = null, chat = [] }: Props) {
   const stale = !locked && verdict.cardVersion > 0 && verdict.cardVersion !== currentVersion;
   // Matt, Oct 9: the listings behind the range are a count, a split and prices. Never the shop names.
   const sources = summariseSources(verdict.priceCheck);
@@ -175,7 +178,7 @@ export function VerdictPanel({ verdict, currentVersion, locked, cardTitle = null
         </div>
       ) : null}
 
-      <PalWork reasoning={verdict.reasoning} />
+      <PalWork reasoning={verdict.reasoning} restOfAsks={lead.restOfAsks} />
 
       {verdict.flags.length > 0 ? (
         <ul className="mt-4 space-y-2" aria-label="Red flags">
@@ -189,7 +192,7 @@ export function VerdictPanel({ verdict, currentVersion, locked, cardTitle = null
                   {isPaymentMethodFlag(f) ? <Badge tone="stop">no override</Badge> : null}
                 </div>
                 <p className="mt-1">{f.explanation}</p>
-                <FlagEvidence evidence={f.evidence} />
+                <FlagEvidence evidence={f.evidence} sourceMessageId={evidenceSourceId(f.evidence, chat)} />
               </div>
             </li>
           ))}

@@ -90,6 +90,28 @@ describe("reviewLead", () => {
     expect(reviewLead(verdict()).lookAgain).toBeNull();
   });
 
+  it("takes two asks at most, because five of them is the paragraph this replaced", () => {
+    const five = ["One would change this.", "Two would change this.", "Three would change this.", "Four would change this.", "Five would change this."];
+    const line = reviewLead(verdict({ reasoning: { checked: [], found: [], couldNotVerify: [], wouldChangeMyMind: five } })).lookAgain!;
+    expect(line).toBe("One would change this. two would change this.");
+    expect(line).not.toContain("Three");
+    expect(line.split(/\s+/).length).toBeLessThanOrEqual(20);
+  });
+
+  it("hands the asks it had no room for to the expander, rather than losing them", () => {
+    const five = ["One would change this.", "Two would change this.", "Three would change this.", "Four would change this.", "Five would change this."];
+    const lead = reviewLead(verdict({ reasoning: { checked: [], found: [], couldNotVerify: [], wouldChangeMyMind: five } }));
+    // Every ask is somewhere: two in the line, three waiting behind the disclosure.
+    expect(lead.restOfAsks).toEqual(["Three would change this.", "Four would change this.", "Five would change this."]);
+    expect(lead.restOfAsks).toHaveLength(five.length - 2);
+  });
+
+  it("has nothing left over when the pal named two or fewer", () => {
+    const two = { checked: [], found: [], couldNotVerify: [], wouldChangeMyMind: ["One.", "Two."] };
+    expect(reviewLead(verdict({ reasoning: two })).restOfAsks).toEqual([]);
+    expect(reviewLead(verdict()).restOfAsks).toEqual([]);
+  });
+
   it("survives a verdict stored before the pal had reasons", () => {
     const lead = reviewLead(verdict({ overall: "go" }));
     expect(lead.headline).toBe("Looks good.");

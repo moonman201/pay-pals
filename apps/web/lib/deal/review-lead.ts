@@ -26,6 +26,14 @@ export interface ReviewLead {
   reasons: string[];
   /** "I'd look again if ..." with the asks joined, or null when the pal named none. */
   lookAgain: string | null;
+  /**
+   * The asks the line did not have room for.
+   *
+   * They go in the expander. Rule 4 outranks rule 1 here: the lead is
+   * allowed to be short, it is not allowed to be the only place an ask
+   * existed and then drop it.
+   */
+  restOfAsks: string[];
 }
 
 const HEADLINES: Readonly<Record<VerdictOverall, string>> = {
@@ -67,9 +75,20 @@ function worstThree(flags: readonly RedFlag[]): RedFlag[] {
     .map((x) => x.flag);
 }
 
-/** One sentence from the pal's asks. They are already written as full sentences, so the first letter drops. */
+/**
+ * One line from the pal's asks, which means two of them at most.
+ *
+ * The pal names up to five things that would change its mind. All five are
+ * real and all five are in the expander, but joined into the lead they ran
+ * to five lines, and a five-line one-liner is the paragraph this block
+ * replaced coming back. Two is what Matt's example joins.
+ *
+ * They are written as full sentences, so the second one's first letter drops.
+ */
+const MOST_ASKS = 2;
+
 function joinAsks(asks: readonly string[]): string | null {
-  const cleaned = asks.map((a) => a.trim()).filter(Boolean);
+  const cleaned = asks.map((a) => a.trim()).filter(Boolean).slice(0, MOST_ASKS);
   if (cleaned.length === 0) return null;
   const parts = cleaned.map((a, i) => (i === 0 ? a : a.charAt(0).toLowerCase() + a.slice(1)));
   return parts.join(" ");
@@ -86,9 +105,11 @@ export function reviewLead(verdict: Verdict): ReviewLead {
   // With no flags the pal's own findings are the reasons. They are what the old
   // "What I found" group held, so dropping that group loses nothing from the page.
   const reasons = flags.length > 0 ? flags.map(reasonFor) : [...(verdict.reasoning?.found ?? [])].slice(0, 3);
+  const asks = (verdict.reasoning?.wouldChangeMyMind ?? []).map((a) => a.trim()).filter(Boolean);
   return {
     headline: HEADLINES[verdict.overall],
     reasons,
-    lookAgain: joinAsks(verdict.reasoning?.wouldChangeMyMind ?? []),
+    lookAgain: joinAsks(asks),
+    restOfAsks: asks.slice(MOST_ASKS),
   };
 }

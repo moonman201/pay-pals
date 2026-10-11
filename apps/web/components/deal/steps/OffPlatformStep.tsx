@@ -24,7 +24,7 @@ import { StepError } from "./StepPanel";
  * "pay", and a second "Pay..." heading beside the Pay panel and the Payment
  * panel reads as a duplicate of them in a heading list.
  */
-export function OffPlatformStep({ dealId, onDone }: { dealId: string; onDone: () => void }) {
+export function OffPlatformStep({ dealId, onDone, rulePrinted = false }: { dealId: string; onDone: () => void; rulePrinted?: boolean }) {
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -44,8 +44,14 @@ export function OffPlatformStep({ dealId, onDone }: { dealId: string; onDone: ()
   return (
     <div id="step-off-platform">
       <Panel title="Paying another way" labelAs="region">
+        {/*
+          The first line is the Goods and Services rule, which the Next step
+          panel states in its own words on a blocked deal. Said once per page
+          (Matt's rule 1); the two lines that follow are this panel's alone and
+          always print, because they are what the buyer is giving up.
+        */}
         <div className="space-y-2 text-sm leading-relaxed" data-testid="off-platform-warning">
-          {OFF_PLATFORM_WARNING.map((line) => (
+          {(rulePrinted ? OFF_PLATFORM_WARNING.slice(1) : OFF_PLATFORM_WARNING).map((line) => (
             <p key={line}>{line}</p>
           ))}
         </div>
@@ -62,7 +68,8 @@ export function OffPlatformStep({ dealId, onDone }: { dealId: string; onDone: ()
             </div>
           </div>
         ) : (
-          <Button variant="secondary" className="mt-4" onClick={() => setConfirming(true)}>
+          /* Secondary and small. It stays on the page, and it is not the move being offered. */
+          <Button variant="secondary" className="mt-4 text-xs" onClick={() => setConfirming(true)}>
             {OFF_PLATFORM_BUTTON}
           </Button>
         )}

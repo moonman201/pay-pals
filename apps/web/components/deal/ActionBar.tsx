@@ -84,6 +84,21 @@ export function ActionBar({ state, role, verdict, dealId, busy, hasLockedCard, a
     );
   }
 
+  /*
+    OPEN, WAITING ON MATT (Oct 11 room pass). On a deal the payment-method
+    rule has blocked, Agree is filtered out above and Cancel is the only
+    action left, so it renders in the danger variant as the one button on
+    the panel: the page reads as though Pay Pals is telling the buyer to
+    cancel. Matt flagged that and has not said what should take its place.
+
+    The options, none of them free: leave Cancel as the only move; demote it
+    and offer nothing, which leaves a dead end; or make "I will pay another
+    way" the primary, which would have Pay Pals nudging a buyer off its own
+    protection. That last one is a product call about what Pay Pals is for,
+    not a styling choice, so nothing here guesses at it.
+
+    Everything else in this panel is built. This comment is the gap.
+  */
   return (
     <Panel title="Next step" accent>
       {gate === "blocked" ? <p className="mb-3 text-sm font-semibold text-stop">{BLOCKED_SENTENCE}</p> : null}
