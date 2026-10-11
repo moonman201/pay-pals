@@ -144,3 +144,23 @@ idempotent, and dropping it would let an old event be processed again.
 a Neon branch. The suite applies migrations and writes rows and does not
 clean up. It deliberately does not read `DATABASE_URL`, so `npm test` can
 never write into the app's database.
+
+### Why there are two tsconfigs
+
+`tsconfig.json` is the build config. Its `exclude` keeps `src/**/*.test.ts`
+out of `dist`, and because `typecheck` used to run that same config, a type
+error in a test file passed the gate.
+
+Lifting the exclusion from the build config would have closed that and
+started compiling test files into `dist` as a side effect, since `exclude`
+governs emit as well as reading. So the two jobs have two configs:
+
+| Config | Reads | Emits | Used by |
+|---|---|---|---|
+| `tsconfig.json` | everything but tests | `dist` | `npm run build` |
+| `tsconfig.test.json` | everything, tests included | nothing | `npm run typecheck` |
+
+`tsconfig.test.json` extends the build config, sets `noEmit`, and restates
+`exclude` without the test pattern. Restating it is the whole mechanism:
+`exclude` replaces the inherited value rather than merging, so leaving it out
+would inherit the test exclusion and check nothing new.
