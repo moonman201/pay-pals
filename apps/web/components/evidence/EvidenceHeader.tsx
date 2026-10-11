@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { DealEvent, DealState } from "@pay-pals/contracts";
 import { ProgressStepper } from "../deal/ProgressStepper";
 import { PalAvatar } from "../pal/PalAvatar";
+import { ThemeToggle } from "../ui/ThemeToggle";
 import type { Role } from "@/lib/role";
 
 /**
@@ -50,6 +51,7 @@ export function EvidenceHeader({
         <Link href={`/deals/${dealId}?as=${role}`} className="inline-flex min-h-11 items-center text-sm font-semibold text-[var(--accent-ink)] underline-offset-2 hover:underline">
           Back to the deal
         </Link>
+        <ThemeToggle />
         {actions}
       </div>
     </header>

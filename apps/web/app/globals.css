@@ -179,15 +179,47 @@ textarea::placeholder {
   }
 }
 
-/* The hero art is painted on white. In dark it sits in a wash frame and is eased down a little so it does not glare. */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .hero-art {
-    filter: brightness(0.93) saturate(0.97);
-  }
+/*
+ * The two rules that depend on the colour mode rather than on a token.
+ * Night is the default, as in tokens.css, so day is the only case spelled
+ * out, under the same two guards.
+ *
+ * The hero art is painted on white. On the navy page it sits in a wash
+ * frame and is eased down a little so it does not glare; on the white page
+ * it is left alone.
+ *
+ * The mode toggle names the mode it switches to, and CSS picks which half
+ * of the button is shown, so it is right on the first paint with no
+ * guessing in React. display:none also keeps the other half out of the
+ * button's accessible name.
+ */
+.hero-art {
+  filter: brightness(0.93) saturate(0.97);
 }
 
-:root[data-theme="dark"] .hero-art {
-  filter: brightness(0.93) saturate(0.97);
+.day-only {
+  display: none;
+}
+
+.night-only {
+  display: inline-flex;
+}
+
+/*
+ * No prefers-color-scheme block, for the reason in tokens.css: night is
+ * the site for everyone who has not chosen, so the device decides nothing
+ * here either, and the toggle's two halves follow the attribute alone.
+ */
+:root[data-theme="light"] .hero-art {
+  filter: none;
+}
+
+:root[data-theme="light"] .day-only {
+  display: inline-flex;
+}
+
+:root[data-theme="light"] .night-only {
+  display: none;
 }
 
 @media print {

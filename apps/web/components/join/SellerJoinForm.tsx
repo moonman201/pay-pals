@@ -77,7 +77,7 @@ export function SellerJoinForm({ deal, uploadsEnabled = false }: { deal: Deal; u
           </a>
         </p>
       ) : null}
-      <form onSubmit={join} className="space-y-4 rounded-2xl border border-[var(--accent-line)] bg-surface p-5 shadow-card">
+      <form onSubmit={join} className="theme-seller in-box space-y-4 rounded-2xl border border-[var(--accent-line)] bg-surface p-5 shadow-card">
         <h2 className="text-lg font-bold">Join and add your photos</h2>
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="text-sm">
@@ -113,7 +113,7 @@ export function SellerJoinForm({ deal, uploadsEnabled = false }: { deal: Deal; u
       </form>
 
       {declining ? (
-        <div className="space-y-3 rounded-2xl border border-line bg-surface p-5">
+        <div className="theme-seller in-box space-y-3 rounded-2xl border border-line bg-surface p-5">
           <p className="text-sm font-semibold">You will not use Pay Pals for this deal.</p>
           <label className="block text-sm">
             <span className="text-muted">Tell the buyer why (optional)</span>

@@ -3,9 +3,10 @@ import { PalAvatar } from "@/components/pal/PalAvatar";
 import { StartDealForm } from "@/components/start/StartDealForm";
 import { getServices } from "@/lib/services";
 
+/** The chrome here is blue like every other page; the gold belongs to the form, which carries its own theme-seller. */
 export default function NewDealPage() {
   return (
-    <main className="mx-auto max-w-2xl px-4 py-8 sm:py-12">
+    <main className="on-page theme-buyer mx-auto max-w-2xl px-4 py-8 sm:py-12">
       <Link href="/" className="inline-flex min-h-11 items-center gap-1.5 text-sm font-black tracking-tight text-navy">
         <PalAvatar pal="buyer" size={20} />
         <PalAvatar pal="seller" size={20} className="-ml-3.5" />

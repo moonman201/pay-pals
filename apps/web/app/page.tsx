@@ -5,6 +5,7 @@ import { ProtectionPanel } from "@/components/landing/ProtectionPanel";
 import { ScenarioCard } from "@/components/landing/ScenarioCard";
 import { PalAvatar } from "@/components/pal/PalAvatar";
 import { LinkIcon, LockIcon } from "@/components/ui/icons";
+import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { resolveSeededDeals } from "@/lib/demo/live-seeded";
 import { asDealFinder } from "@/lib/demo/seed-fixtures";
 import { getServices } from "@/lib/services";
@@ -39,16 +40,19 @@ export default async function HomePage() {
   // Three lookups, in parallel.
   const seeded = await resolveSeededDeals(await services.seededDeals, services.store, asDealFinder(services.store));
   return (
-    <main className="mx-auto max-w-6xl px-4 pb-16">
+    <main className="on-page theme-buyer mx-auto max-w-6xl px-4 pb-16">
       <nav className="flex min-h-14 items-center justify-between gap-4 py-2" aria-label="Site">
         <Link href="/" className="inline-flex min-h-11 items-center gap-2 text-base font-black tracking-tight text-navy">
           <PalAvatar pal="buyer" size={24} />
           <PalAvatar pal="seller" size={24} className="-ml-3" />
           Pay Pals
         </Link>
-        <Link href="/deals/new" className="inline-flex min-h-11 items-center text-sm font-semibold text-navy underline-offset-4 hover:underline">
-          Selling? List an item
-        </Link>
+        <div className="flex items-center gap-1">
+          <ThemeToggle />
+          <Link href="/deals/new" className="inline-flex min-h-11 items-center text-sm font-semibold text-navy underline-offset-4 hover:underline">
+            Selling? List an item
+          </Link>
+        </div>
       </nav>
 
       <header className="grid items-center gap-6 pt-4 sm:pt-8 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:gap-10">
@@ -92,7 +96,7 @@ export default async function HomePage() {
         </h2>
         <ol className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {STEPS.map((s, i) => (
-            <li key={s.who} className={`${s.tone} flex gap-3 rounded-2xl border border-[var(--accent-line)] bg-surface p-4 shadow-card`}>
+            <li key={s.who} className={`${s.tone} in-box flex gap-3 rounded-2xl border border-[var(--accent-line)] bg-surface p-4 shadow-card`}>
               <StepMark step={s} />
               <div className="min-w-0">
                 <p className="text-sm font-bold text-[var(--accent-ink)]">

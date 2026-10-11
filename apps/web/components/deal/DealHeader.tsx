@@ -11,6 +11,7 @@ import { ProgressStepper } from "./ProgressStepper";
 import { otherRole, type Role } from "@/lib/role";
 import { PalAvatar } from "../pal/PalAvatar";
 import { Badge } from "../ui/Badge";
+import { ThemeToggle } from "../ui/ThemeToggle";
 
 function stateTone(state: DealSnapshot["deal"]["state"]): "accent" | "go" | "stop" | "caution" | "neutral" {
   if (state === "COMPLETE") return "go";
@@ -52,6 +53,7 @@ export function DealHeader({ snapshot, role }: { snapshot: DealSnapshot; role: R
                 Deal links
               </button>
             ) : null}
+            <ThemeToggle />
           </nav>
         </div>
         <div className="mx-auto flex max-w-6xl flex-wrap items-start justify-between gap-x-4 gap-y-2 px-4 pb-2">
