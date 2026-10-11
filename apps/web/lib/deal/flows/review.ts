@@ -73,7 +73,10 @@ export async function runReview(services: Services, dealId: string, options: Run
   if (verdict.questionsForSeller.length > 0 && card) {
     const asks = verdict.questionsForSeller.map((q) => `"${q}"`).join(" ");
     await say(services, dealId, "seller_pal", "seller_pal", `The buyer's pal asked for something before they commit: ${asks} Add it below and I will save a new card version.`);
-    await say(services, dealId, "deal", "buyer_pal", `Buyer Pal to seller: ${verdict.questionsForSeller.join(" ")}`);
+    // No "Buyer Pal to seller:" prefix. Every message in this channel already
+    // shows who said it and who the other side is, so the prefix was the third
+    // time the same page named them (Matt's rule 1).
+    await say(services, dealId, "deal", "buyer_pal", verdict.questionsForSeller.join(" "));
   }
 
   if (verdict.flags.some(isPaymentMethodFlag)) {

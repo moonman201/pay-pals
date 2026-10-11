@@ -28,7 +28,9 @@ describe("historyStatus", () => {
     const beforeOrder = events.slice(0, 5);
     const status = historyStatus(beforeOrder, null);
     expect(status).toEqual({ kind: "unanchored", events: 5, chainOk: true });
-    expect(historyLine(status)).toBe("History hash-chained, 5 events");
-    expect(historyLine(historyStatus([events[0]!], undefined))).toBe("History hash-chained, 1 event");
+    expect(historyLine(status)).toBe("Tamper-evident history, 5 events");
+    // Matt's rule 6: plain words. "Hash-chained" says how it works, not what it gives you.
+    expect(historyLine(status)).not.toMatch(/hash|chain/i);
+    expect(historyLine(historyStatus([events[0]!], undefined))).toBe("Tamper-evident history, 1 event");
   });
 });

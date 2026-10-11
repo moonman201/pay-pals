@@ -2,7 +2,11 @@ import type { RedFlag, RedFlagCode, Verdict } from "@pay-pals/contracts";
 import { describe, expect, it } from "vitest";
 import { reviewLead } from "./review-lead";
 
-const flag = (code: RedFlagCode, severity: RedFlag["severity"]): RedFlag => ({ code, severity, evidence: "e", explanation: "x", raisedByRule: true });
+/*
+  Explanation empty by default, so these exercise the fallback map. The pal's
+  own sentence is preferred when it has one, which its own tests cover.
+*/
+const flag = (code: RedFlagCode, severity: RedFlag["severity"], explanation = ""): RedFlag => ({ code, severity, evidence: "e", explanation, raisedByRule: true });
 
 function verdict(overrides: Partial<Verdict> = {}): Verdict {
   return { dealId: "d1", cardVersion: 1, overall: "stop", flags: [], priceCheck: null, questionsForSeller: [], palMessage: "A paragraph.", createdAt: "2026-10-11T00:00:00.000Z", ...overrides };
@@ -51,11 +55,23 @@ describe("reviewLead", () => {
     expect(lead.reasons[2]).toBe("No serial number, so there is nothing to match on arrival.");
   });
 
-  it("claims no web search for the photo flag, because the check is against Pay Pals' own set", () => {
+  it("prefers the pal's own sentence, so the room never phrases one finding twice", () => {
+    const own = "His only photo matches a listing photo already on file.";
+    expect(reviewLead(verdict({ flags: [flag("STOCK_OR_REUSED_PHOTO", "caution", own)] })).reasons[0]).toBe(own);
+  });
+
+  it("falls back to its own line when the pal's explanation is a paragraph", () => {
+    const paragraph = "The seller shipped without the photo of the item going into the box, so there is no proof at all of what was packed or when.";
+    expect(reviewLead(verdict({ flags: [flag("MISSING_PACKING_PHOTO", "caution", paragraph)] })).reasons[0]).toBe("Shipped without the packing photo that was asked for.");
+  });
+
+  it("says a photo is on file, never that it was found by searching", () => {
+    // The check is a hash against Pay Pals' own reference folder, which holds the
+    // listing photos. "On file" is true of that folder; "online" would describe a
+    // search nobody ran.
     const [line] = reviewLead(verdict({ flags: [flag("STOCK_OR_REUSED_PHOTO", "caution")] })).reasons;
-    expect(line).toBe("A photo is one Pay Pals already holds, not the seller's own.");
-    // packages/agents/src/rules/stock-photo.ts forbids every one of these.
-    expect(line).not.toMatch(/catalog|listing|online|web|internet|traced/i);
+    expect(line).toBe("A photo matches a listing photo already on file.");
+    expect(line).not.toMatch(/online|web|internet|traced|searched/i);
   });
 
   it("uses the pal's own findings as the reasons when nothing was flagged", () => {

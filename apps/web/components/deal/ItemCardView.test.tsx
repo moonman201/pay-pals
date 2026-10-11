@@ -39,7 +39,9 @@ describe("ItemCardView", () => {
   it("says plainly when a card carries no serial of its own", () => {
     render(<ItemCardView cards={[v1]} currentVersion={1} lockedVersion={null} />);
     expect(v1.serial).toBeNull();
-    expect(screen.getByText("Not on the card")).toBeInTheDocument();
+    // "None printed on this card" says the card has no serial. "Not on the card"
+    // read as something the seller left out, which is a different claim.
+    expect(screen.getByText("None printed on this card")).toBeInTheDocument();
   });
 
   it("shows the box serial and whether it matches the console", () => {

@@ -20,6 +20,12 @@ export function historyStatus(events: readonly DealEvent[], historyHash: string 
   return { kind: "mismatch", events: events.length, brokenAt: chain.brokenAt };
 }
 
+/**
+ * Plain words, not engineer words (Matt's rule 6). "Hash-chained" is what
+ * it is; "tamper-evident" is what it does, and a judge reading the header
+ * should not have to know the first to understand the second. The hash
+ * itself is still on the page, in the timeline, where it can be checked.
+ */
 export function historyLine(status: HistoryStatus): string {
   switch (status.kind) {
     case "verified":
@@ -27,6 +33,6 @@ export function historyLine(status: HistoryStatus): string {
     case "mismatch":
       return "History does not match the hash on the PayPal order";
     case "unanchored":
-      return status.chainOk ? `History hash-chained, ${status.events} ${status.events === 1 ? "event" : "events"}` : "History chain is broken";
+      return status.chainOk ? `Tamper-evident history, ${status.events} ${status.events === 1 ? "event" : "events"}` : "History chain is broken";
   }
 }

@@ -1,6 +1,7 @@
 import type { Deal, DealEvent } from "@pay-pals/contracts";
 import { formatTime } from "@/lib/format";
 import { actorLabel, EVENT_KIND_LABELS, STATE_LABELS } from "@/lib/labels";
+import { timelineRows } from "@/lib/deal/timeline-rows";
 import { PalAvatar } from "../pal/PalAvatar";
 import { Panel } from "../ui/Panel";
 
@@ -16,37 +17,60 @@ const DOT: Partial<Record<DealEvent["kind"], string>> = {
   arrival_checked: "bg-blue",
 };
 
-/** Every event on the deal, oldest first. Both sides see the same list. A pal's events carry its face. */
+/**
+ * Every event on the deal, oldest first, both sides seeing the same list.
+ * A pal's events carry its face.
+ *
+ * Collapsed by default (Matt's rule 4). It is the record, not the news: a
+ * reader who wants to check the chain opens it, and the header's history
+ * badge links straight here. State changes are folded into the action that
+ * caused them, and every fingerprint stays on the page.
+ */
 export function Timeline({ deal, events }: { deal: Deal; events: DealEvent[] }) {
+  const rows = timelineRows(events);
   return (
-    <Panel title="Timeline" aside={<span className="text-xs text-muted">{events.length} events</span>}>
-      <ol className="relative space-y-3 border-l border-line pl-5">
-        {events.map((e) => {
-          const pal = e.actor === "buyer_pal" ? "buyer" : e.actor === "seller_pal" ? "seller" : null;
-          return (
-            <li key={e.id} className="relative text-sm">
-              {pal ? (
-                <PalAvatar pal={pal} size={22} className="absolute -left-[32px] top-0" />
-              ) : (
-                <span className={`absolute -left-[25px] top-1.5 h-2.5 w-2.5 rounded-full ${DOT[e.kind] ?? "bg-line"}`} aria-hidden />
-              )}
-              <p className="leading-snug">{e.summary}</p>
-              <p className="text-[11px] text-muted">
-                {EVENT_KIND_LABELS[e.kind]}, {actorLabel(e.actor, deal)}
-                {e.kind === "state_changed" && e.fromState && e.toState ? `, ${STATE_LABELS[e.fromState]} to ${STATE_LABELS[e.toState]}` : ""}, {formatTime(e.at)}
-                {e.hash ? (
-                  <>
-                    {", "}
-                    <span className="font-mono" title={`Event hash ${e.hash}. Each event's hash covers the previous one, so the history cannot be edited quietly.`}>
-                      #{e.hash.slice(0, 8)}
+    <Panel
+      title="Timeline"
+      id="timeline"
+      aside={<span className="text-xs text-muted">{events.length} events</span>}
+      labelAs="region"
+      label="Timeline"
+    >
+      <details className="group" data-testid="timeline-details">
+        <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 text-sm font-bold text-[var(--accent-ink)] [&::-webkit-details-marker]:hidden">
+          <span aria-hidden="true" className="inline-block transition-transform group-open:rotate-90">
+            &rsaquo;
+          </span>
+          Show the timeline
+        </summary>
+        <ol className="relative mt-3 space-y-3 border-l border-line pl-5">
+          {rows.map(({ event, became, hashes }) => {
+            const pal = event.actor === "buyer_pal" ? "buyer" : event.actor === "seller_pal" ? "seller" : null;
+            return (
+              <li key={event.id} className="relative text-sm" data-testid="timeline-row">
+                {pal ? (
+                  <PalAvatar pal={pal} size={22} className="absolute -left-[32px] top-0" />
+                ) : (
+                  <span className={`absolute -left-[25px] top-1.5 h-2.5 w-2.5 rounded-full ${DOT[event.kind] ?? "bg-line"}`} aria-hidden />
+                )}
+                <p className="leading-snug">{event.summary}</p>
+                <p className="text-[11px] text-muted">
+                  {EVENT_KIND_LABELS[event.kind]}, {actorLabel(event.actor, deal)}
+                  {became ? `, now ${STATE_LABELS[became]}` : ""}, {formatTime(event.at)}
+                  {hashes.map((hash) => (
+                    <span key={hash}>
+                      {", "}
+                      <span className="font-mono" title={`Event hash ${hash}. Each event's hash covers the previous one, so the history cannot be edited quietly.`}>
+                        #{hash}
+                      </span>
                     </span>
-                  </>
-                ) : null}
-              </p>
-            </li>
-          );
-        })}
-      </ol>
+                  ))}
+                </p>
+              </li>
+            );
+          })}
+        </ol>
+      </details>
     </Panel>
   );
 }

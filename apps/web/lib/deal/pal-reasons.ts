@@ -64,41 +64,28 @@ export function hasReasons(reasoning: PalReasoning | null | undefined): reasonin
 }
 
 /**
- * Themes the pal tends to state more than once in one list, each matched by
- * what the sentence is about rather than by its words.
+ * The same sentence twice, removed. Nothing cleverer.
  *
- * On the stolen-photo deal the pal said, in three separate lines, that a
- * matching cert does not show the seller is holding the slab. All three were
- * true and all three were the same point, and a list that repeats itself
- * reads as padding, which is the one thing this list cannot afford.
+ * This list did repeat itself in substance: on the stolen-photo deal the pal
+ * said in three different sentences that a matching cert does not show the
+ * seller is holding the slab. Judging that two differently worded lines make
+ * the same point is the pal's job, not this layer's, and builder-agents is
+ * cutting those lines at source now that the cert panel says it next to the
+ * table. A heuristic here guessing at meaning would be a second mechanism
+ * competing with that one, and it could drop a line that genuinely said
+ * something new.
  *
- * This is a display fix and it is deliberately timid: it keeps the longest
- * line in a theme, which is the most specific one, drops the shorter
- * restatements, and leaves every line matching no theme exactly where it is.
- * No sentence is ever reworded. The better fix is the pal not saying it three
- * times, which is builder-agents' call, not this layer's.
+ * So this removes only what is literally the same line, ignoring case and
+ * spacing, which can never hide a claim nobody else made.
  */
-const THEMES: readonly RegExp[] = [
-  /holding the (item|slab|console)|who is holding|actually holding|seller owns|owns the/i,
-  /no market price|price came back|compare the \$?[\d,.]+ ask/i,
-  /demo record|standing in for the grader/i,
-];
-
-/** One line per theme, the most specific one, plus everything that fits no theme. */
 export function dedupeReasons(lines: readonly string[]): string[] {
-  const best = new Map<number, string>();
-  const kept: (string | number)[] = [];
-  for (const line of lines) {
-    const theme = THEMES.findIndex((re) => re.test(line));
-    if (theme === -1) {
-      kept.push(line);
-      continue;
-    }
-    const held = best.get(theme);
-    if (held === undefined) kept.push(theme);
-    if (held === undefined || line.length > held.length) best.set(theme, line);
-  }
-  return kept.map((k) => (typeof k === "string" ? k : best.get(k)!));
+  const seen = new Set<string>();
+  return lines.filter((line) => {
+    const key = line.trim().toLowerCase().replace(/\s+/g, " ");
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 /**

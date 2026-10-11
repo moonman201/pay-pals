@@ -3,7 +3,9 @@ import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { VerdictPanel } from "./VerdictPanel";
 
-const flag = (code: RedFlag["code"], severity: RedFlag["severity"]): RedFlag => ({ code, severity, evidence: "e", explanation: "x", raisedByRule: true });
+/* Explanation empty so the reasons come from the fallback map. The pal's own
+   sentence is preferred when it has one, which review-lead.test.ts covers. */
+const flag = (code: RedFlag["code"], severity: RedFlag["severity"], explanation = ""): RedFlag => ({ code, severity, evidence: "e", explanation, raisedByRule: true });
 
 function verdict(overrides: Partial<Verdict> = {}): Verdict {
   return { dealId: "d1", cardVersion: 1, overall: "stop", flags: [], priceCheck: null, questionsForSeller: [], palMessage: "Stop.", createdAt: new Date().toISOString(), ...overrides };
@@ -324,12 +326,13 @@ describe("VerdictPanel, the lead", () => {
     expect(screen.getByTestId("verdict-reasons")).not.toHaveTextContent("Something else the pal wanted you to see.");
   });
 
-  it("says a reused photo the way packages/agents says it, claiming no search", () => {
-    const v = verdict({ overall: "caution", flags: [flag("STOCK_OR_REUSED_PHOTO", "caution")] });
+  it("shows the pal's own sentence as the reason, not a second phrasing of it", () => {
+    const own = "His only photo matches a listing photo already on file.";
+    const v = verdict({ overall: "caution", flags: [flag("STOCK_OR_REUSED_PHOTO", "caution", own)] });
     render(<VerdictPanel verdict={v} currentVersion={1} locked={false} />);
-    const reasons = screen.getByTestId("verdict-reasons");
-    expect(reasons).toHaveTextContent("A photo is one Pay Pals already holds, not the seller's own.");
-    expect(reasons.textContent).not.toMatch(/catalog|listing|online|web|internet/i);
+    expect(screen.getByTestId("verdict-reasons")).toHaveTextContent(own);
+    // The check is against Pay Pals' own file of photos, so no line may imply a search.
+    expect(screen.getByTestId("verdict-reasons").textContent).not.toMatch(/online|web|internet|searched/i);
   });
 
   it("falls back to the pal's own findings when there are no flags to name", () => {

@@ -259,9 +259,9 @@ function photoItem(input: StatusInput): StatusItem {
     label,
     status: flagged ? "flagged" : "unverified",
     detail: flagged
-      ? // The wording matches packages/agents/src/rules/stock-photo.ts exactly. The check compares
-        // against Pay Pals' own reference set, so "catalog" and "listing" are both claims nobody made.
-        `${plural(urls.size, "photo", "photos")} stored with the card. One is the same picture as one Pay Pals already holds, so it was not taken of this seller's item for this listing.`
+      ? // "Already on file" is the honest half: the match is against Pay Pals' own
+        // reference folder, which holds the listing photos, never a search of the web.
+        `${plural(urls.size, "photo", "photos")} stored with the card. One matches a listing photo already on file, so it was not taken of this seller's item for this listing.`
       : `${plural(urls.size, "photo", "photos")} stored with the card. Pay Pals keeps them with the deal and shows both sides the same ones. It compares them against its own set of pictures and nothing else.`,
   };
 }

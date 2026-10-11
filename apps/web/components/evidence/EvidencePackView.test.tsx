@@ -89,7 +89,7 @@ describe("EvidencePackView", () => {
     render(<EvidencePackView pack={pack({ historyHash: null })} deal={emptyBox.deal} role="buyer" />);
     const badges = screen.getAllByTestId("history-badge");
     expect(badges.length).toBeGreaterThanOrEqual(1);
-    expect(badges[0]).toHaveTextContent(`History hash-chained, ${emptyBox.timeline.length} events`);
+    expect(badges[0]).toHaveTextContent(`Tamper-evident history, ${emptyBox.timeline.length} events`);
   });
 
   it("puts a dealId#hash token from the summary on its own breakable monospace line, so the page never scrolls sideways", () => {

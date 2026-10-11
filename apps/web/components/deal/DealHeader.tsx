@@ -6,6 +6,7 @@ import { useState } from "react";
 import type { DealSnapshot } from "@/lib/deal/snapshot";
 import { endSentence } from "@/lib/format";
 import { STATE_LABELS } from "@/lib/labels";
+import { shortTitle } from "@/lib/deal/short-title";
 import { HistoryBadge } from "./HistoryBadge";
 import { ProgressStepper } from "./ProgressStepper";
 import { otherRole, type Role } from "@/lib/role";
@@ -58,7 +59,8 @@ export function DealHeader({ snapshot, role }: { snapshot: DealSnapshot; role: R
         </div>
         <div className="mx-auto flex max-w-6xl flex-wrap items-start justify-between gap-x-4 gap-y-2 px-4 pb-2">
           <div className="min-w-0 flex-1">
-            <h1 className="text-lg font-bold leading-tight text-ink">{currentCard?.title ?? "New deal"}</h1>
+            {/* Short here, in full on the item card, which is one scroll down. */}
+            <h1 className="text-lg font-bold leading-tight text-ink">{shortTitle(currentCard)}</h1>
             <p className="mt-0.5 text-xs text-muted">
               {endSentence(`You are the ${role}${me ? `, ${me.displayName}` : ""}`)}{" "}
               <span className="inline-flex items-center gap-1 align-middle">

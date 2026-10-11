@@ -12,7 +12,11 @@ describe("ShipmentSummary", () => {
     expect(within(flags).getByText("Buyer Pal:")).toBeInTheDocument();
     expect(within(flags).getByText("caution")).toBeInTheDocument();
     expect(within(flags).getByText("a packing photo the seller skipped")).toBeInTheDocument();
-    expect(flags).toHaveTextContent(/shipped without the photo of the item going into the box/);
+    // Oct 11: the Lead shortened this fixture explanation from 22 words to 11, under
+    // Matt's rule 2. The consequence it used to spell out is the flag card's job and
+    // the evidence pack's. A corrected expectation, not a loosened one: it still
+    // pins the pal's exact sentence, which is the sentence the room now shows.
+    expect(flags).toHaveTextContent("Shipped with no photo of the item going into the box.");
   });
 
   it("shows nothing extra when the pal raised no flags", () => {

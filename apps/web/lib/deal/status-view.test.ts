@@ -195,9 +195,9 @@ describe("the evidence", () => {
     const flags = [{ code: "STOCK_OR_REUSED_PHOTO" as const, severity: "caution" as const, evidence: "3 of 64 bits differ", explanation: "x", raisedByRule: true }];
     const line = item(dealStatusView(input({ verdicts: [verdict({ flags })] })), "evidence", "photos");
     expect(line.status).toBe("flagged");
-    expect(line.detail).toMatch(/the same picture as one Pay Pals already holds/);
-    // The check compares against Pay Pals' own reference set. Both of these would claim more.
-    expect(line.detail).not.toMatch(/catalog|listing photo|online|web|internet/i);
+    expect(line.detail).toMatch(/matches a listing photo already on file/);
+    // The match is against Pay Pals' own file of photos, never a search of the web.
+    expect(line.detail).not.toMatch(/online|web|internet|searched/i);
   });
 
   /*
