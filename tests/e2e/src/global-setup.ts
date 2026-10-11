@@ -35,8 +35,22 @@ async function get(path: string): Promise<void> {
  * instead. Returns how many finished deals were found.
  */
 async function checkSeededDealsArePristine(): Promise<number> {
-  const landing = await (await fetch(`${BASE_URL}/`)).text();
-  const ids = new Set([...landing.matchAll(/\/deals\/([0-9a-f-]{36})\?as=buyer/g)].map((m) => m[1]!));
+  // Resolved by following the landing's scenario links, not by reading ids out of them. The
+  // landing stopped printing deal ids on 2026-10-11, and this guard went on scanning for them:
+  // it found none, checked nothing, and reported "0 seeded finished deals as seeded", which
+  // reads like a pass. So the count is asserted below rather than just printed.
+  const ids = new Set<string>();
+  for (const fixture of ALL_FIXTURES) {
+    const res = await fetch(`${BASE_URL}/deals/finished/${fixture.id}?as=buyer`, { redirect: "follow" });
+    const id = /\/deals\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(?:[?#/]|$)/i.exec(res.url)?.[1];
+    if (id) ids.add(id);
+  }
+  if (ids.size !== ALL_FIXTURES.length) {
+    throw new Error(
+      `warm-up: ${ids.size} of the ${ALL_FIXTURES.length} finished demo deals resolved on ${BASE_URL}. ` +
+        `Either the seed did not run, or /deals/finished/<scenario> no longer lands on a deal room and this guard is checking nothing.`,
+    );
+  }
   for (const id of ids) {
     const snap = (await (await fetch(`${BASE_URL}/api/deals/${id}`)).json()) as { deal?: { state: string }; hasEvidence?: boolean };
     const fixture = ALL_FIXTURES.find((f) => f.deal.state === snap.deal?.state);
