@@ -39,7 +39,11 @@ interface StatusRow {
   detail: string;
 }
 
-const CHIP_WORD: Record<string, string> = { verified: "Verified", unverified: "Unverified", missing: "Missing" };
+/**
+ * Four labels since Matt's deal room pass: Flagged joined them, for a check
+ * that ran and did not match, which used to be filed under Unverified.
+ */
+const CHIP_WORD: Record<string, string> = { verified: "Verified", flagged: "Flagged", unverified: "Unverified", missing: "Missing" };
 
 /**
  * A Verified line has to name the comparison it passed. These are the words
@@ -48,10 +52,28 @@ const CHIP_WORD: Record<string, string> = { verified: "Verified", unverified: "U
  * failure that matters: a line that claims a check passed while its own
  * sentence names nothing it was checked against.
  */
-const NAMES_A_COMPARISON = /\bcompar(e|es|ed|ison)\b|\bmatch(es|ed|ing)?\b|\bagree(s|d)?\b|\bagainst\b|\bthe same\b|\bidentical\b|\breproduce[sd]?\b/i;
+const NAMES_A_COMPARISON = /\bcompar\w*\b|\bcheck\w*\b|\bmatch\w*\b|\bagree\w*\b|\bagainst\b|\bthe same\b|\bidentical\b|\breproduce[sd]?\b/i;
 
-/** A Verified line that says this about itself is contradicting its own label. */
-const DENIES_A_CHECK = /\bnothing (has been|was) checked\b|\bhas not been checked\b|\bcould not be compared\b|\bnothing to compare\b|\bdid not (read|check)\b|\bno(t)? a live\b/i;
+/**
+ * A checked line that says this about itself is contradicting its own label.
+ *
+ * This was a list of phrasings and the room pass broke it: "nothing has
+ * been locked or checked against it" is a denial, and the old
+ * `nothing (has been|was) checked` could not see it past the two words in
+ * between, so the guard quietly matched nothing on the slab room and the
+ * assertion below went vacuous. The liveness floor is what caught that.
+ * It is a shape now, not a list: a negator within a short reach of a
+ * checking verb.
+ *
+ * And it has to tell two negations apart, which cost a round. "It is not a
+ * check of ownership" is the honest disclaimer every Verified line carries
+ * and is not a denial of that line's own check; "nothing has been checked
+ * against it" and "did not read a carrier scan" are. So the negators are
+ * the ones that deny an action, not the ones that deny a meaning: "is not
+ * a check of" does not match, by design.
+ */
+const DENIES_A_CHECK =
+  /\b(nothing|no)\b[^.]{0,40}\b(checked|compared|read)\b|\b(has not been|have not been|was not|were not|could not be|cannot be|did not)\b[^.]{0,20}\b(check\w*|compar\w*|read)\b/i;
 
 /** Every row of the Deal status panel, with the group it sits in. */
 async function statusRows(page: Page): Promise<StatusRow[]> {
@@ -86,12 +108,16 @@ test.describe("the deal status view", () => {
   test.skip(!WEB_PRESENT, "apps/web is not on this branch yet, nothing to load");
 
   for (const fixture of ALL_FIXTURES) {
-    test(`${fixture.id}: a Verified line names the comparison it passed`, async ({ page }) => {
+    test(`${fixture.id}: a checked line names the comparison it made`, async ({ page }) => {
       await openFinishedDeal(page, fixture);
 
       const status = panel(page, "Deal status");
       await expect(status, `${fixture.id}: the deal room shows the status view`).toBeVisible();
-      await expect(status.getByTestId("status-legend")).toContainText("It never means the item is genuine or that the seller owns it.");
+      // The legend was reworded with the fourth label. What it has to keep saying is that
+      // Verified is not a claim about the item, and that every label is defined on the page.
+      const legend = status.getByTestId("status-legend");
+      await expect(legend).toContainText("Verified never means genuine or that the seller owns it.");
+      for (const word of Object.values(CHIP_WORD)) await expect(legend, `the legend defines ${word}`).toContainText(`${word}:`);
 
       const rows = await statusRows(page);
       console.log(`${fixture.id}: ${rows.length} status rows\n${rows.map((r) => `  [${r.status}] ${r.group} / ${r.label}: ${r.detail}`).join("\n")}`);
@@ -111,11 +137,18 @@ test.describe("the deal status view", () => {
         `${fixture.id}: no line says a check did not happen, so the Verified guard below is checking nothing`,
       ).toBeGreaterThan(0);
 
-      const verified = rows.filter((r) => r.status === "verified");
-      expect(verified.length, `${fixture.id}: the view has at least one Verified line to check`).toBeGreaterThan(0);
-      for (const row of verified) {
-        expect(row.detail, `${fixture.id}: "${row.label}" is Verified but names no comparison: "${row.detail}"`).toMatch(NAMES_A_COMPARISON);
-        expect(row.detail, `${fixture.id}: "${row.label}" is Verified and denies its own check: "${row.detail}"`).not.toMatch(DENIES_A_CHECK);
+      // Flagged is a check that ran and came back different, so it owes the same account of
+      // itself as Verified: both say a comparison happened, and only the answer differs.
+      const checked = rows.filter((r) => r.status === "verified" || r.status === "flagged");
+      expect(checked.length, `${fixture.id}: the view has at least one checked line`).toBeGreaterThan(0);
+      for (const row of checked) {
+        // Label and detail together, because that is the unit a reader sees and the two sides of
+        // a comparison are often split across them: "Seller Pal packing checklist" names what was
+        // compared against and "1 required step not done" names the answer. Reading the detail
+        // alone failed that row for saying something the row does say.
+        const says = `${row.label}. ${row.detail}`;
+        expect(says, `${fixture.id}: "${row.label}" is ${row.chip} but names no comparison: "${row.detail}"`).toMatch(NAMES_A_COMPARISON);
+        expect(row.detail, `${fixture.id}: "${row.label}" is ${row.chip} and denies its own check: "${row.detail}"`).not.toMatch(DENIES_A_CHECK);
       }
 
       // Secondary, and deliberately not a fixed number: the chips over the panel count the rows below them.
