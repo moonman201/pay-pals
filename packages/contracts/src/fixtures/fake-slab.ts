@@ -85,7 +85,7 @@ export const fakeSlab: ScenarioFixture = {
   chat: [
     { id: "m1", dealId, channel: "deal", author: "buyer", text: "Hey, is the Gengar and Mimikyu still there? I sent a Pay Pals invite so we are both covered.", photos: [], at: at(2) },
     { id: "m2", dealId, channel: "deal", author: "seller", text: "Still here. I don't really use that app, I just do Friends and Family, it's quicker.", photos: [], at: at(5) },
-    { id: "m3", dealId, channel: "deal", author: "buyer_pal", text: "Buyer Pal to seller: Can you send one photo of the slab next to a handwritten note with your name and today's date on it?", photos: [], at: at(7) },
+    { id: "m3", dealId, channel: "deal", author: "buyer_pal", text: "Can you send one photo of the slab next to a handwritten note with your name and today's date on it?", photos: [], at: at(7) },
     { id: "m4", dealId, channel: "deal", author: "seller", text: "The photo in the listing is the card lol. Cert number is on the label, go look it up on PSA, it's legit.", photos: [], at: at(9) },
     { id: "m5", dealId, channel: "deal", author: "buyer", text: "I did look it up and it checks out, I just want the one with your name on it.", photos: [], at: at(11) },
     { id: "m6", dealId, channel: "deal", author: "seller", text: "I'm at work, not digging it out again for one picture. Two other people have asked today and I'm moving tomorrow.", photos: [], at: at(13) },
