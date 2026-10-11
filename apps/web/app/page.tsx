@@ -33,8 +33,10 @@ export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
   const services = getServices();
-  // The ids resolve once per server process; a re-seed can delete the deals behind them, so check
-  // they are still there before a scenario card offers one (REVIEW, Oct 9). Three lookups, in parallel.
+  // Belt and braces. The card's href carries no id, so /deals/finished/<scenario> cannot go
+  // stale however long this HTML sits in a cache; this check is the other half, so a card is
+  // only offered for a scenario that has a finished deal at the moment of the render.
+  // Three lookups, in parallel.
   const seeded = await resolveSeededDeals(await services.seededDeals, services.store, asDealFinder(services.store));
   return (
     <main className="mx-auto max-w-6xl px-4 pb-16">
@@ -115,7 +117,7 @@ export default async function HomePage() {
         </div>
         <div className="mt-5 grid gap-4 md:grid-cols-3">
           {ALL_FIXTURES.map((f) => (
-            <ScenarioCard key={f.id} fixture={f} finishedDealId={seeded[f.id] ?? null} />
+            <ScenarioCard key={f.id} fixture={f} hasFinishedDeal={Boolean(seeded[f.id])} />
           ))}
         </div>
       </section>
