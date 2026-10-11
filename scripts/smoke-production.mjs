@@ -98,7 +98,7 @@ async function main() {
   for (const n of notes) console.log(`[smoke] note: ${n}`);
 
   if (problems.length === 0) {
-    console.log(`[smoke] ${ids.length} finished-deal link${ids.length === 1 ? "" : "s"} answered 200 and no withdrawn copy is on the page.`);
+    console.log(`[smoke] ${links.length} finished-deal link${links.length === 1 ? "" : "s"} answered 200, none carries a deal id, and no withdrawn copy is on the page.`);
     process.exit(0);
   }
 
