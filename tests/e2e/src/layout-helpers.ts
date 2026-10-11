@@ -6,15 +6,37 @@ import { expect, type Page } from "@playwright/test";
 import type { ScenarioFixture } from "@pay-pals/contracts";
 import { waitForHydration, waitForReviewIdle } from "./helpers";
 
-/** The finished deal the landing page links to for a scenario: its href and id. */
+/** A deal room URL ends in the deal's uuid. Anchored, so "finished" is not mistaken for an id. */
+export const DEAL_ID_IN_URL = /\/deals\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(?:[?#/]|$)/i;
+
+/**
+ * Open the finished demo deal for a scenario from the landing page, and say
+ * where it landed. The one place in the suite that turns a landing card into
+ * a deal id.
+ *
+ * The id comes from the URL after following the link, never from the link.
+ * The landing used to print the deal id into the href, and three helpers
+ * read it back out because it was there; one re-seed made every copy of
+ * that page dead, which is what Matt hit on production. The href is now
+ * `/deals/finished/<scenario>`, resolved at request time.
+ *
+ * So this also asserts the href still carries no id. A helper that merely
+ * tolerated an id-less link would tolerate the id coming back, and the
+ * coupling would be rebuilt by the next person who finds an id convenient.
+ * `href` is returned for callers that want to open it again: it is the
+ * stable link, and it stays right across a re-seed.
+ */
 export async function finishedDeal(page: Page, fixture: ScenarioFixture): Promise<{ href: string; dealId: string }> {
   await page.goto("/");
   const card = page.getByRole("article").filter({ has: page.getByRole("heading", { name: fixture.name }) });
   const link = card.getByRole("link", { name: "See the finished deal" });
   await expect(link, `${fixture.id}: the landing page offers the finished deal`).toBeVisible();
   const href = (await link.getAttribute("href")) ?? "";
-  const dealId = /\/deals\/([^/?]+)/.exec(href)?.[1];
-  if (!dealId) throw new Error(`${fixture.id}: no deal id in the finished deal link ${href}`);
+  expect(href, `${fixture.id}: the landing must link by scenario, so a cached page cannot hold a dead id: ${href}`).not.toMatch(DEAL_ID_IN_URL);
+
+  await page.goto(href);
+  const dealId = DEAL_ID_IN_URL.exec(page.url())?.[1];
+  if (!dealId) throw new Error(`${fixture.id}: ${href} did not land on a deal room (${page.url()})`);
   return { href, dealId };
 }
 

@@ -16,6 +16,7 @@ import { ALL_FIXTURES } from "@pay-pals/contracts";
 import type { ScenarioFixture } from "@pay-pals/contracts";
 import { STARTS_SERVER, WEB_PRESENT } from "./env";
 import { expectNoHorizontalScroll, snapshot, waitForHydration } from "./helpers";
+import { finishedDeal } from "./layout-helpers";
 
 /** Against a server we did not start (E2E_BASE_URL, for example production) the pass is read-only: no evidence build. */
 const REMOTE = !STARTS_SERVER;
@@ -136,17 +137,12 @@ test.describe("finished demo deals, desktop and phone", () => {
         testInfo.setTimeout(180_000);
         await page.setViewportSize({ width: size.width, height: size.height });
 
-        // The landing page links to the seeded finished deal for this scenario.
-        await page.goto("/");
-        const card = page.getByRole("article").filter({ has: page.getByRole("heading", { name: fixture.name }) });
-        const link = card.getByRole("link", { name: "See the finished deal" });
-        await expect(link, `${id}: the landing page offers the finished deal`).toBeVisible();
-        const href = (await link.getAttribute("href"))!;
-        const dealId = /\/deals\/([^/?]+)/.exec(href)?.[1];
-        expect(dealId, `${id}: finished deal link ${href}`).toBeTruthy();
+        // The landing links by scenario and the helper follows it, so the id is known only after
+        // the redirect. It used to be parsed out of the href, which is the coupling that made a
+        // cached landing page point at a deal that a re-seed had deleted.
+        const { dealId } = await finishedDeal(page, fixture);
 
-        // Deal room.
-        await page.goto(href);
+        // Deal room: already open, the link landed on it.
         await waitForHydration(page);
         await expect(page.getByRole("banner").getByText(STATE_LABEL[fixture.deal.state], { exact: true })).toBeVisible();
         const roomShot = await shoot(page, `${id}-deal-${size.name}`);
@@ -182,7 +178,7 @@ test.describe("finished demo deals, desktop and phone", () => {
         }
 
         // Item 7: the seeded dates run in order and the story ended before now (read-only GET).
-        const snap = await snapshot(page, dealId!);
+        const snap = await snapshot(page, dealId);
         const ats = snap.events.map((e) => Date.parse(e.at));
         expect(ats.length, `${id}: events`).toBeGreaterThan(0);
         for (let i = 1; i < ats.length; i++) expect(ats[i], `${id}: event ${i + 1} (${snap.events[i]!.kind}) is not before event ${i}`).toBeGreaterThanOrEqual(ats[i - 1]!);
