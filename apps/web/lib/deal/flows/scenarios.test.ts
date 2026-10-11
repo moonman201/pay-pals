@@ -6,6 +6,7 @@
  */
 import { CLEAN_SERIAL, cleanPs5, EMPTY_BOX_LOCKED_SERIAL, emptyBox, fakeSlab, historyMatchesHead } from "@pay-pals/contracts";
 import { describe, expect, it } from "vitest";
+import { outcomeOf } from "../arrival-outcome";
 import { createServices } from "../../services";
 import { loadSnapshot } from "../snapshot";
 import { agree } from "./agree";
@@ -137,7 +138,10 @@ describe("clean-ps5", () => {
     expect(snap.deal.state).toBe("DELIVERED");
 
     const check = await checkArrival(services, deal.id, snap.demo?.arrivalPhotos ?? []);
-    expect(check.matches).toBe(true);
+    // Read through outcomeOf, which is how every surface in apps/web reads it: that covers a
+    // check stored before v1.8.0 as well as one the pal has just written. Tighten to a direct
+    // `outcome` assertion once packages/agents sets the field.
+    expect(outcomeOf(check)).toBe("match");
     expect(check.observed.serial).toBe(CLEAN_SERIAL);
     expect(check.photos?.length).toBe(snap.demo?.arrivalPhotos.length);
 
@@ -162,7 +166,12 @@ describe("empty-box", () => {
 
     const arrivalPhotos = snap.demo?.arrivalPhotos ?? [];
     const check = await checkArrival(services, deal.id, arrivalPhotos);
-    expect(check.matches).toBe(false);
+    // Read through outcomeOf, which is how every surface in apps/web reads it: that covers a
+    // check stored before v1.8.0 as well as one the pal has just written. Tighten to a direct
+    // `outcome` assertion once packages/agents sets the field.
+    expect(outcomeOf(check)).toBe("mismatch");
+    // An empty box is a positive finding of the wrong thing, never the unsettled band.
+    expect(check.unsettled ?? []).toEqual([]);
     expect(check.mismatches.map((m) => m.field)).toEqual(expect.arrayContaining(emptyBox.expectedArrival!.mismatchFields));
 
     // The issue step's "The box arrived empty" choice: the mismatch reason plus a detail line.
@@ -177,7 +186,7 @@ describe("empty-box", () => {
     // the locked card holds the box label and nothing read off the item.
     expect(pack?.lockedCard.serial).toBeNull();
     expect(pack?.lockedCard.boxSerial).toBe(EMPTY_BOX_LOCKED_SERIAL);
-    expect(pack?.arrivalCheck?.matches).toBe(false);
+    expect(outcomeOf(pack!.arrivalCheck!)).toBe("mismatch");
     for (const photo of arrivalPhotos) expect(pack?.photos.map((p) => p.url)).toContain(photo.url);
   });
 });

@@ -1,5 +1,6 @@
 import { cleanPs5 } from "@pay-pals/contracts";
 import { describe, expect, it } from "vitest";
+import { outcomeOf } from "./deal/arrival-outcome";
 import { startDemoDeal } from "./deal/flows/start";
 import { loadSnapshot, sandboxBuyerFor } from "./deal/snapshot";
 import { createServices } from "./services";
@@ -31,11 +32,11 @@ describe("createServices with no keys", () => {
     expect(clean.lockedCard?.version).toBe(2);
     expect(clean.payment?.status).toBe("CAPTURED");
     expect(clean.shipment?.deliveredAt).not.toBeNull();
-    expect(clean.arrivalCheck?.matches).toBe(true);
+    expect(outcomeOf(clean.arrivalCheck!)).toBe("match");
 
     const empty = await loadSnapshot(services, seeded["empty-box"]!);
     expect(empty.deal.state).toBe("ISSUE");
-    expect(empty.arrivalCheck?.matches).toBe(false);
+    expect(outcomeOf(empty.arrivalCheck!)).toBe("mismatch");
     expect(empty.hasEvidence).toBe(true);
   });
 

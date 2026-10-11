@@ -19,6 +19,7 @@
  */
 import type { ArrivalCheck, Deal, DealEvent, ItemCard, PaymentRecord, Shipment, Verdict } from "@pay-pals/contracts";
 import { formatMoney, formatTime } from "../format";
+import { ASK_FOR_A_CLEARER_PHOTO, CLAIMS_NEITHER, outcomeOf, unsettledOf } from "./arrival-outcome";
 import { boxSerialStatus } from "./box-serial";
 import { checkOrderHistory } from "./order-history";
 import { FLAG_WORDS } from "./override";
@@ -495,12 +496,29 @@ function deliveryGroup(input: StatusInput): StatusGroup {
   const check = input.arrivalCheck;
   if (!check) {
     items.push({ id: "arrival-check", label: "Arrival check against the locked card", status: "missing", detail: "No arrival check on record." });
-  } else if (check.matches) {
+  } else if (outcomeOf(check) === "match") {
     items.push({
       id: "arrival-check",
       label: "Arrival check against the locked card",
       status: "verified",
       detail: `The Buyer Pal compared the arrival photos against locked card version ${check.cardVersion} and found no difference from the item the card describes.${serialProvenance(check)}`,
+    });
+  } else if (outcomeOf(check) === "inconclusive") {
+    /*
+      Unverified, not Missing and certainly not a failure. The pal read both numbers and could
+      not tell them apart, so "Pay Pals checked this and it matched" is false and "it did not
+      match" is equally false. Unverified is exactly the label for a check that ran and did not
+      settle, which the closed union already had.
+
+      The old else branch mapped over `mismatches`, which is empty on an inconclusive check, so
+      left alone it would have printed "found 0 differences:" and an empty list.
+    */
+    const open = unsettledOf(check);
+    items.push({
+      id: "arrival-check",
+      label: "Arrival check against the locked card",
+      status: "unverified",
+      detail: `The Buyer Pal compared the arrival photos against locked card version ${check.cardVersion} and could not settle ${plural(open.length, "comparison", "comparisons")}: ${list(open.map((m) => `${m.field}, the card says ${m.expected} and the arrival shows ${m.observed}`))}. ${CLAIMS_NEITHER} ${ASK_FOR_A_CLEARER_PHOTO}`,
     });
   } else {
     items.push({
