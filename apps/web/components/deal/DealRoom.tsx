@@ -172,6 +172,7 @@ export function DealRoom({ snapshot, role }: { snapshot: DealSnapshot; role: Rol
               locked={deal.lockedCardVersion !== null}
               cardTitle={currentCard?.title ?? null}
               cardGrade={currentCard?.grade ?? null}
+              askingPrice={currentCard?.askingPrice ?? null}
             />
           ) : null}
           {verdictDiff ? <VerdictDiffPanel diff={verdictDiff} /> : null}
