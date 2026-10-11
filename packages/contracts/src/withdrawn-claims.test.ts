@@ -44,3 +44,42 @@ describe("the claims this product has withdrawn", () => {
     }
   });
 });
+
+/**
+ * A page cannot exempt itself the way a Markdown file can, because the honest
+ * sentence and the claim it denies sit in the same document. qa hit this on the
+ * page guard's first run against the slab room, which says exactly the thing D9
+ * asks for and so contains the phrase D9 forbids.
+ */
+describe("a denial is not a claim", () => {
+  it("allows the sentence D9 asks for, which the slab room actually prints", () => {
+    expect(withdrawnClaimsIn("Cert 72096346 matches PSA's record. The slab exists. That doesn't prove the seller has it.")).toEqual([]);
+  });
+
+  it("allows the other denials the product writes", () => {
+    for (const ok of [
+      "A matching serial does not prove ownership.",
+      "This is never proof of fraud.",
+      "Nothing here proves the seller owns the item.",
+      "It is not the strongest sign of a scam, it is a risk signal.",
+      "This pack does not guarantee a refund.",
+    ]) {
+      expect(withdrawnClaimsIn(ok), ok).toEqual([]);
+    }
+  });
+
+  it("still catches a bare claim that happens to sit near a denial", () => {
+    // The negator follows the claim rather than denying it.
+    expect(withdrawnClaimsIn("We guarantee a refund, and this is not a scam.").map((c) => c.id)).toEqual(["D10"]);
+    // One honest denial does not excuse a second, bare claim later.
+    expect(
+      withdrawnClaimsIn("A matching cert does not prove ownership. Our check proves ownership.").map((c) => c.id),
+    ).toEqual(["D9"]);
+  });
+
+  it("does not let a denial three sentences earlier launder a later claim", () => {
+    expect(
+      withdrawnClaimsIn("This does not prove much. The cert is real. The photo is sharp. A match proves ownership.").map((c) => c.id),
+    ).toEqual(["D9"]);
+  });
+});

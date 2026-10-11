@@ -70,7 +70,41 @@ export const WITHDRAWN_CLAIMS: readonly WithdrawnClaim[] = [
   },
 ];
 
-/** Every claim whose pattern matches the text, for a guard to report. */
+/**
+ * A denial immediately before a claim. "That doesn't prove the seller has it"
+ * is the sentence D9 asks for, and it contains the phrase D9 forbids, so a
+ * guard that only pattern-matches reports the honest sentence as a breach.
+ *
+ * qa hit this on the first run of the page guard against the slab room. The
+ * Markdown guard never needed it because it exempts whole files; a rendered
+ * page cannot, because the honest sentence and the claim it denies live in the
+ * same document. It is the same mistake as an assertion that forbade the word
+ * "dispute" and so failed the pal for saying "do not open a dispute".
+ *
+ * Contractions are included because "doesn't" is how the product actually
+ * writes it. The window is deliberately short: a denial three sentences
+ * earlier does not make a later claim honest.
+ */
+const NEGATOR = /\b(not|never|no|none|nothing|nobody|cannot|can't|doesn't|isn't|won't|wouldn't|didn't)\b[^.?!]{0,48}$/i;
+
+/**
+ * Every claim whose pattern matches the text and is not denied where it
+ * matches, for a guard to report.
+ *
+ * A guard may still want the raw patterns, for instance to scan source where a
+ * forbidden phrase appears inside a rule that forbids it. Those guards keep
+ * their own allow-lists; this function is for prose.
+ */
 export function withdrawnClaimsIn(text: string): WithdrawnClaim[] {
-  return WITHDRAWN_CLAIMS.filter((claim) => claim.patterns.some((pattern) => pattern.test(text)));
+  return WITHDRAWN_CLAIMS.filter((claim) =>
+    claim.patterns.some((pattern) => {
+      // Every match, not just the first: one honest denial does not excuse a
+      // second, bare claim later in the same text.
+      for (const match of text.matchAll(new RegExp(pattern.source, pattern.flags.includes("g") ? pattern.flags : `${pattern.flags}g`))) {
+        const before = text.slice(0, match.index ?? 0);
+        if (!NEGATOR.test(before)) return true;
+      }
+      return false;
+    }),
+  );
 }

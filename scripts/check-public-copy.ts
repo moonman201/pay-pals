@@ -16,7 +16,7 @@
  *
  * Usage: npx tsx scripts/check-public-copy.ts
  */
-import { WITHDRAWN_CLAIMS } from "@pay-pals/contracts";
+import { WITHDRAWN_CLAIMS, withdrawnClaimsIn } from "@pay-pals/contracts";
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 
@@ -28,7 +28,7 @@ import { readFileSync } from "node:fs";
  * allowed in a React component. Three tables for one policy is three chances
  * to disagree, and it had already taken one.
  */
-const RULES = WITHDRAWN_CLAIMS.map((claim) => ({ id: claim.id, why: claim.why, patterns: claim.patterns }));
+const RULES = WITHDRAWN_CLAIMS;
 
 /**
  * Deliberate, reviewed exceptions. A file that states a rule, or that keeps an
@@ -54,12 +54,13 @@ for (const file of tracked) {
   if (allowed.has(file)) continue;
   const lines = readFileSync(file, "utf8").split("\n");
   lines.forEach((text, i) => {
-    for (const rule of RULES) {
-      // First matching rule is enough: one line is one breach, however many patterns catch it.
-      if (rule.patterns.some((pattern) => pattern.test(text))) {
-        breaches.push({ file, line: i + 1, rule, text: text.trim() });
-        break;
-      }
+    // withdrawnClaimsIn, not the raw patterns: a doc may deny a claim, and
+    // "A matching cert does not prove ownership" is a sentence we want written.
+    // Before this the only escape was exempting the whole file, which dilutes
+    // the policy to get one honest sentence past it.
+    const found = withdrawnClaimsIn(text);
+    if (found.length > 0) {
+      breaches.push({ file, line: i + 1, rule: found[0]!, text: text.trim() });
     }
   });
 }
