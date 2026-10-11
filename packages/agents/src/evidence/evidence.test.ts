@@ -55,7 +55,10 @@ describe("buildEvidencePack", () => {
     expect(pack.unansweredQuestions).toEqual([asked]);
     expect(pack.shipmentFlags).toEqual(emptyBox.shipment!.flags);
     expect(pack.summary).toContain(`The Buyer Pal asked the seller before payment: "${asked}" The seller never answered.`);
-    expect(pack.summary).toContain("At ship time the Buyer Pal raised MISSING_PACKING_PHOTO (caution): The seller shipped without the photo of the item going into the box, so there is no proof of what was packed.");
+    expect(pack.summary).toContain("At ship time the Buyer Pal raised a caution: Shipped with no photo of the item going into the box.");
+    // Corrected 2026-10-11 with Matt's rule 6: the sentence named the flag by its code, which is
+    // our identifier and not English, in the one document a dispute reviewer reads.
+    expect(pack.summary).not.toMatch(/[A-Z]{4,}_[A-Z_]+/);
     expect(palMessage).toContain("The seller never answered one question the Buyer Pal asked before payment.");
     expect(palMessage).toContain("The seller shipped without the required packing photo.");
     expect(pack.summary).toContain(emptyBox.payment!.paypalOrderId);
@@ -89,7 +92,7 @@ describe("buildEvidencePack", () => {
     expect(prompt).toContain("arrival photo");
     expect(prompt).toContain("never got an answer");
     expect(prompt).toContain("The seller never answered.");
-    expect(prompt).toContain("MISSING_PACKING_PHOTO");
+    expect(prompt).toContain("Shipped with no photo of the item going into the box.");
     expect(deterministicSummary(input)).toContain("did not match");
   });
 

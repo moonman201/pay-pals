@@ -190,11 +190,11 @@ function couldNotVerify(input: ReviewReasonInput): ReasonLine[] {
   }
   // One ownership line, not two. The cert version of this said the same thing in different words,
   // so the specific one is used where there is a cert and the general one everywhere else.
-  lines.push(
-    certCheck?.matches === true
-      ? "A matching cert shows the record exists, not who is holding the slab."
-      : "Nothing here shows who is holding the item.",
-  );
+  // Only where nothing else on the page already carries it. With a matching cert the deal page
+  // puts "The slab exists. That doesn't prove he has it." directly above the cert comparison,
+  // which is this fact sitting next to the thing it qualifies. Repeating it here would be the
+  // same sentence twice in different words, which is rule 1 inside one group.
+  if (certCheck?.matches !== true) lines.push("Nothing here shows who is holding the item.");
   return lines;
 }
 
