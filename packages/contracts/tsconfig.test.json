@@ -1,0 +1,22 @@
+// Typecheck config: every file in the package, test files included.
+//
+// tsconfig.json is the build config. Its "exclude" keeps src/**/*.test.ts out
+// of the emitted dist, so a type error in a test file used to pass the gate.
+// Lifting that exclusion from the build config would have fixed the blind spot
+// and started compiling tests into dist as well, so the two jobs get two
+// configs: this one reads everything and emits nothing.
+//
+// "exclude" REPLACES the inherited value rather than merging with it, which is
+// what makes this work. It is also the way to get this wrong: leave "exclude"
+// out and the test exclusion is inherited, so the config looks wired up and
+// checks nothing new.
+//
+// Empty rather than ["dist"] because this package's "include" is just ["src"],
+// so dist is already out of scope and naming it would be cargo.
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "exclude": []
+}

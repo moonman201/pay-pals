@@ -39,7 +39,7 @@ export const fakeSlab: ScenarioFixture = {
   id: "fake-slab",
   name: "Stolen photo stopped",
   summary:
-    "The listing photo was lifted from someone else's listing. The cert on the label is real and matches the card in the picture, which supports the listing but does not show who is holding the slab. The Buyer Pal asks for the slab next to a note with the seller's name and today's date. He will not take it, he pushes Friends and Family, and he sets a deadline.",
+    "A seller lists a graded card using someone else's photo. The cert on the label is real and matches the card in the picture, which supports the listing but does not show who is holding the slab. The Buyer Pal asks for the slab next to a note with the seller's name and today's date. He will not take it, he pushes Friends and Family, and he sets a deadline.",
   seller,
   buyer,
   deal: {
