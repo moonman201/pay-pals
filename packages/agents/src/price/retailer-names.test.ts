@@ -9,7 +9,7 @@ import { cleanPs5 } from "@pay-pals/contracts";
 import { createBuyerPal } from "../buyer/buyer-pal";
 import { listingCounts, shopNames } from "../buyer/review";
 import { buildEvidencePack } from "../evidence/build-evidence-pack";
-import { fakeClaude, promptText } from "../testing/fake-claude";
+import { fakeClaude, offersTool, promptText } from "../testing/fake-claude";
 import type { Channel3SearchResponse } from "./channel3-api";
 import { createChannel3PriceLookup } from "./channel3-lookup";
 import type { DiskCache } from "../cache/disk-cache";
@@ -92,9 +92,9 @@ describe("no retailer reaches the model or the buyer", () => {
   const chat = cleanPs5.chat.slice(0, 2);
 
   it("the price line gives the range, the provider, the counts and the method note only", async () => {
-    const model = fakeClaude((params) => (params.tools?.[0]?.name === "submit_review" ? { additional_flags: [], severity_raises: [], explanations: [], questions_for_seller: [], pal_message: "Stop, the price is far below market." } : null));
+    const model = fakeClaude((params) => (offersTool(params, "submit_review") ? { additional_flags: [], severity_raises: [], explanations: [], questions_for_seller: [], pal_message: "Stop, the price is far below market." } : null));
     const { data: verdict, palMessage } = await createBuyerPal({ anthropic: model, priceLookup }).review(card, chat);
-    const shown = promptText(model.calls.find((c) => c.tools?.[0]?.name === "submit_review")!);
+    const shown = promptText(model.calls.find((c) => offersTool(c, "submit_review"))!);
     expectNoRetailer("the model prompt", shown);
     expect(shown).toContain("Market range $349.99 to $384.99 (channel3, from 4 listings (3 new, 1 used); estimated for a used unit from new retail prices (good: 70% of new), scaled from 3 new listings priced $499.99 to $549.99)");
     expect(shown).toContain("Name no shop or website in your message");
@@ -111,12 +111,12 @@ describe("no retailer reaches the model or the buyer", () => {
 
   it("a model that names a shop is re-asked, then replaced by the rules-only message", async () => {
     const model = fakeClaude((params) =>
-      params.tools?.[0]?.name === "submit_review"
+      offersTool(params, "submit_review")
         ? { additional_flags: [], severity_raises: [], explanations: [], questions_for_seller: [], pal_message: "Walmart and gamestop.com list this for about $500, so $150 is far too low." }
         : null,
     );
     const { palMessage } = await createBuyerPal({ anthropic: model, priceLookup }).review(card, chat);
-    const reviews = model.calls.filter((c) => c.tools?.[0]?.name === "submit_review");
+    const reviews = model.calls.filter((c) => offersTool(c, "submit_review"));
     expect(reviews).toHaveLength(2);
     expect(promptText(reviews[1]!)).toContain("do not name a shop or website");
     expectNoRetailer("the pal message", palMessage);

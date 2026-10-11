@@ -14,7 +14,7 @@ import { cleanPs5, emptyBox, fakeSlab } from "@pay-pals/contracts";
 import { createBuyerPal } from "./buyer-pal";
 import { createFixtureCertLookup } from "../cert/fixture-lookup";
 import { createFixturePriceLookup } from "../price/fixture-lookup";
-import { fakeClaude } from "../testing/fake-claude";
+import { fakeClaude, offersTool } from "../testing/fake-claude";
 import { asFetched, pictureA } from "../testing/images";
 
 const priceLookup = createFixturePriceLookup();
@@ -72,7 +72,7 @@ describe("a review reports its findings as they land", () => {
 
   it("reports each photo as it is read, once per photo", async () => {
     const card = cleanPs5.cards[1]!;
-    const client = fakeClaude((params) => (params.tools?.[0]?.name === "report_photo_reading" ? { brand: null, model: null, serial: null, serial_legibility: "none", uncertain_characters: [], unreadable_reason: null, serial_on: null, item_present: true } : null));
+    const client = fakeClaude((params) => (offersTool(params, "report_photo_reading") ? { brand: null, model: null, serial: null, serial_legibility: "none", uncertain_characters: [], unreadable_reason: null, serial_on: null, item_present: true } : null));
     const { events, onProgress } = recorder();
     await createBuyerPal({ anthropic: client, priceLookup, fetchImage: async () => asFetched(pictureA()), photoBaseUrl: "https://example.test" }).review(card, cleanPs5.chat, { seller: cleanPs5.seller }, { onProgress });
     const reads = events.flatMap((e) => (e.kind === "photoRead" ? [e.url] : []));
@@ -139,7 +139,7 @@ describe("the model cannot withdraw a flag that was already reported", () => {
   /** A model that tries every way it has to drop or soften the rules' findings. */
   const hostile = () =>
     fakeClaude((params) =>
-      params.tools?.[0]?.name === "submit_review"
+      offersTool(params, "submit_review")
         ? {
             additional_flags: [],
             // Severities below the rule's are ignored by the merge; this checks the reported flag survives it.

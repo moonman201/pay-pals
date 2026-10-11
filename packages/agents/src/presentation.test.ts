@@ -4,7 +4,7 @@ import { createBuyerPal } from "./buyer/buyer-pal";
 import { createSellerPal } from "./seller/seller-pal";
 import { createFixturePriceLookup } from "./price/fixture-lookup";
 import { isPublicMode } from "./presentation";
-import { fakeClaude, promptText } from "./testing/fake-claude";
+import { fakeClaude, offersTool, promptText } from "./testing/fake-claude";
 import { asFetched, pictureA } from "./testing/images";
 
 const priceLookup = createFixturePriceLookup();
@@ -47,9 +47,9 @@ describe("public mode is presentation only", () => {
   });
 
   it("review: the model is told not to talk about loading, an echo of it is stripped, and the claim guard still holds", async () => {
-    const echo = fakeClaude((params) => (params.tools?.[0]?.name === "submit_review" ? { ...quiet(), pal_message: "None of the three photos on the card could be loaded, so I only have the seller's word. Price is fair." } : null));
+    const echo = fakeClaude((params) => (offersTool(params, "submit_review") ? { ...quiet(), pal_message: "None of the three photos on the card could be loaded, so I only have the seller's word. Price is fair." } : null));
     const { data: verdict, palMessage } = await createBuyerPal({ anthropic: echo, priceLookup, publicMode: true, fetchImage: async () => null, photoBaseUrl: "https://pay-pals.example" }).review(cleanPs5.cards[0]!, cleanPs5.chat.slice(0, 2));
-    const reviews = echo.calls.filter((c) => c.tools?.[0]?.name === "submit_review");
+    const reviews = echo.calls.filter((c) => offersTool(c, "submit_review"));
     expect(reviews).toHaveLength(2);
     expect(promptText(reviews[0]!)).toContain("Do not mention whether photo files loaded, opened or could be viewed");
     expect(promptText(reviews[0]!)).not.toContain("the file could not be loaded");
@@ -57,7 +57,7 @@ describe("public mode is presentation only", () => {
     expect(palMessage).not.toMatch(/could be loaded/);
     expect(verdict.overall).toBe("go");
 
-    const claims = fakeClaude((params) => (params.tools?.[0]?.name === "submit_review" ? { ...quiet(), pal_message: "Not a stock photo listing, I can see the serial." } : null));
+    const claims = fakeClaude((params) => (offersTool(params, "submit_review") ? { ...quiet(), pal_message: "Not a stock photo listing, I can see the serial." } : null));
     const guarded = await createBuyerPal({ anthropic: claims, priceLookup, publicMode: true, fetchImage: async () => null }).review(cleanPs5.cards[0]!, cleanPs5.chat.slice(0, 2));
     expect(guarded.palMessage).not.toMatch(/stock photo|I can see/);
     expect(guarded.palMessage).not.toMatch(LOADING);
