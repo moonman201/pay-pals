@@ -183,7 +183,9 @@ describe("deterministicSummary shape", () => {
     expect(review).toContain("The seller never answered.");
     expect(review).not.toContain("Payment:");
     const shipping = summary.split("\n\n").find((b) => b.startsWith("Shipping:"))!;
-    expect(shipping).toContain("At ship time the Buyer Pal raised MISSING_PACKING_PHOTO");
+    expect(shipping).toContain("At ship time the Buyer Pal raised a caution:");
+    // A dispute reviewer reads this paragraph, so no flag code appears in it.
+    expect(shipping).not.toMatch(/[A-Z]{4,}_[A-Z_]+/);
   });
 
   it("clean-ps5 has no review or arrival paragraph to show", () => {

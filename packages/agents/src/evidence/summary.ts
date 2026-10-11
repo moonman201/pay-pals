@@ -31,8 +31,14 @@ export function deterministicSummary(input: EvidenceInput): string {
 
   const review: Array<string | null> = [];
   if (verdicts.length > 0) {
-    const lines = verdicts.map((v) => `card version ${v.cardVersion}: ${v.overall}${v.flags.length > 0 ? ` (${v.flags.map((f) => `${f.code} ${f.severity}`).join(", ")})` : " with no flags"}`);
+    // No flag codes in a sentence a dispute reviewer reads. STOCK_OR_REUSED_PHOTO is our
+    // identifier, not English, and the explanation beside it already says the same thing in
+    // words. The codes stay on the flags themselves, which the pack carries in full.
+    const lines = verdicts.map((v) => `card version ${v.cardVersion}: ${v.overall}${v.flags.length > 0 ? ` with ${v.flags.length} concern${v.flags.length === 1 ? "" : "s"}` : " with no flags"}`);
     review.push(`Buyer Pal reviews before payment: ${lines.join("; ")}.`);
+    // The concerns themselves, once, from the review that stood when the money moved.
+    const lastFlags = verdicts.at(-1)?.flags ?? [];
+    if (lastFlags.length > 0) review.push(`What the last review raised: ${lastFlags.map((f) => f.explanation).join(" ")}`);
     const cert = [...verdicts].reverse().find((v) => v.certCheck)?.certCheck;
     if (cert) review.push(`Grading cert check: ${cert.explanation}`);
   }
@@ -50,7 +56,7 @@ export function deterministicSummary(input: EvidenceInput): string {
     shipping.push(
       `Shipping: ${shipment.carrier} tracking ${shipment.trackingNumber}, shipped ${day(shipment.shippedAt)}${shipment.deliveredAt ? `, delivered ${day(shipment.deliveredAt)}` : ", not yet delivered"}. ${shipment.packingPhotos.length} packing photo${shipment.packingPhotos.length === 1 ? "" : "s"} on file${missing.length > 0 ? `. Checklist steps not completed: ${missing.join("; ")}` : ""}.`,
     );
-    for (const flag of shipment.flags ?? []) shipping.push(`At ship time the Buyer Pal raised ${flag.code} (${flag.severity}): ${flag.explanation}`);
+    for (const flag of shipment.flags ?? []) shipping.push(`At ship time the Buyer Pal raised a ${flag.severity}: ${flag.explanation}`);
   } else {
     shipping.push("Shipping: nothing was shipped.");
   }
