@@ -64,3 +64,36 @@ What it would cost us with a judge, worst first:
 - Re-seeding the demo deals: approved, to run only after the merge to main is approved.
 
 The after screenshots in this folder were captured before the judge-read fixes landed. The preview link above is current; the after files are refreshed on Matt's word.
+
+## g17-night and g17-day (2026-10-11, qa)
+
+Matt's G17 gate on the theme: the landing, one deal room and the evidence
+pack, at 1280 and 390, in both colour modes. Taken from `day-night-rebase`
+on a demo-only server, so the pal prose is the keyless wording and the
+three deals are the seeded ones; nothing here depends on a live model.
+
+The deal room is the **empty box**. It carries the most: all three status
+labels, both halves of the payment panel, a shipment with a caution flag on
+it, a failed arrival check with the side-by-side comparison, and the only
+built evidence pack of the three. What it does not show is the clean deal's
+before-and-after review panel and a passing arrival badge.
+
+Day is reached the way a visitor reaches it, by the stored choice
+(`pay-pals-theme=light`) written before the page loads, so the boot script
+applies it before the first paint. Not Playwright's `colorScheme`: since
+G16 nothing in apps/web reads the device, so that setting changes nothing.
+Each shot is checked against the `data-theme` the page actually painted
+before the file is written.
+
+**What changes between the two sets, measured rather than eyeballed.** Panel
+interiors do not change at all: the four panels of the deal room diff at
+0.0 to 0.2 percent between modes, the 0.2 being antialiasing. The boxes are
+navy in both modes by design. What changes is the page behind them, so the
+answer depends on how much of a page is box:
+
+| Page | 1280 | 390 |
+|---|---|---|
+| Landing | 61.0% of pixels | 37.5% |
+| Deal room (empty box) | 37.6% | 10.3% |
+| Deal room (clean deal) | 37.3% | 10.4% |
+| Evidence pack | 97.6% | 95.9% |
