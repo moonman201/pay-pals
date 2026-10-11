@@ -21,6 +21,15 @@
  *
  * The real-model case needs ANTHROPIC_API_KEY and is skipped under
  * SKIP_REAL_TESTS=1, like every other real-model test here. One Claude call.
+ *
+ * Corrected 2026-10-10 for contracts v1.8.0, which replaced
+ * `ArrivalCheck.matches: boolean` with a three-value `outcome`. This case
+ * asserted `matches: false`, and the new union splits that into two different
+ * answers, so it had to be re-decided rather than translated. It is a
+ * `mismatch`: a graded Pokemon card against a card describing a Sony
+ * PlayStation is a difference the pal can settle, and nothing about it is a
+ * near miss. Letting it drift to `inconclusive` would mean the view no longer
+ * tells a buyer the wrong item arrived, so the outcome is named exactly.
  */
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
@@ -90,14 +99,16 @@ describe("a photo the fixtures have never seen", () => {
 
     console.log(
       `unseen photo (${UNSEEN_PHOTO}) against the clean PS5 locked card\n` +
-        `  matches: ${check.matches}\n` +
+        `  outcome: ${check.outcome}\n` +
         `  observed: ${JSON.stringify(check.observed)}\n` +
         `  mismatches: ${JSON.stringify(check.mismatches, null, 2)}\n` +
         `  pal: ${check.palMessage}`,
     );
 
     // The caption promised the console and its serial. The picture has neither.
-    expect(check.matches).toBe(false);
+    // A mismatch and not the near-miss band: the brands differ outright, which is settled, not unsettled.
+    expect(check.outcome).toBe("mismatch");
+    expect(check.unsettled ?? [], "a different object is not an unsettled comparison").toEqual([]);
     expect(check.observed.serial).not.toBe(CLEAN_SERIAL);
     expect(check.mismatches.length).toBeGreaterThan(0);
     expect(check.palMessage).not.toContain("matches the locked card");
