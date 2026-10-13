@@ -120,7 +120,7 @@ export function DealRoom({ snapshot, role }: { snapshot: DealSnapshot; role: Rol
 
   const refresh = () => router.refresh();
   // The pal's review message is a copy of the panel above it, so it shows as one line.
-  const myPal = collapseReviewMessages(snapshot.messages.filter((m) => m.channel === palChannel(role)), snapshot.verdicts);
+  const myPal = collapseReviewMessages(snapshot.messages.filter((m) => m.channel === palChannel(role)), snapshot.verdicts, snapshot.arrivalCheck);
   const needsBuyer = role === "buyer" && deal.buyer === null;
   // The bubble names the pal already, so "Buyer Pal to seller:" was a third naming.
   const shared = stripPalPrefix(snapshot.messages.filter((m) => m.channel === "deal"));

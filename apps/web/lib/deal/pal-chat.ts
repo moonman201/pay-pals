@@ -12,12 +12,14 @@
  * already in the database keep their full text and are fixed by this too,
  * and the evidence pack still has the pal's own words to quote.
  */
-import type { Message, Verdict } from "@pay-pals/contracts";
+import type { ArrivalCheck, Message, Verdict } from "@pay-pals/contracts";
 import { verdictName } from "./headline";
 
 export function reviewDoneLine(verdict: Verdict): string {
   return `Review done: ${verdictName(verdict)}. Details above.`;
 }
+
+export const ARRIVAL_DONE_LINE = "Arrival check done. Details above.";
 
 function norm(text: string): string {
   return text.trim().replace(/\s+/g, " ");
@@ -30,12 +32,16 @@ function norm(text: string): string {
  * Matched against every verdict on the deal, not only the newest, because a
  * deal that was reviewed twice has two of these and both are copies.
  */
-export function collapseReviewMessages(messages: readonly Message[], verdicts: readonly Verdict[]): Message[] {
-  if (verdicts.length === 0) return [...messages];
+export function collapseReviewMessages(messages: readonly Message[], verdicts: readonly Verdict[], arrivalCheck: Pick<ArrivalCheck, "palMessage"> | null = null): Message[] {
+  if (verdicts.length === 0 && !arrivalCheck) return [...messages];
   const byText = new Map(verdicts.map((v) => [norm(v.palMessage), v]));
+  const arrivalText = arrivalCheck ? norm(arrivalCheck.palMessage) : null;
   return messages.map((message) => {
-    const verdict = byText.get(norm(message.text));
-    return verdict ? { ...message, text: reviewDoneLine(verdict) } : message;
+    const text = norm(message.text);
+    const verdict = byText.get(text);
+    if (verdict) return { ...message, text: reviewDoneLine(verdict) };
+    // The arrival panel prints the same message, so the pane says where to find it.
+    return arrivalText !== null && text === arrivalText ? { ...message, text: ARRIVAL_DONE_LINE } : message;
   });
 }
 

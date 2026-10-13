@@ -38,6 +38,12 @@ describe("collapseReviewMessages", () => {
     expect(out[1]!.text).toBe("Review done: Stop. Details above.");
   });
 
+  it("collapses the pal's copy of the arrival check the same way, because the arrival panel prints it", () => {
+    const arrival = "The serial on the console matches the card, and the box is intact.";
+    const out = collapseReviewMessages([message("Ask me anything.", "m1"), message(arrival, "m2")], [], { palMessage: arrival });
+    expect(out.map((m) => m.text)).toEqual(["Ask me anything.", "Arrival check done. Details above."]);
+  });
+
   it("collapses both copies on a deal reviewed twice, each to its own verdict", () => {
     const second = "A different review, after the new photo arrived.";
     const out = collapseReviewMessages([message(long, "m1"), message(second, "m2")], [verdict(long, "stop"), verdict(second, "go")]);
