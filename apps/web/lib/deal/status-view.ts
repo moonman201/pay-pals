@@ -233,7 +233,7 @@ function certItem(input: StatusInput): StatusItem | null {
   const label = "Certificate number on the card";
   const check = latest(input.verdicts)?.certCheck ?? null;
   if (!check) return { id, label, status: "unverified", detail: `Cert ${card.certNumber} is on the card. No check against a grader record is on file.` };
-  const provider = check.record.provider === "psa" ? "PSA's record" : "the demo grader record";
+  const provider = check.record.provider === "psa" ? "PSA's record" : "the demo PSA record";
   if (check.matches === true) {
     const parts = [check.record.subject, check.record.grade].filter(Boolean).join(", ");
     return {

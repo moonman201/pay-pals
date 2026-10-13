@@ -6,8 +6,14 @@ import type { CertCheck } from "@pay-pals/contracts";
 
 export type CertTone = "go" | "stop" | "muted";
 
-function graderName(check: CertCheck): string {
-  return check.record.provider === "psa" ? "PSA" : "PSA (demo record)";
+/** "PSA" for the real grader, "Demo PSA" for the fixture record, so the demo is plain wherever the result shows. */
+export function graderName(check: CertCheck): string {
+  return check.record.provider === "psa" ? "PSA" : "Demo PSA";
+}
+
+/** Who the cert was compared with, mid-sentence: "PSA's record" or "the demo PSA record". */
+function recordOwner(check: CertCheck): string {
+  return check.record.provider === "psa" ? "PSA's record" : "the demo PSA record";
 }
 
 export function certSentence(check: CertCheck, cardGrade: string | null | undefined): { text: string; tone: CertTone } {
@@ -37,9 +43,9 @@ export function certSentence(check: CertCheck, cardGrade: string | null | undefi
  * paragraph saying the same thing again. This is the one place it is said.
  */
 export function certHeadline(check: CertCheck): string {
-  const grader = graderName(check);
+  const owner = recordOwner(check);
   const cert = `Cert ${check.record.certNumber}`;
-  if (check.matches === true) return `${cert} matches ${grader}'s record. The slab exists. That doesn't prove the seller has it.`;
-  if (check.matches === false) return `${cert} does not match ${grader}'s record. ${check.explanation}`;
+  if (check.matches === true) return `${cert} matches ${owner}. The slab exists. That doesn't prove the seller has it.`;
+  if (check.matches === false) return `${cert} does not match ${owner}. ${check.explanation}`;
   return `${cert} could not be checked. ${check.explanation}`;
 }

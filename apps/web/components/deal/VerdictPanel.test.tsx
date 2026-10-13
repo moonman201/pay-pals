@@ -21,7 +21,7 @@ describe("VerdictPanel", () => {
     const block = screen.getByTestId("cert-check");
     // One header line, then the table. The closing paragraph that repeated the
     // header in other words is gone (Matt's rule 1).
-    expect(screen.getByTestId("cert-headline")).toHaveTextContent(`Cert ${fakeSlab.certRecord!.certNumber} does not match PSA (demo record)'s record.`);
+    expect(screen.getByTestId("cert-headline")).toHaveTextContent(`Cert ${fakeSlab.certRecord!.certNumber} does not match the demo PSA record.`);
     expect(block).toHaveTextContent("PSA's record for this cert is a different card and grade.");
     // Once in the card title cell, once in the card grade cell of the comparison.
     expect(block.textContent?.match(/PSA 10/g)?.length).toBe(2);

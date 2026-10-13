@@ -1,6 +1,6 @@
 import { isPaymentMethodFlag, type ItemCard, type Message, type RedFlag, type Verdict } from "@pay-pals/contracts";
 import { certRows } from "@/lib/deal/cert-compare";
-import { certHeadline } from "@/lib/deal/cert-copy";
+import { certHeadline, graderName } from "@/lib/deal/cert-copy";
 import { GRADED_PRICE_LINK_LEAD, GRADED_PRICE_NOTE, gradedPriceLinks, isGradedCard } from "@/lib/deal/graded-price";
 import { reviewLead } from "@/lib/deal/review-lead";
 import { evidenceSourceId } from "@/lib/deal/evidence-source";
@@ -186,7 +186,7 @@ export function VerdictPanel({ verdict, currentVersion, locked, cardTitle = null
           </p>
           <Comparison
             leftTitle="Card says"
-            rightTitle={`${verdict.certCheck.record.provider === "psa" ? "PSA" : "PSA (demo record)"} says`}
+            rightTitle={`${graderName(verdict.certCheck)} record says`}
             rows={certRows(verdict.certCheck, cardTitle, cardGrade)}
             caption="The item card against the grader's record for this cert number"
           />
