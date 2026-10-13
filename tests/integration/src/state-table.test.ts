@@ -34,11 +34,16 @@ describe("DEAL_TRANSITIONS", () => {
     for (const state of DEAL_STATES) expect(canTransition(state, state), state).toBe(false);
   });
 
-  it("terminal states have no exits, and no other state is a dead end", () => {
+  it("terminal states have no exits except blocked to cancelled, and no other state is a dead end", () => {
+    // 2026-10-13: the expectation changed with contracts v1.9.0 (Matt): a
+    // blocked deal can be cancelled, and nowhere else. Terminal still means no
+    // path to payment.
     for (const state of DEAL_STATES) {
       const terminal = TERMINAL_STATES.includes(state);
       expect(isTerminal(state), state).toBe(terminal);
-      expect(DEAL_TRANSITIONS[state].length === 0, state).toBe(terminal);
+      const exits = DEAL_TRANSITIONS[state];
+      if (state === "BLOCKED") expect(exits, state).toEqual(["CANCELLED"]);
+      else expect(exits.length === 0, state).toBe(terminal);
     }
   });
 
