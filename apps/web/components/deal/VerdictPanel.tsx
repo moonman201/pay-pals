@@ -156,7 +156,7 @@ export function VerdictPanel({ verdict, currentVersion, locked, cardTitle = null
             <p>{sources.line}</p>
             {sources.prices.length > 1 ? (
               /* The range and the count above are the finding. The prices behind them are for a reader who wants to check. */
-              <details className="mt-1" data-testid="listing-prices">
+              <details className="mt-1">
                 <summary className="inline-flex min-h-11 cursor-pointer items-center font-semibold text-[var(--accent-ink)] underline-offset-2 hover:underline">
                   Show the {sources.prices.length} listings
                 </summary>

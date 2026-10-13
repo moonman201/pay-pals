@@ -94,7 +94,7 @@ describe("VerdictPanel", () => {
     expect(block.textContent).not.toMatch(/gamestop|marketplace listing/i);
     expect(within(screen.getByRole("list", { name: "Listing prices" })).getAllByRole("listitem").map((li) => li.textContent)).toEqual(["$588.99", "$914.99"]);
     // The chips sit behind an expander; the range line stays visible.
-    const details = screen.getByTestId("listing-prices");
+    const details = screen.getByText("Show the 2 listings").closest("details")!;
     expect(details.tagName).toBe("DETAILS");
     expect(details).not.toHaveAttribute("open");
     expect(within(details).getByText("Show the 2 listings")).toBeInTheDocument();
