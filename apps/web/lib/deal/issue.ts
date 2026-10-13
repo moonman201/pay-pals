@@ -51,14 +51,14 @@ export function issueOpened(events: readonly DealEvent[]): { at: string; summary
 /**
  * Whether the summary says why, or only that.
  *
- * reportIssue writes "Issue opened: {reason}.{ details}". A deal seeded from
- * a fixture carries the bare "Issue opened." instead, and printing that under
- * a heading promising the buyer's own words would be a section that claims
- * more than it holds: nobody chose those words, the code wrote them.
+ * reportIssue writes "Issue opened: {reason}.{ details}". A bare "Issue
+ * opened." is only the lead-in, and printing it under a heading promising the
+ * buyer's own words would be a section that claims more than it holds:
+ * nobody chose those words, the code wrote them.
  *
- * So the section appears only when a reason follows the lead-in. On a seeded
- * deal there is nothing to show and nothing is shown, which is the honest
- * answer until the fixture carries one.
+ * So the section appears only when a reason follows the lead-in. The seeded
+ * scenario deals carry the buyer's reason too (the empty-box fixture does),
+ * so they show it; a deal with only the bare form shows nothing.
  */
 function carriesAReason(summary: string): boolean {
   return summary.replace(/^issue opened/i, "").replace(/[\s.:,;-]+/g, "") !== "";
