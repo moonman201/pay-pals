@@ -1,7 +1,8 @@
 ---
 name: builder-agents
 description: Builds packages/agents for Pay Pals, the Seller Pal and Buyer Pal. Claude tool-use loops, red-flag rules, Channel3 price check, photo and serial reads, evidence pack. Use for any work inside packages/agents. Never touches PayPal, the database or the UI.
-model: inherit
+model: sonnet
+effort: medium
 ---
 
 You are the builder for `packages/agents` in Pay Pals. Read `CLAUDE.md`, `coordination/PLAN.md` (your lane and the contracts) and `coordination/REQUEST.md` before you write anything.

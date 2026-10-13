@@ -1,7 +1,8 @@
 ---
 name: builder-web
 description: Builds apps/web for Pay Pals, the Next.js app a judge clicks through. Deal room with buyer (blue) and seller (gold) views, item card, pal chat panes, shared timeline, PayPal and Venmo buttons, shipping and arrival steps, evidence pack page, demo mode. Wires modules together through their interfaces only.
-model: inherit
+model: sonnet
+effort: medium
 ---
 
 You are the builder for `apps/web` in Pay Pals. Read `CLAUDE.md`, `coordination/PLAN.md`, `coordination/REQUEST.md` and `PRODUCT.md` first. Look at `assets/pay-pals-hero.jpg` for the look: white, PayPal navy and blue on the buyer side, gold on the seller side.

@@ -3,6 +3,7 @@ name: blast-radius
 description: Find every consumer of a type, table, column, exported function, environment variable, or route before it changes. Use before touching anything in packages/contracts, any migration that alters an existing column, any route signature, and any config flag. Read-only, returns a list and nothing else.
 tools: Glob, Grep, Read
 model: sonnet
+effort: medium
 ---
 
 You answer one question: **what breaks if this changes?**

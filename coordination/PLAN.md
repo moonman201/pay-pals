@@ -71,6 +71,48 @@ Each returns typed data plus a short `pal message` string for the UI. Determinis
 - Events handled: `CHECKOUT.ORDER.APPROVED`, `PAYMENT.CAPTURE.COMPLETED`, `CUSTOMER.DISPUTE.CREATED`.
 - Tracking is stored in our DB. Pushing tracking into PayPal is a stretch goal (only the payee's own credentials can do it).
 
+## Models (Oct 12, Matt)
+
+Set in each agent's frontmatter, never passed at spawn time. The Lead passes no
+model parameter when launching a subagent; the file decides.
+
+| Agent | Model | Effort | Why |
+|---|---|---|---|
+| Lead (this session) | opus | — | Matt sets it with `/model`. Judgement, briefs, merges, contract calls. |
+| `reality-check` | opus | high | Its whole job is breaking a claim nobody else broke. Downgrading the sceptic defeats it. |
+| `builder-agents`, `builder-web`, `builder-paypal`, `qa` | sonnet | medium | Scoped work against a written brief, with a gate underneath. |
+| `blast-radius` | sonnet | medium | Exhaustive read-only sweeps. Breadth over depth. |
+| `Explore` | haiku | low | Paths and line numbers. Not for reviewing or judging code. |
+| `runner` | haiku | low | Runs exactly the commands it is given and quotes the exit code. No judgement calls. |
+
+**Fable is not used without Matt's explicit approval, and only after Opus has
+failed twice on the same problem.**
+
+### What the pals run on, at runtime
+
+One model for every step. `modelId()` in `packages/agents/src/claude/client.ts`
+reads `ANTHROPIC_MODEL` and falls back to `DEFAULT_MODEL`, and both call
+primitives use it, so there is no per-step choice today.
+
+- `DEFAULT_MODEL = "claude-sonnet-5"`, and `ANTHROPIC_MODEL` is **empty** in `.env.local`, so every call is Sonnet 5.
+
+Five places call the model:
+
+| Step | Call site | Shape |
+|---|---|---|
+| Buyer Pal review | `buyer/review.ts:204` | tool call, `submit_review` |
+| The honesty re-ask | `buyer/review.ts:208` | same tool, after `claim-check` rejects something |
+| Vision reads | `vision/read-photo.ts:147` | tool call, `report_photo_reading` |
+| Seller Pal builds a card | `seller/build-card.ts:81` | tool call |
+| Seller Pal applies a request | `seller/apply-request.ts:59` | tool call |
+| Evidence pack summary | `evidence/summary.ts:226` | text call |
+
+**There is no separate "chat scan" model call.** The chat is scanned by the
+deterministic rules in `packages/agents/src/rules/`, which run first and whose
+flags the model may never remove; the transcript then goes to the review call as
+context. So the scam patterns are rules, not a model judgement, which is why
+they hold with no key at all.
+
 ## Lane assignments
 Each lane is a Claude Code subagent in `.claude/agents/`. The Lead launches independent lanes in parallel, each in its own worktree, and merges their branches. Matt does not open extra windows.
 

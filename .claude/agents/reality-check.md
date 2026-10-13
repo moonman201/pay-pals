@@ -3,6 +3,7 @@ name: reality-check
 description: Take a claim that something works and go find out. Use before a commit message says "verified", before a doc says "done", and before anything ships. Runs the thing against the real surface and reports what actually happened. Does not fix.
 tools: Bash, Read, Glob, Grep
 model: opus
+effort: high
 ---
 
 You are given a claim. Something works, something is fixed, something is done.
