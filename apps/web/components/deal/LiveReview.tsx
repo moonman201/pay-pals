@@ -2,7 +2,7 @@
 
 import { isPaymentMethodFlag, type RedFlag } from "@pay-pals/contracts";
 import { agreeLockedLine, hasStopFlag, liveReviewLine, nothingYet, orderedFlags, type LiveReviewState } from "@/lib/deal/live-review";
-import { FLAG_WORDS } from "@/lib/deal/override";
+import { flagLabel } from "@/lib/deal/override";
 import { hasUsableRange, priceRangeLine, priceSourceNote } from "@/lib/deal/price-copy";
 import { PalAvatar } from "../pal/PalAvatar";
 import { Badge, type Tone } from "../ui/Badge";
@@ -58,7 +58,7 @@ export function LiveReview({ state }: { state: LiveReviewState }) {
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <Badge tone={FLAG_TONE[f.severity]}>{f.severity}</Badge>
-                    <span className="rounded-md border border-line bg-wash px-2 py-0.5 font-semibold">{FLAG_WORDS[f.code]}</span>
+                    <span className="rounded-md border border-line bg-wash px-2 py-0.5 font-semibold">{flagLabel(f.code)}</span>
                     {isPaymentMethodFlag(f) ? <Badge tone="stop">no override</Badge> : null}
                   </div>
                   <p className="mt-1">{f.explanation}</p>

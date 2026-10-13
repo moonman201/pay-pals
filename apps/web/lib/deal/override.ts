@@ -38,6 +38,16 @@ const FLAG_WORDS: Readonly<Record<RedFlagCode, string>> = {
 
 export { FLAG_WORDS };
 
+/** Card labels that differ from the mid-sentence words above. Everything else reads the same in both places. */
+const LABEL_OVERRIDES: Partial<Record<RedFlagCode, string>> = {
+  STOCK_OR_REUSED_PHOTO: "Reused listing photo",
+};
+
+/** The flag as a card label. FLAG_WORDS stays as it is because stop warnings use it mid-sentence. */
+export function flagLabel(code: RedFlagCode): string {
+  return LABEL_OVERRIDES[code] ?? FLAG_WORDS[code];
+}
+
 export function stopFlags(verdict: Verdict): RedFlag[] {
   return verdict.flags.filter((f) => f.severity === "stop" && !isPaymentMethodFlag(f));
 }

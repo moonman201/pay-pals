@@ -1,6 +1,6 @@
 import type { RedFlag, Verdict } from "@pay-pals/contracts";
 import { describe, expect, it } from "vitest";
-import { gateFor, stopWarning } from "./override";
+import { FLAG_WORDS, flagLabel, gateFor, stopWarning } from "./override";
 
 function verdict(overall: Verdict["overall"], flags: RedFlag[]): Verdict {
   return { dealId: "d", cardVersion: 1, overall, flags, priceCheck: null, questionsForSeller: [], palMessage: "m", createdAt: new Date().toISOString() };
@@ -48,5 +48,13 @@ describe("stopWarning", () => {
     for (const line of stopWarning(verdict("stop", [flag("PRICE_FAR_BELOW_MARKET", "stop"), flag("SHIP_BEFORE_PAY_TRICK", "stop")]))) {
       expect(line).not.toMatch(/never ships|pattern of|trick to get your money/i);
     }
+  });
+});
+
+describe("flagLabel", () => {
+  it("reads as a card label without touching the mid-sentence words", () => {
+    expect(flagLabel("STOCK_OR_REUSED_PHOTO")).toBe("Reused listing photo");
+    expect(flagLabel("MISSING_SERIAL")).toBe("no serial number");
+    expect(FLAG_WORDS.STOCK_OR_REUSED_PHOTO).toBe("a reused listing photo");
   });
 });
