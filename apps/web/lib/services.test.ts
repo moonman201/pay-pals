@@ -66,7 +66,7 @@ describe("createServices with no keys", () => {
     const lines: string[] = [];
     const sandboxSeller = "sb-seller-personal@example.com";
     const services = createServices({ SANDBOX_SELLER_PERSONAL_EMAIL: sandboxSeller }, (l) => lines.push(l));
-    expect(services.demoPayee).toBe(sandboxSeller);
+    expect(services.demoPayee).toEqual({ "clean-ps5": sandboxSeller, "empty-box": sandboxSeller });
     expect(lines.join("\n")).toMatch(/demo payee: sandbox seller account/);
     expect(lines.join("\n")).not.toContain(sandboxSeller);
 
@@ -82,7 +82,7 @@ describe("createServices with no keys", () => {
 
     // The fixture file itself is untouched.
     expect(cleanPs5.cards[0]?.sellerPaypalEmail).not.toBe(sandboxSeller);
-    expect(createServices({}, () => {}).demoPayee).toBeNull();
+    expect(createServices({}, () => {}).demoPayee).toEqual({});
   });
 
   it("keeps the fixture payee in demo-only mode, so an .env.local on disk cannot change what the pages render", async () => {
@@ -96,7 +96,7 @@ describe("createServices with no keys", () => {
       PAYPAL_CLIENT_SECRET: "shh-secret-value",
     };
     const services = createServices(env, (l) => lines.push(l));
-    expect(services.demoPayee).toBeNull();
+    expect(services.demoPayee).toEqual({});
     expect(lines.join("\n")).toMatch(/demo payee: fixture payee kept/);
     expect(lines.join("\n")).not.toContain(sandboxSeller);
 
@@ -117,7 +117,7 @@ describe("createServices with no keys", () => {
       () => {},
     );
     expect(sandbox.modes.paypal).toBe("sandbox");
-    expect(sandbox.demoPayee).toBe(sandboxSeller);
+    expect(sandbox.demoPayee?.["clean-ps5"]).toBe(sandboxSeller);
   });
 
   it("tells the pals about the known photos and the photo base URL without printing it", () => {

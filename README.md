@@ -121,7 +121,9 @@ For the real thing, copy `.env.example` to `.env.local` and fill in:
 | `ANTHROPIC_API_KEY` | Claude for both pals. Without it the pals run rules only. |
 | `CHANNEL3_API_KEY` | Live market prices. Without it the fixture price ranges are used. |
 | `DATABASE_URL` | Postgres (Neon) instead of the in-memory store. |
-| `SANDBOX_SELLER_PERSONAL_EMAIL` | The sandbox seller account demo deals pay, so a capture lands in a real sandbox account. |
+| `SANDBOX_SELLER_PERSONAL_EMAIL` | The shared sandbox seller account demo deals pay, so a capture lands in a real sandbox account. Used for any demo seller without a key of their own below. |
+| `SANDBOX_SELLER_EMAIL_CLEAN_PS5` | Sandbox Personal account paid on the PS5 scenario (seller Matt M.). Use an email with "matt" in it. Falls back to `SANDBOX_SELLER_PERSONAL_EMAIL`. Server-only. |
+| `SANDBOX_SELLER_EMAIL_EMPTY_BOX` | Sandbox Personal account paid on the empty box scenario (seller Marcus B.). Use an email with "marcus" in it. Falls back to `SANDBOX_SELLER_PERSONAL_EMAIL`. Server-only. |
 | `SANDBOX_BUYER_EMAIL`, `SANDBOX_BUYER_PASSWORD` | The sandbox test buyer the pay panel shows on demo deals, so anyone can approve the checkout. Shown only when both are set. |
 | `PSA_API_TOKEN` | PSA cert lookups for graded cards. PSA only answers approved customers; without access the cert check uses demo records and labels them as such. |
 
