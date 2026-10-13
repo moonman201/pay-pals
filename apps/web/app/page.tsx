@@ -1,6 +1,7 @@
 import { ALL_FIXTURES } from "@pay-pals/contracts";
 import Image from "next/image";
 import Link from "next/link";
+import { HeroHeadline } from "@/components/landing/HeroHeadline";
 import { ProtectionPanel } from "@/components/landing/ProtectionPanel";
 import { ScenarioCard } from "@/components/landing/ScenarioCard";
 import { PalAvatar } from "@/components/pal/PalAvatar";
@@ -68,8 +69,8 @@ export default async function HomePage() {
           />
         </figure>
         <div className="text-center lg:text-left">
-          <h1 className="text-4xl font-black leading-[1.05] tracking-tight text-navy sm:text-5xl lg:text-[3.4rem]">Two AI agents. One safe deal.</h1>
-          <p className="mx-auto mt-4 max-w-[46ch] text-base leading-relaxed text-muted sm:text-lg lg:mx-0">
+          <HeroHeadline />
+          <p className="mx-auto mt-3 max-w-[46ch] text-base leading-relaxed text-muted sm:text-lg lg:mx-0">
             Buying from a stranger on an online marketplace. Your Buyer Pal vets the listing. The seller&apos;s pal locks the exact item into a PayPal Goods and Services payment.
             Both keep proof until it arrives.
           </p>
