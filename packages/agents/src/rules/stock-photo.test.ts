@@ -7,17 +7,34 @@
  * web, so "this photo is on another listing" was never checked, and that is
  * what the flag used to say on the scenario Matt leads with.
  *
- * These tests hold the distance and the evidence line exactly as they were,
- * because those were already honest, and hold the claim to what ran.
+ * These tests hold the evidence line to one plain sentence, keep the
+ * fingerprint numbers in the reasoning, and hold the claim to what ran.
  */
 import { describe, expect, it } from "vitest";
 import { fakeSlab } from "@pay-pals/contracts";
 import { unfoundedClaims } from "../buyer/claim-check";
 import { stockPhotoRule } from "./stock-photo";
+import { reviewReasoning } from "../buyer/review-reasons";
 
 const photo = fakeSlab.cards[0]!.photos[0]!;
 const match = (distance = 2) => [{ photo, source: "reference set: slab-front.jpg", distance }];
 const run = (distance = 2) => stockPhotoRule({ card: fakeSlab.cards[0]!, chat: [], priceCheck: null, photoMatches: match(distance) });
+
+const foundReasons = (o: { flags: ReturnType<typeof run>; photoMatches: ReturnType<typeof match> }) =>
+  reviewReasoning({
+    card: fakeSlab.cards[0]!,
+    priceCheck: null,
+    certCheck: null,
+    certLookupFailed: false,
+    readings: [],
+    flags: o.flags,
+    overall: "caution",
+    seller: null,
+    photoMatchRan: true,
+    photoMatches: o.photoMatches,
+    modelAvailable: false,
+    serialReadFromPhoto: false,
+  }).found;
 
 /** Claims nothing in this package can support, because nothing searches for a picture. */
 const NEVER = [/another listing/i, /other listings/i, /\bonline\b/i, /\binternet\b/i, /\bweb\b/i, /\bstolen\b/i, /somewhere else/i];
@@ -35,42 +52,29 @@ describe("the reused-photo flag claims only what the check did", () => {
     expect(run()[0]!.explanation.split(/\s+/).length).toBeLessThanOrEqual(12);
   });
 
-  it("keeps the evidence line and the distance exactly as they were", () => {
-    const [flag] = run(2);
-    expect(flag!.evidence).toBe(
-      "Matches a listing photo already on file: reference set: slab-front.jpg. Image fingerprints differ by 2 of 64 bits, and 10 or fewer counts as the same picture",
-    );
+  it("quotes the evidence as one plain sentence with no fingerprint numbers", () => {
+    const [flag] = run(0);
+    expect(flag!.evidence).toBe("Exact match to a listing photo already on file.");
+    expect(flag!.evidence).not.toMatch(/\d|bits|fingerprint/i);
     expect(flag!.code).toBe("STOCK_OR_REUSED_PHOTO");
     expect(flag!.severity).toBe("caution");
     expect(flag!.raisedByRule).toBe(true);
+    for (const pattern of NEVER) expect(flag!.evidence, `evidence must not match ${pattern}`).not.toMatch(pattern);
   });
 
-  it("names the closest match and counts the rest, unchanged", () => {
-    const flags = stockPhotoRule({
-      card: fakeSlab.cards[0]!,
-      chat: [],
-      priceCheck: null,
-      photoMatches: [
-        { photo, source: "reference set: far.jpg", distance: 9 },
-        { photo, source: "reference set: near.jpg", distance: 1 },
-      ],
-    });
-    expect(flags[0]!.evidence).toContain("reference set: near.jpg. Image fingerprints differ by 1 of 64 bits");
-    expect(flags[0]!.evidence).toContain("1 more photo matched too");
+  it("says near match, not exact, when the fingerprints are close but not identical", () => {
+    // "Exact" holds at 0 bits only. At 1 to 10 the picture is the same one to the eye, not the same file.
+    for (const distance of [1, 5, 10]) {
+      const [flag] = run(distance);
+      expect(flag!.evidence).toBe("Near match to a listing photo already on file.");
+      expect(flag!.evidence).not.toMatch(/\bexact\b/i);
+      expect(flag!.explanation).not.toMatch(/\bexact\b/i);
+    }
   });
 
-  /**
-   * The adjective in front of the number has to hold wherever the rule fires, which is every
-   * distance from 0 to NEAR_DUPLICATE_DISTANCE. "Exact match" held at 0 only and contradicted the
-   * number printed immediately after it everywhere else.
-   */
-  it.each([0, 1, 5, 10])("says nothing stronger than the distance supports at %i of 64", (distance) => {
-    const [flag] = run(distance);
-    expect(flag!.evidence).not.toMatch(/\bexact\b/i);
-    expect(flag!.explanation).not.toMatch(/\bexact\b/i);
-    expect(flag!.evidence).toContain(`differ by ${distance} of 64 bits`);
-    // The threshold is named, so a reader can tell what the number means.
-    expect(flag!.evidence).toContain("10 or fewer counts as the same picture");
+  it("keeps the fingerprint detail in the reasoning, with the threshold that gives it meaning", () => {
+    const reasons = foundReasons({ flags: run(0), photoMatches: match(0) });
+    expect(reasons).toContain("Closest photo on file: reference set: slab-front.jpg. The image fingerprints differ by 0 of 64 bits, and 10 or fewer counts as the same picture.");
   });
 
   it("does not call a multi-photo card's match its only photo", () => {

@@ -21,7 +21,10 @@
  */
 import type { CertCheck, ItemCard, Party, PriceCheck, RedFlag, VerdictOverall } from "@pay-pals/contracts";
 import { PAYMENT_METHOD_FLAGS } from "@pay-pals/contracts";
+import type { PhotoMatch } from "../rules/types";
+import { HASH_BITS, NEAR_DUPLICATE_DISTANCE } from "../vision/phash";
 import { deviceFamily } from "../seller/listing-parse";
+import { checkPayeeName } from "../rules/name-mismatch";
 import { normalizeSerial } from "../vision/description";
 import { compareSerials, describeDifference } from "../vision/serial-match";
 import { itemSerial, type PhotoReading } from "../vision/read-photo";
@@ -51,6 +54,8 @@ export interface ReviewReasonInput {
   seller: Pick<Party, "displayName" | "email"> | null;
   /** True when the card's photos were compared against a set of known listing photos. */
   photoMatchRan: boolean;
+  /** The card photos that matched one on file. Optional; only the fingerprint line in `found` reads it. */
+  photoMatches?: PhotoMatch[];
   /** False when no Claude client was available, so the review is rules only. */
   modelAvailable: boolean;
   /** True when a serial was read off one of the card's photos, so the near-miss band applies. */
@@ -87,6 +92,12 @@ function found(input: ReviewReasonInput): ReasonLine[] {
   const lines: ReasonLine[] = [];
   // The flags come first: they are what the verdict turns on, and their wording is already the plain one the buyer reads.
   for (const flag of flags) lines.push(flag.explanation);
+  // The fingerprint detail the reused-photo evidence line no longer carries. It lives here so the
+  // number is still readable, next to the threshold that gives it meaning.
+  const closest = [...(input.photoMatches ?? [])].sort((a, b) => a.distance - b.distance)[0];
+  if (closest && flags.some((f) => f.code === "STOCK_OR_REUSED_PHOTO")) {
+    lines.push(`Closest photo on file: ${closest.source}. The image fingerprints differ by ${closest.distance} of ${HASH_BITS} bits, and ${NEAR_DUPLICATE_DISTANCE} or fewer counts as the same picture.`);
+  }
   if (flags.length === 0) lines.push("Nothing in the chat matched a pattern Pay Pals checks for.");
   if (card && priceCheck && priceCheck.marketLow > 0 && !has(flags, "PRICE_FAR_BELOW_MARKET")) {
     lines.push(
@@ -97,9 +108,10 @@ function found(input: ReviewReasonInput): ReasonLine[] {
   }
   // The PayPal-address check reported nothing when it passed, so a check that ran had no result
   // anywhere. It says what it actually tested: the name is in the address, not that the account
-  // belongs to him, which nothing here can establish.
-  if (card && input.seller?.displayName && !has(flags, "NAME_MISMATCH")) {
-    lines.push(`The PayPal address that gets paid has the seller's name in it.`);
+  // belongs to him, which nothing here can establish. Initials alone are reported under
+  // couldNotVerify instead, never as agreement.
+  if (card && input.seller?.displayName && !has(flags, "NAME_MISMATCH") && checkPayeeName(input.seller, card.sellerPaypalEmail) === "match") {
+    lines.push(`The PayPal address that gets paid has part of the seller's name in it.`);
   }
   // Same gap the PayPal-address check had: the picture check ran and its result went unreported
   // when it found nothing. "We only match against our own file" is the limit, not the outcome.
@@ -197,8 +209,12 @@ function couldNotVerify(input: ReviewReasonInput): ReasonLine[] {
         : "The photos were not matched against our file, so nothing was compared.",
     );
   }
+  // These two lines keep the phrase "seller's name on the account", which apps/web looks for to
+  // show the PayPal address row as not checked.
   if (!has(flags, "NAME_MISMATCH") && !input.seller) {
-    lines.push("I had no seller name to check the PayPal address against.");
+    lines.push("I was not given the seller's name on the account, so I could not check it against the PayPal address on the card.");
+  } else if (card && input.seller && checkPayeeName(input.seller, card.sellerPaypalEmail) === "undecidable") {
+    lines.push("The seller's name on the account is only initials, so I could not check it against the PayPal address on the card.");
   }
   // One ownership line, not two. The cert version of this said the same thing in different words,
   // so the specific one is used where there is a cert and the general one everywhere else.

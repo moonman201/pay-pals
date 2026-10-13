@@ -28,6 +28,10 @@ describe("BuyerPal.review on fake-slab", () => {
     expect(codes).not.toContain("OFF_PLATFORM_PAYMENT");
     expect(codes).not.toContain("STOCK_OR_REUSED_PHOTO");
     expect(codes).not.toContain("MISSING_SERIAL");
+    // The PayPal address is the seller's own contact email. That agreement proves nothing about the name.
+    const mismatch = verdict.flags.find((f) => f.code === "NAME_MISMATCH")!;
+    expect(mismatch.severity).toBe("caution");
+    expect(mismatch.evidence).toBe("PayPal address cashdeals.quick2026@example.com, seller name Chris W.");
     expect(verdict.overall).toBe("stop");
     expect(verdict.priceCheck?.marketLow).toBe(305);
     expect(codes).not.toContain("CERT_MISMATCH");
@@ -238,8 +242,11 @@ describe("BuyerPal.review reused photos", () => {
     expect(flag).toBeDefined();
     expect(flag.severity).toBe("caution");
     expect(flag.raisedByRule).toBe(true);
-    expect(flag.evidence).toContain("the reference set (slab-front.png)");
-    expect(flag.evidence).not.toContain("clean-ps5");
+    expect(flag.evidence).toBe("Near match to a listing photo already on file.");
+    // The source and the fingerprint detail moved to the reasoning, where the closest match is named.
+    const closest = verdict.reasoning!.found.find((l) => l.startsWith("Closest photo on file:"))!;
+    expect(closest).toContain("the reference set (slab-front.png)");
+    expect(closest).not.toContain("clean-ps5");
   });
 
   it("is silent with no known photos, with images that do not load, and never matches a photo against itself", async () => {
@@ -301,6 +308,7 @@ describe("BuyerPal.review on clean-ps5", () => {
       const { data: verdict } = await pal.review(card, cleanPs5.chat, { seller: cleanPs5.seller });
       expect(["go", "caution"]).toContain(verdict.overall);
       expect(hasStop(verdict.flags)).toBe(false);
+      expect(verdict.flags.map((f) => f.code)).not.toContain("NAME_MISMATCH");
       expect(verdict.certCheck).toBeUndefined();
       expect(VerdictSchema.safeParse(verdict).success).toBe(true);
     }

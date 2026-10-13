@@ -6,7 +6,7 @@ import { priceBelowMarketRule } from "./price-below-market";
 import { urgencyRule } from "./urgency";
 import { missingSerialRule } from "./missing-serial";
 import { shipBeforePayRule } from "./ship-before-pay";
-import { nameMismatchRule } from "./name-mismatch";
+import { checkPayeeName, nameMismatchRule } from "./name-mismatch";
 import { stockPhotoRule } from "./stock-photo";
 import { boxSerialMismatchRule } from "./box-serial-mismatch";
 import { inviteRefusedRule } from "./invite-refused";
@@ -221,9 +221,45 @@ describe("nameMismatchRule", () => {
     });
     expect(flags[0]).toMatchObject({ code: "NAME_MISMATCH", severity: "caution" });
   });
-  it("accepts a PayPal email carrying the seller's name or matching their contact email", () => {
-    expect(nameMismatchRule({ card: card({ sellerPaypalEmail: "matt.m@example.com" }), chat: [], priceCheck: price, seller: { displayName: "Matt M.", email: "matt.m@example.com" } })).toHaveLength(0);
-    expect(nameMismatchRule({ card: card({ sellerPaypalEmail: "mm.consoles@example.com" }), chat: [], priceCheck: price, seller: { displayName: "Matt M.", email: "mm.consoles@example.com" } })).toHaveLength(0);
+  it("accepts a PayPal address carrying the first name or the surname", () => {
+    const ok = (email: string, displayName: string) =>
+      nameMismatchRule({ card: card({ sellerPaypalEmail: email }), chat: [], priceCheck: price, seller: { displayName, email: "other@example.com" } });
+    expect(ok("matt.m@example.com", "Matt M.")).toHaveLength(0);
+    expect(ok("chris.w.sells@example.com", "Chris W.")).toHaveLength(0);
+    expect(ok("cwalker@example.com", "Chris Walker")).toHaveLength(0);
+    expect(ok("jose.r@example.com", "José Ramírez")).toHaveLength(0);
+  });
+  it("does not let the seller's own contact email vouch for the PayPal address", () => {
+    // The two addresses agree with each other. That says nothing about whether either belongs to Chris W.
+    const flags = nameMismatchRule({
+      card: card({ sellerPaypalEmail: "cashdeals.quick2026@example.com" }),
+      chat: [],
+      priceCheck: price,
+      seller: { displayName: "Chris W.", email: "cashdeals.quick2026@example.com" },
+    });
+    expect(flags).toHaveLength(1);
+    expect(flags[0]).toMatchObject({
+      code: "NAME_MISMATCH",
+      severity: "caution",
+      raisedByRule: true,
+      evidence: "PayPal address cashdeals.quick2026@example.com, seller name Chris W.",
+      explanation: "The PayPal address that gets paid does not contain the seller's name.",
+    });
+  });
+  it("raises it on the fake slab fixture", () => {
+    const slab = fakeSlab.cards[0]!;
+    const flags = nameMismatchRule({ card: slab, chat: [], priceCheck: price, seller: { displayName: fakeSlab.deal.seller.displayName, email: fakeSlab.deal.seller.email } });
+    expect(flags.map((f) => f.code)).toEqual(["NAME_MISMATCH"]);
+  });
+  it("does not newly flag the clean and empty-box fixtures", () => {
+    for (const f of [cleanPs5, emptyBox]) {
+      const seller = { displayName: f.deal.seller.displayName, email: f.deal.seller.email };
+      expect(nameMismatchRule({ card: f.cards[0]!, chat: [], priceCheck: price, seller })).toEqual([]);
+    }
+  });
+  it("says it could not decide when the name is only initials, and raises nothing", () => {
+    expect(checkPayeeName({ displayName: "J. R." }, "anything@example.com")).toBe("undecidable");
+    expect(nameMismatchRule({ card: card({ sellerPaypalEmail: "anything@example.com" }), chat: [], priceCheck: price, seller: { displayName: "J. R.", email: "x@example.com" } })).toEqual([]);
   });
   it("stays quiet when the seller identity is not supplied", () => {
     expect(nameMismatchRule({ card: card({ sellerPaypalEmail: "quickcash@example.com" }), chat: [], priceCheck: price })).toHaveLength(0);
@@ -231,12 +267,11 @@ describe("nameMismatchRule", () => {
 });
 
 describe("stockPhotoRule", () => {
-  it("cautions when the image check found the same picture elsewhere, naming the source", () => {
+  it("cautions when the image check found a picture already on file", () => {
     const photo = fakeSlab.cards[0]!.photos[0]!;
     const flags = stockPhotoRule({ card: fakeSlab.cards[0]!, chat: [], priceCheck: price, photoMatches: [{ photo, source: "the reference set (slab-front.jpg)", distance: 3 }] });
     expect(flags[0]).toMatchObject({ code: "STOCK_OR_REUSED_PHOTO", severity: "caution" });
-    expect(flags[0]!.evidence).toContain("the reference set (slab-front.jpg)");
-    expect(flags[0]!.evidence).toContain("differ by 3 of 64 bits");
+    expect(flags[0]!.evidence).toBe("Near match to a listing photo already on file.");
   });
   it("never fires from caption words alone, and is silent with no matches", () => {
     expect(stockPhotoRule({ card: fakeSlab.cards[0]!, chat: [], priceCheck: price })).toHaveLength(0);
