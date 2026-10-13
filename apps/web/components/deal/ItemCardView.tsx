@@ -5,6 +5,7 @@ import { useState } from "react";
 import { boxSerialLabel, boxSerialStatus } from "@/lib/deal/box-serial";
 import { certSentence, type CertTone } from "@/lib/deal/cert-copy";
 import { diffCards } from "@/lib/deal/card-diff";
+import { sellerVoice } from "@/lib/deal/seller-voice";
 import { formatMoney, formatTime } from "@/lib/format";
 import { PhotoGrid } from "../photos/PhotoGrid";
 import { Badge } from "../ui/Badge";
@@ -19,6 +20,8 @@ interface Props {
   certCheck?: CertCheck | null;
   /** The deal id, which the PayPal order carries as its invoice id. */
   dealId?: string | null;
+  /** Whose room this is. The caveat is said to the seller as "you". */
+  role?: "buyer" | "seller";
 }
 
 const CERT_TONE: Record<CertTone, string> = { go: "text-go", stop: "text-stop", muted: "text-muted" };
@@ -53,8 +56,10 @@ function OrderText({ card, dealId }: { card: ItemCard; dealId: string | null }) 
   );
 }
 
+const NUMBER_CAVEAT = "A matching serial or cert number supports the listing. It is not a check that the seller owns the item, and not a check that the item is genuine.";
+
 /** The item card. Shows every version until the lock, then only the locked one, styled as the fixed record it has become. */
-export function ItemCardView({ cards, currentVersion, lockedVersion, certCheck = null, dealId = null }: Props) {
+export function ItemCardView({ cards, currentVersion, lockedVersion, certCheck = null, dealId = null, role = "buyer" }: Props) {
   const [selected, setSelected] = useState<number>(lockedVersion ?? currentVersion);
   // A new version arrived (the seller saved one, and the page refreshed in place). Follow it, or the
   // card keeps showing the old version while the status beside it already reads the new one.
@@ -140,10 +145,11 @@ export function ItemCardView({ cards, currentVersion, lockedVersion, certCheck =
         </Field>
       </dl>
 
-      {card.serial || card.certNumber ? (
-        // D9: say what a number on the card does and does not stand for, right where the number is.
+      {(card.serial || card.certNumber) && certCheck?.matches !== true ? (
+        // D9: say what a number on the card does and does not stand for, once per page. A matching cert says
+        // it in the cert headline of the review, so the card leaves it there.
         <p className="mt-3 text-xs leading-relaxed text-muted" data-testid="number-caveat">
-          A matching serial or cert number supports the listing. It is not a check that the seller owns the item, and not a check that the item is genuine.
+          {role === "seller" ? sellerVoice(NUMBER_CAVEAT) : NUMBER_CAVEAT}
         </p>
       ) : null}
 

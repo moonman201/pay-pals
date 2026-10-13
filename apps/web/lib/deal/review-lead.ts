@@ -15,6 +15,7 @@
  * what the pal said.
  */
 import type { RedFlag, RedFlagCode, Verdict, VerdictOverall } from "@pay-pals/contracts";
+import { goLine } from "./headline";
 
 /** Matt's rule 2, with a word or two of slack: beyond this an explanation is not a line. */
 const ONE_LINE_WORDS = 14;
@@ -41,6 +42,11 @@ const HEADLINES: Readonly<Record<VerdictOverall, string>> = {
   caution: "Careful. Ask first.",
   go: "Looks good.",
 };
+
+/** Stop and caution keep their fixed line. A go uses the shared name, so open questions are counted. */
+function headlineFor(verdict: Verdict): string {
+  return verdict.overall === "go" ? goLine(verdict) : HEADLINES[verdict.overall];
+}
 
 /**
  * The fallback line per flag, used only when the pal's own explanation is
@@ -113,7 +119,7 @@ export function reviewLead(verdict: Verdict): ReviewLead {
   const reasons = flags.length > 0 ? flags.map(reasonFor) : [...(verdict.reasoning?.found ?? [])].slice(0, 3);
   const asks = (verdict.reasoning?.wouldChangeMyMind ?? []).map((a) => a.trim()).filter(Boolean);
   return {
-    headline: HEADLINES[verdict.overall],
+    headline: headlineFor(verdict),
     reasons,
     lookAgain: joinAsks(asks),
     restOfAsks: asks.slice(MOST_ASKS),

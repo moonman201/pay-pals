@@ -13,7 +13,13 @@ function verdict(palMessage: string, overall: Verdict["overall"] = "stop"): Verd
 describe("reviewDoneLine", () => {
   it("is one line, naming the verdict and where the rest is", () => {
     expect(reviewDoneLine(verdict("...", "stop"))).toBe("Review done: Stop. Details above.");
-    expect(reviewDoneLine(verdict("...", "go"))).toBe("Review done: Go. Details above.");
+    expect(reviewDoneLine(verdict("...", "go"))).toBe("Review done: Looks good. Details above.");
+  });
+
+  it("counts the open questions on a go", () => {
+    const one = { ...verdict("...", "go"), questionsForSeller: ["Can you send a close-up?"] };
+    expect(reviewDoneLine(one)).toBe("Review done: Looks good, 1 open question. Details above.");
+    expect(reviewDoneLine({ ...one, questionsForSeller: ["a", "b"] })).toBe("Review done: Looks good, 2 open questions. Details above.");
   });
 });
 
@@ -32,10 +38,16 @@ describe("collapseReviewMessages", () => {
     expect(out[1]!.text).toBe("Review done: Stop. Details above.");
   });
 
+  it("collapses the pal's copy of the arrival check the same way, because the arrival panel prints it", () => {
+    const arrival = "The serial on the console matches the card, and the box is intact.";
+    const out = collapseReviewMessages([message("Ask me anything.", "m1"), message(arrival, "m2")], [], { palMessage: arrival });
+    expect(out.map((m) => m.text)).toEqual(["Ask me anything.", "Arrival check done. Details above."]);
+  });
+
   it("collapses both copies on a deal reviewed twice, each to its own verdict", () => {
     const second = "A different review, after the new photo arrived.";
     const out = collapseReviewMessages([message(long, "m1"), message(second, "m2")], [verdict(long, "stop"), verdict(second, "go")]);
-    expect(out.map((m) => m.text)).toEqual(["Review done: Stop. Details above.", "Review done: Go. Details above."]);
+    expect(out.map((m) => m.text)).toEqual(["Review done: Stop. Details above.", "Review done: Looks good. Details above."]);
   });
 
   it("matches past a difference in spacing, which storage and display can both introduce", () => {

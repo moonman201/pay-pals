@@ -3,9 +3,11 @@
 import { CARRIERS, type Carrier, type ChecklistItem, type Photo } from "@pay-pals/contracts";
 import { useState } from "react";
 import { dealApi, postJson } from "@/lib/client/api";
+import { packingAsks } from "@/lib/deal/photo-ask";
 import type { DemoHints } from "@/lib/deal/snapshot";
 import { PhotoInput } from "../../photos/PhotoInput";
 import { Button } from "../../ui/Button";
+import { NextPhoto } from "./NextPhoto";
 import { StepError, StepPanel } from "./StepPanel";
 
 interface Props {
@@ -30,6 +32,14 @@ export function ShipStep({ dealId, checklist, palMessage, demo, uploadsEnabled =
     setDone((d) => (d.includes(id) ? d.filter((x) => x !== id) : [...d, id]));
   }
 
+  // The next photo the checklist still wants, and the demo packing photo that answers it if there is one.
+  const nextAsk = packingAsks(checklist, demo?.photos ?? []).find((a) => !done.includes(a.item.id) && !(a.photo && photos.some((p) => p.url === a.photo!.url))) ?? null;
+
+  function addPacking(photo: Photo, itemId: string) {
+    setPhotos((list) => (list.some((p) => p.url === photo.url) ? list : [...list, photo]));
+    setDone((d) => (d.includes(itemId) ? d : [...d, itemId]));
+  }
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
@@ -46,6 +56,9 @@ export function ShipStep({ dealId, checklist, palMessage, demo, uploadsEnabled =
 
   return (
     <StepPanel id="ship" title="Pack and ship" intro={palMessage}>
+      {nextAsk ? (
+        <NextPhoto lead={nextAsk.item.label} photo={nextAsk.photo} actionLabel="Add this photo" onAdd={(photo) => addPacking(photo, nextAsk.item.id)} />
+      ) : null}
       <form onSubmit={submit} className="space-y-4">
         <ul className="space-y-2">
           {checklist.map((c) => (

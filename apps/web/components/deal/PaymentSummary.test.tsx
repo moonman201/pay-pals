@@ -48,7 +48,7 @@ describe("PaymentSummary", () => {
   it("never prints Confirmed by PayPal over a seeded example deal's placeholder ids", () => {
     render(<PaymentSummary payment={fixturePayment} read={{ kind: "example" }} record={record} dealId={cleanPs5.deal.id} events={cleanPs5.timeline} />);
     expect(screen.queryByRole("heading", { name: "Confirmed by PayPal" })).not.toBeInTheDocument();
-    expect(screen.getByText("Example order id")).toBeInTheDocument();
+    expect(screen.getByText("Order id")).toBeInTheDocument();
     expect(screen.getByText(/placeholders: no PayPal order was created/)).toBeInTheDocument();
     expect(screen.getByText(fixturePayment.paypalOrderId)).toBeInTheDocument();
     expect(screen.getByTestId("paypal-confirmation")).toHaveAttribute("data-confirmed", "false");

@@ -113,10 +113,12 @@ describe("EvidencePackView", () => {
   it("on a seeded example deal (fixture order id), labels it and never claims PayPal holds the hash", () => {
     const head = emptyBox.timeline.find((e) => e.kind === "payment_created")!.hash;
     render(<EvidencePackView pack={pack({ historyHash: head, historyVerified: true, payment: emptyBox.payment, historyAnchor: "not_anchored" })} deal={emptyBox.deal} role="buyer" read={{ kind: "example" }} />);
-    expect(screen.getAllByText("Example deal, seeded from a scenario").length).toBeGreaterThan(0);
-    expect(screen.getAllByTestId("history-badge")[0]).toHaveTextContent(/example deal, no PayPal order/);
+    // Said once, as the banner.
+    expect(screen.getAllByText(/Example deal, seeded from a scenario/)).toHaveLength(1);
+    expect(screen.getByTestId("example-banner")).toHaveTextContent("The payment ids are placeholders");
+    expect(screen.getAllByTestId("history-badge")[0]).not.toHaveTextContent(/example/i);
     expect(screen.queryByText(/corroborated by PayPal/)).not.toBeInTheDocument();
-    expect(screen.getByText(new RegExp(`Example order id ${emptyBox.payment!.paypalOrderId}`))).toBeInTheDocument();
+    expect(screen.getByText(new RegExp(`Order ${emptyBox.payment!.paypalOrderId}`))).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Confirmed by PayPal" })).not.toBeInTheDocument();
     expect(screen.getByTestId("history-anchor")).toHaveAttribute("data-anchor", "not_anchored");
     expect(screen.getByTestId("history-anchor")).toHaveTextContent("No PayPal order holds this hash.");

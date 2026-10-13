@@ -137,10 +137,9 @@ describe("hash badge: evidence page", () => {
       payment: { ...pack.payment!, paypalOrderId: "FIXTURE-ORDER-CLEAN-0001", captureId: "FIXTURE-CAPTURE-CLEAN-0001" },
     };
     render(<EvidencePackView pack={example} deal={input.deal} role="buyer" />);
-    expect(screen.getAllByText("Example deal, seeded from a scenario").length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/\(example deal, no PayPal order\)/).length).toBeGreaterThan(0);
-    expect(screen.getByText(/Example order id FIXTURE-ORDER-CLEAN-0001/)).toBeTruthy();
-    expect(screen.getByText(/the payment ids are placeholders/)).toBeTruthy();
+    expect(screen.getAllByText(/Example deal, seeded from a scenario/).length).toBeGreaterThan(0);
+    expect(screen.getByText(/Order FIXTURE-ORDER-CLEAN-0001/)).toBeTruthy();
+    expect(screen.getByText(/payment ids are placeholders/)).toBeTruthy();
     expect(screen.queryByText(VERIFIED)).toBeNull();
     expect(screen.queryAllByText(WARNING)).toHaveLength(0);
     expect(screen.queryByText(/PayPal's own record holds it/)).toBeNull();

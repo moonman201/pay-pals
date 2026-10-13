@@ -101,6 +101,16 @@ describe("ItemCardView", () => {
     expect(screen.getByText("PSA record agrees: PSA 10")).toBeInTheDocument();
   });
 
+  it("says what a serial or cert does not prove on the card, unless a matching cert says it in the review", () => {
+    const slab = fakeSlab.cards[0]!;
+    const matched: CertCheck = { record: { ...fakeSlab.certRecord!, provider: "psa" }, matches: true, explanation: "Matches." };
+    const { unmount } = render(<ItemCardView cards={[slab]} currentVersion={1} lockedVersion={null} />);
+    expect(screen.getByTestId("number-caveat")).toBeInTheDocument();
+    unmount();
+    render(<ItemCardView cards={[slab]} currentVersion={1} lockedVersion={null} certCheck={matched} />);
+    expect(screen.queryByTestId("number-caveat")).not.toBeInTheDocument();
+  });
+
   it("shows no box serial row when the card has none", () => {
     render(<ItemCardView cards={[{ ...v1, boxSerial: null }]} currentVersion={1} lockedVersion={null} />);
     expect(screen.queryByText("Box serial")).not.toBeInTheDocument();

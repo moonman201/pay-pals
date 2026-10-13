@@ -13,7 +13,9 @@
  * to see read like the ones carrying no news. Splitting them is the whole of
  * Matt's Oct 11 note on this view.
  *
- * Verified never means the item is genuine or that the seller owns it. Every
+ * Verified never means the item is genuine or that the seller owns it. That
+ * caveat is said once per page, on the item card or in the cert headline,
+ * so neither the legend nor the rows repeat it. Every
  * line is derived from data the deal already carries; nothing here calls out.
  *
  * Length: over the 300-line smell threshold, and deliberately one file. Most
@@ -42,7 +44,7 @@ export const STATUS_WORDS: Readonly<Record<StatusLabel, string>> = {
 
 /** The sentence that has to sit above the view, so "Verified" is never read as a claim about the item. Matt's words. */
 export const STATUS_LEGEND =
-  "Verified: checked and matched. Flagged: checked and didn't match. Unverified: on file, not checked. Missing: not on record. Verified never means genuine or that the seller owns it.";
+  "Verified: checked and matched. Flagged: checked and didn't match. Unverified: on file, not checked. Missing: not on record.";
 
 export interface StatusItem {
   id: string;
@@ -216,7 +218,7 @@ function serialItem(input: StatusInput): StatusItem {
       id,
       label,
       status: "verified",
-      detail: `Card serial ${card.serial} compared with ${card.boxSerial}, the number the seller photographed on the box: the same number. A matching serial supports the listing. It is not a check of ownership and not a check that the item is genuine.`,
+      detail: `Card serial ${card.serial} compared with ${card.boxSerial}, the number the seller photographed on the box: the same number.`,
     };
   }
   if (status === "mismatch") {
@@ -233,14 +235,14 @@ function certItem(input: StatusInput): StatusItem | null {
   const label = "Certificate number on the card";
   const check = latest(input.verdicts)?.certCheck ?? null;
   if (!check) return { id, label, status: "unverified", detail: `Cert ${card.certNumber} is on the card. No check against a grader record is on file.` };
-  const provider = check.record.provider === "psa" ? "PSA's record" : "the demo grader record";
+  const provider = check.record.provider === "psa" ? "PSA's record" : "the demo PSA record";
   if (check.matches === true) {
     const parts = [check.record.subject, check.record.grade].filter(Boolean).join(", ");
     return {
       id,
       label,
       status: "verified",
-      detail: `Cert ${check.record.certNumber} compared with ${provider}${parts ? ` (${parts})` : ""}: the record describes the card on the item card. A matching cert supports the listing. It is not a check that the slab is genuine or that the seller owns it.`,
+      detail: `Cert ${check.record.certNumber} compared with ${provider}${parts ? ` (${parts})` : ""}: the record describes the card on the item card.`,
     };
   }
   if (check.matches === false) return { id, label, status: "flagged", detail: `Cert ${check.record.certNumber} compared with ${provider}: ${check.explanation}` };

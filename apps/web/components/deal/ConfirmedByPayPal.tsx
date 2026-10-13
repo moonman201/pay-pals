@@ -66,11 +66,11 @@ export function ConfirmedByPayPal({ result, payment, fallbackFields = true, prom
         </dl>
       ) : fallbackFields && payment ? (
         <dl className="mt-3 grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
-          <Field label={example ? "Example order id" : "PayPal order"}>
+          <Field label={example ? "Order id" : "PayPal order"}>
             <span className="font-mono text-xs">{payment.paypalOrderId}</span>
           </Field>
           <Field label="Status we recorded">{payment.status.toLowerCase()}</Field>
-          <Field label={example ? "Example capture id" : "Capture"}>
+          <Field label={example ? "Capture id" : "Capture"}>
             <span className="font-mono text-xs">{payment.captureId ?? "none recorded"}</span>
           </Field>
           <Field label="Amount we recorded">{formatMoney(payment.amount, payment.currency)}</Field>

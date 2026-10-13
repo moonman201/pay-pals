@@ -40,7 +40,7 @@ export const EVENT_KIND_LABELS: Readonly<Record<DealEventKind, string>> = {
 };
 
 export const OVERALL_LABELS: Readonly<Record<VerdictOverall, string>> = {
-  go: "Go",
+  go: "Looks good",
   caution: "Caution",
   stop: "Stop",
 };

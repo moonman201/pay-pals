@@ -3,8 +3,10 @@
 import type { CardField, Photo } from "@pay-pals/contracts";
 import { useState } from "react";
 import { dealApi, postJson } from "@/lib/client/api";
+import { photoAsk } from "@/lib/deal/photo-ask";
 import { PhotoInput } from "../../photos/PhotoInput";
 import { Button } from "../../ui/Button";
+import { NextPhoto } from "./NextPhoto";
 import { StepError, StepPanel } from "./StepPanel";
 
 const FIELDS: { value: CardField; label: string }[] = [
@@ -33,20 +35,18 @@ export function RequestStep({ dealId, questions, suggestions, uploadsEnabled = f
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!reply.trim() && photos.length === 0) {
-      setError("Write a reply or add a photo.");
-      return;
-    }
+  // What the deal needs from the seller next, and the demo photo that answers it if there is one.
+  const next = photoAsk(questions, suggestions);
+
+  async function save(body: { field: CardField; reply: string; photos: Photo[] }) {
     setBusy(true);
     setError(null);
     try {
       // No question from the buyer's side means no request text. Nothing is made up for the Seller Pal to quote.
       await postJson(dealApi(dealId, "card"), {
-        request: { field, request: questions[0] ?? "" },
-        sellerReply: reply.trim(),
-        photos,
+        request: { field: body.field, request: next?.ask ?? questions[0] ?? "" },
+        sellerReply: body.reply,
+        photos: body.photos,
       });
       setReply("");
       setPhotos([]);
@@ -57,6 +57,21 @@ export function RequestStep({ dealId, questions, suggestions, uploadsEnabled = f
       setBusy(false);
     }
   }
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!reply.trim() && photos.length === 0) {
+      setError("Write a reply or add a photo.");
+      return;
+    }
+    await save({ field, reply: reply.trim(), photos });
+  }
+
+  /*
+    One tap: the demo photo goes in with no typed reply, so nothing is written into the card
+    as if it were the seller's words. The card gets the photo and whatever the pal reads off it.
+  */
+  const sendDemoPhoto = (photo: Photo) => save({ field: "photos", reply: "", photos: [photo] });
 
   const intro = questions.length > 0 ? `The buyer's pal asked: ${questions.join(" ")}` : "You can add photos or notes to the card until both sides agree.";
 
@@ -72,6 +87,7 @@ export function RequestStep({ dealId, questions, suggestions, uploadsEnabled = f
 
   return (
     <StepPanel id="request" title={questions.length > 0 ? "Answer the buyer's pal" : "Update the card"} intro={intro}>
+      {next ? <NextPhoto lead="Send the photo the Buyer Pal asked for." photo={next.photo} actionLabel={busy ? "Sending" : "Add this photo and send it"} busy={busy} onAdd={sendDemoPhoto} /> : null}
       <form onSubmit={submit} className="space-y-4">
         <label className="block text-sm">
           <span className="font-semibold">What this changes</span>

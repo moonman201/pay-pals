@@ -18,7 +18,7 @@ interface Props {
 }
 
 function titleFor(source: "payment_record" | "live_order", historyHash: string | null | undefined, example: boolean, orderId: string | null): string {
-  if (example) return "Example deal seeded from a scenario: no PayPal order holds this hash";
+  if (example) return "No PayPal order holds this hash";
   if (!historyHash) return "No PayPal order yet";
   if (source === "live_order") return `Read from PayPal's custom_id on order ${orderId ?? "just now"}: ${historyHash}`;
   return `Hash on the PayPal order: ${historyHash}`;
@@ -47,7 +47,7 @@ function Seal({ verified }: { verified: boolean }) {
  */
 export function HistoryBadge({ events, historyHash, example = false, source = "payment_record", orderId = null, className = "" }: Props) {
   const status = historyStatus(events, example ? null : historyHash);
-  const line = example && status.kind === "unanchored" && status.chainOk ? `${historyLine(status)} (example deal, no PayPal order)` : historyLine(status);
+  const line = historyLine(status);
   const bad = status.kind === "mismatch" || (status.kind === "unanchored" && !status.chainOk);
   const tone = status.kind === "verified" ? "border-go-line bg-go-soft text-go" : bad ? "border-stop-line bg-stop-soft text-stop font-bold" : "border-line bg-wash text-muted";
   return (

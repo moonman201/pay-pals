@@ -113,10 +113,10 @@ test.describe("the deal status view", () => {
 
       const status = panel(page, "Deal status");
       await expect(status, `${fixture.id}: the deal room shows the status view`).toBeVisible();
-      // The legend was reworded with the fourth label. What it has to keep saying is that
-      // Verified is not a claim about the item, and that every label is defined on the page.
+      // The legend defines every label on the page. What a match does not prove is said once per page
+      // (the item card, or the cert headline), so the legend no longer repeats it.
       const legend = status.getByTestId("status-legend");
-      await expect(legend).toContainText("Verified never means genuine or that the seller owns it.");
+      await expect(legend).not.toContainText(/genuine|owns/);
       for (const word of Object.values(CHIP_WORD)) await expect(legend, `the legend defines ${word}`).toContainText(`${word}:`);
 
       const rows = await statusRows(page);

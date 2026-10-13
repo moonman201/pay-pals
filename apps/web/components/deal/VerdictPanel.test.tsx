@@ -21,7 +21,7 @@ describe("VerdictPanel", () => {
     const block = screen.getByTestId("cert-check");
     // One header line, then the table. The closing paragraph that repeated the
     // header in other words is gone (Matt's rule 1).
-    expect(screen.getByTestId("cert-headline")).toHaveTextContent(`Cert ${fakeSlab.certRecord!.certNumber} does not match PSA (demo record)'s record.`);
+    expect(screen.getByTestId("cert-headline")).toHaveTextContent(`Cert ${fakeSlab.certRecord!.certNumber} does not match the demo PSA record.`);
     expect(block).toHaveTextContent("PSA's record for this cert is a different card and grade.");
     // Once in the card title cell, once in the card grade cell of the comparison.
     expect(block.textContent?.match(/PSA 10/g)?.length).toBe(2);
@@ -93,6 +93,11 @@ describe("VerdictPanel", () => {
     expect(block).toHaveTextContent("via Channel3");
     expect(block.textContent).not.toMatch(/gamestop|marketplace listing/i);
     expect(within(screen.getByRole("list", { name: "Listing prices" })).getAllByRole("listitem").map((li) => li.textContent)).toEqual(["$588.99", "$914.99"]);
+    // The chips sit behind an expander; the range line stays visible.
+    const details = screen.getByText("Show the 2 listings").closest("details")!;
+    expect(details.tagName).toBe("DETAILS");
+    expect(details).not.toHaveAttribute("open");
+    expect(within(details).getByText("Show the 2 listings")).toBeInTheDocument();
   });
 
   it("shows the sentence that says how the range was reached, under the range and above the chips", () => {
@@ -242,6 +247,20 @@ describe("VerdictPanel", () => {
     expect(screen.getByText("Why")).toBeInTheDocument();
   });
 
+  it("says a flag's reason once: in the lead when it is already a line, and the card keeps the evidence", () => {
+    const own = "Wants Friends and Family. That has no buyer protection.";
+    const v = verdict({ flags: [{ ...flag("FRIENDS_AND_FAMILY_REQUEST", "stop", own), evidence: 'Seller wrote: "F&F only"' }] });
+    render(<VerdictPanel verdict={v} currentVersion={1} locked={false} />);
+    expect(screen.getAllByText(own)).toHaveLength(1);
+    expect(screen.getByTestId("flag-evidence")).toHaveTextContent('Seller wrote: "F&F only"');
+  });
+
+  it("keeps a long explanation on the card, because the lead shows only a short fallback for it", () => {
+    const long = "A long explanation that runs well past a single line because the pal wrote a whole paragraph about this flag and what it means.";
+    render(<VerdictPanel verdict={verdict({ flags: [flag("STOCK_OR_REUSED_PHOTO", "caution", long)] })} currentVersion={1} locked={false} />);
+    expect(screen.getByText(long)).toBeInTheDocument();
+  });
+
   it("never prints a photo-handling artifact as evidence", () => {
     const v = verdict({ flags: [{ ...flag("URGENCY_PRESSURE", "caution"), evidence: "Photo block 2 of 4" }] });
     render(<VerdictPanel verdict={v} currentVersion={1} locked={false} />);
@@ -309,6 +328,28 @@ describe("VerdictPanel", () => {
     render(<VerdictPanel verdict={verdict()} currentVersion={1} locked={false} />);
     expect(screen.queryByTestId("pal-work")).not.toBeInTheDocument();
     expect(screen.queryByTestId("pal-reasons")).not.toBeInTheDocument();
+  });
+});
+
+describe("VerdictPanel, the seller's view", () => {
+  const asks = ["he sends a close-up of the serial label on the console", "he sends the slab next to his name and today's date"];
+  const v = () =>
+    verdict({
+      overall: "caution",
+      flags: [flag("STOCK_OR_REUSED_PHOTO", "caution", "One of his photos matches a listing photo already on file.")],
+      reasoning: { checked: [], found: [], couldNotVerify: [], wouldChangeMyMind: asks },
+    });
+
+  it("speaks to the seller as you in the look-again line", () => {
+    render(<VerdictPanel verdict={v()} currentVersion={1} locked={false} role="seller" />);
+    const line = screen.getByTestId("look-again");
+    expect(line).toHaveTextContent("The Buyer Pal would look again if you send a close-up of the serial label on the console or you send the slab next to your name and today's date.");
+    expect(screen.getByTestId("verdict").textContent).not.toMatch(/\b(he|his|him)\b/i);
+  });
+
+  it("keeps the buyer's wording for the buyer", () => {
+    render(<VerdictPanel verdict={v()} currentVersion={1} locked={false} role="buyer" />);
+    expect(screen.getByTestId("look-again")).toHaveTextContent("I'd look again if he sends a close-up");
   });
 });
 

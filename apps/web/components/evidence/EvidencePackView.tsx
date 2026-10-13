@@ -44,7 +44,8 @@ export function messageCounts(messages: readonly Message[]): string {
   return `${word(shared, "shared chat message", "shared chat messages")}, ${word(pal, "pal message", "pal messages")}`;
 }
 import { formatMoney, formatTime } from "@/lib/format";
-import { actorLabel, OVERALL_LABELS, STATE_LABELS } from "@/lib/labels";
+import { verdictName } from "@/lib/deal/headline";
+import { actorLabel, STATE_LABELS } from "@/lib/labels";
 import type { Role } from "@/lib/role";
 import { PhotoGrid } from "../photos/PhotoGrid";
 import { PrintButton } from "./PrintButton";
@@ -102,7 +103,6 @@ export function EvidencePackView({
         }
         badges={
           <>
-            {example ? <span className="inline-flex items-center rounded-full border border-line bg-wash px-2.5 py-0.5 text-xs text-muted">Example deal, seeded from a scenario</span> : null}
             <HistoryBadge events={live} historyHash={pack.historyHash ?? null} example={example} />
           </>
         }
@@ -110,6 +110,17 @@ export function EvidencePackView({
         events={live}
         actions={<PrintButton />}
       />
+
+      {/*
+        The one place a seeded example is named on this page. It used to be said again in the
+        header chip, the history chip, a note under the anchor and the payment line. The facts
+        are the same and are all here: it is seeded, the ids are placeholders, no order exists.
+      */}
+      {example ? (
+        <p className="mt-4 rounded-lg border border-line bg-wash px-3 py-2 text-sm" data-testid="example-banner">
+          <span className="font-semibold">Example deal, seeded from a scenario.</span> The payment ids are placeholders and no PayPal order was created for it.
+        </p>
+      ) : null}
 
       <div className="mt-6 space-y-6">
         <Section title="Summary">
@@ -172,12 +183,6 @@ export function EvidencePackView({
             {anchor.text}
           </p>
           {/*
-            A separate fact from the anchor, not a second answer to it: the anchor says where the
-            hash stands, this says the deal is seeded demo data. Both can be true and a reader
-            needs both.
-          */}
-          {example ? <p className="mt-2">This is an example deal seeded from a scenario, so the payment ids are placeholders and no real order was ever created for it.</p> : null}
-          {/*
             The verification is shown for a real deal only. On a seeded example both the events
             and the hash are ours, so "the stored events reproduce this hash" is true and means
             nothing: we wrote both sides of it. `example` suppresses a circular claim here; it is
@@ -218,7 +223,7 @@ export function EvidencePackView({
           {pack.payment ? (
             <p>
               As Pay Pals recorded it: {formatMoney(pack.payment.amount, pack.payment.currency)} to {pack.payment.payeeEmail} via{" "}
-              {pack.payment.method === "venmo" ? "Venmo" : "PayPal"} Goods and Services. {example ? "Example order id" : "Order"} {pack.payment.paypalOrderId}
+              {pack.payment.method === "venmo" ? "Venmo" : "PayPal"} Goods and Services. Order {pack.payment.paypalOrderId}
               {pack.payment.captureId ? `, capture ${pack.payment.captureId}` : ""}. Status {pack.payment.status}.
               {pack.payment.capturedAt ? ` Captured ${formatTime(pack.payment.capturedAt)}.` : ""}
             </p>
@@ -263,7 +268,7 @@ export function EvidencePackView({
             <div key={i} className="mb-3 flex gap-3">
               <PalAvatar pal="buyer" size={28} className="mt-0.5" />
               <div className="min-w-0">
-              <p className="font-semibold">Card version {v.cardVersion}: {OVERALL_LABELS[v.overall]}</p>
+              <p className="font-semibold">Card version {v.cardVersion}: {verdictName(v)}</p>
               <p className="text-xs text-muted">
                 {priceRangeLine(v.priceCheck)}, {priceSourceNote(v.priceCheck)}
                 {summariseSources(v.priceCheck) ? `. ${summariseSources(v.priceCheck)!.line}` : ""}

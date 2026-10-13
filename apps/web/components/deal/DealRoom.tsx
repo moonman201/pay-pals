@@ -7,6 +7,7 @@ import type { ActionId } from "@/lib/deal/actions";
 import { canStillPay } from "@/lib/deal/actions";
 import type { DealSnapshot } from "@/lib/deal/snapshot";
 import { canChooseOffPlatform, hasChosenOffPlatform } from "@/lib/deal/off-platform";
+import { sellerStatusGroups } from "@/lib/deal/seller-voice";
 import { dealStatusView } from "@/lib/deal/status-view";
 import { collapseReviewMessages, stripPalPrefix } from "@/lib/deal/pal-chat";
 import { diffVerdicts, lastTwoVerdicts } from "@/lib/deal/verdict-diff";
@@ -123,7 +124,7 @@ export function DealRoom({ snapshot, role }: { snapshot: DealSnapshot; role: Rol
 
   const refresh = () => router.refresh();
   // The pal's review message is a copy of the panel above it, so it shows as one line.
-  const myPal = collapseReviewMessages(snapshot.messages.filter((m) => m.channel === palChannel(role)), snapshot.verdicts);
+  const myPal = collapseReviewMessages(snapshot.messages.filter((m) => m.channel === palChannel(role)), snapshot.verdicts, snapshot.arrivalCheck);
   const needsBuyer = role === "buyer" && deal.buyer === null;
   // The bubble names the pal already, so "Buyer Pal to seller:" was a third naming.
   const shared = stripPalPrefix(snapshot.messages.filter((m) => m.channel === "deal"));
@@ -137,7 +138,7 @@ export function DealRoom({ snapshot, role }: { snapshot: DealSnapshot; role: Rol
   const pair = lastTwoVerdicts(snapshot.verdicts);
   const verdictDiff = pair ? diffVerdicts(pair.previous, pair.current) : null;
   // One status view per deal (E12). Everything in it comes off the snapshot.
-  const statusGroups = dealStatusView({
+  const builtGroups = dealStatusView({
     deal,
     cards: snapshot.cards,
     lockedCard: snapshot.lockedCard,
@@ -149,6 +150,7 @@ export function DealRoom({ snapshot, role }: { snapshot: DealSnapshot; role: Rol
     events: snapshot.events,
     hasEvidence: snapshot.hasEvidence,
   });
+  const statusGroups = role === "seller" ? sellerStatusGroups(builtGroups) : builtGroups;
 
   return (
     <div className={`theme-${role} min-h-screen bg-[var(--bg-room)]`} data-review={reviewing ? "running" : "idle"}>
@@ -156,7 +158,7 @@ export function DealRoom({ snapshot, role }: { snapshot: DealSnapshot; role: Rol
       <main className="mx-auto grid max-w-6xl gap-4 px-4 py-4 md:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] md:py-6">
         <div className="min-w-0 space-y-4">
           {currentCard ? (
-            <ItemCardView cards={snapshot.cards} currentVersion={deal.currentCardVersion} lockedVersion={deal.lockedCardVersion} certCheck={snapshot.verdict?.certCheck ?? null} dealId={deal.id} />
+            <ItemCardView role={role} cards={snapshot.cards} currentVersion={deal.currentCardVersion} lockedVersion={deal.lockedCardVersion} certCheck={snapshot.verdict?.certCheck ?? null} dealId={deal.id} />
           ) : null}
           {role === "buyer" && state === "INVITED" ? <InvitePanel deal={deal} /> : null}
           {role === "buyer" && state === "INVITED" && !snapshot.inviteDeclined ? <RefusalStep dealId={deal.id} onDone={refresh} /> : null}
@@ -182,6 +184,7 @@ export function DealRoom({ snapshot, role }: { snapshot: DealSnapshot; role: Rol
               askingPrice={currentCard?.askingPrice ?? null}
               card={currentCard ?? null}
               chat={shared}
+              role={role}
             />
           ) : null}
           {verdictDiff ? <VerdictDiffPanel diff={verdictDiff} /> : null}

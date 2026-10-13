@@ -72,7 +72,7 @@ test.describe("withdrawn copy never reaches a page", () => {
     // table's own denial exemption.
     for (const honest of [
       "A matching cert supports the listing. It is not a check that the item is genuine.",
-      "Cert 72096346 matches PSA (demo record)'s record. The slab exists. That doesn't prove the seller has it.",
+      "Cert 72096346 matches the demo PSA record. The slab exists. That doesn't prove the seller has it.",
       "Nothing here proves the seller owns the item.",
       "A matching serial or cert number supports the listing. It is not a check that the seller owns the item, and not a check that the item is genuine.",
       "Card serial AJ164952580 compared with AJ164952580, the number the seller photographed on the box: the same number. A matching serial supports the listing. It is not a check of ownership and not a check that the item is genuine.",

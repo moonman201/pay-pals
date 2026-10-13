@@ -52,7 +52,9 @@ async function expectVerdictBlock(page: Page, overall: Overall): Promise<Locator
   await expect(headline, "the verdict is said once").toHaveCount(1);
   const words = ((await headline.textContent()) ?? "").trim().split(/\s+/).filter(Boolean);
   expect(words.length, `the verdict headline says something: "${words.join(" ")}"`).toBeGreaterThan(0);
-  expect(words.length, `the verdict headline is at most ${MAX_HEADLINE_WORDS} words: "${words.join(" ")}"`).toBeLessThanOrEqual(MAX_HEADLINE_WORDS);
+  // A go with open questions counts them: "Looks good, 1 open question." is the one longer headline.
+  const countedGo = /^Looks good, \d+ open questions?\.$/.test(words.join(" "));
+  if (!countedGo) expect(words.length, `the verdict headline is at most ${MAX_HEADLINE_WORDS} words: "${words.join(" ")}"`).toBeLessThanOrEqual(MAX_HEADLINE_WORDS);
   return review;
 }
 
