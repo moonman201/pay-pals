@@ -15,7 +15,7 @@ import { dealApi, postJson } from "@/lib/client/api";
 import { streamReview } from "@/lib/client/review-stream";
 import { scrollToPanel } from "@/lib/client/scroll";
 import { isConfirmedMismatch } from "@/lib/deal/arrival-outcome";
-import { agreeLockedLine, applyProgress, IDLE_REVIEW, startedReview, type LiveReviewState } from "@/lib/deal/live-review";
+import { agreeLockedLine, applyProgress, finishReview, IDLE_REVIEW, startedReview, type LiveReviewState } from "@/lib/deal/live-review";
 import { palChannel, type Role } from "@/lib/role";
 import { ActionBar } from "./ActionBar";
 import { ArrivalResult } from "./ArrivalResult";
@@ -62,7 +62,8 @@ export function DealRoom({ snapshot, role }: { snapshot: DealSnapshot; role: Rol
   const [live, setLive] = useState<LiveReviewState>(IDLE_REVIEW);
   const { deal, currentCard } = snapshot;
   const state = deal.state;
-  const reviewing = live.running || snapshot.reviewInFlight;
+  // A reload mid-review is still running; a review this page just finished is not, even before the refreshed snapshot says so.
+  const reviewing = live.running || (snapshot.reviewInFlight && !live.done);
 
   async function run(label: string, fn: () => Promise<unknown>) {
     setBusy(label);
@@ -92,7 +93,7 @@ export function DealRoom({ snapshot, role }: { snapshot: DealSnapshot; role: Rol
     } finally {
       // Cleared either way: a review that ended is not a review in flight, and Agree must open
       // again. The finished verdict comes from the refresh, never from what streamed in.
-      setLive(IDLE_REVIEW);
+      setLive(finishReview);
       setBusy(null);
     }
   }

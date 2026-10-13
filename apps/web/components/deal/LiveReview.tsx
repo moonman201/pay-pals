@@ -1,7 +1,7 @@
 "use client";
 
 import { isPaymentMethodFlag, type RedFlag } from "@pay-pals/contracts";
-import { agreeLockedLine, hasStopFlag, liveReviewLine, nothingYet, orderedFlags, type LiveReviewState } from "@/lib/deal/live-review";
+import { agreeLockedLine, hasStopFlag, liveReviewLine, nothingYet, orderedFlags, pendingLine, type LiveReviewState } from "@/lib/deal/live-review";
 import { flagLabel } from "@/lib/deal/override";
 import { hasUsableRange, priceRangeLine, priceSourceNote } from "@/lib/deal/price-copy";
 import { PalAvatar } from "../pal/PalAvatar";
@@ -17,7 +17,7 @@ const NO_CERT = "No cert number on the card, so there was nothing to check.";
 /** A card with no cert has nothing to wait for, so it never says "Still running". */
 function certLine(state: LiveReviewState, hasCert: boolean): string {
   if (!hasCert || (state.certChecked && !state.certCheck)) return NO_CERT;
-  if (!state.certChecked) return "Still running.";
+  if (!state.certChecked) return pendingLine(state);
   if (state.certCheck?.matches === true) return "The grader's record agrees with the card.";
   if (state.certCheck?.matches === false) return "The grader's record does not agree with the card.";
   return "Could not be compared.";
@@ -87,7 +87,7 @@ export function LiveReview({ state, photoTotal = 0, hasCert = true }: { state: L
             <dd data-testid="live-price">
               {state.priceChecked
                 ? `${priceRangeLine(state.priceCheck)}${hasUsableRange(state.priceCheck) ? `, ${priceSourceNote(state.priceCheck)}` : ""}`
-                : "Still running."}
+                : pendingLine(state)}
             </dd>
           </div>
           <div>
@@ -100,7 +100,7 @@ export function LiveReview({ state, photoTotal = 0, hasCert = true }: { state: L
             <dt className="text-xs font-semibold uppercase tracking-wide text-muted">Photos</dt>
             <dd data-testid="live-photos">
               {state.photoReads.length === 0
-                ? "Still running."
+                ? pendingLine(state)
                 : `${state.photoReads.filter((p) => p.readable).length} of ${Math.max(photoTotal, state.photoReads.length)} read so far.`}
             </dd>
           </div>

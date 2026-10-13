@@ -22,12 +22,12 @@ const ALIASES: Readonly<Record<string, readonly string[]>> = {
   closeup: ["close"],
 };
 
-function words(text: string): Set<string> {
+function words(text: string, expand = true): Set<string> {
   const out = new Set<string>();
   for (const raw of text.toLowerCase().replace(/close-?up/g, "close up").split(/[^a-z0-9]+/)) {
     if (raw.length < 3 || STOP.has(raw)) continue;
     out.add(raw);
-    for (const alias of ALIASES[raw] ?? []) out.add(alias);
+    if (expand) for (const alias of ALIASES[raw] ?? []) out.add(alias);
   }
   return out;
 }
@@ -65,5 +65,23 @@ export interface PackingAsk {
 
 /** The checklist steps that ask for a photo, each with the demo packing photo that answers it if one does. */
 export function packingAsks(checklist: readonly ChecklistItem[], demoPhotos: readonly Photo[]): PackingAsk[] {
-  return checklist.filter((c) => c.required && /\bphoto\b/i.test(c.label)).map((item) => ({ item, photo: bestPhoto(item.label, demoPhotos) }));
+  return checklist.filter((c) => c.required && /\bphoto\b/i.test(c.label)).map((item) => ({ item, photo: photoShowing(item.label, demoPhotos) }));
+}
+
+/**
+ * A packing step is a specific thing: "the console going into the box" is not "a sealed box". A
+ * demo photo is offered only when its caption names every object the step is about, so a photo of
+ * a taped box can never stand in for the step that asks for what went inside it.
+ */
+function photoShowing(label: string, photos: readonly Photo[]): Photo | null {
+  const subject = label.replace(/^photo of\s+(the\s+)?/i, "").split(/\b(?:going|into|inside|in the)\b/i)[0] ?? "";
+  const needed = [...words(subject, false)].filter((w) => w !== "photo");
+  if (needed.length === 0) return null;
+  const alternatives = (w: string) => [w, ...(ALIASES[w] ?? [])];
+  return (
+    photos.find((p) => {
+      const caption = words(p.whatItShows);
+      return needed.every((w) => alternatives(w).some((a) => caption.has(a)));
+    }) ?? null
+  );
 }

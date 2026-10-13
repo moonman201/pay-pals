@@ -116,10 +116,19 @@ function norm(text: string): string {
  * panel says the same thing at more length; this stays short so the view
  * reads as a list and the phrase is not printed twice on one page.
  */
+/**
+ * For a seeded example the reason is the same on every id row, and the payment panel already says
+ * the ids are placeholders once, beside them. The rows just show the id. Any other reason (no
+ * credentials, a read that failed) differs by cause and stays on each row it applies to.
+ */
+function sayOnce(read: PayPalReadResult): string {
+  return read.kind === "example" ? "" : ` ${whyNotConfirmed(read)}`;
+}
+
 function whyNotConfirmed(read: PayPalReadResult): string {
   switch (read.kind) {
     case "example":
-      return "This is a seeded example deal, so that id is a placeholder with nothing behind it at PayPal.";
+      return "";
     case "mock":
       return "This deal ran without PayPal credentials, so Pay Pals invented that id in memory.";
     case "failed":
@@ -187,7 +196,7 @@ function cardOnOrderItem(input: StatusInput): StatusItem {
   const card = input.lockedCard;
   if (input.paypalRead.kind !== "confirmed") {
     if (!input.payment) return { id, label, status: "missing", detail: "No PayPal order was created, so the card text is not on one." };
-    return { id, label, status: "unverified", detail: `The order was not read back from PayPal, so the text it carries could not be compared with the card. ${whyNotConfirmed(input.paypalRead)}` };
+    return { id, label, status: "unverified", detail: `The order was not read back from PayPal, so the text it carries could not be compared with the card.${sayOnce(input.paypalRead)}` };
   }
   const itemName = input.paypalRead.order.itemName;
   if (!itemName) return { id, label, status: "unverified", detail: "PayPal returned no item line on this order, so there is nothing to compare with the card." };
@@ -377,7 +386,6 @@ function offPlatformItem(input: StatusInput): StatusItem | null {
 function paymentGroup(input: StatusInput): StatusGroup {
   const items: StatusItem[] = [];
   const read = input.paypalRead;
-  const why = whyNotConfirmed(read);
   const offPlatform = offPlatformItem(input);
   if (offPlatform) items.push(offPlatform);
 
@@ -410,12 +418,12 @@ function paymentGroup(input: StatusInput): StatusGroup {
     return { id: "payment", title: paymentTitle(items), items };
   }
 
-  items.push({ id: "order", label: "Order at PayPal", status: "unverified", detail: `Pay Pals recorded order ${payment.paypalOrderId}, status ${payment.status.toLowerCase()}. ${why}` });
+  items.push({ id: "order", label: "Order at PayPal", status: "unverified", detail: `Pay Pals recorded order ${payment.paypalOrderId}, status ${payment.status.toLowerCase()}.${sayOnce(read)}` });
   items.push({
     id: "capture",
     label: "Capture at PayPal",
     status: "unverified",
-    detail: payment.captureId ? `Pay Pals recorded capture ${payment.captureId}. ${why}` : "Pay Pals has no capture on record for this order.",
+    detail: payment.captureId ? `Pay Pals recorded capture ${payment.captureId}.${sayOnce(read)}` : "Pay Pals has no capture on record for this order.",
   });
   items.push(amountAndPayeeItem(input, read));
   items.push(hashItem(input, read));

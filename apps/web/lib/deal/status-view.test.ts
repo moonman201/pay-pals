@@ -419,7 +419,11 @@ describe("the payment", () => {
   it("verifies nothing about a seeded example deal's payment", () => {
     const groups = dealStatusView(input({ payment: cleanPs5.payment, paypalRead: { kind: "example" } }));
     for (const line of group(groups, "payment").items) expect(line.status, line.id).not.toBe("verified");
-    expect(item(groups, "payment", "order").detail).toMatch(/seeded example deal, so that id is a placeholder/);
+    // Said once, beside the ids in the payment panel; the rows only show the id.
+    const text = JSON.stringify(groups);
+    expect(text).not.toMatch(/seeded example deal/);
+    expect(item(groups, "payment", "order").detail).toMatch(/^Pay Pals recorded order \S+, status \w+\.$/);
+    expect(item(groups, "payment", "capture").detail).toMatch(/^Pay Pals recorded capture \S+\.$/);
   });
 
   it("verifies nothing when the live read did not come back", () => {

@@ -59,6 +59,22 @@ function certLine(previous: Verdict, current: Verdict): string | null {
   return `The cert check went from ${say(before)} to ${say(after)}.`;
 }
 
+/** Words that make a could-not-check line a statement of failure, which cannot be turned into "now checked" by a prefix. */
+const FAILURE_WORDS = /\b(could not|couldn't|cannot|can't|unable|not able|did not|didn't|no way)\b/i;
+
+/**
+ * A line that was on the pal's could-not-check list and is not on it now, said as what is checked.
+ * "Whether the seller owns the item." reads as "whether the seller owns the item." A line that is
+ * itself a failure ("A serial is in one photo but I could not read it.") is quoted as the thing
+ * that was open, so it is never presented as the finding.
+ */
+function nowChecked(line: string): string {
+  const text = line.trim();
+  if (FAILURE_WORDS.test(text)) return `what was open before, "${text.replace(/\.$/, "")}".`;
+  const topic = text.replace(/^whether\s+/i, "whether ").replace(/\.$/, "");
+  return `${topic.charAt(0).toLowerCase()}${topic.slice(1)}.`;
+}
+
 export function diffVerdicts(previous: Verdict, current: Verdict): VerdictDiff {
   const before = byCode(previous.flags);
   const after = byCode(current.flags);
@@ -77,7 +93,7 @@ export function diffVerdicts(previous: Verdict, current: Verdict): VerdictDiff {
   if (appeared.length > 0) lines.push(`New: ${words(appeared)}.`);
 
   const answered = previous.questionsForSeller.filter((q) => !current.questionsForSeller.includes(q));
-  if (answered.length > 0) lines.push(`${answered.length} ${answered.length === 1 ? "question" : "questions"} the pal asked before is no longer open.`);
+  if (answered.length > 0) lines.push(`${answered.length} ${answered.length === 1 ? "question the pal asked before is" : "questions the pal asked before are"} no longer open.`);
   const asked = current.questionsForSeller.filter((q) => !previous.questionsForSeller.includes(q));
   if (asked.length > 0) lines.push(`${asked.length} new ${asked.length === 1 ? "question" : "questions"} for the seller.`);
 
@@ -87,7 +103,7 @@ export function diffVerdicts(previous: Verdict, current: Verdict): VerdictDiff {
   const openNow = couldNotVerify(current.reasoning);
   const closed = openedBefore.filter((line) => !openNow.includes(line));
   const opened = openNow.filter((line) => !openedBefore.includes(line));
-  for (const line of closed) lines.push(`The pal could not check this before and can now: ${line}`);
+  for (const line of closed) lines.push(`Now checked: ${nowChecked(line)}`);
   for (const line of opened) lines.push(`The pal could not check this on the new version: ${line}`);
 
   const price = priceLine(previous, current);

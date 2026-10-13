@@ -32,6 +32,8 @@ export interface LiveReviewState {
   certCheck: CertCheck | null;
   certChecked: boolean;
   photoReads: PhotoRead[];
+  /** The review ended, whether it finished, failed or reported only some of its checks. Nothing is pending after this. */
+  done: boolean;
   /** The review failed. The page says so rather than showing an empty result. */
   error: string | null;
 }
@@ -45,11 +47,22 @@ export const IDLE_REVIEW: LiveReviewState = {
   certCheck: null,
   certChecked: false,
   photoReads: [],
+  done: false,
   error: null,
 };
 
 export function startedReview(): LiveReviewState {
   return { ...IDLE_REVIEW, running: true };
+}
+
+/** The review ended. Whatever has not reported will not, so no line may still say it is running. */
+export function finishReview(state: LiveReviewState): LiveReviewState {
+  return { ...state, running: false, done: true };
+}
+
+/** What a lookup line says while it has not reported: running during a review, not checked once the review is over. */
+export function pendingLine(state: LiveReviewState): string {
+  return state.done ? "Not checked." : "Still running.";
 }
 
 const SEVERITY_ORDER: Record<RedFlag["severity"], number> = { stop: 0, caution: 1, info: 2 };
@@ -77,6 +90,9 @@ export function applyProgress(state: LiveReviewState, event: ReviewProgress): Li
       const without = state.photoReads.filter((p) => p.url !== event.url);
       return { ...state, photoReads: [...without, { url: event.url, readable: event.readable }] };
     }
+    default:
+      // A kind this page does not know yet is not a reason to lose the findings it already has.
+      return state;
   }
 }
 

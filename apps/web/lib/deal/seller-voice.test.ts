@@ -51,6 +51,12 @@ describe("sellerVoice, safety", () => {
   });
 });
 
+describe("sellerVoice, a model-written line", () => {
+  it("renames he outside quotes in a line the model wrote", () => {
+    expect(sellerVoice("The price is low, since he did not answer when asked.")).toBe("The price is low, since you did not answer when asked.");
+  });
+});
+
 describe("sellerStatusGroups", () => {
   it("speaks to the seller in every row and leaves the structure alone", () => {
     const groups: StatusGroup[] = [

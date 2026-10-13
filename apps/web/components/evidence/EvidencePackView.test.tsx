@@ -30,6 +30,63 @@ function pack(overrides: Partial<EvidencePack> = {}): EvidencePack {
 }
 
 describe("EvidencePackView", () => {
+  it("says the arrival explanation once: in the pal's message, not again under the mismatch", () => {
+    const explanation = "The locked card describes a console and the box arrived without it.";
+    const arrival = {
+      dealId: emptyBox.deal.id,
+      cardVersion: 1,
+      outcome: "mismatch" as const,
+      createdAt: "2026-10-10T12:20:00.000Z",
+      observed: { brand: null, model: null, serial: null },
+      palMessage: `The box arrived empty. ${explanation}`,
+      mismatches: [{ field: "other" as const, expected: "a console", observed: "no item", explanation }],
+      unsettled: [],
+    };
+    render(<EvidencePackView pack={pack({ arrivalCheck: arrival })} deal={emptyBox.deal} role="buyer" />);
+    const section = screen.getByRole("heading", { name: "Arrival check" }).closest("section")!;
+    expect(section.textContent!.split(explanation).length - 1).toBe(1);
+    expect(section).toHaveTextContent("other: card says a console, arrived no item.");
+  });
+
+  it("does not repeat a mismatch's explanation under What I found", () => {
+    const explanation = "The locked card describes a console, and the box arrived without it.";
+    const arrival = {
+      dealId: emptyBox.deal.id,
+      cardVersion: 1,
+      outcome: "mismatch" as const,
+      createdAt: "2026-10-10T12:20:00.000Z",
+      observed: { brand: null, model: null, serial: null },
+      palMessage: "The box arrived empty.",
+      mismatches: [{ field: "other" as const, expected: "a console", observed: "no item", explanation }],
+      unsettled: [],
+      reasoning: { checked: [], found: [explanation, "The box label reads AJ164952580."], couldNotVerify: [], wouldChangeMyMind: [] },
+    };
+    render(<EvidencePackView pack={pack({ arrivalCheck: arrival })} deal={emptyBox.deal} role="buyer" />);
+    const section = screen.getByRole("heading", { name: "Arrival check" }).closest("section")!;
+    expect(section.textContent!.split(explanation).length - 1).toBe(1);
+    expect(section).toHaveTextContent("The box label reads AJ164952580.");
+  });
+
+  it("says a flag's reason once: in the pal's message, not again on the flag or in What I found", () => {
+    const reason = "The serial is from the box label only. A box does not prove the item inside.";
+    const verdict = {
+      dealId: emptyBox.deal.id,
+      cardVersion: 1,
+      overall: "caution" as const,
+      flags: [{ code: "MISSING_SERIAL" as const, severity: "caution" as const, evidence: "e", explanation: reason, raisedByRule: true }],
+      priceCheck: null,
+      questionsForSeller: [],
+      palMessage: `Careful.\n- ${reason}\nI'd look again if he sends a close-up of the serial label on the console.`,
+      reasoning: { checked: ["The chat."], found: [reason], couldNotVerify: ["Nothing here shows who is holding the item."], wouldChangeMyMind: ["he sends a close-up of the serial label on the console"] },
+      createdAt: "2026-10-27T15:00:00.000Z",
+    };
+    render(<EvidencePackView pack={pack({ verdicts: [verdict] })} deal={emptyBox.deal} role="buyer" />);
+    const section = screen.getByRole("heading", { name: "Buyer Pal review" }).closest("section")!;
+    expect(section.textContent!.split(reason).length - 1).toBe(1);
+    expect(section.textContent!.split("a close-up of the serial label on the console").length - 1).toBe(1);
+    expect(section).toHaveTextContent("Nothing here shows who is holding the item.");
+  });
+
   it("lists the box serial on the locked card and says it matches the console", () => {
     render(<EvidencePackView pack={pack({ lockedCard: { ...lockedCard, serial: lockedCard.boxSerial ?? null } })} deal={emptyBox.deal} role="buyer" />);
     expect(screen.getByText("Box serial")).toBeInTheDocument();

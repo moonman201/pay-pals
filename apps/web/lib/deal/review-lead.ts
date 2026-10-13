@@ -93,6 +93,23 @@ function worstThree(flags: readonly RedFlag[]): RedFlag[] {
  */
 const MOST_ASKS = 2;
 
+/**
+ * The pal writes some asks as bare clauses ("agrees to Goods and Services", "explains whose PayPal
+ * account that is") meant to finish a sentence that already has a subject. Said alone, or after
+ * "or", they have none. Every ask gets its subject here, "he", the pal's own for the seller. The
+ * seller's room turns "he" into "you" with the verb agreeing.
+ *
+ * A full sentence (capital first letter) and a clause that already has a subject are left alone.
+ */
+const HAS_SUBJECT = /^(?:he|she|they|the seller|anything|nothing|someone|something)\b/i;
+
+/** A lowercase clause that opens on a third-person verb ("agrees", "explains"), not an article or a noun. */
+const BARE_VERB = /^(?!(?:a|an|the|any|some|more|another|one|his|this|its|is|was|as|has)\b)[a-z]+s\b/;
+
+export function withSubject(ask: string): string {
+  return BARE_VERB.test(ask) && !HAS_SUBJECT.test(ask) ? `he ${ask}` : ask;
+}
+
 function joinAsks(asks: readonly string[]): string | null {
   const cleaned = asks.map((a) => a.trim()).filter(Boolean).slice(0, MOST_ASKS);
   if (cleaned.length === 0) return null;
@@ -117,7 +134,7 @@ export function reviewLead(verdict: Verdict): ReviewLead {
   // With no flags the pal's own findings are the reasons. They are what the old
   // "What I found" group held, so dropping that group loses nothing from the page.
   const reasons = flags.length > 0 ? flags.map(reasonFor) : [...(verdict.reasoning?.found ?? [])].slice(0, 3);
-  const asks = (verdict.reasoning?.wouldChangeMyMind ?? []).map((a) => a.trim()).filter(Boolean);
+  const asks = (verdict.reasoning?.wouldChangeMyMind ?? []).map((a) => a.trim()).filter(Boolean).map(withSubject);
   return {
     headline: headlineFor(verdict),
     reasons,
