@@ -34,8 +34,13 @@ describe("allowedActions", () => {
     expect(ids("DELIVERED", "seller")).toEqual([]);
   });
 
-  it("offers nothing in terminal states", () => {
-    for (const state of ["COMPLETE", "BLOCKED", "ISSUE", "CANCELLED"] as const) {
+  // Updated 2026-10-13 for contracts v1.9.0: BLOCKED is still terminal (no path to payment) but now
+  // leads to CANCELLED, so the buyer is offered Cancel there. The seller is not.
+  it("offers nothing in terminal states, except the buyer's cancel on a blocked deal", () => {
+    expect(ids("BLOCKED", "buyer")).toEqual(["cancel"]);
+    expect(ids("BLOCKED", "seller")).toEqual([]);
+    expect(isWaitingOnOther("BLOCKED", "buyer")).toBe(false);
+    for (const state of ["COMPLETE", "ISSUE", "CANCELLED"] as const) {
       expect(ids(state, "buyer")).toEqual([]);
       expect(ids(state, "seller")).toEqual([]);
       expect(isWaitingOnOther(state, "buyer")).toBe(false);

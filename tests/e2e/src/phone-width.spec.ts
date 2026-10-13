@@ -78,4 +78,26 @@ test.describe("phone width", () => {
     }
     expect(short, `every button and link in the main flow is at least 44 px tall. Short:\n${short.join("\n")}`).toEqual([]);
   });
+
+  test("the title of a live room is wide and clear of the state chip, on both sides", async ({ page }, testInfo) => {
+    expect(testInfo.project.use.viewport?.width, "run this spec through the phone project").toBe(390);
+
+    const bad: string[] = [];
+    for (const fixture of ALL_FIXTURES) {
+      for (const side of ["buyer", "seller"] as const) {
+        const dealId = await startDemo(page, fixture, side);
+        const header = page.getByRole("banner");
+        const title = await header.getByRole("heading", { level: 1 }).boundingBox();
+        const chip = await header.getByTestId("state-chip").boundingBox();
+        if (!title || !chip) {
+          bad.push(`${fixture.id} ${side}: header title or state chip not found`);
+          continue;
+        }
+        const overlaps = title.x < chip.x + chip.width && chip.x < title.x + title.width && title.y < chip.y + chip.height && chip.y < title.y + title.height;
+        if (title.width < 300) bad.push(`${fixture.id} ${side} ${dealId}: title is ${Math.round(title.width)} px wide`);
+        if (overlaps) bad.push(`${fixture.id} ${side} ${dealId}: title overlaps the state chip`);
+      }
+    }
+    expect(bad, bad.join("\n")).toEqual([]);
+  });
 });

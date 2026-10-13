@@ -76,7 +76,9 @@ export function stateChangeNote(event: DealEvent): string | null {
  * that follows says nothing a separate row would add. `became` is the final
  * state and the hashes include every change.
  *
- * The exception is two changes that both carry a note. Each note is someone's
+ * Two exceptions. A cancel after a block is a later decision by the buyer, so it
+ * is a row of its own and never part of the review row that ended in BLOCKED.
+ * And two changes that both carry a note. Each note is someone's
  * own words and a row holds one, so the second stays a row of its own rather
  * than lose either or hand one to the wrong author.
  */
@@ -84,7 +86,8 @@ export function timelineRows(events: readonly DealEvent[]): TimelineRow[] {
   const rows: TimelineRow[] = [];
   for (const event of events) {
     const previous = rows[rows.length - 1];
-    if (event.kind === "state_changed" && previous && previous.event.kind !== "state_changed") {
+    const cancelAfterBlock = event.toState === "CANCELLED" && previous?.became === "BLOCKED";
+    if (event.kind === "state_changed" && previous && previous.event.kind !== "state_changed" && !cancelAfterBlock) {
       const note = stateChangeNote(event);
       if (previous.became === null || !(previous.note && note)) {
         previous.became = event.toState ?? null;

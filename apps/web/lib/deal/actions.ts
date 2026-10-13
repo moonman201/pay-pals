@@ -38,6 +38,8 @@ export function allowedActions(state: DealState, role: Role): DealAction[] {
   return DEAL_ACTIONS.filter((a) => {
     if (a.role !== role && a.role !== "either") return false;
     if (a.id === "agree") return state === "REVIEWED";
+    // A blocked deal ends in a cancel, and only the buyer makes it: the seller has nothing to cancel, no order exists.
+    if (a.id === "cancel" && state === "BLOCKED") return role === "buyer";
     return canTransition(state, a.to);
   });
 }

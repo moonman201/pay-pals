@@ -24,7 +24,7 @@ tests/e2e            Playwright runs of the three demo scenarios                
 ```
 Modules talk only through `packages/contracts` interfaces. apps/web is the only place modules are wired together.
 
-## Contracts (v1.8.0, Oct 10. Frozen at v1.6.0 on Oct 8; Matt approved v1.7.0 and v1.8.0 on Oct 10, see the two PROPOSAL files in `coordination/`)
+## Contracts (v1.9.0, Oct 13. v1.8.0 Oct 10. Frozen at v1.6.0 on Oct 8; Matt approved v1.7.0 and v1.8.0 on Oct 10, see the two PROPOSAL files in `coordination/`)
 
 The TypeScript in `packages/contracts/src` is the contract. This section is the summary. Where they differ, the code wins and the Lead fixes this file.
 
@@ -43,9 +43,12 @@ strictly, so every pack and check stored before today still parses.
   **A correction to the line above: this change DOES need the stored data handled.** The Lead said v1.8.0 needed no migration, which is true of a jsonb payload's ability to parse any shape and false here, because `matches` was renamed rather than added. Every arrival check already in Neon carries `matches` and no `outcome`, and `toArrival` casts rather than parses, so nothing throws and `outcome` is simply `undefined` at runtime. `packages/db`'s `toArrival` translates a legacy row once (`true` to `match`, `false` to `mismatch`, neither to `inconclusive`), a malformed payload never reads as `match`, and `toArrivalRow` writes only the new shape. No data migration: the only arrival rows in Neon are on the two seeded demo deals plus the probe deals, all of which the final deploy re-seeds or deletes.
 - **`ReviewProgress` and `ReviewOptions.onProgress`**, a fourth optional argument to `BuyerPal.review`. **This is a third change, not in the v1.8.0 proposal Matt approved.** Streaming findings to the page needs the agents package to emit while it works, and `review` was a single awaited call, so there was no non-contract way to do it short of moving the orchestration into the UI layer, which the module rules forbid. Events: `stage` for the staged status line, `flag` for a finding (a stop flag must reach the page as soon as it is raised), `priceCheck`, `certCheck`, `photoRead`. The lookups run concurrently, so these arrive in a different order every run and nothing may depend on the order. A throw from `onProgress` must not fail the review. The final `Verdict` stays the only authority; progress is never the record.
 
+### Changes in v1.9.0 (Matt approved, Oct 13)
+- **`BLOCKED` gains one exit, to `CANCELLED`.** Cancel deal is the primary action on a blocked deal and records "Buyer cancelled after a stop"; "I will pay another way" stays, smaller. `BLOCKED` stays in `TERMINAL_STATES`, which now means no path to payment, not no exits. No migration.
+
 ### Deal states
 `DRAFT -> LISTED -> REVIEWED -> AGREED -> PAYMENT_PENDING -> PAID -> SHIPPED -> DELIVERED -> COMPLETE`
-`INVITED` sits between DRAFT and LISTED for buyer-started deals (INVITED -> LISTED when the seller uploads, INVITED -> REVIEWED when the buyer has the pal review a refusal with no card). Side exits: `BLOCKED` (Buyer Pal hard stop, from REVIEWED), `ISSUE` (from PAID, SHIPPED or DELIVERED: item never arrived, wrong item, or a PayPal dispute; evidence pack built), `CANCELLED` (either party, before PAID).
+`INVITED` sits between DRAFT and LISTED for buyer-started deals (INVITED -> LISTED when the seller uploads, INVITED -> REVIEWED when the buyer has the pal review a refusal with no card). Side exits: `BLOCKED` (Buyer Pal hard stop, from REVIEWED; can only move on to CANCELLED), `ISSUE` (from PAID, SHIPPED or DELIVERED: item never arrived, wrong item, or a PayPal dispute; evidence pack built), `CANCELLED` (either party, before PAID).
 Rule: the item card can change until AGREED. Both sides agree to a card version (`Deal.buyerAgreedAt`, `Deal.sellerAgreedAt`); a new version clears both; when the second agreement lands the card locks and the deal moves to AGREED. The locked card becomes the PayPal order description. Any change after that requires a new deal.
 
 ### ItemCard (versioned)

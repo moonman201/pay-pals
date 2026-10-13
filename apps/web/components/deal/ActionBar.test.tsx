@@ -82,9 +82,38 @@ describe("ActionBar: buttons per state and role", () => {
   });
 
   it("terminal states show no buttons and the ending", () => {
-    renderBar({ state: "BLOCKED", role: "buyer" });
+    renderBar({ state: "CANCELLED", role: "buyer" });
+    expect(buttonNames()).toEqual([]);
+    expect(screen.getByText("This deal was cancelled before any money moved.")).toBeInTheDocument();
+  });
+
+  it("BLOCKED: the buyer gets Cancel deal as the one primary button, after the ending", async () => {
+    const onAction = renderBar({ state: "BLOCKED", role: "buyer" });
+    expect(screen.getByText(new RegExp(BLOCKED_SENTENCE.slice(0, 30)))).toBeInTheDocument();
+    expect(buttonNames()).toEqual(["Cancel deal"]);
+    await userEvent.click(screen.getByRole("button", { name: "Cancel deal" }));
+    expect(onAction).toHaveBeenCalledWith("cancel");
+  });
+
+  it("BLOCKED: the seller has no Cancel button", () => {
+    renderBar({ state: "BLOCKED", role: "seller" });
     expect(buttonNames()).toEqual([]);
     expect(screen.getByText(new RegExp(BLOCKED_SENTENCE.slice(0, 30)))).toBeInTheDocument();
+  });
+
+  it("BLOCKED on a seeded example deal: no Cancel button even for the buyer", () => {
+    renderBar({ state: "BLOCKED", role: "buyer", example: true });
+    expect(buttonNames()).toEqual([]);
+  });
+
+  it("offers the evidence pack link only when a pack exists", () => {
+    renderBar({ state: "COMPLETE", role: "buyer", hasLockedCard: true, hasEvidence: false });
+    expect(screen.queryByRole("link", { name: "Open the evidence pack" })).not.toBeInTheDocument();
+  });
+
+  it("links to the evidence pack once one is built", () => {
+    renderBar({ state: "ISSUE", role: "buyer", hasLockedCard: true, hasEvidence: true });
+    expect(screen.getByRole("link", { name: "Open the evidence pack" })).toHaveAttribute("href", "/deals/d1/evidence?as=buyer");
   });
 
   it("names the stage the pal is on while a review runs, so a long wait is not a frozen button", () => {

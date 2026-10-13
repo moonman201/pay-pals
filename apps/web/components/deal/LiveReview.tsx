@@ -12,6 +12,17 @@ import { FlagEvidence } from "./FlagEvidence";
 
 const FLAG_TONE: Record<RedFlag["severity"], Tone> = { info: "neutral", caution: "caution", stop: "stop" };
 
+const NO_CERT = "No cert number on the card, so there was nothing to check.";
+
+/** A card with no cert has nothing to wait for, so it never says "Still running". */
+function certLine(state: LiveReviewState, hasCert: boolean): string {
+  if (!hasCert || (state.certChecked && !state.certCheck)) return NO_CERT;
+  if (!state.certChecked) return "Still running.";
+  if (state.certCheck?.matches === true) return "The grader's record agrees with the card.";
+  if (state.certCheck?.matches === false) return "The grader's record does not agree with the card.";
+  return "Could not be compared.";
+}
+
 /**
  * The review while it is still running: findings appear the moment they land
  * (Decision 19), and the panel never reads as a finished result (Decision 20).
@@ -22,12 +33,13 @@ const FLAG_TONE: Record<RedFlag["severity"], Tone> = { info: "neutral", caution:
  * impossible to screenshot. A stop still shows the moment it lands; it just
  * lands at the top.
  */
-export function LiveReview({ state }: { state: LiveReviewState }) {
+export function LiveReview({ state, photoTotal = 0, hasCert = true }: { state: LiveReviewState; photoTotal?: number; hasCert?: boolean }) {
   const flags = orderedFlags(state.flags);
   const stop = hasStopFlag(state);
   return (
     <Panel
       title="Buyer Pal review, in progress"
+      id="live-review"
       labelAs="region"
       aside={
         <Badge tone={stop ? "stop" : "neutral"} data-testid="live-review-badge">
@@ -81,15 +93,7 @@ export function LiveReview({ state }: { state: LiveReviewState }) {
           <div>
             <dt className="text-xs font-semibold uppercase tracking-wide text-muted">Cert check</dt>
             <dd data-testid="live-cert">
-              {state.certChecked
-                ? state.certCheck
-                  ? state.certCheck.matches === true
-                    ? "The grader's record agrees with the card."
-                    : state.certCheck.matches === false
-                      ? "The grader's record does not agree with the card."
-                      : "Could not be compared."
-                  : "No cert number on the card, so there was nothing to check."
-                : "Still running."}
+              {certLine(state, hasCert)}
             </dd>
           </div>
           <div className="sm:col-span-2">
@@ -97,7 +101,7 @@ export function LiveReview({ state }: { state: LiveReviewState }) {
             <dd data-testid="live-photos">
               {state.photoReads.length === 0
                 ? "Still running."
-                : `${state.photoReads.filter((p) => p.readable).length} of ${state.photoReads.length} read so far.`}
+                : `${state.photoReads.filter((p) => p.readable).length} of ${Math.max(photoTotal, state.photoReads.length)} read so far.`}
             </dd>
           </div>
         </dl>

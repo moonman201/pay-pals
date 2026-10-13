@@ -3,6 +3,7 @@ import type { Deal } from "@pay-pals/contracts";
 import type { Role } from "../../role";
 import type { Services } from "../../services";
 import { FlowError } from "../errors";
+import { readSeedStamp } from "../../demo/seed-version";
 import { ISSUE_REASON_LABELS, issueReasonsFor, type IssueReason } from "../issue";
 import { buildEvidence } from "./evidence";
 import { expectState, mustDeal, say } from "./shared";
@@ -42,8 +43,24 @@ export async function reportIssue(services: Services, dealId: string, reason: Is
   return updated;
 }
 
+/** What the record and the seller read when the buyer walks away from a deal the Buyer Pal stopped. */
+export const CANCELLED_AFTER_STOP_SUMMARY = "Buyer cancelled after a stop.";
+export const CANCELLED_AFTER_STOP_SELLER_LINE = "The buyer cancelled this deal after the Buyer Pal's stop. Nothing was paid.";
+export const EXAMPLE_NOT_CANCELLABLE = "This is an example deal. It stays as it is so the next visitor can see it. Start your own copy from the landing page to try Cancel.";
+
 export async function cancelDeal(services: Services, dealId: string, by: Role): Promise<Deal> {
-  await mustDeal(services, dealId);
+  const deal = await mustDeal(services, dealId);
+  const events = await services.store.listEvents(dealId);
+  // A visitor must not be able to cancel the finished deals the landing page shows.
+  if (readSeedStamp(events.find((e) => e.kind === "deal_created")?.data) !== null) throw new FlowError(EXAMPLE_NOT_CANCELLABLE, 403);
+  if (deal.state === "BLOCKED") {
+    // Only the buyer walks away from a stop. The seller has nothing to cancel: no order exists.
+    if (by !== "buyer") throw new FlowError("Only the buyer can cancel a deal the Buyer Pal stopped.", 403);
+    const updated = await services.store.transition(dealId, "CANCELLED", by, CANCELLED_AFTER_STOP_SUMMARY);
+    await say(services, dealId, "deal", by, "I am cancelling this deal.");
+    await say(services, dealId, "seller_pal", "seller_pal", CANCELLED_AFTER_STOP_SELLER_LINE);
+    return updated;
+  }
   const updated = await services.store.transition(dealId, "CANCELLED", by, `Cancelled by the ${by}.`);
   await say(services, dealId, "deal", by, "I am cancelling this deal.");
   return updated;
