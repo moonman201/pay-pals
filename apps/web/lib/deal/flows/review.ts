@@ -6,7 +6,7 @@
  * In INVITED there is no card yet: the pal reviews the chat and the refusal
  * alone, and the deal moves INVITED -> REVIEWED (-> BLOCKED on a refusal).
  */
-import { isPaymentMethodFlag, type Deal, type DealEvent, type ReviewContext, type ReviewProgress, type Verdict } from "@pay-pals/contracts";
+import { isPaymentMethodFlag, type Deal, type DealEvent, type Message, type ReviewContext, type ReviewProgress, type Verdict } from "@pay-pals/contracts";
 import type { Services } from "../../services";
 import { FlowError } from "../errors";
 import { absoluteCard, absoluteMessages } from "../photo-urls";
@@ -16,6 +16,24 @@ export const BLOCK_SUMMARY = "Blocked. Pay Pals will not move money outside a Go
 
 export function wasInviteDeclined(events: readonly DealEvent[]): boolean {
   return events.some((e) => e.kind === "invite_declined");
+}
+
+function normalizeQuestion(text: string): string {
+  return text.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+}
+
+/**
+ * The questions the Buyer Pal has not already put in this deal's chat. A
+ * question counts as asked when its normalized text sits inside something
+ * the Buyer Pal said there, because earlier questions were posted merged
+ * into one message.
+ */
+export function unaskedQuestions(questions: readonly string[], chat: readonly Message[]): string[] {
+  const said = chat.filter((m) => m.channel === "deal" && m.author === "buyer_pal").map((m) => normalizeQuestion(m.text));
+  return questions.filter((q) => {
+    const key = normalizeQuestion(q);
+    return key !== "" && !said.some((text) => text.includes(key));
+  });
 }
 
 /** Everything the Buyer Pal should know beyond the card and the chat. Built the same way for every review. */
@@ -76,7 +94,8 @@ export async function runReview(services: Services, dealId: string, options: Run
     // No "Buyer Pal to seller:" prefix. Every message in this channel already
     // shows who said it and who the other side is, so the prefix was the third
     // time the same page named them (Matt's rule 1).
-    await say(services, dealId, "deal", "buyer_pal", verdict.questionsForSeller.join(" "));
+    const fresh = unaskedQuestions(verdict.questionsForSeller, chat);
+    if (fresh.length > 0) await say(services, dealId, "deal", "buyer_pal", fresh.join(" "));
   }
 
   if (verdict.flags.some(isPaymentMethodFlag)) {
