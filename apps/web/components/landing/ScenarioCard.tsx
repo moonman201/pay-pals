@@ -2,6 +2,8 @@ import type { ScenarioFixture } from "@pay-pals/contracts";
 import Link from "next/link";
 import { PalAvatar } from "../pal/PalAvatar";
 import { buttonClass } from "../ui/Button";
+import { HappyPath } from "./HappyPath";
+import type { PathStep } from "./happy-path";
 import { ArrowIcon, IssueIcon, ShieldCheckIcon, ShieldStopIcon } from "../ui/icons";
 
 type Outcome = { kind: "blocked" | "complete" | "issue"; line: string };
@@ -40,7 +42,7 @@ function OutcomeMark({ kind }: { kind: Outcome["kind"] }) {
  * with forever. /deals/finished/<scenario> resolves the current one at
  * request time, so a page rendered last week still works.
  */
-export function ScenarioCard({ fixture, hasFinishedDeal }: { fixture: ScenarioFixture; hasFinishedDeal: boolean }) {
+export function ScenarioCard({ fixture, hasFinishedDeal, path }: { fixture: ScenarioFixture; hasFinishedDeal: boolean; path?: PathStep[] }) {
   const ending = ENDINGS[fixture.id];
   return (
     <article className="theme-buyer in-box flex flex-col rounded-2xl border border-line bg-surface p-5 shadow-card">
@@ -53,6 +55,7 @@ export function ScenarioCard({ fixture, hasFinishedDeal }: { fixture: ScenarioFi
       </div>
       <h3 className="mt-3 text-xl font-bold text-navy">{fixture.name}</h3>
       <p className="mt-2 flex-1 text-sm leading-relaxed text-ink">{fixture.summary}</p>
+      {path && path.length > 0 ? <HappyPath steps={path} /> : null}
       <p className="mt-3 text-xs text-muted">{ending.line}</p>
       <form method="post" action="/api/demo/start" className="mt-4 grid grid-cols-2 gap-2">
         <input type="hidden" name="scenario" value={fixture.id} />
