@@ -10,7 +10,7 @@
  * the chain a reader can check is still all there and still in order; that
  * is the point of showing fingerprints at all.
  */
-import type { DealEvent, DealState } from "@pay-pals/contracts";
+import type { Actor, DealEvent, DealState } from "@pay-pals/contracts";
 import { STATE_LABELS } from "../labels";
 
 export interface TimelineRow {
@@ -23,6 +23,13 @@ export interface TimelineRow {
    * name. Null for the bare ones, which is most of them.
    */
   note: string | null;
+  /**
+   * Who wrote the note: the actor on the folded state change, which is not
+   * always the actor on the anchor. On the empty-box deal the Buyer Pal ran
+   * the arrival check and the buyer opened the issue, so the note is the
+   * buyer's. Null when there is no note.
+   */
+  noteActor: Actor | null;
   /** Every fingerprint folded into this row, the anchor's first. Short, in chain order. */
   hashes: string[];
 }
@@ -76,10 +83,11 @@ export function timelineRows(events: readonly DealEvent[]): TimelineRow[] {
     if (event.kind === "state_changed" && previous && previous.event.kind !== "state_changed" && previous.became === null) {
       previous.became = event.toState ?? null;
       previous.note = stateChangeNote(event);
+      previous.noteActor = previous.note ? event.actor : null;
       previous.hashes.push(...shortHash(event));
       continue;
     }
-    rows.push({ event, became: null, note: null, hashes: shortHash(event) });
+    rows.push({ event, became: null, note: null, noteActor: null, hashes: shortHash(event) });
   }
   return rows;
 }

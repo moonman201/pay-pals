@@ -82,4 +82,24 @@ describe("timelineRows", () => {
   it("has nothing to do with an empty timeline", () => {
     expect(timelineRows([])).toEqual([]);
   });
+
+  it("attributes a folded note to the actor who wrote it, not the row's actor", () => {
+    const rows = timelineRows([
+      event({ id: "1", kind: "arrival_checked", actor: "buyer_pal", summary: "Arrival does not match." }),
+      event({ id: "2", kind: "state_changed", actor: "buyer", toState: "ISSUE", summary: "Issue opened: the box arrived empty." }),
+    ]);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.event.actor).toBe("buyer_pal");
+    expect(rows[0]!.note).toBe("Issue opened: the box arrived empty.");
+    expect(rows[0]!.noteActor).toBe("buyer");
+  });
+
+  it("has no note actor when there is no note", () => {
+    const rows = timelineRows([
+      event({ id: "1", kind: "agreed", actor: "buyer" }),
+      event({ id: "2", kind: "state_changed", actor: "system", toState: "AGREED", summary: "Agreed." }),
+    ]);
+    expect(rows[0]!.note).toBeNull();
+    expect(rows[0]!.noteActor).toBeNull();
+  });
 });

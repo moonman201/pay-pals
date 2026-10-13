@@ -13,15 +13,21 @@ describe("issueOpened", () => {
     expect(found.at).toBe(OPENED.at);
   });
 
-  it("says nothing on a seeded deal, whose summary carries no reason", () => {
-    // The fixture writes the bare "Issue opened." Printing that under a heading
-    // promising the buyer's words would claim more than the deal holds: nobody
-    // chose those words, the code did.
-    expect(OPENED.summary).toBe("Issue opened.");
-    expect(issueOpened(emptyBox.timeline)).toBeNull();
-    for (const bare of ["Issue opened.", "issue opened", "Issue opened:", "  Issue opened. "]) {
+  // 2026-10-12: this test used to assert the empty-box fixture's summary was
+  // the bare "Issue opened." and that issueOpened returned null for it. Commit
+  // 67b962d gave the fixture the buyer's own reason, so the expectation was
+  // wrong, not the code (PLAN.md Decision 16). The rule is now tested on
+  // constructed summaries, and the seeded deal is asserted to yield a reason.
+  it("says nothing when the summary is only the lead-in, in any casing or punctuation", () => {
+    for (const bare of ["Issue opened.", "issue opened", "Issue opened:", "  Issue opened. ", "ISSUE OPENED."]) {
       expect(issueOpened(withSummary(bare)), bare).toBeNull();
     }
+  });
+
+  it("gives the seeded empty-box deal's reason, because the fixture carries the buyer's own words", () => {
+    const found = issueOpened(emptyBox.timeline)!;
+    expect(found).not.toBeNull();
+    expect(found.summary).toContain("The box arrived empty");
   });
 
   it("says nothing on a deal where nobody opened an issue", () => {
