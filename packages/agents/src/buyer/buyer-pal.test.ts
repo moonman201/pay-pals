@@ -242,8 +242,11 @@ describe("BuyerPal.review reused photos", () => {
     expect(flag).toBeDefined();
     expect(flag.severity).toBe("caution");
     expect(flag.raisedByRule).toBe(true);
-    expect(flag.evidence).toContain("the reference set (slab-front.png)");
-    expect(flag.evidence).not.toContain("clean-ps5");
+    expect(flag.evidence).toBe("Near match to a listing photo already on file.");
+    // The source and the fingerprint detail moved to the reasoning, where the closest match is named.
+    const closest = verdict.reasoning!.found.find((l) => l.startsWith("Closest photo on file:"))!;
+    expect(closest).toContain("the reference set (slab-front.png)");
+    expect(closest).not.toContain("clean-ps5");
   });
 
   it("is silent with no known photos, with images that do not load, and never matches a photo against itself", async () => {

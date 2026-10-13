@@ -20,12 +20,10 @@
  */
 import type { Rule } from "./types";
 import { flag } from "./text";
-import { HASH_BITS, NEAR_DUPLICATE_DISTANCE } from "../vision/phash";
 
 export const stockPhotoRule: Rule = ({ card, photoMatches }) => {
   if (!card || !photoMatches || photoMatches.length === 0) return [];
   const best = [...photoMatches].sort((a, b) => a.distance - b.distance)[0]!;
-  const others = photoMatches.length - 1;
   // Matt's line was written for the slab deal, whose card carries one photo. On a card with
   // several it would have been false, and a sentence that is true only on the scenario it was
   // written for is the kind of thing nobody notices until the demo changes.
@@ -34,11 +32,10 @@ export const stockPhotoRule: Rule = ({ card, photoMatches }) => {
     flag(
       "STOCK_OR_REUSED_PHOTO",
       "caution",
-      // The distance is the honest part, so the sentence in front of it must hold at every
-      // distance this rule fires at, which is 0 to NEAR_DUPLICATE_DISTANCE. "Exact" held only at
-      // 0 and contradicted the number sitting right after it everywhere else. The threshold is
-      // named so the number can actually be read: "3 of 64" means nothing without it.
-      `Matches a listing photo already on file: ${best.source}. Image fingerprints differ by ${best.distance} of ${HASH_BITS} bits, and ${NEAR_DUPLICATE_DISTANCE} or fewer counts as the same picture${others > 0 ? `; ${others} more photo${others === 1 ? "" : "s"} matched too` : ""}`,
+      // "Exact" holds only at distance 0. A near match, 1 to NEAR_DUPLICATE_DISTANCE bits, says
+      // "Near match" instead. The fingerprint numbers are not in the quote; the reasoning's
+      // "found" group carries them (buyer/review-reasons.ts).
+      best.distance === 0 ? "Exact match to a listing photo already on file." : "Near match to a listing photo already on file.",
       `${whose} matches a listing photo already on file.`,
     ),
   ];

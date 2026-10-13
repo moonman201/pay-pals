@@ -300,6 +300,7 @@ export async function reviewCard(
     readings,
     seller: context?.seller ?? null,
     photoMatchRan,
+    photoMatches,
     modelAvailable: deps.client !== null,
     serialReadFromPhoto,
   };

@@ -21,6 +21,8 @@
  */
 import type { CertCheck, ItemCard, Party, PriceCheck, RedFlag, VerdictOverall } from "@pay-pals/contracts";
 import { PAYMENT_METHOD_FLAGS } from "@pay-pals/contracts";
+import type { PhotoMatch } from "../rules/types";
+import { HASH_BITS, NEAR_DUPLICATE_DISTANCE } from "../vision/phash";
 import { deviceFamily } from "../seller/listing-parse";
 import { checkPayeeName } from "../rules/name-mismatch";
 import { normalizeSerial } from "../vision/description";
@@ -52,6 +54,8 @@ export interface ReviewReasonInput {
   seller: Pick<Party, "displayName" | "email"> | null;
   /** True when the card's photos were compared against a set of known listing photos. */
   photoMatchRan: boolean;
+  /** The card photos that matched one on file. Optional; only the fingerprint line in `found` reads it. */
+  photoMatches?: PhotoMatch[];
   /** False when no Claude client was available, so the review is rules only. */
   modelAvailable: boolean;
   /** True when a serial was read off one of the card's photos, so the near-miss band applies. */
@@ -88,6 +92,12 @@ function found(input: ReviewReasonInput): ReasonLine[] {
   const lines: ReasonLine[] = [];
   // The flags come first: they are what the verdict turns on, and their wording is already the plain one the buyer reads.
   for (const flag of flags) lines.push(flag.explanation);
+  // The fingerprint detail the reused-photo evidence line no longer carries. It lives here so the
+  // number is still readable, next to the threshold that gives it meaning.
+  const closest = [...(input.photoMatches ?? [])].sort((a, b) => a.distance - b.distance)[0];
+  if (closest && flags.some((f) => f.code === "STOCK_OR_REUSED_PHOTO")) {
+    lines.push(`Closest photo on file: ${closest.source}. The image fingerprints differ by ${closest.distance} of ${HASH_BITS} bits, and ${NEAR_DUPLICATE_DISTANCE} or fewer counts as the same picture.`);
+  }
   if (flags.length === 0) lines.push("Nothing in the chat matched a pattern Pay Pals checks for.");
   if (card && priceCheck && priceCheck.marketLow > 0 && !has(flags, "PRICE_FAR_BELOW_MARKET")) {
     lines.push(
