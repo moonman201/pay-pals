@@ -160,7 +160,7 @@ test.describe("finished demo deals, desktop and phone", () => {
         await expect(header.getByText(/History unchanged since PayPal order/)).toHaveCount(0);
         if (fixture.payment) {
           const payment = page.locator("section").filter({ has: page.getByRole("heading", { name: "Payment" }) });
-          await expect(payment.getByText("Example order id", { exact: true })).toBeVisible();
+          await expect(payment.getByText("Order id", { exact: true })).toBeVisible();
           await expect(payment.getByText(/no PayPal order was created/)).toBeVisible();
           await expect(payment.getByText("PayPal order", { exact: true })).toHaveCount(0);
         }
@@ -209,13 +209,14 @@ test.describe("finished demo deals, desktop and phone", () => {
           const history = page.locator("section").filter({ has: page.getByRole("heading", { name: "Tamper-evident history" }) });
           await expect(history).toBeVisible();
           // J6: a seeded example says its chain is intact but not anchored in a PayPal order; it never claims verified.
-          await expect(page.getByText("Example deal, seeded from a scenario").first()).toBeVisible();
-          await expect(history).toContainText(/\(example deal, no PayPal order\)/);
-          await expect(history).toContainText("the payment ids are placeholders");
+          // Said once, as the banner at the top of the pack; the history section keeps only the anchor sentence.
+          await expect(page.getByTestId("example-banner")).toContainText("Example deal, seeded from a scenario");
+          await expect(page.getByTestId("example-banner")).toContainText("payment ids are placeholders");
+          await expect(history).toContainText(/not read back from PayPal|No PayPal order holds this hash/);
           await expect(history).not.toContainText(/Does not verify|do not reproduce|PayPal's own record holds it|Verified: the stored events/);
           if (fixture.payment) {
             const paymentSection = page.locator("section").filter({ has: page.getByRole("heading", { name: "Payment" }) });
-            await expect(paymentSection).toContainText(`Example order id ${fixture.payment.paypalOrderId}`);
+            await expect(paymentSection).toContainText(`Order ${fixture.payment.paypalOrderId}`);
           }
           await expectCaptionsOnce(page, `${id} evidence page at ${size.width}px (${evidenceShot})`);
         } else {
