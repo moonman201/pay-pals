@@ -119,7 +119,8 @@ export function ItemCardView({ cards, currentVersion, lockedVersion, certCheck =
         {card.grade ? <Field label="Grade">{card.grade}</Field> : null}
         {card.boxSerial ? (
           <Field label="Box serial">
-            <span className="font-mono">{card.boxSerial}</span> <span className={`text-xs font-semibold ${BOX_SERIAL_TONE[boxSerialStatus(card)]}`}>{boxSerialLabel(card)}</span>
+            <span className="font-mono">{card.boxSerial}</span>{/* While the console serial is unread, the Serial row above already says so. */}
+            {boxSerialStatus(card) === "unread" ? null : <span className={`ml-1 text-xs font-semibold ${BOX_SERIAL_TONE[boxSerialStatus(card)]}`}>{boxSerialLabel(card)}</span>}
           </Field>
         ) : null}
         <Field label="Condition">{CONDITION_LABELS[card.conditionGrade]}</Field>

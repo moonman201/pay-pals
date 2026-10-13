@@ -328,7 +328,7 @@ function reviewNote(verdict: Verdict | null): StatusNote | null {
   const flags = verdict.flags.filter((f) => f.severity !== "info").length;
   if (flags > 0) parts.push(plural(flags, "flag", "flags"));
   if (open > 0) parts.push(`${open} it could not check`);
-  if (asked > 0) parts.push(plural(asked, "open question", "open questions"));
+  if (asked > 0) parts.push(`${plural(asked, "question", "questions")} for the seller`);
   if (parts.length === 0) return null;
   return {
     text: `The Buyer Pal raised ${list(parts)} on card version ${verdict.cardVersion}.`,

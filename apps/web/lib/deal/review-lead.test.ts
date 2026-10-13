@@ -90,6 +90,13 @@ describe("reviewLead", () => {
     expect(reviewLead(verdict()).lookAgain).toBeNull();
   });
 
+  it("joins asks written as clauses with or, and ends the line", () => {
+    const wouldChangeMyMind = ["he sends a close-up of the serial on the console", "a clear photo of the sticker matching the box serial"];
+    const lead = reviewLead(verdict({ reasoning: { checked: [], found: [], couldNotVerify: [], wouldChangeMyMind } }));
+    expect(lead.lookAgain).toBe("he sends a close-up of the serial on the console or a clear photo of the sticker matching the box serial.");
+    expect(reviewLead(verdict({ reasoning: { checked: [], found: [], couldNotVerify: [], wouldChangeMyMind: ["anything pushes you to pay another way"] } })).lookAgain).toBe("anything pushes you to pay another way.");
+  });
+
   it("takes two asks at most, because five of them is the paragraph this replaced", () => {
     const five = ["One would change this.", "Two would change this.", "Three would change this.", "Four would change this.", "Five would change this."];
     const line = reviewLead(verdict({ reasoning: { checked: [], found: [], couldNotVerify: [], wouldChangeMyMind: five } })).lookAgain!;
