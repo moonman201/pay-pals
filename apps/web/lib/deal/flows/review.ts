@@ -23,17 +23,32 @@ function normalizeQuestion(text: string): string {
 }
 
 /**
- * The questions the Buyer Pal has not already put in this deal's chat. A
- * question counts as asked when its normalized text sits inside something
- * the Buyer Pal said there, because earlier questions were posted merged
- * into one message.
+ * The questions the Buyer Pal has not already put in this deal's chat.
+ *
+ * Questions are posted merged into one message, so both sides are split into
+ * sentences first and compared whole, normalized for case and punctuation.
+ * A substring match would call "Is it new?" asked after "Is it newer than
+ * 2020?". A sentence repeated within the batch is kept once.
  */
+function sentences(text: string): string[] {
+  return text.split(/(?<=[.?!])\s+/).map((s) => s.trim()).filter(Boolean);
+}
+
 export function unaskedQuestions(questions: readonly string[], chat: readonly Message[]): string[] {
-  const said = chat.filter((m) => m.channel === "deal" && m.author === "buyer_pal").map((m) => normalizeQuestion(m.text));
-  return questions.filter((q) => {
-    const key = normalizeQuestion(q);
-    return key !== "" && !said.some((text) => text.includes(key));
-  });
+  const seen = new Set(
+    chat
+      .filter((m) => m.channel === "deal" && m.author === "buyer_pal")
+      .flatMap((m) => sentences(m.text))
+      .map(normalizeQuestion),
+  );
+  const fresh: string[] = [];
+  for (const sentence of questions.flatMap(sentences)) {
+    const key = normalizeQuestion(sentence);
+    if (key === "" || seen.has(key)) continue;
+    seen.add(key);
+    fresh.push(sentence);
+  }
+  return fresh;
 }
 
 /** Everything the Buyer Pal should know beyond the card and the chat. Built the same way for every review. */

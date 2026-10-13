@@ -25,7 +25,7 @@ import { createMemoryDealStore, createPostgresDealStore, createReplayClock, syst
 import { createPayPalGateway, handleWebhookEvent, loadPayPalConfig, type PayPalsGateway, type WebhookOutcome } from "@pay-pals/paypal";
 import path from "node:path";
 import { photoBase } from "./deal/photo-urls";
-import { buildKnownPhotos } from "./demo/known-photos";
+import { buildKnownPhotos, localAwareFetcher } from "./demo/known-photos";
 import { asDealFinder, seedFixtureDeals, seedFixtureDealsIfMissing } from "./demo/seed-fixtures";
 import { loadRootEnvLocal } from "./env";
 import { isPublicMode, publicModeLine } from "./public-mode";
@@ -120,7 +120,7 @@ export function createServices(env: Env = process.env, log: Log = (line) => cons
   const publicMode = isPublicMode(env, publicDir);
   log(publicModeLine(publicMode, env));
   const sellerPal = createSellerPal({ anthropic, photoBaseUrl, publicMode });
-  const buyerPal = createBuyerPal({ anthropic, priceLookup, certLookup, knownPhotos, photoBaseUrl, publicMode });
+  const buyerPal = createBuyerPal({ anthropic, priceLookup, certLookup, knownPhotos, photoBaseUrl, publicMode, fetchImage: localAwareFetcher(publicDir) });
   log(`[pay-pals] photos: ${knownPhotos.length} known photos for the reused-photo check, base URL ${photoBaseUrl ? "configured" : "from each request"}`);
   const buildEvidencePack = createEvidencePackBuilder({ anthropic, publicMode });
   const paypal = modes.paypal === "sandbox" ? createPayPalGateway(loadPayPalConfig(env)) : createMockPayPalGateway();

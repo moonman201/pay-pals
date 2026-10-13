@@ -1,9 +1,10 @@
 import { ALL_FIXTURES } from "@pay-pals/contracts";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { isFetchableUrl } from "@pay-pals/agents";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { buildKnownPhotos, referencePhotoFiles } from "./known-photos";
+import { buildKnownPhotos, LOCAL_REFERENCE_ORIGIN, localAwareFetcher, referencePhotoFiles } from "./known-photos";
 
 describe("buildKnownPhotos", () => {
   let publicDir: string;
@@ -38,9 +39,27 @@ describe("buildKnownPhotos", () => {
     for (const url of cardPhotos) expect(list.some((known) => known.url.endsWith(url))).toBe(false);
   });
 
-  it("keeps URLs relative when no base is known, and copes with no reference folder", () => {
+  it("points at the local reader when no base is known, so the check works without NEXT_PUBLIC_APP_URL", async () => {
     reference("slab-listing.jpg");
-    expect(buildKnownPhotos(null, publicDir)).toEqual([{ url: "/fixtures/reference/slab-listing.jpg", source: "reference set: slab-listing.jpg" }]);
+    const real = path.resolve(__dirname, "../../public/fixtures/reference/slab-listing.jpg");
+    writeFileSync(path.join(publicDir, "fixtures", "reference", "slab-listing.jpg"), readFileSync(real));
+    const [entry] = buildKnownPhotos(null, publicDir);
+    expect(entry).toEqual({ url: `${LOCAL_REFERENCE_ORIGIN}/fixtures/reference/slab-listing.jpg`, source: "reference set: slab-listing.jpg" });
+    expect(isFetchableUrl(entry!.url)).toBe(true);
+    const image = await localAwareFetcher(publicDir, async () => null)(entry!.url);
+    expect(image?.mediaType).toBe("image/jpeg");
+    expect(Buffer.from(image!.data, "base64").equals(readFileSync(real))).toBe(true);
+  });
+
+  it("sends any other URL to the normal fetcher and finds nothing for a missing reference file", async () => {
+    const seen: string[] = [];
+    const fetcher = localAwareFetcher(publicDir, async (url) => (seen.push(url), null));
+    await fetcher("https://example.com/a.jpg");
+    expect(seen).toEqual(["https://example.com/a.jpg"]);
+    expect(await fetcher(`${LOCAL_REFERENCE_ORIGIN}/fixtures/reference/nope.jpg`)).toBeNull();
+  });
+
+  it("copes with no reference folder", () => {
     expect(referencePhotoFiles(path.join(publicDir, "missing"))).toEqual([]);
     expect(buildKnownPhotos(null, path.join(publicDir, "missing"))).toEqual([]);
   });

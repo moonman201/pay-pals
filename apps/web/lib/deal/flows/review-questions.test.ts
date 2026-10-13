@@ -40,6 +40,23 @@ describe("unaskedQuestions", () => {
     expect(unaskedQuestions(["Is the box sealed?", "Does it include a controller?"], [merged])).toEqual(["Does it include a controller?"]);
   });
 
+  it("does not repost a merged question whose parts were each asked before", () => {
+    const earlier = [said("Is the box sealed?"), said("What is the serial?")];
+    expect(unaskedQuestions(["Is the box sealed? What is the serial?"], earlier)).toEqual([]);
+  });
+
+  it("posts only the new part of a merged question", () => {
+    expect(unaskedQuestions(["Is the box sealed? What is the serial?"], [said("Is the box sealed?")])).toEqual(["What is the serial?"]);
+  });
+
+  it("does not take a longer question as having asked a shorter one", () => {
+    expect(unaskedQuestions(["Is it new?"], [said("Is it newer than 2020?")])).toEqual(["Is it new?"]);
+  });
+
+  it("keeps a question once when the verdict lists it twice", () => {
+    expect(unaskedQuestions(["Is the box sealed?", "is the box sealed", "Is the box sealed? Is it new?"], [])).toEqual(["Is the box sealed?", "Is it new?"]);
+  });
+
   it("ignores what the seller or the other channels said", () => {
     const sellerLine = { ...said("Is the box sealed?"), author: "seller" as const };
     expect(unaskedQuestions(["Is the box sealed?"], [sellerLine])).toEqual(["Is the box sealed?"]);
