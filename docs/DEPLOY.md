@@ -37,7 +37,7 @@ Do not set `PAY_PALS_DEMO_ONLY` in production. It is a test knob.
 
 ## The sandbox test buyer
 1. developer.paypal.com > Testing Tools > Sandbox Accounts. Use the developer account that owns the sandbox app whose client id is in `PAYPAL_CLIENT_ID`; an account from another developer account cannot pay that app's orders.
-2. Pick the **Personal** account that is not `SANDBOX_SELLER_PERSONAL_EMAIL` (the default `...-buyer@personal.example.com` one works). Open it, note the email, and under "View/Edit account" set a password you are happy to show on a public page. It is a sandbox account with no real money.
+2. Pick the **Personal** account that is not `SANDBOX_SELLER_PERSONAL_EMAIL`. Open it, note the email, and under "View/Edit account" set a password you are happy to show on a public page. It is a sandbox account with no real money.
 3. Vercel > the project > Settings > Environment Variables: add `SANDBOX_BUYER_EMAIL` and `SANDBOX_BUYER_PASSWORD` for Production (and Preview if wanted). Confirm `SANDBOX_SELLER_PERSONAL_EMAIL` is already set.
 4. Redeploy (Deployments > the latest > Redeploy, or the next push). An env change reaches only new deployments.
 5. Verify as a judge: open the landing, Clean deal > **Play as buyer**, review, add the close-up as the seller, review again, agree on both sides. The pay panel must show the test account's email and password. Press PayPal, sign in with them in the popup and approve. The deal moves to Paid, the timeline gets a payment line, and the pay panel's "Confirmed by PayPal" half shows the order and capture read back from PayPal.
