@@ -1,7 +1,7 @@
 import { cleanPs5, type RedFlag, type ReviewProgress } from "@pay-pals/contracts";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { applyProgress, startedReview } from "@/lib/deal/live-review";
+import { applyProgress, finishReview, startedReview } from "@/lib/deal/live-review";
 import { LiveReview } from "./LiveReview";
 
 function flag(code: RedFlag["code"], severity: RedFlag["severity"]): RedFlag {
@@ -18,6 +18,20 @@ describe("LiveReview", () => {
     expect(screen.queryByTestId("live-flags")).not.toBeInTheDocument();
     expect(screen.getByTestId("live-price")).toHaveTextContent("Still running.");
     expect(screen.getByTestId("live-cert")).toHaveTextContent("Still running.");
+  });
+
+  it("ends every pending line when the review is over, whatever arrived", () => {
+    const state = finishReview(apply([{ kind: "flag", flag: flag("URGENCY_PRESSURE", "caution") }]));
+    render(<LiveReview state={state} />);
+    for (const id of ["live-price", "live-cert", "live-photos"]) {
+      expect(screen.getByTestId(id)).toHaveTextContent("Not checked.");
+      expect(screen.getByTestId(id)).not.toHaveTextContent("Still running");
+    }
+  });
+
+  it("ignores an event kind it does not know instead of losing the findings", () => {
+    const before = apply([{ kind: "flag", flag: flag("URGENCY_PRESSURE", "caution") }]);
+    expect(applyProgress(before, { kind: "somethingNew" } as unknown as ReviewProgress)).toBe(before);
   });
 
   it("says why Agree is locked", () => {
