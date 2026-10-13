@@ -35,6 +35,6 @@ describe("HowItsBuilt", () => {
   });
 
   it("carries no em dash", () => {
-    expect(BUILT_WITH.map((b) => b.line).join("")).not.toContain("—");
+    expect(BUILT_WITH.map((b) => b.line).join("")).not.toContain("\u2014");
   });
 });
