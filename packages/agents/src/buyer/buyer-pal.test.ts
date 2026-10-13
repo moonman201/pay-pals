@@ -185,8 +185,8 @@ describe("BuyerPal.review photo honesty (J3)", () => {
     expect(promptText(reviewCalls[1]!)).toContain('"stock photo"');
     expect(verdict.palMessage).not.toMatch(/stock photo|real, working unit|photo matches/);
     expect(verdict.reasoning!.couldNotVerify.join(" ")).toContain("did not read the 3 photo files");
-    expect(verdict.palMessage.split("\n")[0]).toBe("Looks fair.");
-    expect(verdict.overall).toBe("go");
+    expect(verdict.palMessage.split("\n")[0]).toBe("Careful.");
+    expect(verdict.overall).toBe("caution");
   });
 
   it("with no image read: a clean second answer is kept", async () => {
@@ -370,9 +370,10 @@ describe("BuyerPal.review on clean-ps5", () => {
     expect(shown).toContain("A missing answer, an unasked question or something you merely wish you knew is never a flag.");
   });
 
-  it("clean-ps5 v1 with rules only is go and asks only for the serial close-up", async () => {
+  it("clean-ps5 v1 with rules only is a caution for the box-only serial and asks only for the serial close-up", async () => {
     const { data: verdict } = await createBuyerPal({ anthropic: null, priceLookup }).review(cleanPs5.cards[0]!, cleanPs5.chat.slice(0, 2));
-    expect(verdict.overall).toBe("go");
+    expect(verdict.overall).toBe("caution");
+    expect(verdict.flags.map((f) => f.code)).toEqual(["MISSING_SERIAL"]);
     expect(verdict.questionsForSeller).toEqual([CONSOLE_SERIAL_QUESTION]);
   });
 });

@@ -83,12 +83,12 @@ describe.skipIf(!enabled)("real Claude (needs ANTHROPIC_API_KEY)", () => {
     // The slab review is the longest message the pal writes, so it gets the most room.
   }, PAL_RUN_MS);
 
-  it("clean-ps5 v1 (before the serial close-up) is go, with at most three questions", async () => {
+  it("clean-ps5 v1 (before the serial close-up) is caution for the box-only serial, with at most three questions", async () => {
     const pal = createBuyerPal({ anthropic, priceLookup });
     const { data: verdict } = await pal.review(cleanPs5.cards[0]!, cleanPs5.chat.slice(0, 2), { seller: cleanPs5.seller });
     print("clean-ps5 v1", verdict);
     expect(hasStop(verdict.flags)).toBe(false);
-    expect(verdict.overall).toBe("go");
+    expect(verdict.overall).toBe("caution");
     expect(verdict.questionsForSeller.length).toBeLessThanOrEqual(3);
   }, PAL_RUN_MS);
 
