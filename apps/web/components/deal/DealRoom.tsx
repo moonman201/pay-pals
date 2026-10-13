@@ -215,6 +215,7 @@ export function DealRoom({ snapshot, role }: { snapshot: DealSnapshot; role: Rol
                 dealId={deal.id}
                 busy={busy}
                 hasLockedCard={snapshot.lockedCard !== null}
+                hasEvidence={snapshot.hasEvidence}
                 agreement={{ buyerAgreedAt: deal.buyerAgreedAt, sellerAgreedAt: deal.sellerAgreedAt }}
                 cardVersion={deal.currentCardVersion}
                 cardChangedSinceAgree={cardChangedSinceAgree}

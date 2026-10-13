@@ -18,6 +18,8 @@ interface Props {
   dealId: string;
   busy: string | null;
   hasLockedCard: boolean;
+  /** A pack has been built. A deal that finished with no issue has none, so no link is offered. */
+  hasEvidence?: boolean;
   agreement: Agreement;
   cardVersion: number;
   /** This side agreed to an earlier version and the card changed since. */
@@ -53,7 +55,7 @@ const ENDINGS: Partial<Record<DealState, string>> = {
 };
 
 /** The moves this side can make right now, straight from the transition table. */
-export function ActionBar({ state, role, verdict, dealId, busy, hasLockedCard, agreement, cardVersion, cardChangedSinceAgree, refusalToReview = false, hasCert = false, reviewing = false, reviewingLine = "", onAction }: Props) {
+export function ActionBar({ state, role, verdict, dealId, busy, hasLockedCard, hasEvidence = false, agreement, cardVersion, cardChangedSinceAgree, refusalToReview = false, hasCert = false, reviewing = false, reviewingLine = "", onAction }: Props) {
   const [understood, setUnderstood] = useState(false);
   const other = otherRole(role);
   const agreeing = state === "REVIEWED" && cardVersion > 0;
@@ -75,7 +77,7 @@ export function ActionBar({ state, role, verdict, dealId, busy, hasLockedCard, a
     return (
       <Panel title="Next step" accent>
         <p className="text-sm">{ENDINGS[state]}</p>
-        {hasLockedCard ? (
+        {hasLockedCard && hasEvidence ? (
           <Link href={`/deals/${dealId}/evidence?as=${role}`} className="mt-1 inline-flex min-h-11 items-center text-sm font-semibold text-[var(--accent-ink)] underline-offset-2 hover:underline">
             Open the evidence pack
           </Link>

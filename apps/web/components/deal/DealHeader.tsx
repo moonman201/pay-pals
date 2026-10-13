@@ -44,7 +44,7 @@ export function DealHeader({ snapshot, role }: { snapshot: DealSnapshot; role: R
             <Link href={`/deals/${deal.id}?as=${other}`} className={NAV_LINK}>
               View as {other}
             </Link>
-            {snapshot.lockedCard ? (
+            {snapshot.lockedCard && snapshot.hasEvidence ? (
               <Link href={`/deals/${deal.id}/evidence?as=${role}`} className={NAV_LINK}>
                 Evidence pack
               </Link>
