@@ -106,9 +106,9 @@ export function ItemCardView({ cards, currentVersion, lockedVersion, certCheck =
 
       <dl className="mt-4 grid gap-x-6 gap-y-3 text-sm sm:grid-cols-2">
         <Field label="Serial">
-          {/* Matt: the row stays, because some cards do carry one. "None printed on this card"
-              says the card has no serial, where "not on the card" read as a thing left out. */}
-          <span className={card.serial ? "font-mono" : "text-caution"}>{card.serial ?? "None printed on this card"}</span>
+          {/* "None printed on this card" only when the item has no serial, such as a graded card.
+              A box label means the console has one, so the row says it is not read yet. */}
+          <span className={card.serial ? "font-mono" : "text-caution"}>{card.serial ?? (card.boxSerial ? "Not read yet" : "None printed on this card")}</span>
         </Field>
         {card.certNumber ? (
           <Field label="Cert number" wide>

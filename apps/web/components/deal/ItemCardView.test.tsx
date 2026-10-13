@@ -39,9 +39,17 @@ describe("ItemCardView", () => {
   it("says plainly when a card carries no serial of its own", () => {
     render(<ItemCardView cards={[v1]} currentVersion={1} lockedVersion={null} />);
     expect(v1.serial).toBeNull();
-    // "None printed on this card" says the card has no serial. "Not on the card"
-    // read as something the seller left out, which is a different claim.
+    expect(v1.boxSerial).toBeTruthy();
+    // The box label says the console has a serial. It has not been read, which is
+    // not the same claim as "this item has none".
+    expect(screen.getByText("Not read yet")).toBeInTheDocument();
+    expect(screen.queryByText("None printed on this card")).not.toBeInTheDocument();
+  });
+
+  it("says none printed only when the item has no serial and no box label", () => {
+    render(<ItemCardView cards={[{ ...v1, serial: null, boxSerial: null }]} currentVersion={1} lockedVersion={null} />);
     expect(screen.getByText("None printed on this card")).toBeInTheDocument();
+    expect(screen.queryByText("Not read yet")).not.toBeInTheDocument();
   });
 
   it("shows the box serial and whether it matches the console", () => {
