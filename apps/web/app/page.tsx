@@ -8,6 +8,8 @@ import { ProtectionPanel } from "@/components/landing/ProtectionPanel";
 import { ScenarioCard } from "@/components/landing/ScenarioCard";
 import { PalAvatar } from "@/components/pal/PalAvatar";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
+import { happyPath } from "@/components/landing/happy-path";
+import { cleanPathInput } from "@/lib/demo/clean-path";
 import { resolveSeededDeals } from "@/lib/demo/live-seeded";
 import { asDealFinder } from "@/lib/demo/seed-fixtures";
 import { getServices } from "@/lib/services";
@@ -21,6 +23,7 @@ export default async function HomePage() {
   // only offered for a scenario that has a finished deal at the moment of the render.
   // Three lookups, in parallel.
   const seeded = await resolveSeededDeals(await services.seededDeals, services.store, asDealFinder(services.store));
+  const cleanPath = happyPath(await cleanPathInput(services.store, seeded["clean-ps5"]));
   return (
     <main className="on-page theme-buyer mx-auto max-w-6xl px-4 pb-16">
       <nav className="flex min-h-14 items-center justify-between gap-4 py-2" aria-label="Site">
@@ -90,7 +93,7 @@ export default async function HomePage() {
         </div>
         <div className="mt-5 grid gap-4 md:grid-cols-3">
           {ALL_FIXTURES.map((f) => (
-            <ScenarioCard key={f.id} fixture={f} hasFinishedDeal={Boolean(seeded[f.id])} />
+            <ScenarioCard key={f.id} fixture={f} hasFinishedDeal={Boolean(seeded[f.id])} path={f.id === "clean-ps5" ? cleanPath : undefined} />
           ))}
         </div>
       </section>
