@@ -344,7 +344,7 @@ to make a reader skip the ones that matter most. Today's are 12 to 22.
     seeded verdict is frozen at seed time, so the whole Oct 10 batch is invisible
     on the finished-deal pages: no `PalReasoning` groups, the old PS5 price range,
     the old tamper wording. **Done on Oct 11** at Matt's instruction rather than at
-    the end: `SEED_VERSION` is now `2026-10-10.1`, the three stale seeds were swept
+    the end: `SEED_VERSION` was `2026-10-10.1` then and is `2026-10-12.1` since Oct 12; the three stale seeds were swept
     and the demo deals re-seeded on current code, verified on production.
     The procedure, for the next time, and **the command changed on Oct 11**: bump
     `SEED_VERSION` in `apps/web/lib/demo/seed-version.ts`, then
