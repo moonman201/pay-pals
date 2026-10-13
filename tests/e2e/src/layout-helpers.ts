@@ -58,7 +58,14 @@ export async function openSettled(page: Page, path: string): Promise<void> {
     }
     window.scrollTo(0, 0);
   });
-  await page.waitForFunction(() => Array.from(document.images).every((img) => img.complete), undefined, { timeout: 15_000 });
+  // Only images that are rendered. A lazy image inside a collapsed <details> (the pal's
+  // working, the timeline) is never fetched, so `complete` stays false for ever; it is not
+  // on the page, so it is not in the screenshot either.
+  await page.waitForFunction(
+    () => Array.from(document.images).filter((img) => img.checkVisibility()).every((img) => img.complete),
+    undefined,
+    { timeout: 15_000 },
+  );
   await page.waitForTimeout(300);
 }
 
