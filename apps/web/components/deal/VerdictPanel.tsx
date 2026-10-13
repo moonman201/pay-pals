@@ -1,10 +1,10 @@
 import { isPaymentMethodFlag, type ItemCard, type Message, type RedFlag, type Verdict } from "@pay-pals/contracts";
 import { certRows } from "@/lib/deal/cert-compare";
 import { certHeadline } from "@/lib/deal/cert-copy";
-import { GRADED_PRICE_LINK_TEXT, GRADED_PRICE_NOTE, gradedPriceSearchUrl, isGradedCard } from "@/lib/deal/graded-price";
+import { GRADED_PRICE_LINK_LEAD, GRADED_PRICE_NOTE, gradedPriceLinks, isGradedCard } from "@/lib/deal/graded-price";
 import { reviewLead } from "@/lib/deal/review-lead";
 import { evidenceSourceId } from "@/lib/deal/evidence-source";
-import { FLAG_WORDS } from "@/lib/deal/override";
+import { flagLabel } from "@/lib/deal/override";
 import { hasUsableRange, priceRangeLine, priceSourceNote } from "@/lib/deal/price-copy";
 import { methodNote, priceText, retailRange, summariseSources } from "@/lib/deal/price-sources";
 import { PalAvatar } from "../pal/PalAvatar";
@@ -101,14 +101,22 @@ export function VerdictPanel({ verdict, currentVersion, locked, cardTitle = null
         */
         <div className="mt-4 rounded-lg bg-wash p-3 text-sm" data-testid="price-check">
           <p className="font-semibold">{GRADED_PRICE_NOTE}</p>
-          <a
-            href={gradedPriceSearchUrl(graded)}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={`${TAP_LINK_WRAPPING} mt-1 font-semibold text-[var(--accent-ink)] underline underline-offset-2`}
-          >
-            {GRADED_PRICE_LINK_TEXT}
-          </a>
+          <p className="mt-1 flex flex-wrap items-center gap-x-1">
+            <span>{GRADED_PRICE_LINK_LEAD}</span>
+            {gradedPriceLinks(graded).map((link, i) => (
+              <span key={link.name} className="inline-flex items-center gap-x-1">
+                {i > 0 ? <span>or</span> : null}
+                <a
+                  href={link.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex min-h-11 items-center px-1 font-semibold text-[var(--accent-ink)] underline underline-offset-2"
+                >
+                  {link.name}
+                </a>
+              </span>
+            ))}
+          </p>
         </div>
       ) : (
       <div className="mt-4 rounded-lg bg-wash p-3 text-sm" data-testid="price-check">
@@ -189,7 +197,7 @@ export function VerdictPanel({ verdict, currentVersion, locked, cardTitle = null
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2" data-testid="flag-badges">
                   <Badge tone={FLAG_TONE[f.severity]}>{f.severity}</Badge>
-                  <span className="rounded-md border border-line bg-wash px-2 py-0.5 font-semibold">{FLAG_WORDS[f.code]}</span>
+                  <span className="rounded-md border border-line bg-wash px-2 py-0.5 font-semibold">{flagLabel(f.code)}</span>
                   {isPaymentMethodFlag(f) ? <Badge tone="stop">no override</Badge> : null}
                 </div>
                 <p className="mt-1">{f.explanation}</p>

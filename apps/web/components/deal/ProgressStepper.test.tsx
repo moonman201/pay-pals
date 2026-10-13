@@ -24,6 +24,24 @@ describe("ProgressStepper", () => {
     expect(items.some((li) => li.getAttribute("aria-current") === "step")).toBe(false);
   });
 
+  it("lists only the steps a blocked deal reached, then one Not reached line", () => {
+    render(<ProgressStepper state="BLOCKED" events={[ev("seller_invited"), ev("card_updated"), ev("review_posted")]} />);
+    expect(screen.getAllByRole("listitem").map((li) => li.getAttribute("data-status"))).toEqual(["done", "done", "done"]);
+    expect(screen.getByTestId("progress-not-reached")).toHaveTextContent("Not reached: Agreed and locked, Paid, Shipped and Arrived.");
+  });
+
+  it("lists every step, with none collapsed, while a deal is still moving", () => {
+    render(<ProgressStepper state="LISTED" events={[]} />);
+    expect(screen.getAllByRole("listitem")).toHaveLength(7);
+    expect(screen.queryByTestId("progress-not-reached")).not.toBeInTheDocument();
+  });
+
+  it("collapses nothing on an issue, which came after every step", () => {
+    render(<ProgressStepper state="ISSUE" events={[ev("card_locked"), ev("payment_captured"), ev("shipped"), ev("delivered"), ev("arrival_checked")]} />);
+    expect(screen.getAllByRole("listitem")).toHaveLength(7);
+    expect(screen.queryByTestId("progress-not-reached")).not.toBeInTheDocument();
+  });
+
   it("wraps instead of scrolling, so no step is clipped on a phone", () => {
     render(<ProgressStepper state="PAID" events={[]} />);
     const nav = screen.getByTestId("progress-stepper");

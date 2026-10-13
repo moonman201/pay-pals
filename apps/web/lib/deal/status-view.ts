@@ -284,18 +284,30 @@ function payeeNameItem(input: StatusInput): StatusItem | null {
   const verdict = latest(input.verdicts);
   if (!card || !verdict) return null;
   const flag = verdict.flags.find((f) => f.code === "NAME_MISMATCH");
-  if (flag) return { id, label, status: "flagged", detail: `${flag.explanation} ${flag.evidence}` };
-  // The pal says this itself when it was handed no seller to compare against.
-  const notGiven = couldNotVerify(verdict.reasoning).some((line) => /seller's name on the account/i.test(line));
-  if (notGiven) {
-    return { id, label, status: "unverified", detail: `The Buyer Pal was not given the seller's name, so it could not check it against ${card.sellerPaypalEmail}.` };
+  const { seller } = input.deal;
+  if (flag) {
+    // The flag's evidence normally names both sides. When it does not, say what was compared.
+    const compared = flag.evidence.includes(card.sellerPaypalEmail) ? "" : `The Buyer Pal compared ${card.sellerPaypalEmail} with ${seller.displayName}, the seller on this deal. `;
+    return { id, label, status: "flagged", detail: `${compared}${flag.explanation} ${flag.evidence}` };
   }
-  return {
-    id,
-    label,
-    status: "verified",
-    detail: `The Buyer Pal compared ${card.sellerPaypalEmail} with ${input.deal.seller.displayName}, the seller on this deal, and they agree. This checks that the address looks like the seller's. It is not proof of who owns the account.`,
-  };
+  // The pal says this itself when it was handed no seller to compare against.
+  const undecided = couldNotVerify(verdict.reasoning).find((line) => /seller's name on the account/i.test(line));
+  if (undecided) {
+    const reason = /only initials/i.test(undecided) ? "The seller's name is only initials" : "The Buyer Pal was not given the seller's name";
+    return { id, label, status: "unverified", detail: `${reason}, so it could not check it against ${card.sellerPaypalEmail}.` };
+  }
+  const compared = `The Buyer Pal compared ${card.sellerPaypalEmail} with ${seller.displayName}, the seller on this deal, and raised no flag.`;
+  const local = (card.sellerPaypalEmail.split("@")[0] ?? "").toLowerCase();
+  const nameInAddress = seller.displayName
+    .toLowerCase()
+    .split(/[^a-z]+/)
+    .some((token) => token.length >= 3 && local.includes(token));
+  const why = nameInAddress
+    ? "The address contains part of the seller's name."
+    : card.sellerPaypalEmail.toLowerCase() === seller.email.toLowerCase()
+      ? "The seller's name does not appear in the address. It is the contact email they gave, so the address was not checked against the name."
+      : "The seller's name does not appear in the address.";
+  return { id, label, status: "verified", detail: `${compared} ${why} This is not proof of who owns the account.` };
 }
 
 /**
@@ -634,9 +646,14 @@ const STAGE_NAMES: Readonly<Record<StatusGroupId, string>> = {
   delivery: "delivery",
 };
 
-/** True when every line in the group is Missing, which is what "never started" looks like. */
+/**
+ * True when nothing in the group has happened. Every line Missing is that
+ * everywhere. On the card group an unlocked card also reads Unverified
+ * ("Not yet", a step not reached), so that one line counts as untouched too.
+ */
 function untouched(group: StatusGroup): boolean {
-  return group.items.length > 0 && group.items.every((item) => item.status === "missing");
+  const idle = (item: StatusItem) => item.status === "missing" || (group.id === "card" && item.id === "card-locked" && item.status === "unverified");
+  return group.items.length > 0 && group.items.every(idle);
 }
 
 /**
@@ -679,14 +696,18 @@ export function splitUnreached(groups: readonly StatusGroup[], deal: Pick<Deal, 
   const reached = REACHED[deal.state];
   const collapsible = (g: StatusGroup) => untouched(g) && reached < STAGE_AT[g.id];
   while (shown.length > 1 && collapsible(shown[shown.length - 1]!)) dropped.unshift(shown.pop()!);
-  if (dropped.length === 0) return { shown, skipped: null };
   const blocked = deal.state === "BLOCKED" || deal.state === "CANCELLED";
+  // A deal that ended can never agree a card it had not agreed, so the card
+  // group is not "yet to come" but never reached, and it collapses from the
+  // front as well. A deal still moving shows it normally.
+  if (blocked && shown.length > 1 && shown[0]!.id === "card" && untouched(shown[0]!)) dropped.unshift(shown.shift()!);
+  if (dropped.length === 0) return { shown, skipped: null };
   const first = STAGE_NAMES[dropped[0]!.id];
   return {
     shown,
     skipped: {
       names: list(dropped.map((g) => STAGE_NAMES[g.id])),
-      because: blocked ? `This deal ended before ${first}, so no money moved.` : `This deal has not reached ${first} yet.`,
+      because: blocked ? (dropped[0]!.id === "card" ? "This deal ended before the card was agreed, so no money moved." : `This deal ended before ${first}, so no money moved.`) : `This deal has not reached ${first} yet.`,
     },
   };
 }

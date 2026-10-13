@@ -16,9 +16,12 @@ function EndIcon({ kind }: { kind: NonNullable<ProgressEnd>["kind"] }) {
 }
 
 /**
- * Where the deal stands, as seven steps. Done steps fill with the side's
+ * Where the deal stands, as up to seven steps. Done steps fill with the side's
  * colour, the current one lights up once, and a deal that ended early
  * carries its end badge right after the last step it reached.
+ *
+ * A deal that ended early lists only the steps it reached and one line for
+ * the rest, since they will never happen.
  *
  * Every step is on the page at every width: the row wraps onto two or three
  * lines on a phone, where the joining lines between steps are dropped, and
@@ -65,6 +68,13 @@ export function ProgressStepper({ state, events, className = "" }: { state: Deal
           );
         })}
       </ol>
+      {progress.notReached.length > 0 ? (
+        <p className="mt-1.5 text-xs text-muted" data-testid="progress-not-reached">
+          Not reached: {progress.notReached.slice(0, -1).join(", ")}
+          {progress.notReached.length > 1 ? " and " : ""}
+          {progress.notReached[progress.notReached.length - 1]}.
+        </p>
+      ) : null}
     </nav>
   );
 }

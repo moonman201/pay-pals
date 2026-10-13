@@ -1,5 +1,5 @@
 import type { RedFlag } from "@pay-pals/contracts";
-import { FLAG_WORDS } from "@/lib/deal/override";
+import { flagLabel } from "@/lib/deal/override";
 import { PalAvatar } from "../pal/PalAvatar";
 import { Badge, type Tone } from "../ui/Badge";
 import { FlagEvidence } from "./FlagEvidence";
@@ -17,7 +17,7 @@ export function ShipmentFlags({ flags }: { flags: readonly RedFlag[] }) {
             <div className="flex flex-wrap items-center gap-2">
               <span className="font-semibold">Buyer Pal:</span>
               <Badge tone={FLAG_TONE[f.severity]}>{f.severity}</Badge>
-              <span className="rounded-md border border-line bg-surface px-2 py-0.5 font-semibold">{FLAG_WORDS[f.code]}</span>
+              <span className="rounded-md border border-line bg-surface px-2 py-0.5 font-semibold">{flagLabel(f.code)}</span>
             </div>
             <p className="mt-1">{f.explanation}</p>
             <FlagEvidence evidence={f.evidence} />

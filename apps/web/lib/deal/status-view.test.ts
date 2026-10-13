@@ -268,6 +268,33 @@ describe("the PayPal address against the seller's name", () => {
     expect(line.detail).toMatch(/not proof of who owns the account/);
   });
 
+  const asSeller = (displayName: string, email: string, paypal: string) => {
+    const card = { ...lockedCard, sellerPaypalEmail: paypal };
+    return input({ lockedCard: card, cards: [card], deal: { ...cleanPs5.deal, seller: { ...cleanPs5.deal.seller, displayName, email } } });
+  };
+
+  it("says the address contains the name only when it does", () => {
+    const line = item(dealStatusView(asSeller("Dana Moore", "dana@example.com", "dana.moore@example.com")), "evidence", "payee-name");
+    expect(line.status).toBe("verified");
+    expect(line.detail).toContain("The address contains part of the seller's name.");
+    expect(line.detail).not.toMatch(/\bagree\b/);
+  });
+
+  it("does not say they agree when the address is just the seller's contact email", () => {
+    const line = item(dealStatusView(asSeller("Dana Moore", "quickpay2026@example.com", "quickpay2026@example.com")), "evidence", "payee-name");
+    expect(line.detail).toContain("compared quickpay2026@example.com with Dana Moore");
+    expect(line.detail).toContain("does not appear in the address");
+    expect(line.detail).toContain("contact email");
+    expect(line.detail).not.toMatch(/\bagree\b/);
+  });
+
+  it("names what was compared on a flag whose evidence does not", () => {
+    const bare = { ...nameFlag, evidence: "The name and the address differ." };
+    const line = item(dealStatusView(input({ verdicts: [verdict({ flags: [bare] })] })), "evidence", "payee-name");
+    expect(line.status).toBe("flagged");
+    expect(line.detail).toContain(`compared ${lockedCard.sellerPaypalEmail} with ${cleanPs5.deal.seller.displayName}`);
+  });
+
   it("flags it when the pal raised the mismatch, in the pal's own words", () => {
     const line = item(dealStatusView(input({ verdicts: [verdict({ flags: [nameFlag] })] })), "evidence", "payee-name");
     expect(line.status).toBe("flagged");
@@ -285,6 +312,18 @@ describe("the PayPal address against the seller's name", () => {
     const line = item(dealStatusView(input({ verdicts: [verdict({ reasoning })] })), "evidence", "payee-name");
     expect(line.status).toBe("unverified");
     expect(line.detail).toMatch(/not given the seller's name/);
+  });
+
+  it("is unverified, and says why, when the seller's name is only initials", () => {
+    const reasoning = {
+      checked: [],
+      found: [],
+      couldNotVerify: ["The seller's name on the account is only initials, so I could not check it against the PayPal address on the card."],
+      wouldChangeMyMind: [],
+    };
+    const line = item(dealStatusView(input({ verdicts: [verdict({ reasoning })] })), "evidence", "payee-name");
+    expect(line.status).toBe("unverified");
+    expect(line.detail).toMatch(/only initials/);
   });
 
   it("has no line at all before a review has run, rather than claiming a pass", () => {
@@ -308,6 +347,28 @@ describe("splitUnreached", () => {
     expect(shown.map((g) => g.id)).toEqual(["card", "evidence"]);
     expect(skipped?.names).toBe("payment, shipping and delivery");
     expect(skipped?.because).toBe("This deal ended before payment, so no money moved.");
+  });
+
+  it("collapses the card group too when a deal ended before any card was agreed", () => {
+    const open = { ...cleanPs5.deal, state: "BLOCKED" as const, lockedCardVersion: null, buyerAgreedAt: null, sellerAgreedAt: null };
+    const groups = dealStatusView(input({ ...early, lockedCard: null, deal: open }));
+    expect(group(groups, "card").items.map((i) => i.status)).toEqual(["unverified", "missing", "missing"]);
+    const { shown, skipped } = splitUnreached(groups, { state: "BLOCKED" });
+    expect(shown.map((g) => g.id)).toEqual(["evidence"]);
+    expect(skipped?.names).toBe("the item card, payment, shipping and delivery");
+    expect(skipped?.because).toBe("This deal ended before the card was agreed, so no money moved.");
+  });
+
+  it("keeps the card group on a blocked deal whose card was half agreed", () => {
+    const half = { ...cleanPs5.deal, state: "BLOCKED" as const, lockedCardVersion: null, sellerAgreedAt: null, buyerAgreedAt: "2026-10-09T09:00:00.000Z" };
+    const { shown } = splitUnreached(dealStatusView(input({ ...early, lockedCard: null, deal: half })), { state: "BLOCKED" });
+    expect(shown.map((g) => g.id)).toContain("card");
+  });
+
+  it("shows an unlocked card normally while the deal is still moving", () => {
+    const open = { ...cleanPs5.deal, state: "REVIEWED" as const, lockedCardVersion: null, buyerAgreedAt: null, sellerAgreedAt: null };
+    const { shown } = splitUnreached(dealStatusView(input({ ...early, lockedCard: null, deal: open })), { state: "REVIEWED" });
+    expect(shown.map((g) => g.id)).toEqual(["card", "evidence"]);
   });
 
   it("says not yet, rather than ended, for a deal still working through it", () => {

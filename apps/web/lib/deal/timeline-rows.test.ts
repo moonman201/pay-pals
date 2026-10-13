@@ -36,16 +36,38 @@ describe("timelineRows", () => {
     expect(rows[0]!.hashes).toEqual(["aaaaaaaa", "cccccccc"]);
   });
 
-  it("leaves a state change standing when two come in a row", () => {
-    // Two in a row is not a tidy pair, and quietly folding the second would
-    // hide a transition nobody can then account for.
+  it("folds a second state change in a row into the same row", () => {
+    const rows = timelineRows([
+      event({ id: "1", kind: "review_posted", actor: "buyer_pal", hash: "aaaaaaaa1111" }),
+      event({ id: "2", kind: "state_changed", toState: "REVIEWED", summary: "Reviewed.", hash: "bbbbbbbb2222" }),
+      event({ id: "3", kind: "state_changed", actor: "buyer_pal", toState: "BLOCKED", summary: "Blocked. No order was created.", hash: "cccccccc3333" }),
+    ]);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.became).toBe("BLOCKED");
+    expect(rows[0]!.hashes).toEqual(["aaaaaaaa", "bbbbbbbb", "cccccccc"]);
+    expect(rows[0]!.note).toBe("Blocked. No order was created.");
+    expect(rows[0]!.noteActor).toBe("buyer_pal");
+  });
+
+  it("keeps an earlier note when a later bare change folds in", () => {
     const rows = timelineRows([
       event({ id: "1", kind: "card_updated" }),
-      event({ id: "2", kind: "state_changed", toState: "LISTED" }),
-      event({ id: "3", kind: "state_changed", toState: "REVIEWED" }),
+      event({ id: "2", kind: "state_changed", actor: "buyer", toState: "CANCELLED", summary: "Cancelled by the buyer." }),
+      event({ id: "3", kind: "state_changed", actor: "system", toState: "CANCELLED", summary: "Cancelled." }),
+    ]);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.note).toBe("Cancelled by the buyer.");
+    expect(rows[0]!.noteActor).toBe("buyer");
+  });
+
+  it("does not fold two changes that both carry a note, so neither is lost or misattributed", () => {
+    const rows = timelineRows([
+      event({ id: "1", kind: "card_updated" }),
+      event({ id: "2", kind: "state_changed", actor: "buyer", toState: "CANCELLED", summary: "Cancelled by the buyer." }),
+      event({ id: "3", kind: "state_changed", actor: "seller", toState: "ISSUE", summary: "Issue opened: the box arrived empty." }),
     ]);
     expect(rows).toHaveLength(2);
-    expect(rows[0]!.became).toBe("LISTED");
+    expect(rows[0]!.noteActor).toBe("buyer");
     expect(rows[1]!.event.id).toBe("3");
   });
 

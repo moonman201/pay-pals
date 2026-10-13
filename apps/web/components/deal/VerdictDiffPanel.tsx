@@ -1,5 +1,5 @@
 import type { RedFlag, Verdict } from "@pay-pals/contracts";
-import { FLAG_WORDS } from "@/lib/deal/override";
+import { flagLabel } from "@/lib/deal/override";
 import type { VerdictDiff } from "@/lib/deal/verdict-diff";
 import { formatTime } from "@/lib/format";
 import { OVERALL_LABELS } from "@/lib/labels";
@@ -37,7 +37,7 @@ function Side({ label, verdict, flagNote }: { label: string; verdict: Verdict; f
             const note = flagNote(flag);
             return (
               <li key={`${flag.code}-${i}`} className="flex flex-wrap items-baseline gap-1.5">
-                <span className="font-semibold">{FLAG_WORDS[flag.code]}</span>
+                <span className="font-semibold">{flagLabel(flag.code)}</span>
                 <span className="text-xs text-muted">({flag.severity})</span>
                 {note ? <span className="rounded-md border border-line bg-surface px-1.5 py-0.5 text-xs font-semibold">{note}</span> : null}
               </li>

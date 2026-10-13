@@ -69,23 +69,32 @@ export function stateChangeNote(event: DealEvent): string | null {
 }
 
 /**
- * Folds each state change into the event just before it.
+ * Folds each state change into the action just before it.
  *
- * Only the event immediately before, and only when that event is not itself
- * a state change: two state changes in a row mean something happened that
- * this view should not quietly tidy away, so the second stays a row of its
- * own where it can be seen.
+ * A second state change in a row folds into the same row: the review row
+ * absorbs LISTED to REVIEWED, and on a blocked deal the REVIEWED to BLOCKED
+ * that follows says nothing a separate row would add. `became` is the final
+ * state and the hashes include every change.
+ *
+ * The exception is two changes that both carry a note. Each note is someone's
+ * own words and a row holds one, so the second stays a row of its own rather
+ * than lose either or hand one to the wrong author.
  */
 export function timelineRows(events: readonly DealEvent[]): TimelineRow[] {
   const rows: TimelineRow[] = [];
   for (const event of events) {
     const previous = rows[rows.length - 1];
-    if (event.kind === "state_changed" && previous && previous.event.kind !== "state_changed" && previous.became === null) {
-      previous.became = event.toState ?? null;
-      previous.note = stateChangeNote(event);
-      previous.noteActor = previous.note ? event.actor : null;
-      previous.hashes.push(...shortHash(event));
-      continue;
+    if (event.kind === "state_changed" && previous && previous.event.kind !== "state_changed") {
+      const note = stateChangeNote(event);
+      if (previous.became === null || !(previous.note && note)) {
+        previous.became = event.toState ?? null;
+        if (note) {
+          previous.note = note;
+          previous.noteActor = event.actor;
+        }
+        previous.hashes.push(...shortHash(event));
+        continue;
+      }
     }
     rows.push({ event, became: null, note: null, noteActor: null, hashes: shortHash(event) });
   }
