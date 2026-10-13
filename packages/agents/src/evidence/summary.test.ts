@@ -49,6 +49,14 @@ describe("the tamper check tells the three anchoring cases apart", () => {
   /** Phrases that assert PayPal's side. Only "corroborated" may use any of them. */
   const PAYPAL_CLAIMS = [/\bnot edited after payment\b/i, /PayPal(?:'s)? (?:own )?cop(?:y|ies) (?:carries|matches|holds)/i, /the history PayPal holds/i];
 
+  it("counts the events the pack held and says so, since building the pack adds one more to the live timeline", () => {
+    const n = emptyBox.timeline.length;
+    for (const anchor of ["corroborated", "recorded_only", "not_anchored"] as const) {
+      expect(tamperCheck(withHash(anchor))!).toContain(`the ${n} timeline events stored when this pack was built`);
+      expect(tamperCheck(broken(anchor))!).toContain(`the ${n} timeline events stored when this pack was built`);
+    }
+  });
+
   it("corroborated: says PayPal's copy was read back and carries the same hash", () => {
     const sentence = tamperCheck(withHash("corroborated"))!;
     expect(sentence).toContain("reproduce the hash recorded with this payment");
