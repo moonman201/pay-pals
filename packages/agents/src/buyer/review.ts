@@ -260,6 +260,8 @@ export async function reviewCard(
   const certCheck: CertCheck | null =
     card && certRecord ? (({ matches: m, explanation }) => ({ record: certRecord, matches: m, explanation }))(compareCertRecord(card, certRecord)) : null;
   if (certCheck) emit({ kind: "certCheck", certCheck });
+  // A lookup that ran and found no record also ends here, as "not checked". A failed one already said so.
+  else if (card?.certNumber && deps.certLookup && !certLookupFailed) emit({ kind: "certCheck", certCheck: null });
 
   let review: ModelReview | null = null;
   const publicMode = deps.publicMode === true;
@@ -297,6 +299,7 @@ export async function reviewCard(
     priceCheck,
     certCheck,
     certLookupFailed,
+    certLookupRefused: cert.refused === true,
     readings,
     seller: context?.seller ?? null,
     photoMatchRan,

@@ -48,6 +48,8 @@ export interface CertResult {
   certRecord: CertRecord | null;
   /** True when the grader was asked and could not be reached, which is not the same as no cert. */
   lookupFailed: boolean;
+  /** True when the grader's service answered and refused the lookup (401 or 403), as opposed to not answering. */
+  refused?: boolean;
 }
 
 export async function gatherCert(card: ItemCard | null, lookup: CertLookup | null | undefined, emit: Emit): Promise<CertResult> {
@@ -57,7 +59,11 @@ export async function gatherCert(card: ItemCard | null, lookup: CertLookup | nul
     return { certRecord: await lookup.lookup(card.certNumber), lookupFailed: false };
   } catch (error) {
     warn("cert lookup", error);
-    return { certRecord: null, lookupFailed: true };
+    // The page is showing "looking up the grading cert" and must not be left on it once the
+    // review ends. Null here means "not checked", the same way a failed price lookup reports.
+    emit({ kind: "certCheck", certCheck: null });
+    const status = (error as { status?: unknown } | null)?.status;
+    return { certRecord: null, lookupFailed: true, refused: status === 401 || status === 403 };
   }
 }
 

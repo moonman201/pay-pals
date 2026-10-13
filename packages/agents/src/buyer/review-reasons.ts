@@ -49,6 +49,8 @@ export interface ReviewReasonInput {
   priceCheck: PriceCheck | null;
   certCheck: CertCheck | null;
   certLookupFailed: boolean;
+  /** The grader's service refused the lookup, rather than being unreachable. */
+  certLookupRefused?: boolean;
   readings: PhotoReading[];
   flags: RedFlag[];
   overall: VerdictOverall;
@@ -176,7 +178,13 @@ function couldNotVerify(input: ReviewReasonInput): ReasonLine[] {
     lines.push(`I cannot tell whether ${near.serial} and ${near.boxSerial} are the same number: ${near.where}, which is what a misread of one character looks like. I am not calling that a match and I am not calling it a mismatch.`);
   }
 
-  if (certLookupFailed && card.certNumber) lines.push(`I could not reach the grader to check cert ${card.certNumber}, so that check did not happen.`);
+  if (certLookupFailed && card.certNumber) {
+    lines.push(
+      input.certLookupRefused
+        ? `I did not check cert ${card.certNumber} because the grader's service refused the lookup, so no grader record was compared.`
+        : `I could not reach the grader to check cert ${card.certNumber}, so that check did not happen.`,
+    );
+  }
   // A cert that was not checked says so here. Its explanation used to ride in the pal's paragraph,
   // and when the paragraph went it would have gone silent, which is the exact failure this group exists for.
   if (certCheck?.matches === null) lines.push(certCheck.explanation);
