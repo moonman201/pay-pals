@@ -56,6 +56,13 @@ function OrderText({ card, dealId }: { card: ItemCard; dealId: string | null }) 
 /** The item card. Shows every version until the lock, then only the locked one, styled as the fixed record it has become. */
 export function ItemCardView({ cards, currentVersion, lockedVersion, certCheck = null, dealId = null }: Props) {
   const [selected, setSelected] = useState<number>(lockedVersion ?? currentVersion);
+  // A new version arrived (the seller saved one, and the page refreshed in place). Follow it, or the
+  // card keeps showing the old version while the status beside it already reads the new one.
+  const [seenCurrent, setSeenCurrent] = useState(currentVersion);
+  if (seenCurrent !== currentVersion) {
+    setSeenCurrent(currentVersion);
+    setSelected(currentVersion);
+  }
   const shown = lockedVersion ?? selected;
   const card = cards.find((c) => c.version === shown) ?? cards[cards.length - 1];
   if (!card) return null;
