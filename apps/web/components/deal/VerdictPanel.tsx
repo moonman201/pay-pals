@@ -206,7 +206,8 @@ export function VerdictPanel({ verdict, currentVersion, locked, cardTitle = null
                   <span className="rounded-md border border-line bg-wash px-2 py-0.5 font-semibold">{flagLabel(f.code)}</span>
                   {isPaymentMethodFlag(f) ? <Badge tone="stop">no override</Badge> : null}
                 </div>
-                <p className="mt-1">{f.explanation}</p>
+                {/* The lead above already says this line when the pal's own explanation was short enough to use. The card keeps the evidence. */}
+                {lead.reasons.includes(f.explanation.trim()) ? null : <p className="mt-1">{f.explanation}</p>}
                 <FlagEvidence evidence={f.evidence} sourceMessageId={evidenceSourceId(f.evidence, chat)} />
               </div>
             </li>

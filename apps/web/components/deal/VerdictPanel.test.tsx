@@ -247,6 +247,20 @@ describe("VerdictPanel", () => {
     expect(screen.getByText("Why")).toBeInTheDocument();
   });
 
+  it("says a flag's reason once: in the lead when it is already a line, and the card keeps the evidence", () => {
+    const own = "Wants Friends and Family. That has no buyer protection.";
+    const v = verdict({ flags: [{ ...flag("FRIENDS_AND_FAMILY_REQUEST", "stop", own), evidence: 'Seller wrote: "F&F only"' }] });
+    render(<VerdictPanel verdict={v} currentVersion={1} locked={false} />);
+    expect(screen.getAllByText(own)).toHaveLength(1);
+    expect(screen.getByTestId("flag-evidence")).toHaveTextContent('Seller wrote: "F&F only"');
+  });
+
+  it("keeps a long explanation on the card, because the lead shows only a short fallback for it", () => {
+    const long = "A long explanation that runs well past a single line because the pal wrote a whole paragraph about this flag and what it means.";
+    render(<VerdictPanel verdict={verdict({ flags: [flag("STOCK_OR_REUSED_PHOTO", "caution", long)] })} currentVersion={1} locked={false} />);
+    expect(screen.getByText(long)).toBeInTheDocument();
+  });
+
   it("never prints a photo-handling artifact as evidence", () => {
     const v = verdict({ flags: [{ ...flag("URGENCY_PRESSURE", "caution"), evidence: "Photo block 2 of 4" }] });
     render(<VerdictPanel verdict={v} currentVersion={1} locked={false} />);
