@@ -66,24 +66,62 @@ export function buyerQuestion(request: BuyerRequest): string | null {
   return text.length === 0 || PLACEHOLDER_REQUESTS.test(text) ? null : text;
 }
 
-async function cardSentence(request: BuyerRequest, reply: string, client: ClaudeClient | null): Promise<string> {
-  const fallback = asSentence(reply);
+/**
+ * A sentence that says a photo was added, attached or shown. The card may say
+ * so only when this update really carries a new photo (see cardSentence).
+ */
+const PHOTO_CLAIM =
+  /\b(?:add(?:ed|ing)?|attach(?:ed|ing)?|includ(?:ed|ing)|sent|send(?:ing)?|upload(?:ed|ing)?|here(?:'s| is| are)|shows?|showing|see)\b[^.!?]{0,60}\b(?:photos?|pictures?|pics?|images?|close-?ups?|shots?)\b|\b(?:photos?|pictures?|pics?|images?|close-?ups?|shots?)\b[^.!?]{0,40}\b(?:added|attached|included|sent|uploaded|shows?|below|above)\b/i;
+
+/** The seller's words with any sentence claiming a photo removed, and whether one was. */
+export function withoutPhotoClaims(text: string): { kept: string; dropped: boolean } {
+  const parts = text.split(/(?<=[.!?])\s+/);
+  const kept = parts.filter((part) => !PHOTO_CLAIM.test(part));
+  return { kept: kept.join(" ").trim(), dropped: kept.length !== parts.length };
+}
+
+/** The card states a seller's claim as the seller's own words, never as a fact in the pal's voice. */
+function attribute(sentence: string): string {
+  const bare = sentence.replace(/^(?:the )?seller says[:,]?\s*/i, "").trim();
+  return bare.length === 0 ? "" : `Seller says: ${bare}`;
+}
+
+/**
+ * One line for the card's condition notes from what the seller typed.
+ *
+ * The notes go onto the PayPal order, so they must not state more than the
+ * update delivers. When there is no new photo, any sentence of the reply that
+ * says one was added is dropped, on the keyless path and before the model
+ * sees it, and a model sentence that says so anyway is replaced by the
+ * keyless one. What stays is attributed ("Seller says: ...").
+ */
+async function cardSentence(
+  request: BuyerRequest,
+  reply: string,
+  client: ClaudeClient | null,
+  hasNewPhotos: boolean,
+): Promise<{ sentence: string; droppedPhotoClaim: boolean }> {
+  const { kept, dropped } = hasNewPhotos ? { kept: reply, dropped: false } : withoutPhotoClaims(reply);
+  const fallback = attribute(asSentence(kept));
   const asked = buyerQuestion(request);
-  if (!client || fallback.length === 0) return fallback;
+  if (!client || fallback.length === 0) return { sentence: fallback, droppedPhotoClaim: dropped };
   const result = await callTool({
     client,
-    system: "You are the Seller Pal in Pay Pals. You write one plain sentence of fact for an item card, using only what the seller said.",
+    system:
+      "You are the Seller Pal in Pay Pals. You write one plain sentence for an item card that reports what the seller says, using only what the seller said. Do not turn the seller's claim into a fact, and do not say a photo was added.",
     content: [
       {
         type: "text",
-        text: `${asked ? `The buyer asked about ${request.field}: "${asked}"` : `The seller updated ${request.field} without being asked.`}\nThe seller replied: "${reply}"`,
+        text: `${asked ? `The buyer asked about ${request.field}: "${asked}"` : `The seller updated ${request.field} without being asked.`}\nThe seller replied: "${kept}"`,
       },
     ],
     tool: SENTENCE_TOOL,
     schema: SentenceSchema,
     maxTokens: 512,
   });
-  return result.value?.sentence ? asSentence(result.value.sentence) : fallback;
+  const written = result.value?.sentence ? asSentence(result.value.sentence) : "";
+  const usable = written.length > 0 && (hasNewPhotos || !PHOTO_CLAIM.test(written));
+  return { sentence: usable ? attribute(written) : fallback, droppedPhotoClaim: dropped };
 }
 
 function appendNote(notes: string, sentence: string): string {
@@ -140,6 +178,7 @@ export async function applyBuyerRequest(
   const next: ItemCard = { ...card, version: card.version + 1, lockedAt: null, photos: [...card.photos], included: [...card.included] };
   const changes: string[] = [];
   const conflicts: string[] = [];
+  let droppedPhotoClaim = false;
   const photos = newPhotos ?? [];
   let readings: PhotoReading[] = [];
   if (photos.length > 0) {
@@ -175,7 +214,9 @@ export async function applyBuyerRequest(
         next.conditionGrade = grade;
         changes.push(`condition set to ${grade.replace("_", " ")}`);
       }
-      next.conditionNotes = appendNote(next.conditionNotes, await cardSentence(request, sellerReply, deps.client));
+      const written = await cardSentence(request, sellerReply, deps.client, photos.length > 0);
+      droppedPhotoClaim = droppedPhotoClaim || written.droppedPhotoClaim;
+      next.conditionNotes = appendNote(next.conditionNotes, written.sentence);
       break;
     }
     case "included": {
@@ -199,7 +240,9 @@ export async function applyBuyerRequest(
     case "conditionNotes":
     case "photos": {
       const before = next.conditionNotes;
-      next.conditionNotes = appendNote(next.conditionNotes, await cardSentence(request, sellerReply, deps.client));
+      const written = await cardSentence(request, sellerReply, deps.client, photos.length > 0);
+      droppedPhotoClaim = droppedPhotoClaim || written.droppedPhotoClaim;
+      next.conditionNotes = appendNote(next.conditionNotes, written.sentence);
       if (next.conditionNotes !== before) changes.push("condition notes updated");
       break;
     }
@@ -210,6 +253,7 @@ export async function applyBuyerRequest(
     changes.length > 0 ? `I updated your card to version ${next.version}: ${changes.join(", ")}.` : `Your card is still version ${card.version}. I could not find a change in your reply for ${request.field}.`,
     describeLooking(readings, "photo", deps.publicMode === true),
     ...conflicts,
+    droppedPhotoClaim ? "You wrote that a photo was added, but no photo came with this update, so I left that out of the card. Add the photo if you want it on the card." : null,
     asked ? `This answers the buyer's question: "${asked}"` : null,
     "The buyer's pal will see the new version.",
   );

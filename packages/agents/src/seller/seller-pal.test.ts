@@ -218,6 +218,39 @@ describe("SellerPal.applyRequest", () => {
     expect(sent).toContain("without being asked");
   });
 
+  it("never states a photo was added when the update carries none, keyless or with a model", async () => {
+    const reply = "Added a close-up of the serial so you can match it.";
+    const keyless = await createSellerPal({ anthropic: null }).applyRequest(v1, { field: "photos", request: CONSOLE_SERIAL_QUESTION }, reply);
+    expect(keyless.data.photos).toHaveLength(3);
+    expect(keyless.data.conditionNotes).toBe(v1.conditionNotes);
+    expect(keyless.palMessage).toContain("no photo came with this update");
+
+    // The model rewrites the claim as a fact; the card must not take it.
+    const model = fakeClaude(() => ({ sentence: "The seller added a close-up photo of the serial number so buyers can match it" }));
+    const withModel = await createSellerPal({ anthropic: model }).applyRequest(v1, { field: "photos", request: CONSOLE_SERIAL_QUESTION }, reply);
+    expect(withModel.data.conditionNotes).toBe(v1.conditionNotes);
+    expect(withModel.data.conditionNotes).not.toMatch(/close-?up|photo added/i);
+    // The reply never reached the model with the photo claim in it.
+    expect(JSON.stringify(model.calls)).not.toContain("Added a close-up");
+
+    // A model that invents the claim from a harmless reply is replaced by the seller's own words.
+    const inventive = fakeClaude(() => ({ sentence: "The seller added a close-up photo of the back" }));
+    const harmless = await createSellerPal({ anthropic: inventive }).applyRequest(v1, { field: "conditionNotes", request: "Any scratches?" }, "No scratches, works fine.");
+    expect(harmless.data.conditionNotes).toContain("Seller says: No scratches, works fine.");
+    expect(harmless.data.conditionNotes).not.toMatch(/close-?up/i);
+  });
+
+  it("states a seller's free text as the seller's own words, and a photo claim stays when a photo came with it", async () => {
+    const plain = await createSellerPal({ anthropic: null }).applyRequest(v1, { field: "conditionNotes", request: "Any scratches?" }, "No scratches, works fine.");
+    expect(plain.data.conditionNotes.endsWith("Seller says: No scratches, works fine.")).toBe(true);
+    const modelled = await createSellerPal({ anthropic: fakeClaude(() => ({ sentence: "There are no scratches" })) }).applyRequest(v1, { field: "conditionNotes", request: "Any scratches?" }, "No scratches.");
+    expect(modelled.data.conditionNotes.endsWith("Seller says: There are no scratches.")).toBe(true);
+    const withPhoto = await createSellerPal({ anthropic: null }).applyRequest(v1, { field: "photos", request: CONSOLE_SERIAL_QUESTION }, "Added a close-up of the serial.", [serialCloseUp]);
+    expect(withPhoto.data.photos).toHaveLength(4);
+    expect(withPhoto.data.conditionNotes).toContain("Seller says: A close-up of the serial.");
+    expect(withPhoto.palMessage).not.toContain("no photo came");
+  });
+
   it("lets the model write the card sentence", async () => {
     const model = fakeClaude(() => ({ sentence: "The close-up shows the serial on the back of the console" }));
     const pal = createSellerPal({ anthropic: model });
