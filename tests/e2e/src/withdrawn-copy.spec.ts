@@ -44,7 +44,11 @@ test.describe("withdrawn copy never reaches a page", () => {
 
     const source = readFileSync(COPY_RULES_FILE, "utf8");
     const parsed = parseRules(source);
-    expect(parsed.length, `rules parsed out of ${COPY_RULES_FILE}`).toBeGreaterThanOrEqual(15);
+    // 2026-10-12: this said 15. The expectation was wrong, not the code. b32b7f4 moved four
+    // rules (D8 strongest sign, D8 proof of fraud, D9 proves ownership, D10 get your money
+    // back) into WITHDRAWN_CLAIMS on purpose, in wider forms, leaving 11 in apps/web.
+    // Nothing was lost: the shared list is asserted whole just above (PLAN.md Decision 16).
+    expect(parsed.length, `rules parsed out of ${COPY_RULES_FILE}`).toBeGreaterThanOrEqual(11);
     const extra = pendingMigration(source);
     console.log(`${extra.length} of ${parsed.length} apps/web rules are not in WITHDRAWN_CLAIMS by exact pattern, an upper bound since a shared pattern that is a superset still counts`);
     expect(LOCAL.length).toBe(extra.length + PAGE_CLAIMS.length);
