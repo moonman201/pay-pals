@@ -10,6 +10,8 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
+    "demo:seed": "tsx scripts/seed-demo.ts",
+    "smoke:prod": "node scripts/smoke-prod.mjs",
     "test": "vitest run"
   },
   "dependencies": {
