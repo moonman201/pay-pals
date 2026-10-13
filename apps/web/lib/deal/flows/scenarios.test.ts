@@ -27,7 +27,7 @@ type Services = ReturnType<typeof createServices>;
 /** Both sides agree to the current card. Seller first, then the buyer locks it. */
 async function agreeBoth(services: Services, dealId: string) {
   await agree(services, dealId, "seller", false);
-  await agree(services, dealId, "buyer", false);
+  await agree(services, dealId, "buyer", true);
 }
 
 async function payAndShip(services: Services, dealId: string, method: "paypal" | "venmo") {
@@ -82,10 +82,10 @@ describe("clean-ps5", () => {
     const deal = await startDemoDeal(services, "clean-ps5");
 
     const v1 = await runReview(services, deal.id);
-    // Version 1 carries the box label and no serial read off the console itself. That is not a flag:
-    // the number is there to check against, so the pal says go and asks for the close-up anyway.
-    expect(v1.overall).toBe("go");
-    expect(v1.flags).toEqual([]);
+    // 2026-10-13, Matt's decision 2: a serial read only off the box label is a caution (MISSING_SERIAL),
+    // not a go. The pal still asks for the close-up on the console itself.
+    expect(v1.overall).toBe("caution");
+    expect(v1.flags.map((f) => f.code)).toEqual(["MISSING_SERIAL"]);
     expect(v1.questionsForSeller).toContain("Can you send a close-up of the serial label on the console itself?");
     expect(v1.priceCheck?.marketLow).toBe(cleanPs5.marketPrice.marketLow);
 
@@ -103,7 +103,7 @@ describe("clean-ps5", () => {
     expect(v2.overall).toBe("go");
     expect(v2.cardVersion).toBe(2);
 
-    await agree(services, deal.id, "buyer", false);
+    await agree(services, deal.id, "buyer", true);
     snap = await loadSnapshot(services, deal.id);
     expect(snap.deal.state).toBe("REVIEWED");
     expect(snap.deal.buyerAgreedAt).not.toBeNull();
@@ -158,7 +158,9 @@ describe("empty-box", () => {
     const deal = await startDemoDeal(services, "empty-box");
 
     const v = await runReview(services, deal.id);
-    expect(v.overall).toBe("go");
+    // 2026-10-13, Matt's decision 2: the serial is read only off the box, so the first review is a caution.
+    expect(v.overall).toBe("caution");
+    expect(v.flags.map((f) => f.code)).toContain("MISSING_SERIAL");
     await agreeBoth(services, deal.id);
     await payAndShip(services, deal.id, "venmo");
     await confirmDelivery(services, deal.id);
@@ -296,7 +298,9 @@ describe("buyer-first (PLAN.md Decision 7)", () => {
     expect(snap.currentCard?.askingPrice).toBe(420);
 
     const verdict = await runReview(services, deal.id);
-    expect(verdict.overall).toBe("go");
+    // 2026-10-13, Matt's decision 2: the seller joined with the box label only, so the serial is box-only: caution.
+    expect(verdict.overall).toBe("caution");
+    expect(verdict.flags.map((f) => f.code)).toContain("MISSING_SERIAL");
   });
 
   it("a seller who declines on the join page is reviewed with no card and the deal ends BLOCKED", async () => {
@@ -384,7 +388,7 @@ describe("two-sided agreement", () => {
     const services = noKeys();
     const deal = await startDemoDeal(services, "clean-ps5");
     await runReview(services, deal.id);
-    await agree(services, deal.id, "buyer", false);
+    await agree(services, deal.id, "buyer", true);
     let snap = await loadSnapshot(services, deal.id);
     expect(snap.deal.buyerAgreedAt).not.toBeNull();
 
@@ -403,7 +407,7 @@ describe("two-sided agreement", () => {
     expect(snap.deal.state).toBe("REVIEWED");
     expect(snap.lockedCard).toBeNull();
 
-    await agree(services, deal.id, "buyer", false);
+    await agree(services, deal.id, "buyer", true);
     snap = await loadSnapshot(services, deal.id);
     expect(snap.deal.state).toBe("AGREED");
     expect(snap.lockedCard?.version).toBe(2);
