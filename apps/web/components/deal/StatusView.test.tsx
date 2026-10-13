@@ -27,6 +27,14 @@ describe("StatusView", () => {
     expect(screen.getByTestId("status-legend")).toHaveTextContent(STATUS_LEGEND);
   });
 
+  it("lets the count chips wrap below the heading instead of widening the page at 390 px", () => {
+    render(<StatusView groups={groups} deal={live} />);
+    const chips = screen.getByTestId("status-counts");
+    expect(chips.className).not.toContain("shrink-0");
+    expect(chips.className).toContain("flex-wrap");
+    expect(chips.parentElement?.className).toContain("flex-wrap");
+  });
+
   it("renders a group per section and a labelled line per item", () => {
     render(<StatusView groups={groups} deal={live} />);
     expect(screen.getAllByTestId("status-group")).toHaveLength(2);

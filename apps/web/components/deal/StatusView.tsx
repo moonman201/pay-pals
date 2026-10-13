@@ -72,7 +72,7 @@ export function StatusView({ groups, deal }: { groups: readonly StatusGroup[]; d
       title="Deal status"
       accent
       aside={
-        <span className="flex shrink-0 flex-wrap justify-end gap-1" data-testid="status-counts">
+        <span className="flex min-w-0 flex-wrap gap-1" data-testid="status-counts">
           {ORDER.map((status) =>
             counts[status] > 0 ? (
               <span key={status} className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-bold ${STYLE[status].chip}`}>
