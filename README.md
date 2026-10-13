@@ -16,6 +16,30 @@ Built for the PayPal AI Hackathon. Runs on the PayPal sandbox.
 
 Three demo scenarios ship in the app: a scam that gets stopped, a clean deal that completes, and a wrong item that arrives.
 
+## How PayPal is used
+
+- **Orders v2, called directly.** When both sides agree, Pay Pals creates a checkout order (`POST /v2/checkout/orders`) with the seller's PayPal email as `payee`, the locked card's title, serial and condition in the line item, and `custom_id` set to the deal id plus the head of the deal's hash-chained history. Payment is captured with `POST /v2/checkout/orders/{id}/capture`, and the order is read back with `GET` so the pay panel can show what PayPal itself holds.
+- **JS SDK v6** for the PayPal and Venmo buttons on the pay panel.
+- **Webhooks** for `CHECKOUT.ORDER.APPROVED`, `PAYMENT.CAPTURE.COMPLETED` and `CUSTOMER.DISPUTE.CREATED`, each verified with `POST /v1/notifications/verify-webhook-signature`.
+- **Goods and Services only.** Pay Pals never creates a Friends and Family payment. A seller asking for one is a flag the buyer cannot override.
+- Sandbox only. The gateway refuses a live base URL.
+
+## How Claude is used
+
+Both pals run on the Claude API with tool use, one model for every step (`ANTHROPIC_MODEL`, default `claude-sonnet-5`).
+
+- **Seller Pal** builds the item card from the listing and photos, and applies a buyer's request as a new card version.
+- **Buyer Pal** reviews the card, the chat and the price check and returns a structured verdict: go, caution or stop, each flag with the quote it rests on, and four lists saying what it checked, what it found, what it could not check and what would change its mind.
+- **Vision reads** take serials off photos of the item and the box label, and check what arrived against the locked card.
+- **The evidence pack summary** is written by Claude from the deal record.
+
+Scam patterns (Friends and Family requests, off-platform payment, urgency, ship before pay) are deterministic rules that run before the model. The model can add flags but can never remove a stop that a rule raised, so the core protections hold even with no API key.
+
+## Sponsor tools
+
+- **Channel3** for the Buyer Pal's market price check on retail items such as the PS5. Graded cards are outside what Channel3 covers, and the pal says so instead of guessing.
+- Graded card certs are checked against PSA's public cert API.
+
 ## Try it yourself
 
 **https://pay-pals-m00n1.vercel.app** No setup, no sign-up, nothing to install.
@@ -77,7 +101,7 @@ ending.
 
 ## Run it
 
-Needs Node 22 and npm 10.
+Needs Node 20 or later and npm 10.
 
 ```bash
 git clone <this repo>
@@ -97,6 +121,9 @@ For the real thing, copy `.env.example` to `.env.local` and fill in:
 | `ANTHROPIC_API_KEY` | Claude for both pals. Without it the pals run rules only. |
 | `CHANNEL3_API_KEY` | Live market prices. Without it the fixture price ranges are used. |
 | `DATABASE_URL` | Postgres (Neon) instead of the in-memory store. |
+| `SANDBOX_SELLER_PERSONAL_EMAIL` | The sandbox seller account demo deals pay, so a capture lands in a real sandbox account. |
+| `SANDBOX_BUYER_EMAIL`, `SANDBOX_BUYER_PASSWORD` | The sandbox test buyer the pay panel shows on demo deals, so anyone can approve the checkout. Shown only when both are set. |
+| `PSA_API_TOKEN` | Live PSA cert lookups for graded cards. Without it the cert check uses demo records and labels them as such. |
 
 The hosted demo above runs on the PayPal sandbox with Neon, live Claude and live Channel3. In development for the PayPal AI Hackathon.
 
