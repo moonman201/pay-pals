@@ -45,6 +45,8 @@ export function messageCounts(messages: readonly Message[]): string {
 }
 import { formatMoney, formatTime } from "@/lib/format";
 import { verdictName } from "@/lib/deal/headline";
+import { flagLabel } from "@/lib/deal/override";
+import { alreadySaid, reasonsNotRepeated } from "@/lib/deal/said-once";
 import { actorLabel, STATE_LABELS } from "@/lib/labels";
 import type { Role } from "@/lib/role";
 import { PhotoGrid } from "../photos/PhotoGrid";
@@ -278,13 +280,13 @@ export function EvidencePackView({
                 <ul className="mt-1 list-disc pl-5">
                   {v.flags.map((f, j) => (
                     <li key={j}>
-                      {f.severity}: {f.explanation}
+                      {f.severity}: {alreadySaid(v.palMessage, f.explanation) ? flagLabel(f.code) : f.explanation}
                       <FlagEvidence evidence={f.evidence} always />
                     </li>
                   ))}
                 </ul>
               ) : null}
-              <PalReasons reasoning={v.reasoning} pal="buyer" className="mt-3" />
+              <PalReasons reasoning={reasonsNotRepeated(v.reasoning, v.palMessage, v.flags.map((f) => f.explanation))} pal="buyer" className="mt-3" />
               </div>
             </div>
           ))}
@@ -297,7 +299,7 @@ export function EvidencePackView({
               {pack.arrivalCheck.mismatches.length > 0 ? (
                 <ul className="mt-1 list-disc pl-5">
                   {pack.arrivalCheck.mismatches.map((m) => (
-                    <li key={m.field}>{m.field}: card says {m.expected}, arrived {m.observed}. {m.explanation}</li>
+                    <li key={m.field}>{m.field}: card says {m.expected}, arrived {m.observed}.{alreadySaid(pack.arrivalCheck!.palMessage, m.explanation) ? "" : ` ${m.explanation}`}</li>
                   ))}
                 </ul>
               ) : null}
@@ -312,7 +314,7 @@ export function EvidencePackView({
                   </ul>
                 </>
               ) : null}
-              <PalReasons reasoning={pack.arrivalCheck.reasoning} pal="buyer" className="mt-3" />
+              <PalReasons reasoning={reasonsNotRepeated(pack.arrivalCheck.reasoning, pack.arrivalCheck.palMessage, [...pack.arrivalCheck.mismatches, ...unsettledOf(pack.arrivalCheck)].map((m) => m.explanation))} pal="buyer" className="mt-3" />
             </>
           ) : (
             <p>No arrival check on record.</p>
