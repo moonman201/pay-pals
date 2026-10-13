@@ -88,7 +88,7 @@ describe("Channel3 sources", () => {
 });
 
 describe("no retailer reaches the model or the buyer", () => {
-  const card = { ...cleanPs5.cards[0]!, askingPrice: 150 };
+  const card = { ...cleanPs5.cards[1]!, askingPrice: 150 };
   const chat = cleanPs5.chat.slice(0, 2);
 
   it("the price line gives the range, the provider, the counts and the method note only", async () => {

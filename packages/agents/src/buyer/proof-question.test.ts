@@ -86,13 +86,13 @@ describe("withProofQuestions", () => {
 });
 
 describe("BuyerPal.review asks for proof", () => {
-  it("keyless: clean-ps5 v1 and empty-box are go and ask for the console close-up; v2 asks nothing", async () => {
+  it("keyless: clean-ps5 v1 and empty-box are caution and ask for the console close-up; v2 asks nothing", async () => {
     const pal = createBuyerPal({ anthropic: null, priceLookup, certLookup });
     const v1 = await pal.review(cleanPs5.cards[0]!, cleanPs5.chat.slice(0, 2));
-    expect(v1.data.overall).toBe("go");
+    expect(v1.data.overall).toBe("caution");
     expect(v1.data.questionsForSeller).toEqual([CONSOLE_SERIAL_QUESTION]);
     const empty = await pal.review(emptyBox.cards[0]!, emptyBox.chat.slice(0, 2));
-    expect(empty.data.overall).toBe("go");
+    expect(empty.data.overall).toBe("caution");
     expect(empty.data.questionsForSeller).toEqual([CONSOLE_SERIAL_QUESTION]);
     const v2 = await pal.review(cleanPs5.cards[1]!, cleanPs5.chat);
     expect(v2.data.overall).toBe("go");

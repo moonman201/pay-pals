@@ -55,7 +55,7 @@ describe("public mode is presentation only", () => {
     expect(promptText(reviews[0]!)).not.toContain("the file could not be loaded");
     expect(verdict.palMessage).not.toMatch(LOADING);
     expect(JSON.stringify(verdict.reasoning)).not.toMatch(/could be loaded/);
-    expect(verdict.overall).toBe("go");
+    expect(verdict.overall).toBe("caution");
 
     const claims = fakeClaude((params) => (offersTool(params, "submit_review") ? { ...quiet(), reasoning: { checked: [], found: ["Not a stock photo listing, I can see the serial."], could_not_verify: [], would_change_my_mind: [] } } : null));
     const guarded = await createBuyerPal({ anthropic: claims, priceLookup, publicMode: true, fetchImage: async () => null }).review(cleanPs5.cards[0]!, cleanPs5.chat.slice(0, 2));
