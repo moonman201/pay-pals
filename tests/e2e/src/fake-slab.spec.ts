@@ -41,6 +41,9 @@ test.describe("fake slab stopped", () => {
     await expect(flags.filter({ hasText: /friends and family/i }).filter({ hasText: /no override/i })).toHaveCount(1);
     await expect(flags.filter({ hasText: /below market/i })).toHaveCount(1);
     await expect(flags.filter({ hasText: /pressure|urgen/i }).first()).toBeVisible();
+    // The listing photo is byte-identical to the one in the reference folder. This went dead once,
+    // with NEXT_PUBLIC_APP_URL unset (this environment), and nothing noticed.
+    await expect(flags.filter({ hasText: "Reused listing photo" })).toHaveCount(1);
     // The cert is real and matches the card, so it raises nothing. The deal is stopped by the rest.
     await expect(flags.filter({ hasText: /does not match the card/i })).toHaveCount(0);
     // The cert block sits beside the review panel now rather than inside it, so it is found
