@@ -195,6 +195,29 @@ describe("SellerPal.applyRequest", () => {
     expect(ItemCardSchema.safeParse(v2).success).toBe(true);
   });
 
+  it("speaks to the seller, and quotes the buyer only when a buyer asked", async () => {
+    const pal = createSellerPal({ anthropic: null });
+    const asked = await pal.applyRequest(v1, { field: "photos", request: CONSOLE_SERIAL_QUESTION }, "Here you go.", [serialCloseUp]);
+    expect(asked.palMessage).toContain(`This answers the buyer's question: "${CONSOLE_SERIAL_QUESTION}"`);
+    expect(asked.palMessage).toContain("I updated your card to version 2");
+    // The seller editing their own card unprompted: no buyer question, and no stand-in quoted back.
+    for (const request of ["Seller update", "seller update.", "", "   "]) {
+      const { palMessage } = await pal.applyRequest(v1, { field: "askingPrice", request }, "I can do $400.");
+      expect(palMessage, JSON.stringify(request)).toContain("I updated your card to version 2");
+      expect(palMessage, JSON.stringify(request)).not.toMatch(/buyer asked|Seller update|question/i);
+      expect(palMessage, JSON.stringify(request)).toContain("The buyer's pal will see the new version.");
+    }
+  });
+
+  it("does not hand the model a placeholder as if it were the buyer's words", async () => {
+    const model = fakeClaude(() => ({ sentence: "Works fine" }));
+    const pal = createSellerPal({ anthropic: model });
+    await pal.applyRequest(v1, { field: "conditionNotes", request: "Seller update" }, "Works fine.");
+    const sent = JSON.stringify(model.calls);
+    expect(sent).not.toContain("Seller update");
+    expect(sent).toContain("without being asked");
+  });
+
   it("lets the model write the card sentence", async () => {
     const model = fakeClaude(() => ({ sentence: "The close-up shows the serial on the back of the console" }));
     const pal = createSellerPal({ anthropic: model });
