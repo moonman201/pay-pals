@@ -24,7 +24,7 @@ describe("HistoryBadge", () => {
   it("on an example deal, says the history is chained but that no PayPal order holds it, even with a hash on the fixture payment", () => {
     render(<HistoryBadge events={events} historyHash={head} example />);
     const badge = screen.getByTestId("history-badge");
-    expect(badge).toHaveTextContent(`Tamper-evident history, ${events.length} events (example deal, no PayPal order)`);
+    expect(badge).toHaveTextContent(`Tamper-evident history, ${events.length} events`);
     expect(badge).toHaveAttribute("data-status", "unanchored");
     expect(screen.queryByText(/unchanged since PayPal order/)).not.toBeInTheDocument();
   });

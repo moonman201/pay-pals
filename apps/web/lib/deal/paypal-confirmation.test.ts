@@ -104,7 +104,7 @@ describe("describeRead", () => {
   });
 
   it("names what we do have instead, in the spirit of the example-deal label", () => {
-    expect(describeRead({ kind: "example" }).note).toMatch(/seeded from a scenario/);
+    expect(describeRead({ kind: "example" }).note).toMatch(/ids below are placeholders/);
     expect(describeRead({ kind: "mock" }).note).toMatch(/made the order and capture ids up/);
     expect(describeRead({ kind: "failed" }).note).toMatch(/could not read this order back/);
     expect(describeRead({ kind: "none" }).note).toMatch(/No PayPal order has been created/);

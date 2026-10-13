@@ -131,7 +131,7 @@ export function describeRead(result: PayPalReadResult): ReadDescription {
     case "example":
       return {
         heading: "Order ids recorded by Pay Pals, not confirmed by PayPal",
-        note: "Example deal, seeded from a scenario. The ids below are placeholders: no PayPal order was created, so there is nothing to read back.",
+        note: "The ids below are placeholders: no PayPal order was created, so there is nothing to read back.",
         confirmed: false,
       };
     case "mock":

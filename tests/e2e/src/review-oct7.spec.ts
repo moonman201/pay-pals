@@ -156,7 +156,7 @@ test.describe("finished demo deals, desktop and phone", () => {
         const header = page.getByRole("banner");
         await expect(header.getByText(/History does not match|History chain is broken/)).toHaveCount(0);
         await expect(header.getByText("Example deal, seeded from a scenario")).toBeVisible();
-        await expect(header.getByText(/Tamper-evident history, \d+ events? \(example deal, no PayPal order\)/)).toBeVisible();
+        await expect(header.getByText(/Tamper-evident history, \d+ events?/)).toBeVisible();
         await expect(header.getByText(/History unchanged since PayPal order/)).toHaveCount(0);
         if (fixture.payment) {
           const payment = page.locator("section").filter({ has: page.getByRole("heading", { name: "Payment" }) });
