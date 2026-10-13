@@ -25,7 +25,9 @@ Copy the names from `.env.example`. Sandbox values only.
 | `PSA_API_TOKEN` | Without it the cert check uses the fixture record. |
 | `DATABASE_URL` | Neon pooled connection string. The app runs the bundled migrations on first start. Without it the in-memory store is used and demo deals vanish on each cold start. |
 | `NEXT_PUBLIC_APP_URL` | The deployed URL. |
-| `SANDBOX_SELLER_PERSONAL_EMAIL` | A sandbox **Personal** account in the same developer account as the REST app. Demo deals pay this account, so captures land in a real sandbox balance. |
+| `SANDBOX_SELLER_PERSONAL_EMAIL` | A sandbox **Personal** account in the same developer account as the REST app. Demo deals pay this account unless a seller has a key of their own below, so captures land in a real sandbox balance. |
+| `SANDBOX_SELLER_EMAIL_CLEAN_PS5` | For the PS5 scenario, seller Matt M. A sandbox **Personal** account whose email carries the first name (for example matt...). The Buyer Pal compares the address with the seller's name, and one account can only carry one name. Server-only. Falls back to `SANDBOX_SELLER_PERSONAL_EMAIL`. |
+| `SANDBOX_SELLER_EMAIL_EMPTY_BOX` | For the empty box scenario, seller Marcus B. A sandbox **Personal** account whose email carries the first name (for example marcus...). Server-only. Falls back to `SANDBOX_SELLER_PERSONAL_EMAIL`. The fake slab scenario never uses a sandbox payee: its address is the scam evidence. |
 | `SANDBOX_BUYER_EMAIL`, `SANDBOX_BUYER_PASSWORD` | A different sandbox **Personal** account, same developer account, with a sandbox balance. The pay panel shows both on demo deals so a judge can approve the checkout. Shown only when both are set. Set the password exactly as PayPal shows it; Vercel does not need quotes. |
 
 Do not set `PAY_PALS_DEMO_ONLY` in production. It is a test knob.

@@ -7,6 +7,7 @@ import { endSentence } from "../../format";
 import { fixtureById } from "../../scenarios";
 import type { Services } from "../../services";
 import { FlowError } from "../errors";
+import { demoPayeeFor } from "../../demo/demo-payee";
 import { absolutePhotos } from "../photo-urls";
 import { note, say } from "./shared";
 
@@ -79,7 +80,7 @@ export async function startDemoDeal(services: Services, scenario: ScenarioId): P
   }
 
   // Fixture payees have no sandbox account behind them; a configured sandbox seller takes their place.
-  const sellerPaypalEmail = services.demoPayee ?? cardV1.sellerPaypalEmail;
+  const sellerPaypalEmail = demoPayeeFor(services.demoPayee, scenario) ?? cardV1.sellerPaypalEmail;
   await store.saveCard({ ...cardV1, dealId: deal.id, sellerPaypalEmail, lockedAt: null });
   const identNote = cardV1.certNumber
     ? `Cert ${cardV1.certNumber} read from the slab label.`

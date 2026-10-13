@@ -32,6 +32,7 @@ import { loadRootEnvLocal } from "./env";
 import { isPublicMode, publicModeLine } from "./public-mode";
 import { detectUploadsEnabled } from "./uploads";
 import { createMockPayPalGateway } from "./mocks/paypal-gateway";
+import { demoPayeesFromEnv, type DemoPayees } from "./demo/demo-payee";
 
 /**
  * The contract gateway plus getOrder, the live read the payment panel needs
@@ -69,12 +70,14 @@ export interface Services {
   sandboxBuyer: { email: string; password: string } | null;
   modes: ServiceModes;
   /**
-   * Payee used for deals started from demo mode, from SANDBOX_SELLER_PERSONAL_EMAIL.
+   * Payees used for deals started from demo mode, per scenario (see lib/demo/demo-payee.ts):
+   * SANDBOX_SELLER_EMAIL_CLEAN_PS5 and SANDBOX_SELLER_EMAIL_EMPTY_BOX, each falling back to
+   * SANDBOX_SELLER_PERSONAL_EMAIL. fake-slab is never in it.
    * Fixture payees have no sandbox account, so a capture to them never moves a balance.
    * Null in demo-only mode, which keeps the fixture payee so the pages render the
    * same everywhere.
    */
-  demoPayee: string | null;
+  demoPayee: DemoPayees | null;
   /** Resolves once migration (Postgres) or seeding (memory) has finished. */
   ready: Promise<void>;
   /** Finished demo deals seeded into the memory store, scenario id to deal id. Empty on Postgres. */
@@ -135,9 +138,10 @@ export function createServices(env: Env = process.env, log: Log = (line) => cons
   // page whether or not an .env.local happens to sit on disk, and a sandbox address is a different
   // length from the fixture one. Real mode keeps the substitution, which is what makes a hosted
   // demo payment land in an account someone can look at.
-  const demoPayee = demoOnly ? null : env.SANDBOX_SELLER_PERSONAL_EMAIL?.trim() || null;
-  if (demoPayee) log("[pay-pals] demo payee: sandbox seller account (SANDBOX_SELLER_PERSONAL_EMAIL) replaces the fixture payee on demo deals");
-  else if (demoOnly && env.SANDBOX_SELLER_PERSONAL_EMAIL?.trim()) log("[pay-pals] demo payee: fixture payee kept (demo-only mode ignores SANDBOX_SELLER_PERSONAL_EMAIL)");
+  const configured = demoPayeesFromEnv(env);
+  const demoPayees: DemoPayees = demoOnly ? {} : configured;
+  if (Object.keys(demoPayees).length > 0) log(`[pay-pals] demo payee: sandbox seller accounts replace the fixture payee on ${Object.keys(demoPayees).join(" and ")}`);
+  else if (demoOnly && Object.keys(configured).length > 0) log("[pay-pals] demo payee: fixture payee kept (demo-only mode ignores the sandbox seller keys)");
 
   let store: PayPalsStore;
   let ready: Promise<void>;
@@ -149,7 +153,7 @@ export function createServices(env: Env = process.env, log: Log = (line) => cons
       ? { email: env.SANDBOX_BUYER_EMAIL!.trim(), password: env.SANDBOX_BUYER_PASSWORD!.trim() }
       : null;
   if (modes.paypal === "sandbox") log(`[pay-pals] sandbox buyer: ${sandboxBuyer ? "test account available on demo deals" : "not set (SANDBOX_BUYER_EMAIL and SANDBOX_BUYER_PASSWORD)"}`);
-  const services = { sellerPal, buyerPal, buildEvidencePack, paypal, demoPayee, clock: systemClock, uploadsEnabled, sandboxBuyer } as Services;
+  const services = { sellerPal, buyerPal, buildEvidencePack, paypal, demoPayee: demoPayees, clock: systemClock, uploadsEnabled, sandboxBuyer } as Services;
   // The seeder replays each fixture on the fixture's own dates, so the seeded timeline, payment and shipment agree.
   const replay = createReplayClock();
 

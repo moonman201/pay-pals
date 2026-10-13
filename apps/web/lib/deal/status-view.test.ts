@@ -1,3 +1,4 @@
+import { sellerStatusGroups } from "./seller-voice";
 import { buildCustomId, cleanPs5, emptyBox, fakeSlab, type Verdict } from "@pay-pals/contracts";
 import { describe, expect, it } from "vitest";
 import { readOrderFields } from "./paypal-confirmation";
@@ -260,33 +261,25 @@ describe("the PayPal address against the seller's name", () => {
     raisedByRule: true,
   };
 
-  it("says the check passed, which it never used to say at all", () => {
+  it("says the name is in the address when no flag and no open line says otherwise", () => {
     const line = item(dealStatusView(input()), "evidence", "payee-name");
     expect(line.status).toBe("verified");
     expect(line.detail).toContain(lockedCard.sellerPaypalEmail);
-    expect(line.detail).toContain(cleanPs5.deal.seller.displayName);
+    expect(line.detail).toContain("contains part of the seller's name");
     // A name-shaped address is not proof of who holds the account, and the line says so.
     expect(line.detail).toMatch(/not proof of who owns the account/);
+    expect(line.detail).not.toMatch(/\bagree\b/);
+    // The seller's own view says "your name".
+    expect(sellerStatusGroups([group(dealStatusView(input()), "evidence")])[0]!.items.find((i) => i.id === "payee-name")!.detail).toContain("part of your name");
   });
 
-  const asSeller = (displayName: string, email: string, paypal: string) => {
-    const card = { ...lockedCard, sellerPaypalEmail: paypal };
-    return input({ lockedCard: card, cards: [card], deal: { ...cleanPs5.deal, seller: { ...cleanPs5.deal.seller, displayName, email } } });
-  };
-
-  it("says the address contains the name only when it does", () => {
-    const line = item(dealStatusView(asSeller("Dana Moore", "dana@example.com", "dana.moore@example.com")), "evidence", "payee-name");
-    expect(line.status).toBe("verified");
-    expect(line.detail).toContain("The address contains part of the seller's name.");
-    expect(line.detail).not.toMatch(/\bagree\b/);
-  });
-
-  it("does not say they agree when the address is just the seller's contact email", () => {
-    const line = item(dealStatusView(asSeller("Dana Moore", "quickpay2026@example.com", "quickpay2026@example.com")), "evidence", "payee-name");
-    expect(line.detail).toContain("compared quickpay2026@example.com with Dana Moore");
-    expect(line.detail).toContain("does not appear in the address");
-    expect(line.detail).toContain("contact email");
-    expect(line.detail).not.toMatch(/\bagree\b/);
+  it("is unverified, with the pal's sentence and the address, when it could not confirm the account is the seller's", () => {
+    const sentence = `Couldn't confirm the PayPal account belongs to ${cleanPs5.deal.seller.displayName}.`;
+    const reasoning = { checked: [], found: [], couldNotVerify: [sentence], wouldChangeMyMind: [] };
+    const line = item(dealStatusView(input({ verdicts: [verdict({ reasoning })] })), "evidence", "payee-name");
+    expect(line.status).toBe("unverified");
+    expect(line.detail).toContain(sentence);
+    expect(line.detail).toContain(lockedCard.sellerPaypalEmail);
   });
 
   it("names what was compared on a flag whose evidence does not", () => {

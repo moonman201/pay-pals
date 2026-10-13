@@ -21,6 +21,7 @@ import { ALL_FIXTURES, type Deal, type DealEvent, type DealState, type ItemCard,
 import { buildEvidenceFor } from "../deal/flows/evidence";
 import type { Services } from "../services";
 import { readSeedStamp, SEED_VERSION } from "./seed-version";
+import { demoPayeeFor } from "./demo-payee";
 
 type SeedServices = Pick<Services, "store" | "buyerPal" | "buildEvidencePack" | "demoPayee" | "clock">;
 
@@ -100,7 +101,7 @@ async function replay(services: SeedServices, fixture: ScenarioFixture, time: Re
       case "card_updated": {
         const card = fixture.cards[savedCards];
         if (card) {
-          await store.saveCard({ ...card, dealId: id, sellerPaypalEmail: services.demoPayee ?? card.sellerPaypalEmail, lockedAt: null });
+          await store.saveCard({ ...card, dealId: id, sellerPaypalEmail: demoPayeeFor(services.demoPayee, fixture.id) ?? card.sellerPaypalEmail, lockedAt: null });
           savedCards += 1;
         }
         await recordEvent(event);
@@ -142,7 +143,7 @@ async function replay(services: SeedServices, fixture: ScenarioFixture, time: Re
           await store.savePayment({
             ...fixture.payment,
             dealId: id,
-            payeeEmail: services.demoPayee ?? fixture.payment.payeeEmail,
+            payeeEmail: demoPayeeFor(services.demoPayee, fixture.id) ?? fixture.payment.payeeEmail,
             status: "CREATED",
             captureId: null,
             createdAt: when(fixture.payment.createdAt),
@@ -159,7 +160,7 @@ async function replay(services: SeedServices, fixture: ScenarioFixture, time: Re
           await store.savePayment({
             ...fixture.payment,
             dealId: id,
-            payeeEmail: services.demoPayee ?? fixture.payment.payeeEmail,
+            payeeEmail: demoPayeeFor(services.demoPayee, fixture.id) ?? fixture.payment.payeeEmail,
             createdAt: when(fixture.payment.createdAt),
             capturedAt: fixture.payment.capturedAt ? when(fixture.payment.capturedAt) : null,
             historyHash: created?.historyHash ?? null,

@@ -283,9 +283,9 @@ function photoItem(input: StatusInput): StatusItem {
  *
  * Read off the verdict, never recomputed here. packages/agents owns the
  * comparison (rules/name-mismatch.ts) and raises NAME_MISMATCH when the
- * PayPal address does not share a name token with the seller. apps/web
- * passes the seller on every review, so for any verdict the rule ran, and
- * the absence of the flag is its pass. Decision 15: the side that decides a
+ * PayPal address looks like a throwaway or deals front, and words the
+ * "could not confirm the account belongs to" line itself. With neither, the
+ * name was found in the address. Decision 15: the side that decides a
  * fact is the side that words it.
  */
 function payeeNameItem(input: StatusInput): StatusItem | null {
@@ -307,18 +307,15 @@ function payeeNameItem(input: StatusInput): StatusItem | null {
     const reason = /only initials/i.test(undecided) ? "The seller's name is only initials" : "The Buyer Pal was not given the seller's name";
     return { id, label, status: "unverified", detail: `${reason}, so it could not check it against ${card.sellerPaypalEmail}.` };
   }
-  const compared = `The Buyer Pal compared ${card.sellerPaypalEmail} with ${seller.displayName}, the seller on this deal, and raised no flag.`;
-  const local = (card.sellerPaypalEmail.split("@")[0] ?? "").toLowerCase();
-  const nameInAddress = seller.displayName
-    .toLowerCase()
-    .split(/[^a-z]+/)
-    .some((token) => token.length >= 3 && local.includes(token));
-  const why = nameInAddress
-    ? "The address contains part of the seller's name."
-    : card.sellerPaypalEmail.toLowerCase() === seller.email.toLowerCase()
-      ? "The seller's name does not appear in the address. It is the contact email they gave, so the address was not checked against the name."
-      : "The seller's name does not appear in the address.";
-  return { id, label, status: "verified", detail: `${compared} ${why} This is not proof of who owns the account.` };
+  // The pal could not confirm the account belongs to the seller. That is not a pass and not a failure.
+  const unconfirmed = couldNotVerify(verdict.reasoning).find((line) => /PayPal account belongs to/i.test(line));
+  if (unconfirmed) return { id, label, status: "unverified", detail: `${unconfirmed} The Buyer Pal compared the address ${card.sellerPaypalEmail} with the seller's name.` };
+  return {
+    id,
+    label,
+    status: "verified",
+    detail: `The address ${card.sellerPaypalEmail} contains part of the seller's name. This is not proof of who owns the account.`,
+  };
 }
 
 /**
