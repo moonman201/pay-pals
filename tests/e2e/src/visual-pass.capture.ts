@@ -6,6 +6,11 @@
  *   E2E_BASE_URL=https://pay-pals-m00n1.vercel.app npx tsx src/visual-pass.capture.ts before
  *   E2E_BASE_URL=<preview url> npx tsx src/visual-pass.capture.ts after
  *   E2E_BASE_URL=<preview url> npx tsx src/visual-pass.capture.ts after-day light
+ *   E2E_BASE_URL=<url> npx tsx src/visual-pass.capture.ts overnight dark "" roles full
+ *
+ * The fourth argument is a comma-separated shot filter (empty for all). The fifth, "roles", shoots
+ * the three finished rooms once as the buyer and once as the seller instead of the usual set. The
+ * sixth, "full", lifts the 400 KB budget so no shot is taken at a smaller scale.
  *
  * The third argument is the colour mode, night by default. Day is reached
  * by writing the visitor's stored choice before the page loads, which is
@@ -44,9 +49,12 @@ const MODE = process.argv[3] === "light" ? "light" : "dark";
 const THEME_STORAGE_KEY = "pay-pals-theme";
 /** A comma-separated list of shot names, or every shot when it is not given. */
 const ONLY = (process.argv[4] ?? "").split(",").map((n) => n.trim()).filter(Boolean);
+const ROLES = process.argv[5] === "roles";
 const OUT = resolve(process.cwd(), "..", "..", "docs", "visual-pass", SET);
 const WIDTHS = [1280, 390] as const;
-const LIMIT = 400 * 1024;
+/** "full" as the sixth argument keeps every shot at device scale 1, whatever its size, so a 1280 px page is 1280 px wide. */
+const FULL = process.argv[6] === "full";
+const LIMIT = FULL ? Number.POSITIVE_INFINITY : 400 * 1024;
 const SCALES = [1, 0.75, 0.5] as const;
 
 interface Shot {
@@ -121,11 +129,15 @@ async function main(): Promise<void> {
   mkdirSync(OUT, { recursive: true });
   const browser = await chromium.launch();
   const deals = await finishedDeals(browser);
-  const shots: Shot[] = [
-    { name: "landing", path: "/" },
-    ...Object.entries(deals).map(([key, id]) => ({ name: `${key}-room`, path: `/deals/${id}?as=buyer` })),
-    ...(["clean-ps5", "empty-box"] as const).filter((k) => deals[k]).map((k) => ({ name: `${k}-evidence`, path: `/deals/${deals[k]}/evidence?as=buyer` })),
-  ];
+  // "roles" as the fifth argument swaps the usual set for each finished room as the buyer and as the
+  // seller, named <deal>-<role>-<width>.png, which is what the overnight pass was asked for.
+  const shots: Shot[] = ROLES
+    ? Object.entries(deals).flatMap(([key, id]) => (["buyer", "seller"] as const).map((role) => ({ name: `${key}-${role}`, path: `/deals/${id}?as=${role}` })))
+    : [
+        { name: "landing", path: "/" },
+        ...Object.entries(deals).map(([key, id]) => ({ name: `${key}-room`, path: `/deals/${id}?as=buyer` })),
+        ...(["clean-ps5", "empty-box"] as const).filter((k) => deals[k]).map((k) => ({ name: `${k}-evidence`, path: `/deals/${deals[k]}/evidence?as=buyer` })),
+      ];
   const wanted = ONLY.length > 0 ? shots.filter((s) => ONLY.includes(s.name)) : shots;
   const missing = ONLY.filter((n) => !shots.some((s) => s.name === n));
   if (missing.length > 0) throw new Error(`No such shot: ${missing.join(", ")}. Available: ${shots.map((s) => s.name).join(", ")}`);

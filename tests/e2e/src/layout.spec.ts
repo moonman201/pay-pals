@@ -30,11 +30,14 @@ async function openFinished(page: Page, fixture: ScenarioFixture): Promise<strin
   return dealId;
 }
 
-/** The stepper's seven steps in order, with their statuses. */
-async function stepStatuses(page: Page): Promise<string[]> {
+/**
+ * The stepper's steps in order, with their statuses. All seven by default; a deal that ended early
+ * lists only the steps it reached, and the rest are one "Not reached" line (see the fake-slab test).
+ */
+async function stepStatuses(page: Page, labels: readonly string[] = STEP_LABELS): Promise<string[]> {
   const steps = page.getByTestId("progress-stepper").getByRole("listitem");
-  await expect(steps).toHaveCount(STEP_LABELS.length);
-  await expect(steps).toHaveText(STEP_LABELS.map((label) => new RegExp(label)));
+  await expect(steps).toHaveCount(labels.length);
+  await expect(steps).toHaveText(labels.map((label) => new RegExp(label)));
   return steps.evaluateAll((items) => items.map((li) => li.getAttribute("data-status") ?? ""));
 }
 
@@ -58,7 +61,11 @@ test.describe("new layout on the finished deals", () => {
 
   test("fake slab: three steps done, Blocked end badge, Stop verdict, cert rows that match, no lock", async ({ page }) => {
     await openFinished(page, fakeSlab);
-    expect(await stepStatuses(page)).toEqual(["done", "done", "done", "upcoming", "upcoming", "upcoming", "upcoming"]);
+    // 2026-10-13: the stepper used to list four upcoming steps a blocked deal can never reach. It now lists
+    // the three it reached, the Blocked badge after them, and one "Not reached" line for the rest. The old
+    // expectation predates that change; it was not a sign of a regression.
+    expect(await stepStatuses(page, STEP_LABELS.slice(0, 3))).toEqual(["done", "done", "done"]);
+    await expect(page.getByTestId("progress-not-reached")).toHaveText("Not reached: Agreed and locked, Paid, Shipped and Arrived.");
     await expect(page.getByTestId("progress-stepper").locator("[aria-current='step']")).toHaveCount(0);
     await expect(page.getByTestId("progress-end")).toHaveText("Blocked");
 

@@ -132,10 +132,15 @@ test.describe("the deal status view", () => {
       // The denial guard below is only worth anything if its words are words this view really uses.
       // They are, on the lines that honestly say nothing was checked, so a Verified line carrying
       // one of them would be contradicting itself rather than tripping a pattern that never matches.
-      expect(
-        rows.filter((r) => DENIES_A_CHECK.test(r.detail)).length,
-        `${fixture.id}: no line says a check did not happen, so the Verified guard below is checking nothing`,
-      ).toBeGreaterThan(0);
+      // 2026-10-13: the fake-slab deal ended before a card was agreed, so its "Card locked: Not yet" line, the
+      // one denying line it used to show, now collapses into the "Not reached" note. It has no denying line left
+      // to find, and the other two deals still prove the pattern matches words this view uses.
+      if (fixture.id !== "fake-slab") {
+        expect(
+          rows.filter((r) => DENIES_A_CHECK.test(r.detail)).length,
+          `${fixture.id}: no line says a check did not happen, so the Verified guard below is checking nothing`,
+        ).toBeGreaterThan(0);
+      }
 
       // Flagged is a check that ran and came back different, so it owes the same account of
       // itself as Verified: both say a comparison happened, and only the answer differs.
