@@ -12,7 +12,7 @@
  * Every scenario is resolved in parallel, so the landing pays one round trip
  * and not three.
  */
-import type { Deal, ScenarioId } from "@pay-pals/contracts";
+import { SCENARIO_IDS, type Deal, type ScenarioId } from "@pay-pals/contracts";
 import { FINISHED_STATES, oldestSeeded, type DealFinder, type EventReader } from "./seed-fixtures";
 
 export type SeededIds = Partial<Record<ScenarioId, string>>;
@@ -59,12 +59,16 @@ export async function resolveFinishedDeal(scenario: ScenarioId, startingId: stri
   return null;
 }
 
-/** The ids as they stand now. Any scenario whose deal is gone is left out. */
+/**
+ * The ids as they stand now. Every scenario is asked about, not only those the
+ * process seeded: on Postgres nothing is seeded at start (the CLI does it after
+ * a deploy), so the starting ids are empty and the finder is the answer. Any
+ * scenario whose deal is gone or was never seeded is left out.
+ */
 export async function resolveSeededDeals(seeded: SeededIds, lookup: SeededLookup, finder: DealFinder | null = null, log?: Log): Promise<SeededIds> {
-  const entries = Object.entries(seeded) as [ScenarioId, string | undefined][];
-  const resolved = await Promise.all(entries.map(([scenario, id]) => resolveFinishedDeal(scenario, id ?? null, lookup, finder, log)));
+  const resolved = await Promise.all(SCENARIO_IDS.map((scenario) => resolveFinishedDeal(scenario, seeded[scenario] ?? null, lookup, finder, log)));
   const out: SeededIds = {};
-  for (const [i, [scenario]] of entries.entries()) {
+  for (const [i, scenario] of SCENARIO_IDS.entries()) {
     const id = resolved[i];
     if (id) out[scenario] = id;
   }
