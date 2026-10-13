@@ -24,6 +24,7 @@ import { PAYMENT_METHOD_FLAGS } from "@pay-pals/contracts";
 import type { PhotoMatch } from "../rules/types";
 import { HASH_BITS, NEAR_DUPLICATE_DISTANCE } from "../vision/phash";
 import { deviceFamily } from "../seller/listing-parse";
+import { pricePosition, pricePositionVerb } from "../price/price-position";
 import { checkPayeeName } from "../rules/name-mismatch";
 import { normalizeSerial } from "../vision/description";
 import { compareSerials, describeDifference } from "../vision/serial-match";
@@ -100,11 +101,8 @@ function found(input: ReviewReasonInput): ReasonLine[] {
   }
   if (flags.length === 0) lines.push("Nothing in the chat matched a pattern Pay Pals checks for.");
   if (card && priceCheck && priceCheck.marketLow > 0 && !has(flags, "PRICE_FAR_BELOW_MARKET")) {
-    lines.push(
-      card.askingPrice > priceCheck.marketHigh
-        ? `The $${card.askingPrice} ask is above the $${priceCheck.marketLow} to $${priceCheck.marketHigh} range.`
-        : `The $${card.askingPrice} ask sits inside the $${priceCheck.marketLow} to $${priceCheck.marketHigh} range.`,
-    );
+    const where = pricePositionVerb(pricePosition(card.askingPrice, priceCheck.marketLow, priceCheck.marketHigh));
+    lines.push(`The $${card.askingPrice} ask ${where} the $${priceCheck.marketLow} to $${priceCheck.marketHigh} range.`);
   }
   // The PayPal-address check reported nothing when it passed, so a check that ran had no result
   // anywhere. It says what it actually tested: the name is in the address, not that the account

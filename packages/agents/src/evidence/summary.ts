@@ -127,7 +127,10 @@ export function tamperCheck(input: EvidenceInput): string | null {
   const { payment, timeline } = input;
   const head = payment?.historyHash ?? null;
   const anchor: HistoryAnchor = input.historyAnchor ?? "recorded_only";
-  const events = `${timeline.length} stored timeline event${timeline.length === 1 ? "" : "s"}`;
+  // The count is the timeline as it stood when this pack was built. Building the pack is itself a
+  // timeline event, appended after, so a page counting the live timeline reads one more. Saying
+  // "when this pack was built" keeps both numbers true instead of looking like a disagreement.
+  const events = `${timeline.length} timeline event${timeline.length === 1 ? "" : "s"} stored when this pack was built`;
 
   // The hash ends its own short sentence: the evidence page prints 64 hex characters on a line of
   // their own, so anything after one is left hanging there (see hashEndsItsSentence in copy.ts).

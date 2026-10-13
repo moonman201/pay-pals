@@ -26,6 +26,7 @@
  */
 import type { PriceCheck, RedFlag, VerdictOverall } from "@pay-pals/contracts";
 import { plainCopy } from "../copy";
+import { pricePosition, pricePositionVerb } from "../price/price-position";
 
 /** At most this many reason lines. Beyond three a buyer stops reading, and the rest are in the expander. */
 export const MAX_REASONS = 3;
@@ -67,7 +68,8 @@ function worstFirst(flags: readonly RedFlag[]): RedFlag[] {
 function goodNews(askingPrice: number | null, priceCheck: PriceCheck | null, serial: string | null): string[] {
   const lines: string[] = [];
   if (askingPrice !== null && priceCheck && priceCheck.marketLow > 0) {
-    lines.push(`Price sits inside the usual range, $${priceCheck.marketLow} to $${priceCheck.marketHigh}.`);
+    const where = pricePositionVerb(pricePosition(askingPrice, priceCheck.marketLow, priceCheck.marketHigh));
+    lines.push(`Price ${where} the usual range, $${priceCheck.marketLow} to $${priceCheck.marketHigh}.`);
   }
   if (serial) lines.push(`Serial ${serial} is on the card, so it can be checked on arrival.`);
   lines.push("Nothing in the chat matches a pattern we check for.");
