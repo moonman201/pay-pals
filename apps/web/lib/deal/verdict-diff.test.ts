@@ -43,7 +43,7 @@ describe("diffVerdicts", () => {
     expect(diff.appeared).toEqual([]);
     expect(diff.stayed).toEqual([]);
     expect(diff.overallChanged).toBe(true);
-    expect(diff.lines[0]).toBe("The verdict went from Caution to Go.");
+    expect(diff.lines[0]).toBe("The verdict went from Caution to Looks good.");
     expect(diff.lines).toContain("The new review was made against card version 2, the earlier one against version 1.");
     expect(diff.lines).toContain("Cleared: no serial number.");
     expect(diff.lines).toContain("1 question the pal asked before is no longer open.");

@@ -22,6 +22,11 @@ describe("reviewLead", () => {
     }
   });
 
+  it("counts the open questions in a go headline", () => {
+    expect(reviewLead(verdict({ overall: "go", questionsForSeller: ["q"] })).headline).toBe("Looks good, 1 open question.");
+    expect(reviewLead(verdict({ overall: "go", questionsForSeller: ["q", "r"] })).headline).toBe("Looks good, 2 open questions.");
+  });
+
   it("keeps every reason to one short line", () => {
     const all: RedFlagCode[] = [
       "FRIENDS_AND_FAMILY_REQUEST",

@@ -44,7 +44,8 @@ export function messageCounts(messages: readonly Message[]): string {
   return `${word(shared, "shared chat message", "shared chat messages")}, ${word(pal, "pal message", "pal messages")}`;
 }
 import { formatMoney, formatTime } from "@/lib/format";
-import { actorLabel, OVERALL_LABELS, STATE_LABELS } from "@/lib/labels";
+import { verdictName } from "@/lib/deal/headline";
+import { actorLabel, STATE_LABELS } from "@/lib/labels";
 import type { Role } from "@/lib/role";
 import { PhotoGrid } from "../photos/PhotoGrid";
 import { PrintButton } from "./PrintButton";
@@ -263,7 +264,7 @@ export function EvidencePackView({
             <div key={i} className="mb-3 flex gap-3">
               <PalAvatar pal="buyer" size={28} className="mt-0.5" />
               <div className="min-w-0">
-              <p className="font-semibold">Card version {v.cardVersion}: {OVERALL_LABELS[v.overall]}</p>
+              <p className="font-semibold">Card version {v.cardVersion}: {verdictName(v)}</p>
               <p className="text-xs text-muted">
                 {priceRangeLine(v.priceCheck)}, {priceSourceNote(v.priceCheck)}
                 {summariseSources(v.priceCheck) ? `. ${summariseSources(v.priceCheck)!.line}` : ""}

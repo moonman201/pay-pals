@@ -42,7 +42,7 @@ describe("VerdictDiffPanel", () => {
     expect(sides[0]).toHaveTextContent("no serial number");
     expect(sides[0]).toHaveTextContent("cleared");
     expect(sides[1]).toHaveTextContent("No red flags.");
-    expect(screen.getByTestId("verdict-diff-lines")).toHaveTextContent("The verdict went from Caution to Go.");
+    expect(screen.getByTestId("verdict-diff-lines")).toHaveTextContent("The verdict went from Caution to Looks good.");
     expect(screen.getByTestId("verdict-diff-lines")).toHaveTextContent("Cleared: no serial number.");
   });
 

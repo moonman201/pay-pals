@@ -13,10 +13,10 @@
  * and the evidence pack still has the pal's own words to quote.
  */
 import type { Message, Verdict } from "@pay-pals/contracts";
-import { OVERALL_LABELS } from "../labels";
+import { verdictName } from "./headline";
 
 export function reviewDoneLine(verdict: Verdict): string {
-  return `Review done: ${OVERALL_LABELS[verdict.overall]}. Details above.`;
+  return `Review done: ${verdictName(verdict)}. Details above.`;
 }
 
 function norm(text: string): string {
