@@ -105,7 +105,9 @@ export async function runReview(services: Services, dealId: string, options: Run
 
   if (verdict.questionsForSeller.length > 0 && card) {
     const asks = verdict.questionsForSeller.map((q) => `"${q}"`).join(" ");
-    await say(services, dealId, "seller_pal", "seller_pal", `The buyer's pal asked for something before they commit: ${asks} Add it below and I will save a new card version.`);
+    // A blocked deal has no add control, so the line must not point at one.
+    const closing = verdict.flags.some(isPaymentMethodFlag) ? "The deal is blocked, so the card cannot change." : "Add it below and I will save a new card version.";
+    await say(services, dealId, "seller_pal", "seller_pal", `The buyer's pal asked for something before they commit: ${asks} ${closing}`);
     // No "Buyer Pal to seller:" prefix. Every message in this channel already
     // shows who said it and who the other side is, so the prefix was the third
     // time the same page named them (Matt's rule 1).
