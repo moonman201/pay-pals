@@ -57,6 +57,24 @@ describe("a review reports its findings as they land", () => {
     for (const line of seen) expect(line).toContain("resolved=false");
   });
 
+  it("a refused cert lookup ends the cert line as not checked, and the verdict says the grader refused", async () => {
+    const refusing = { lookup: async () => { throw Object.assign(new Error("PSA cert lookup failed with 403: limited to approved customers"), { status: 403 }); } };
+    const { events, onProgress } = recorder();
+    const { data } = await createBuyerPal({ anthropic: null, priceLookup, certLookup: refusing }).review(fakeSlab.cards.at(-1)!, fakeSlab.chat, { seller: fakeSlab.seller }, { onProgress });
+    const certEvents = events.filter((e) => e.kind === "certCheck");
+    expect(certEvents).toEqual([{ kind: "certCheck", certCheck: null }]);
+    expect(data.certCheck).toBeUndefined();
+    expect(data.reasoning!.couldNotVerify.join(" ")).toMatch(/grader's service refused the lookup/);
+    expect(data.reasoning!.couldNotVerify.join(" ")).toContain(fakeSlab.cards.at(-1)!.certNumber!);
+
+    // Unreachable is a different sentence: nothing answered.
+    const down = { lookup: async () => { throw new Error("socket hang up"); } };
+    const second = recorder();
+    const again = await createBuyerPal({ anthropic: null, priceLookup, certLookup: down }).review(fakeSlab.cards.at(-1)!, fakeSlab.chat, { seller: fakeSlab.seller }, { onProgress: second.onProgress });
+    expect(second.events.filter((e) => e.kind === "certCheck")).toEqual([{ kind: "certCheck", certCheck: null }]);
+    expect(again.data.reasoning!.couldNotVerify.join(" ")).toMatch(/could not reach the grader/);
+  });
+
   it("reports the stage, the price and the cert as well as the flags", async () => {
     const { events, onProgress } = recorder();
     await pal().review(fakeSlab.cards.at(-1)!, fakeSlab.chat, { seller: fakeSlab.seller }, { onProgress });
