@@ -40,7 +40,7 @@ export function Panel({
     >
       {title ? (
         <header
-          className={`flex items-center justify-between gap-3 rounded-t-xl border-b px-4 py-3 ${
+          className={`flex flex-wrap items-center justify-between gap-x-3 gap-y-2 rounded-t-xl border-b px-4 py-3 ${
             accent ? "border-[var(--accent-line)] bg-[var(--accent-soft)]" : "border-line"
           }`}
         >
