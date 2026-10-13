@@ -131,7 +131,7 @@ export const fakeSlab: ScenarioFixture = {
     { id: "e4", dealId, kind: "seller_joined", actor: "seller", summary: "Chris W. opened the invite.", at: at(4) },
     { id: "e5", dealId, kind: "card_updated", actor: "seller_pal", summary: `Seller Pal built card version 1. Cert ${FAKE_SLAB_CERT}, grade PSA 10, read off the slab label.`, at: at(5) },
     { id: "e6", dealId, kind: "state_changed", actor: "system", summary: "Listed.", fromState: "INVITED", toState: "LISTED", at: at(5) },
-    { id: "e7", dealId, kind: "review_posted", actor: "buyer_pal", summary: `Buyer Pal reviewed the deal: stop. The cert matches the card, but the listing photo is the same picture as another listing and the seller will not photograph the slab with his name on it.`, at: at(18) },
+    { id: "e7", dealId, kind: "review_posted", actor: "buyer_pal", summary: `Buyer Pal reviewed the deal: stop. The cert matches the card, but the listing photo is an exact match to a listing photo already on file, and the seller will not photograph the slab with his name on it.`, at: at(18) },
     { id: "e8", dealId, kind: "state_changed", actor: "system", summary: "Reviewed.", fromState: "LISTED", toState: "REVIEWED", at: at(18) },
     { id: "e9", dealId, kind: "state_changed", actor: "buyer_pal", summary: "Blocked. Pay Pals will not move money outside a Goods and Services payment.", fromState: "REVIEWED", toState: "BLOCKED", at: at(25) },
   ]),

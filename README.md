@@ -52,8 +52,8 @@ Run the three in this order.
 
 ### 1. Stolen photo stopped
 
-Play as buyer. Press **Ask my pal to review**. The listing photo was lifted from
-someone else's listing, the seller pushes Friends and Family and sets a
+Play as buyer. Press **Ask my pal to review**. The listing photo is an exact match
+to a listing photo Pay Pals already has on file, the seller pushes Friends and Family and sets a
 deadline, and the Buyer Pal stops the deal. Read the flags: each one quotes what
 it is based on. The cert on the slab label is real and matches the card in the
 picture, and the pal says what that does and does not show. No money moves, and
