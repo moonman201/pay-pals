@@ -40,11 +40,14 @@ describe("deal state table", () => {
     expect(canTransition("PAID", "CANCELLED")).toBe(false);
   });
 
-  it("never leaves a terminal state", () => {
-    for (const s of ["COMPLETE", "BLOCKED", "ISSUE", "CANCELLED"] as const) {
-      expect(isTerminal(s)).toBe(true);
-      expect(DEAL_TRANSITIONS[s]).toHaveLength(0);
-    }
+  it("never leaves a terminal state, except that a blocked deal can be cancelled", () => {
+    // 2026-10-13: BLOCKED gained one exit, to CANCELLED (v1.9.0, Matt). It is
+    // still terminal in the sense that matters: there is no path to payment.
+    for (const s of ["COMPLETE", "BLOCKED", "ISSUE", "CANCELLED"] as const) expect(isTerminal(s)).toBe(true);
+    for (const s of ["COMPLETE", "ISSUE", "CANCELLED"] as const) expect(DEAL_TRANSITIONS[s]).toHaveLength(0);
+    expect(DEAL_TRANSITIONS.BLOCKED).toEqual(["CANCELLED"]);
+    expect(canTransition("BLOCKED", "AGREED")).toBe(false);
+    expect(canTransition("BLOCKED", "PAYMENT_PENDING")).toBe(false);
   });
 
   it("locks the card from AGREED on", () => {

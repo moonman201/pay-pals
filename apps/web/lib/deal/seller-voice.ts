@@ -31,16 +31,41 @@ function baseVerb(word: string): string {
   return word.slice(0, -1);
 }
 
-const SUBJECT = String.raw`(?<!, )\b(?:he|she|the seller|this seller)\b`;
+/** "the seller" after a comma is an appositive to a name ("Sam Lee, the seller on this deal"), so it stays. */
+const NOUN = String.raw`(?<!, )\b(?:the seller|this seller)\b`;
+const PRONOUN = String.raw`\b(?:he|she)\b`;
 
+/** A sentence that names the buyer: a bare "he" there could be the buyer, so only "the seller" is renamed. */
+const NAMES_THE_BUYER = /\bbuyer\b(?! Pal)/i;
+
+function withVerb(pattern: string, sentence: string): string {
+  return sentence.replace(new RegExp(`(${pattern})(\\s+)([A-Za-z']+)`, "gi"), (_m, subject: string, space: string, verb: string) => `${match(subject, "you")}${space}${baseVerb(verb)}`);
+}
+
+function rename(sentence: string, pronouns: boolean): string {
+  let out = withVerb(NOUN, sentence).replace(/\b(?:the seller|this seller)'s\b/gi, (m) => match(m, "your"));
+  if (pronouns) {
+    out = withVerb(PRONOUN, out)
+      .replace(/\bhis\b/gi, (m) => match(m, "your"))
+      .replace(/\bhimself\b/gi, (m) => match(m, "yourself"))
+      .replace(/\bhim\b/gi, (m) => match(m, "you"))
+      .replace(new RegExp(PRONOUN, "gi"), (m) => match(m, "you"));
+  }
+  return out.replace(new RegExp(NOUN, "gi"), (m) => match(m, "you"));
+}
+
+/**
+ * Quoted text is somebody's own words, usually the seller's, and stays exactly as written. It is
+ * lifted out before anything is renamed and put back after.
+ */
 export function sellerVoice(text: string): string {
-  return text
-    .replace(new RegExp(`(${SUBJECT})(\\s+)([A-Za-z']+)`, "gi"), (_m, subject: string, space: string, verb: string) => `${match(subject, "you")}${space}${baseVerb(verb)}`)
-    .replace(/\b(?:the seller|this seller)'s\b/gi, (m) => match(m, "your"))
-    .replace(/\bhis\b/gi, (m) => match(m, "your"))
-    .replace(/\bhimself\b/gi, (m) => match(m, "yourself"))
-    .replace(/\bhim\b/gi, (m) => match(m, "you"))
-    .replace(new RegExp(SUBJECT, "gi"), (m) => match(m, "you"));
+  const quotes: string[] = [];
+  const lifted = text.replace(/"[^"]*"|“[^”]*”/g, (q) => `\u0000${quotes.push(q) - 1}\u0000`);
+  const renamed = lifted
+    .split(/(?<=[.!?])(\s+)/)
+    .map((part) => (/^\s*$/.test(part) ? part : rename(part, !NAMES_THE_BUYER.test(part))))
+    .join("");
+  return renamed.replace(/\u0000(\d+)\u0000/g, (_m, i: string) => quotes[Number(i)]!);
 }
 
 /** The status view as the seller reads it: the same rows and verdicts, the seller spoken to as "you". */

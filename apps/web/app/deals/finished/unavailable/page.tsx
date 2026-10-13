@@ -2,10 +2,11 @@
  * Where /deals/finished/<scenario> sends a judge when there is no finished
  * demo deal for that scenario right now.
  *
- * Deliberately not a 404. The example deals are deleted and written again
- * when they are re-seeded, so for a few seconds there is nothing to link to,
- * and "this is being rebuilt, here is what you can do instead" is a true and
- * useful thing to say where "this page does not exist" is neither.
+ * Deliberately not a 404. The example deals are written by a separate step
+ * after each release (npm run demo:seed -w apps/web), never on a visitor's
+ * request, so until that step has run there is nothing to link to. "This
+ * example is not ready, here is what you can do instead" is true and useful
+ * where "this page does not exist" is neither.
  */
 import { ALL_FIXTURES, SCENARIO_IDS, type ScenarioId } from "@pay-pals/contracts";
 import Link from "next/link";
@@ -30,10 +31,10 @@ export default async function FinishedDealUnavailablePage({ searchParams }: { se
         <div className="flex items-start gap-3">
           <PalAvatar pal="buyer" size={40} className="mt-0.5 shrink-0" />
           <div className="min-w-0">
-            <h1 className="text-2xl font-bold text-navy">That example deal is not here right now</h1>
+            <h1 className="text-2xl font-bold text-navy">That example deal is not ready yet</h1>
             <p className="mt-2 text-sm leading-relaxed text-ink">
-              Pay Pals could not find {named}. The finished examples are deleted and written again whenever they are re-seeded, so this is what you see for the minute or
-              two that takes. Nothing is broken and nothing of yours is affected.
+              Pay Pals could not find {named}. The finished examples are written in a separate step after each release, and this one has not been written yet. Nothing is broken
+              and nothing of yours is affected.
             </p>
           </div>
         </div>

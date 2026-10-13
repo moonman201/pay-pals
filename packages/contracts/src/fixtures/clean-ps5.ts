@@ -178,7 +178,7 @@ export const cleanPs5: ScenarioFixture = {
     { id: "e1d", dealId, kind: "seller_joined", actor: "seller", summary: "Matt M. joined the deal.", at: at(3) },
     { id: "e2", dealId, kind: "card_updated", actor: "seller_pal", summary: `Seller Pal built card version 1. The box label reads ${CLEAN_SERIAL}. The sticker on the console is in the wide shot but not readable.`, at: at(4) },
     { id: "e3", dealId, kind: "state_changed", actor: "system", summary: "Listed.", fromState: "INVITED", toState: "LISTED", at: at(4) },
-    { id: "e4", dealId, kind: "review_posted", actor: "buyer_pal", summary: "Buyer Pal reviewed card version 1: go, and asked for a close-up of the serial on the console.", at: at(30) },
+    { id: "e4", dealId, kind: "review_posted", actor: "buyer_pal", summary: "Buyer Pal reviewed card version 1: caution, the serial was read only off the box label, and asked for a close-up of the serial on the console.", at: at(30) },
     { id: "e5", dealId, kind: "state_changed", actor: "system", summary: "Reviewed.", fromState: "LISTED", toState: "REVIEWED", at: at(30) },
     { id: "e6", dealId, kind: "card_updated", actor: "seller_pal", summary: `Card version 2: close-up added. Console ${CLEAN_SERIAL} matches the box label.`, at: at(42) },
     { id: "e6a", dealId, kind: "state_changed", actor: "system", summary: "Card changed. It needs a fresh review.", fromState: "REVIEWED", toState: "LISTED", at: at(42) },

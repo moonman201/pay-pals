@@ -30,6 +30,27 @@ describe("sellerVoice", () => {
   });
 });
 
+describe("sellerVoice, safety", () => {
+  it("leaves a quote verbatim, even when it holds he, his or the seller", () => {
+    const text = 'The seller wrote: "he said his cousin will send it, the seller is fine with that". He pushed Friends and Family.';
+    expect(sellerVoice(text)).toBe('You wrote: "he said his cousin will send it, the seller is fine with that". You pushed Friends and Family.');
+    expect(sellerVoice("Evidence “he sends it Friday” from chat.")).toBe("Evidence “he sends it Friday” from chat.");
+  });
+
+  it("does not turn the buyer's he into you", () => {
+    expect(sellerVoice("The buyer says he will pay today.")).toBe("The buyer says he will pay today.");
+    expect(sellerVoice("The Buyer Pal checked his photos.")).toBe("The Buyer Pal checked your photos.");
+  });
+
+  it("keeps a named person a named person", () => {
+    expect(sellerVoice("Sam Lee, the seller on this deal, sent it.")).toBe("Sam Lee, the seller on this deal, sent it.");
+  });
+
+  it("capitalises at a sentence start and not in the middle", () => {
+    expect(sellerVoice("He sent it. Then he waited. The seller agreed, and the seller's photo is old.")).toBe("You sent it. Then you waited. You agreed, and your photo is old.");
+  });
+});
+
 describe("sellerStatusGroups", () => {
   it("speaks to the seller in every row and leaves the structure alone", () => {
     const groups: StatusGroup[] = [

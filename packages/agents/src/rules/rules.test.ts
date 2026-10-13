@@ -149,12 +149,26 @@ describe("missingSerialRule", () => {
   it("cautions when the card carries no number at all", () => {
     expect(missingSerialRule({ card: card({ serial: null, boxSerial: null }), chat: [], priceCheck: price })[0]).toMatchObject({ code: "MISSING_SERIAL", severity: "caution" });
   });
-  it("is quiet for a serial on the item, a number off the box label, or a graded slab with a cert", () => {
+  it("is quiet for a serial on the item, a graded slab with a cert, or a new item with only a box number", () => {
     expect(missingSerialRule({ card: card({ serial: "AJ164952580" }), chat: [], priceCheck: price })).toHaveLength(0);
-    // clean-ps5 card version 1: the box label has the number, the console's own sticker is not readable yet.
-    expect(cleanPs5.cards[0]!.serial).toBeNull();
-    expect(missingSerialRule({ card: cleanPs5.cards[0]!, chat: [], priceCheck: price })).toHaveLength(0);
+    expect(missingSerialRule({ card: cleanPs5.cards[1]!, chat: [], priceCheck: price })).toHaveLength(0);
     expect(missingSerialRule({ card: fakeSlab.cards[0]!, chat: [], priceCheck: price })).toHaveLength(0);
+    expect(missingSerialRule({ card: card({ serial: null, boxSerial: "AJ164952580", conditionGrade: "new" }), chat: [], priceCheck: price })).toHaveLength(0);
+  });
+  it("cautions when the only serial came off the box label, because a box is not the item", () => {
+    // clean-ps5 card version 1 and the empty box: the box label has the number, the console's own sticker is not readable.
+    for (const fixture of [cleanPs5.cards[0]!, emptyBox.cards[0]!]) {
+      expect(fixture.serial).toBeNull();
+      const flags = missingSerialRule({ card: fixture, chat: [], priceCheck: price });
+      expect(flags).toHaveLength(1);
+      expect(flags[0]).toMatchObject({ code: "MISSING_SERIAL", severity: "caution", raisedByRule: true });
+      expect(flags[0]!.evidence).toContain(fixture.boxSerial!);
+      expect(flags[0]!.explanation).toBe("The serial is from the box label only. A box does not prove the item inside.");
+    }
+  });
+  it("clears once the card has a close-up of the item's own label", () => {
+    const withCloseUp = { ...cleanPs5.cards[0]!, photos: cleanPs5.cards[1]!.photos };
+    expect(missingSerialRule({ card: withCloseUp, chat: [], priceCheck: price })).toHaveLength(0);
   });
 });
 
@@ -302,11 +316,16 @@ describe("runRules on the fixtures", () => {
     expect(overallFromFlags(flags)).toBe("stop");
     expect(flags.every((f) => f.raisedByRule)).toBe(true);
   });
-  it("clean-ps5 and empty-box raise nothing", () => {
+  it("clean-ps5 raises nothing once the close-up is on the card", () => {
+    const flags = runRules({ card: cleanPs5.cards.at(-1)!, chat: cleanPs5.chat, priceCheck: cleanPs5.marketPrice, seller: cleanPs5.seller, certRecord: cleanPs5.certRecord });
+    expect(flags).toHaveLength(0);
+    expect(overallFromFlags(flags)).toBe("go");
+  });
+  it("clean-ps5 v1 and the empty box are a caution for the box-only serial, never a stop", () => {
     for (const fixture of [cleanPs5, emptyBox]) {
-      const flags = runRules({ card: fixture.cards.at(-1)!, chat: fixture.chat, priceCheck: fixture.marketPrice, seller: fixture.seller, certRecord: fixture.certRecord });
-      expect(flags, fixture.id).toHaveLength(0);
-      expect(overallFromFlags(flags)).toBe("go");
+      const flags = runRules({ card: fixture.cards[0]!, chat: fixture.chat.slice(0, 2), priceCheck: fixture.marketPrice, seller: fixture.seller, certRecord: fixture.certRecord });
+      expect(flags.map((f) => f.code), fixture.id).toEqual(["MISSING_SERIAL"]);
+      expect(overallFromFlags(flags), fixture.id).toBe("caution");
     }
   });
 });

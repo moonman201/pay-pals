@@ -42,8 +42,9 @@ export function RequestStep({ dealId, questions, suggestions, uploadsEnabled = f
     setBusy(true);
     setError(null);
     try {
+      // No question from the buyer's side means no request text. Nothing is made up for the Seller Pal to quote.
       await postJson(dealApi(dealId, "card"), {
-        request: { field: body.field, request: next?.ask ?? questions[0] ?? "Seller update" },
+        request: { field: body.field, request: next?.ask ?? questions[0] ?? "" },
         sellerReply: body.reply,
         photos: body.photos,
       });

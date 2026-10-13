@@ -44,7 +44,7 @@ export function DealHeader({ snapshot, role }: { snapshot: DealSnapshot; role: R
             <Link href={`/deals/${deal.id}?as=${other}`} className={NAV_LINK}>
               View as {other}
             </Link>
-            {snapshot.lockedCard ? (
+            {snapshot.lockedCard && snapshot.hasEvidence ? (
               <Link href={`/deals/${deal.id}/evidence?as=${role}`} className={NAV_LINK}>
                 Evidence pack
               </Link>
@@ -58,7 +58,8 @@ export function DealHeader({ snapshot, role }: { snapshot: DealSnapshot; role: R
           </nav>
         </div>
         <div className="mx-auto flex max-w-6xl flex-wrap items-start justify-between gap-x-4 gap-y-2 px-4 pb-2">
-          <div className="min-w-0 flex-1">
+          {/* A basis, not flex-1: with none, the long history chip squeezed the title to a one-word column at 390 px. */}
+          <div className="min-w-0 flex-[1_1_18rem]">
             {/* Short here, in full on the item card, which is one scroll down. */}
             <h1 className="text-lg font-bold leading-tight text-ink">{shortTitle(currentCard)}</h1>
             <p className="mt-0.5 text-xs text-muted">
@@ -70,7 +71,7 @@ export function DealHeader({ snapshot, role }: { snapshot: DealSnapshot; role: R
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <Badge tone={stateTone(deal.state)} className="py-1">
+            <Badge tone={stateTone(deal.state)} className="py-1" data-testid="state-chip">
               {STATE_LABELS[deal.state]}
             </Badge>
             {snapshot.example ? (

@@ -23,4 +23,5 @@ export { fetchImage, isFetchableUrl, resolvePhotoUrl, type ImageFetcher } from "
 export { imageHash, hammingDistance, NEAR_DUPLICATE_DISTANCE } from "./vision/phash";
 export type { KnownPhoto } from "./buyer/photo-match";
 export { plainCopy } from "./copy";
+export { goHeadline } from "./buyer/verdict-message";
 export { isPublicMode } from "./presentation";

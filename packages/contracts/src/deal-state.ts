@@ -25,7 +25,10 @@ export const DEAL_STATES = [
 export type DealState = (typeof DEAL_STATES)[number];
 
 /**
- * Legal next states for each state. Terminal states have an empty list.
+ * Legal next states for each state. A terminal state has no path to payment;
+ * every terminal state has an empty list except BLOCKED, which may still be
+ * cancelled (v1.9.0, Matt, Oct 13): the buyer closes a stopped deal on the
+ * record instead of leaving it open. No money has moved on a blocked deal.
  * ISSUE is reachable from PAID and SHIPPED as well as DELIVERED: an item that
  * never arrives, or a PayPal dispute opened before delivery, is an issue too.
  */
@@ -41,11 +44,12 @@ export const DEAL_TRANSITIONS: Readonly<Record<DealState, readonly DealState[]>>
   SHIPPED: ["DELIVERED", "ISSUE"],
   DELIVERED: ["COMPLETE", "ISSUE"],
   COMPLETE: [],
-  BLOCKED: [],
+  BLOCKED: ["CANCELLED"],
   ISSUE: [],
   CANCELLED: [],
 };
 
+/** States with no path to payment. BLOCKED is one, even though it can still be cancelled. */
 export const TERMINAL_STATES: readonly DealState[] = ["COMPLETE", "BLOCKED", "ISSUE", "CANCELLED"];
 
 /** States in which the item card may still change. From AGREED on it is locked. */

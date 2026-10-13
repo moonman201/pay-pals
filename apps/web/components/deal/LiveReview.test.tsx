@@ -64,6 +64,22 @@ describe("LiveReview", () => {
     expect(screen.getByTestId("working-status")).toHaveTextContent("checking the price");
   });
 
+  it("counts photos against the card's photos, so it agrees with a stage line that names them all", () => {
+    render(<LiveReview state={apply([{ kind: "photoRead", url: "/a.jpg", readable: true }])} photoTotal={3} />);
+    expect(screen.getByTestId("live-photos")).toHaveTextContent("1 of 3 read so far.");
+  });
+
+  it("does not say a cert check is running on a card with no cert", () => {
+    render(<LiveReview state={startedReview()} hasCert={false} />);
+    expect(screen.getByTestId("live-cert")).toHaveTextContent("No cert number on the card, so there was nothing to check.");
+    expect(screen.getByTestId("live-cert")).not.toHaveTextContent("Still running.");
+  });
+
+  it("can be scrolled to by id", () => {
+    render(<LiveReview state={startedReview()} />);
+    expect(document.getElementById("live-review")).not.toBeNull();
+  });
+
   it("tells a lookup that answered nothing apart from one still running", () => {
     render(<LiveReview state={apply([{ kind: "certCheck", certCheck: null }])} />);
     expect(screen.getByTestId("live-cert")).toHaveTextContent("No cert number on the card, so there was nothing to check.");

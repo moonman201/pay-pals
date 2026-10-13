@@ -22,6 +22,15 @@ describe("ItemCardView", () => {
     expect(screen.queryByText(/Changed from version 1/)).not.toBeInTheDocument();
   });
 
+  it("follows a new version when the page refreshes in place after the seller saves one", () => {
+    const { rerender } = render(<ItemCardView cards={[v1]} currentVersion={1} lockedVersion={null} />);
+    expect(screen.getByText(`Photos (${v1.photos.length})`)).toBeInTheDocument();
+    rerender(<ItemCardView cards={unlocked} currentVersion={2} lockedVersion={null} />);
+    expect(screen.getByRole("tab", { name: "Version 2" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getAllByText(v2.serial!).length).toBeGreaterThan(0);
+    expect(screen.getByText(`Photos (${v2.photos.length})`)).toBeInTheDocument();
+  });
+
   it("shows the locked badge and hides the version switcher once locked", () => {
     render(<ItemCardView cards={cleanPs5.cards} currentVersion={2} lockedVersion={2} />);
     expect(screen.getByText("Locked, version 2")).toBeInTheDocument();

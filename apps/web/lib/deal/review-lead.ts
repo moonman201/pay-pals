@@ -15,7 +15,7 @@
  * what the pal said.
  */
 import type { RedFlag, RedFlagCode, Verdict, VerdictOverall } from "@pay-pals/contracts";
-import { verdictName } from "./headline";
+import { goLine } from "./headline";
 
 /** Matt's rule 2, with a word or two of slack: beyond this an explanation is not a line. */
 const ONE_LINE_WORDS = 14;
@@ -45,7 +45,7 @@ const HEADLINES: Readonly<Record<VerdictOverall, string>> = {
 
 /** Stop and caution keep their fixed line. A go uses the shared name, so open questions are counted. */
 function headlineFor(verdict: Verdict): string {
-  return verdict.overall === "go" ? `${verdictName(verdict)}.` : HEADLINES[verdict.overall];
+  return verdict.overall === "go" ? goLine(verdict) : HEADLINES[verdict.overall];
 }
 
 /**

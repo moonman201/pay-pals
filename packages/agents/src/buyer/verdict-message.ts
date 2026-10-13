@@ -31,8 +31,17 @@ import { pricePosition, pricePositionVerb } from "../price/price-position";
 /** At most this many reason lines. Beyond three a buyer stops reading, and the rest are in the expander. */
 export const MAX_REASONS = 3;
 
-/** The word the chat note leads with. Shorter than the review's own headline. */
-const CHAT_WORD: Record<VerdictOverall, string> = { stop: "Stop", caution: "Careful", go: "Looks fair" };
+/**
+ * The go headline, the one place it is spelled. "Looks good." when the seller
+ * has nothing left to answer, and "Looks good, 2 open questions." when the
+ * review is a go but still has questions waiting on the seller. The web app
+ * calls this with the verdict's questionsForSeller.length so the room and the
+ * pal's own message read one value (Decision 15).
+ */
+export function goHeadline(openQuestions: number = 0): string {
+  const n = Math.max(0, Math.floor(openQuestions));
+  return n === 0 ? "Looks good." : `Looks good, ${n} open question${n === 1 ? "" : "s"}.`;
+}
 
 /**
  * The line that goes in the buyer's private pal chat.
@@ -41,16 +50,16 @@ const CHAT_WORD: Record<VerdictOverall, string> = { stop: "Stop", caution: "Care
  * renders the verdict itself, so returning the whole review for both printed
  * it twice on one page. The chat says the review is done and points at it.
  */
-export function chatNote(overall: VerdictOverall): string {
-  return `Review done: ${CHAT_WORD[overall]}. Details above.`;
+export function chatNote(overall: VerdictOverall, openQuestions: number = 0): string {
+  const word = overall === "go" ? goHeadline(openQuestions) : overall === "stop" ? "Stop." : "Careful.";
+  return `Review done: ${word} Details above.`;
 }
 
-/** The verdict, three words or fewer. */
-const HEADLINE: Record<VerdictOverall, string> = {
-  stop: "Stop. Don't pay.",
-  caution: "Careful.",
-  go: "Looks fair.",
-};
+/** The verdict, three words or fewer. A go is built by goHeadline. */
+function headline(overall: VerdictOverall, openQuestions: number): string {
+  if (overall === "go") return goHeadline(openQuestions);
+  return overall === "stop" ? "Stop. Don't pay." : "Careful.";
+}
 
 /**
  * Reasons, worst first, so a three-line cap keeps the ones that decide the
@@ -87,6 +96,8 @@ export interface VerdictMessageInput {
   wouldChangeMyMind: readonly string[];
   /** One short clause when the review ran on the chat alone. */
   scope?: string | null;
+  /** How many questions wait on the seller. Only a go headline shows it. */
+  openQuestions?: number;
 }
 
 /**
@@ -123,7 +134,7 @@ export function verdictMessage(input: VerdictMessageInput): string {
 
   const clean = (line: string) => plainCopy(line, 300).trim();
   const lines = [
-    clean(HEADLINE[input.overall]),
+    clean(headline(input.overall, input.openQuestions ?? 0)),
     ...(input.scope ? [clean(input.scope)] : []),
     ...reasons.map((r) => `- ${clean(r.replace(/^-\s*/, ""))}`),
     ...(lookAgainLine(input.wouldChangeMyMind) ? [clean(lookAgainLine(input.wouldChangeMyMind)!)] : []),

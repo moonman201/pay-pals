@@ -363,6 +363,7 @@ export async function reviewCard(
     serial: card?.serial ?? null,
     wouldChangeMyMind: reasoning.wouldChangeMyMind,
     scope: card ? null : "No item card yet, so this is the chat only.",
+    openQuestions: questionsForSeller.length,
   });
 
   const verdict: Verdict = {
@@ -380,5 +381,5 @@ export async function reviewCard(
   // The verdict carries the review the room renders; the result carries the line for the buyer's
   // private pal chat. apps/web posts the second into that channel, so returning the review for
   // both printed the whole thing twice on one page.
-  return { data: verdict, palMessage: chatNote(overall) };
+  return { data: verdict, palMessage: chatNote(overall, questionsForSeller.length) };
 }

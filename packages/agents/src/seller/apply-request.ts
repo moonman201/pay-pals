@@ -53,13 +53,32 @@ function asSentence(text: string): string {
   return /[.?]$/.test(capitalized) ? capitalized : `${capitalized}.`;
 }
 
+/**
+ * What the buyer actually asked, or null when nobody did. A seller who edits
+ * their own card unprompted has no buyer question, and the web app has sent a
+ * stand-in string for that case ("Seller update"). A stand-in is not a quote,
+ * so it never reaches the seller's message or the model.
+ */
+const PLACEHOLDER_REQUESTS = /^(?:seller update|seller edit|update|n\/a|none)\.?$/i;
+
+export function buyerQuestion(request: BuyerRequest): string | null {
+  const text = plainCopy(request.request ?? "", 200).trim();
+  return text.length === 0 || PLACEHOLDER_REQUESTS.test(text) ? null : text;
+}
+
 async function cardSentence(request: BuyerRequest, reply: string, client: ClaudeClient | null): Promise<string> {
   const fallback = asSentence(reply);
+  const asked = buyerQuestion(request);
   if (!client || fallback.length === 0) return fallback;
   const result = await callTool({
     client,
     system: "You are the Seller Pal in Pay Pals. You write one plain sentence of fact for an item card, using only what the seller said.",
-    content: [{ type: "text", text: `The buyer asked about ${request.field}: "${request.request}"\nThe seller replied: "${reply}"` }],
+    content: [
+      {
+        type: "text",
+        text: `${asked ? `The buyer asked about ${request.field}: "${asked}"` : `The seller updated ${request.field} without being asked.`}\nThe seller replied: "${reply}"`,
+      },
+    ],
     tool: SENTENCE_TOOL,
     schema: SentenceSchema,
     maxTokens: 512,
@@ -186,11 +205,12 @@ export async function applyBuyerRequest(
     }
   }
 
+  const asked = buyerQuestion(request);
   const palMessage = sentences(
-    changes.length > 0 ? `Card version ${next.version}: ${changes.join(", ")}.` : `Card version ${next.version} is the same as before. I could not find a change in your reply for ${request.field}.`,
+    changes.length > 0 ? `I updated your card to version ${next.version}: ${changes.join(", ")}.` : `Your card is still version ${card.version}. I could not find a change in your reply for ${request.field}.`,
     describeLooking(readings, "photo", deps.publicMode === true),
     ...conflicts,
-    `The buyer asked: "${plainCopy(request.request, 200)}"`,
+    asked ? `This answers the buyer's question: "${asked}"` : null,
     "The buyer's pal will see the new version.",
   );
   return { data: next, palMessage };

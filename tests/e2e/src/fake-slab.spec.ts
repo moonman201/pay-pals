@@ -10,7 +10,8 @@
 import { expect, test } from "@playwright/test";
 import { FAKE_SLAB_CERT, fakeSlab } from "@pay-pals/contracts";
 import { WEB_PRESENT } from "./env";
-import { expectState, expectStateAfterPal, panel, pressAction, snapshot, startDemo, timelineItems } from "./helpers";
+import { expectState, expectStateAfterPal, openRoomAs, panel, pressAction, snapshot, startDemo, timelineItems, waitForHydration } from "./helpers";
+import { finishedDeal } from "./layout-helpers";
 
 test.describe("fake slab stopped", () => {
   test.skip(!WEB_PRESENT, "apps/web is not on this branch yet, nothing to load");
@@ -83,5 +84,40 @@ test.describe("fake slab stopped", () => {
     const after = await snapshot(page, dealId);
     expect(after.deal.state).toBe("BLOCKED");
     expect(after.deal.lockedCardVersion).toBeNull();
+  });
+
+  test("the buyer cancels a blocked deal, the seller is told, and the finished example cannot be cancelled", async ({ page }) => {
+    const dealId = await startDemo(page, fakeSlab, "buyer");
+    await pressAction(page, "Ask my pal to review");
+    await expectStateAfterPal(page, "Blocked");
+
+    // Cancel is the primary button in Next step for the buyer. "I will pay another way" stays, as the smaller one.
+    const next = panel(page, "Next step");
+    await expect(next.getByRole("button", { name: "Cancel deal" })).toBeVisible();
+
+    // The seller has nothing to cancel on a blocked deal.
+    await openRoomAs(page, dealId, "seller");
+    await expectState(page, "Blocked");
+    await expect(page.getByRole("button", { name: /cancel/i })).toHaveCount(0);
+
+    await openRoomAs(page, dealId, "buyer");
+    page.once("dialog", (dialog) => void dialog.accept());
+    await pressAction(page, "Cancel deal");
+    await expectState(page, "Cancelled");
+    expect((await snapshot(page, dealId)).deal.state).toBe("CANCELLED");
+
+    await openRoomAs(page, dealId, "seller");
+    await expectState(page, "Cancelled");
+    await expect(page.getByText("The buyer cancelled this deal after the Buyer Pal's stop. Nothing was paid.")).toBeVisible();
+    const timeline = await timelineItems(page);
+    await expect(timeline.filter({ hasText: "Buyer cancelled after a stop." })).toHaveCount(1);
+
+    // The finished example on the landing page is seed-stamped: no button, and the route refuses.
+    const { dealId: exampleId, href } = await finishedDeal(page, fakeSlab);
+    await page.goto(href);
+    await waitForHydration(page);
+    await expect(page.getByRole("button", { name: /cancel/i })).toHaveCount(0);
+    const refused = await page.request.post(`/api/deals/${exampleId}/cancel`, { data: { by: "buyer" } });
+    expect(refused.status()).toBe(403);
   });
 });

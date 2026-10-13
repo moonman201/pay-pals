@@ -13,6 +13,7 @@ import { collapseReviewMessages, stripPalPrefix } from "@/lib/deal/pal-chat";
 import { diffVerdicts, lastTwoVerdicts } from "@/lib/deal/verdict-diff";
 import { dealApi, postJson } from "@/lib/client/api";
 import { streamReview } from "@/lib/client/review-stream";
+import { scrollToPanel } from "@/lib/client/scroll";
 import { isConfirmedMismatch } from "@/lib/deal/arrival-outcome";
 import { agreeLockedLine, applyProgress, IDLE_REVIEW, startedReview, type LiveReviewState } from "@/lib/deal/live-review";
 import { palChannel, type Role } from "@/lib/role";
@@ -81,6 +82,8 @@ export function DealRoom({ snapshot, role }: { snapshot: DealSnapshot; role: Rol
     setBusy("review");
     setError(null);
     setLive(startedReview());
+    // The progress panel sits above Deal status, off screen from the button that started it. Take the visitor to it.
+    requestAnimationFrame(() => scrollToPanel("live-review"));
     try {
       await streamReview(deal.id, { onProgress: (event) => setLive((prev) => applyProgress(prev, event)) });
       router.refresh();
@@ -170,7 +173,7 @@ export function DealRoom({ snapshot, role }: { snapshot: DealSnapshot; role: Rol
               </p>
             </Panel>
           ) : null}
-          {reviewing ? <LiveReview state={live.running ? live : startedReview()} /> : null}
+          {reviewing ? <LiveReview state={live.running ? live : startedReview()} photoTotal={currentCard?.photos.length ?? 0} hasCert={Boolean(currentCard?.certNumber)} /> : null}
           {snapshot.verdict ? (
             <VerdictPanel
               verdict={snapshot.verdict}
@@ -218,6 +221,8 @@ export function DealRoom({ snapshot, role }: { snapshot: DealSnapshot; role: Rol
                 dealId={deal.id}
                 busy={busy}
                 hasLockedCard={snapshot.lockedCard !== null}
+                hasEvidence={snapshot.hasEvidence}
+                example={snapshot.example}
                 agreement={{ buyerAgreedAt: deal.buyerAgreedAt, sellerAgreedAt: deal.sellerAgreedAt }}
                 cardVersion={deal.currentCardVersion}
                 cardChangedSinceAgree={cardChangedSinceAgree}

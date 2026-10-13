@@ -21,7 +21,7 @@ async function atPaymentStep(services: Services): Promise<string> {
   const deal = await startDemoDeal(services, "clean-ps5");
   await runReview(services, deal.id);
   await agree(services, deal.id, "seller", false);
-  await agree(services, deal.id, "buyer", false);
+  await agree(services, deal.id, "buyer", true);
   return deal.id;
 }
 
