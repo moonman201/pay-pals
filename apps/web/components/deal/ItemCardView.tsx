@@ -133,8 +133,9 @@ export function ItemCardView({ cards, currentVersion, lockedVersion, certCheck =
         </Field>
       </dl>
 
-      {card.serial || card.certNumber ? (
-        // D9: say what a number on the card does and does not stand for, right where the number is.
+      {(card.serial || card.certNumber) && certCheck?.matches !== true ? (
+        // D9: say what a number on the card does and does not stand for, once per page. A matching cert says
+        // it in the cert headline of the review, so the card leaves it there.
         <p className="mt-3 text-xs leading-relaxed text-muted" data-testid="number-caveat">
           A matching serial or cert number supports the listing. It is not a check that the seller owns the item, and not a check that the item is genuine.
         </p>

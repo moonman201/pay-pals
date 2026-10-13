@@ -93,7 +93,8 @@ describe("dealStatusView", () => {
     expect(STATUS_LEGEND).toMatch(/Flagged: checked and didn't match/);
     expect(STATUS_LEGEND).toMatch(/Unverified: on file, not checked/);
     expect(STATUS_LEGEND).toMatch(/Missing: not on record/);
-    expect(STATUS_LEGEND).toMatch(/never means genuine or that the seller owns it/);
+    // What a match does not prove is said once per page, on the item card or in the cert headline, not here.
+    expect(STATUS_LEGEND).not.toMatch(/genuine|owns/);
   });
 });
 
@@ -140,12 +141,12 @@ describe("the agreed item card", () => {
 });
 
 describe("the evidence", () => {
-  it("verifies a serial that matched the box label, and says what that does not prove", () => {
+  it("verifies a serial that matched the box label, and leaves the caveat to the item card", () => {
     const card = { ...lockedCard, serial: "AJ164952580", boxSerial: "AJ164952580" };
     const line = item(dealStatusView(input({ lockedCard: card, cards: [card] })), "evidence", "serial");
     expect(line.status).toBe("verified");
-    expect(line.detail).toMatch(/supports the listing/);
-    expect(line.detail).toMatch(/not a check of ownership and not a check that the item is genuine/);
+    // The caveat is said once per page, on the item card. The row carries only the comparison.
+    expect(line.detail).not.toMatch(/supports the listing|not a check/);
   });
 
   it("does not verify a serial with nothing to compare it with", () => {
@@ -165,12 +166,12 @@ describe("the evidence", () => {
     expect(item(dealStatusView(input({ lockedCard: card, cards: [card] })), "evidence", "serial").status).toBe("missing");
   });
 
-  it("verifies a cert against the grader record and says that is not a check of the slab", () => {
+  it("verifies a cert against the grader record and leaves the caveat to the review", () => {
     const card = fakeSlab.cards[fakeSlab.cards.length - 1]!;
     const check = { record: fakeSlab.certRecord!, matches: true, explanation: "The record describes this card." };
     const line = item(dealStatusView(input({ lockedCard: card, cards: fakeSlab.cards, verdicts: [verdict({ certCheck: check })] })), "evidence", "cert");
     expect(line.status).toBe("verified");
-    expect(line.detail).toMatch(/not a check that the slab is genuine or that the seller owns it/);
+    expect(line.detail).not.toMatch(/not a check|supports the listing/);
   });
 
   it("does not verify a cert that was never checked, and never calls an unknown cert a mismatch", () => {
