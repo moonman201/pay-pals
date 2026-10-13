@@ -67,7 +67,8 @@ describe("ItemCardView", () => {
   it("does not accuse a seller when the box label is on the card but the console serial is not", () => {
     render(<ItemCardView cards={[v1]} currentVersion={1} lockedVersion={null} />);
     expect(screen.getByText("Box serial")).toBeInTheDocument();
-    expect(screen.getByText("no serial read off the console yet")).toBeInTheDocument();
+    expect(screen.getByText("Not read yet")).toBeInTheDocument();
+    expect(screen.queryByText("no serial read off the console yet")).not.toBeInTheDocument();
     expect(screen.queryByText("does not match")).not.toBeInTheDocument();
   });
 
