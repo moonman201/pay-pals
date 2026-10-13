@@ -107,8 +107,26 @@ describe("diffVerdicts", () => {
     const before = verdict({ cardVersion: 1, reasoning: reasoning(["Whether the console serial matches the box."]) });
     const after = verdict({ cardVersion: 2, reasoning: reasoning(["Whether the console powers on."]) });
     const diff = diffVerdicts(before, after);
-    expect(diff.lines).toContain("The pal could not check this before and can now: Whether the console serial matches the box.");
+    expect(diff.lines).toContain("Now checked: whether the console serial matches the box.");
     expect(diff.lines).toContain("The pal could not check this on the new version: Whether the console powers on.");
+  });
+
+  it("never presents a failure statement as the thing now checked", () => {
+    const reasoning = (couldNotVerify: string[]) => ({ checked: [], found: [], couldNotVerify, wouldChangeMyMind: [] });
+    const before = verdict({ cardVersion: 1, reasoning: reasoning(["A serial is in one photo but I could not read it."]) });
+    const after = verdict({ cardVersion: 2, reasoning: reasoning([]) });
+    const lines = diffVerdicts(before, after).lines;
+    expect(lines).toContain('Now checked: what was open before, "A serial is in one photo but I could not read it".');
+    expect(lines.join(" ")).not.toMatch(/Now checked: a serial/i);
+  });
+
+  it("lists only what left the could-not-check list, and agrees with the count of questions", () => {
+    const reasoning = (couldNotVerify: string[]) => ({ checked: [], found: [], couldNotVerify, wouldChangeMyMind: [] });
+    const before = verdict({ cardVersion: 1, questionsForSeller: ["a?", "b?"], reasoning: reasoning(["Whether it powers on.", "Whether it is sealed."]) });
+    const after = verdict({ cardVersion: 2, questionsForSeller: [], reasoning: reasoning(["Whether it is sealed."]) });
+    const lines = diffVerdicts(before, after).lines;
+    expect(lines).toContain("2 questions the pal asked before are no longer open.");
+    expect(lines.filter((l) => l.startsWith("Now checked"))).toEqual(["Now checked: whether it powers on."]);
   });
 
   it("says nothing about reasons a verdict never carried", () => {
