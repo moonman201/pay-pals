@@ -6,7 +6,7 @@ import { priceBelowMarketRule } from "./price-below-market";
 import { urgencyRule } from "./urgency";
 import { missingSerialRule } from "./missing-serial";
 import { shipBeforePayRule } from "./ship-before-pay";
-import { checkPayeeName, nameMismatchRule } from "./name-mismatch";
+import { checkPayeeName, looksLikeFront, nameMismatchRule } from "./name-mismatch";
 import { stockPhotoRule } from "./stock-photo";
 import { boxSerialMismatchRule } from "./box-serial-mismatch";
 import { inviteRefusedRule } from "./invite-refused";
@@ -257,7 +257,7 @@ describe("nameMismatchRule", () => {
       severity: "caution",
       raisedByRule: true,
       evidence: "PayPal address cashdeals.quick2026@example.com, seller name Chris W.",
-      explanation: "The PayPal address that gets paid does not contain the seller's name.",
+      explanation: "The PayPal address that gets paid looks like a deals account, not a person's.",
     });
   });
   it("raises it on the fake slab fixture", () => {
@@ -270,6 +270,50 @@ describe("nameMismatchRule", () => {
       const seller = { displayName: f.deal.seller.displayName, email: f.deal.seller.email };
       expect(nameMismatchRule({ card: f.cards[0]!, chat: [], priceCheck: price, seller })).toEqual([]);
     }
+  });
+  it("raises nothing when an honest address carries no part of the name", () => {
+    const run = (email: string, displayName = "Matt M.") =>
+      nameMismatchRule({ card: card({ sellerPaypalEmail: email }), chat: [], priceCheck: price, seller: { displayName, email: "x@example.com" } });
+    for (const email of [
+      "john1985@example.com",
+      "jsmith.photos@example.com",
+      "mkpaints@example.com",
+      "sarah_k@example.com",
+      "info@example.com",
+      "sb-abc123@personal.example.com",
+      "rileys.records@example.com",
+      "dealer.jones@example.com",
+      "salesforce.fan@example.com",
+      "user2026@example.com",
+      "fastidious.reader@example.com",
+      "monkey.mo@example.com",
+    ]) {
+      expect(run(email), email).toEqual([]);
+      expect(checkPayeeName({ displayName: "Matt M." }, email)).toBe("unconfirmed");
+      expect(looksLikeFront(email), email).toBe(false);
+    }
+  });
+  it("raises it for throwaway and deals/cash fronts, split on dots, digits, hyphens, underscores and camel case", () => {
+    for (const email of [
+      "cashdeals.quick2026@example.com",
+      "quickcash@example.com",
+      "fast_cash_99@example.com",
+      "cheap-deals@example.com",
+      "BargainBin@example.com",
+      "bestSales@example.com",
+      "discount.store@example.com",
+      "payme.now@example.com",
+      "money4u@example.com",
+    ]) {
+      expect(looksLikeFront(email), email).toBe(true);
+      const flags = nameMismatchRule({ card: card({ sellerPaypalEmail: email }), chat: [], priceCheck: price, seller: { displayName: "Tyler R.", email: "t@example.com" } });
+      expect(flags.map((f) => f.code), email).toEqual(["NAME_MISMATCH"]);
+      expect(flags[0]!.evidence).toContain(email);
+    }
+  });
+  it("says nothing against a name match even when the address also has a front word", () => {
+    expect(nameMismatchRule({ card: card({ sellerPaypalEmail: "matt.m.paypals@example.com" }), chat: [], priceCheck: price, seller: { displayName: "Matt M.", email: "x@example.com" } })).toEqual([]);
+    expect(nameMismatchRule({ card: card({ sellerPaypalEmail: "tyler.deals@example.com" }), chat: [], priceCheck: price, seller: { displayName: "Tyler R.", email: "x@example.com" } })).toEqual([]);
   });
   it("says it could not decide when the name is only initials, and raises nothing", () => {
     expect(checkPayeeName({ displayName: "J. R." }, "anything@example.com")).toBe("undecidable");

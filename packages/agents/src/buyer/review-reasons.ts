@@ -215,12 +215,15 @@ function couldNotVerify(input: ReviewReasonInput): ReasonLine[] {
         : "The photos were not matched against our file, so nothing was compared.",
     );
   }
-  // These two lines keep the phrase "seller's name on the account", which apps/web looks for to
-  // show the PayPal address row as not checked.
+  // The first two keep the phrase "seller's name on the account" and the third "PayPal account
+  // belongs to"; apps/web matches them to show the PayPal address row as not checked.
   if (!has(flags, "NAME_MISMATCH") && !input.seller) {
     lines.push("I was not given the seller's name on the account, so I could not check it against the PayPal address on the card.");
   } else if (card && input.seller && checkPayeeName(input.seller, card.sellerPaypalEmail) === "undecidable") {
     lines.push("The seller's name on the account is only initials, so I could not check it against the PayPal address on the card.");
+  } else if (card && input.seller?.displayName && !has(flags, "NAME_MISMATCH") && checkPayeeName(input.seller, card.sellerPaypalEmail) === "unconfirmed") {
+    // An address with no part of the name is an open question, not a flag. Honest sellers often have such addresses.
+    lines.push(`Couldn't confirm the PayPal account belongs to ${input.seller.displayName.replace(/\.$/, "")}.`);
   }
   // One ownership line, not two. The cert version of this said the same thing in different words,
   // so the specific one is used where there is a cert and the general one everywhere else.

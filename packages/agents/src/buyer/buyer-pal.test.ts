@@ -316,6 +316,22 @@ describe("BuyerPal.review on clean-ps5", () => {
     expect(verdict.reasoning!.couldNotVerify.join(" ")).toContain("stand-in for this demo");
   });
 
+  it("with a sandbox payee address, asks the open question instead of flagging, and stays go", async () => {
+    const card = { ...cleanPs5.cards.at(-1)!, sellerPaypalEmail: "sb-xyz@personal.example.com" };
+    for (const anthropic of [null, fakeClaude(quietModel)]) {
+      const { data: verdict } = await createBuyerPal({ anthropic, priceLookup, certLookup }).review(card, cleanPs5.chat, { seller: cleanPs5.seller });
+      expect(verdict.flags.map((f) => f.code)).not.toContain("NAME_MISMATCH");
+      expect(verdict.overall).toBe("go");
+      expect(verdict.reasoning!.couldNotVerify).toContain(`Couldn't confirm the PayPal account belongs to ${cleanPs5.seller.displayName.replace(/\.$/, "")}.`);
+    }
+  });
+
+  it("says nothing about the PayPal account being unconfirmed when the address carries the name", async () => {
+    const card = cleanPs5.cards.at(-1)!;
+    const { data: verdict } = await createBuyerPal({ anthropic: null, priceLookup, certLookup }).review(card, cleanPs5.chat, { seller: cleanPs5.seller });
+    expect(verdict.reasoning!.couldNotVerify.join(" ")).not.toMatch(/PayPal account belongs to/i);
+  });
+
   it("drops a model flag built from its own unanswered questions, so the clean deal stays go", async () => {
     const model = fakeClaude(() => ({
       additional_flags: [
