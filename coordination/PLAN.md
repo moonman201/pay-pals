@@ -349,7 +349,7 @@ to make a reader skip the ones that matter most. Today's are 12 to 22.
     The procedure, for the next time, and **the command changed on Oct 11**: bump
     `SEED_VERSION` in `apps/web/lib/demo/seed-version.ts`, then
     `npm run db:delete-seeded-demo-deals -w packages/db -- --sweep --keep-seed <version> --yes`,
-    then push, because a cold start is what re-seeds. The sweep is now opt-in and a
+    then push. **Changed Oct 13:** the app never seeds a hosted database on a request or cold start, because the first visitor after a deploy waited 119 s while the pals ran. After push and a Ready deploy, run in order: sweep (`npm run db:delete-seeded-demo-deals -w packages/db -- --sweep --keep-seed <version> --yes`, or `--keep-seed none`), then `npm run demo:seed -w apps/web -- --base <prod URL>`, then `npm run smoke:prod -w apps/web -- --base <prod URL>`, twice, the second run being the timing a judge sees. Until demo:seed has run, the landing hides the finished buttons and `/deals/finished/<scenario>` says the example is not ready. A stale-version seed makes demo:seed exit 1; sweep first. The full commands live in `docs/DEPLOY.md`. The sweep is now opt-in and a
     deleting sweep must say what it keeps: `--sweep --yes` with no `--keep-seed` is
     refused, and `--keep-seed none` is the spelled-out way to delete every stamped
     seed. The old form, with no mode, now exits 2. Building the id list for `--id`
