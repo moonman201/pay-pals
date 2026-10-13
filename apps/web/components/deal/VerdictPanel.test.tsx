@@ -375,13 +375,18 @@ describe("VerdictPanel, a graded card", () => {
     expect(screen.queryByTestId("price-comparison")).not.toBeInTheDocument();
   });
 
-  it("sends the reader somewhere that does track graded sales, in a new tab", () => {
+  it("gives PriceCharting and 130point each a link, in a new tab", () => {
     render(<VerdictPanel verdict={verdict({ overall: "stop", priceCheck: fakeSlab.marketPrice })} currentVersion={1} locked={false} card={slabCard} />);
-    const link = screen.getByRole("link", { name: "Check recent sold prices on PriceCharting or 130point" });
-    expect(link).toHaveAttribute("target", "_blank");
-    expect(link).toHaveAttribute("rel", expect.stringContaining("noopener"));
-    expect(link.getAttribute("href")).toContain("pricecharting.com");
-    expect(link.getAttribute("href")).toContain(encodeURIComponent(slabCard.title).slice(0, 20));
+    const pc = screen.getByRole("link", { name: "PriceCharting" });
+    const pt = screen.getByRole("link", { name: "130point" });
+    for (const link of [pc, pt]) {
+      expect(link).toHaveAttribute("target", "_blank");
+      expect(link).toHaveAttribute("rel", "noopener noreferrer");
+      expect(link).toHaveClass("min-h-11");
+    }
+    expect(pc.getAttribute("href")).toContain("pricecharting.com");
+    expect(pt.getAttribute("href")).toContain("130point.com");
+    expect(pt.getAttribute("href")).toContain(encodeURIComponent(slabCard.title).slice(0, 20));
   });
 
   it("leaves a card with no cert number alone, which is every other deal", () => {

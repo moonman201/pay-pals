@@ -18,7 +18,7 @@ import type { ItemCard } from "@pay-pals/contracts";
 
 export const GRADED_PRICE_NOTE = "Price: can't check automatically. Channel3 covers retail stores, not graded cards.";
 
-export const GRADED_PRICE_LINK_TEXT = "Check recent sold prices on PriceCharting or 130point";
+export const GRADED_PRICE_LINK_LEAD = "Check recent sold prices on";
 
 /** A graded card is one with a cert number on it. That is the same test the cert comparison uses. */
 export function isGradedCard(card: ItemCard | null | undefined): boolean {
@@ -26,12 +26,29 @@ export function isGradedCard(card: ItemCard | null | undefined): boolean {
 }
 
 /**
- * A search on PriceCharting for this card, by what the card says it is.
- * The grade goes in the query because a PSA 10 and a PSA 9 are different
- * prices, and the cert number does not, because it identifies one slab and
- * would return nothing.
+ * What to search for: the card's title, plus its grade because a PSA 10 and
+ * a PSA 9 are different prices, unless the title already says it. The cert
+ * number stays out because it identifies one slab and would return nothing.
  */
+function gradedSearchQuery(card: ItemCard): string {
+  const title = card.title.trim();
+  const grade = card.grade?.trim();
+  if (!grade || title.toLowerCase().includes(grade.toLowerCase())) return title;
+  return `${title} ${grade}`;
+}
+
 export function gradedPriceSearchUrl(card: ItemCard): string {
-  const query = [card.title, card.grade].filter(Boolean).join(" ").trim();
-  return `https://www.pricecharting.com/search-products?q=${encodeURIComponent(query)}&type=prices`;
+  return `https://www.pricecharting.com/search-products?q=${encodeURIComponent(gradedSearchQuery(card))}&type=prices`;
+}
+
+export function graded130pointSearchUrl(card: ItemCard): string {
+  return `https://130point.com/sales/?search=${encodeURIComponent(gradedSearchQuery(card))}`;
+}
+
+/** The two places that track graded sales, each as a search for this card. */
+export function gradedPriceLinks(card: ItemCard): { name: string; href: string }[] {
+  return [
+    { name: "PriceCharting", href: gradedPriceSearchUrl(card) },
+    { name: "130point", href: graded130pointSearchUrl(card) },
+  ];
 }

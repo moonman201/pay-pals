@@ -1,6 +1,6 @@
 import { cleanPs5, fakeSlab } from "@pay-pals/contracts";
 import { describe, expect, it } from "vitest";
-import { GRADED_PRICE_LINK_TEXT, GRADED_PRICE_NOTE, gradedPriceSearchUrl, isGradedCard } from "./graded-price";
+import { GRADED_PRICE_LINK_LEAD, GRADED_PRICE_NOTE, graded130pointSearchUrl, gradedPriceLinks, gradedPriceSearchUrl, isGradedCard } from "./graded-price";
 
 const slab = fakeSlab.cards[fakeSlab.cards.length - 1]!;
 const console_ = cleanPs5.cards[cleanPs5.cards.length - 1]!;
@@ -24,7 +24,8 @@ describe("the graded-card price note", () => {
   });
 
   it("sends the reader to the two places that do track graded sales", () => {
-    expect(GRADED_PRICE_LINK_TEXT).toBe("Check recent sold prices on PriceCharting or 130point");
+    expect(GRADED_PRICE_LINK_LEAD).toBe("Check recent sold prices on");
+    expect(gradedPriceLinks(slab).map((l) => l.name)).toEqual(["PriceCharting", "130point"]);
   });
 });
 
@@ -44,5 +45,17 @@ describe("gradedPriceSearchUrl", () => {
     const url = gradedPriceSearchUrl({ ...slab, title: "Gengar & Mimikyu GX #038", grade: null });
     expect(url).toContain("%26");
     expect(url).not.toContain("&q=Gengar &");
+  });
+});
+
+describe("the grade in the search", () => {
+  it("is added once, and not again when the title already carries it", () => {
+    const plain = { ...slab, title: "Gengar 1999", grade: "PSA 10" };
+    expect(decodeURIComponent(gradedPriceSearchUrl(plain))).toContain("q=Gengar 1999 PSA 10&");
+    const carried = { ...slab, title: "Gengar 1999 PSA 10", grade: "PSA 10" };
+    for (const url of [gradedPriceSearchUrl(carried), graded130pointSearchUrl(carried)]) {
+      expect(decodeURIComponent(url)).toContain("Gengar 1999 PSA 10");
+      expect(decodeURIComponent(url)).not.toMatch(/PSA 10 PSA 10/i);
+    }
   });
 });
