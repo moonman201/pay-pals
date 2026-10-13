@@ -155,13 +155,19 @@ export function VerdictPanel({ verdict, currentVersion, locked, cardTitle = null
           <div className="mt-1.5 text-xs text-muted" data-testid="price-sources">
             <p>{sources.line}</p>
             {sources.prices.length > 1 ? (
-              <ul className="mt-1.5 flex flex-wrap gap-1" aria-label="Listing prices">
-                {sources.prices.map((price, i) => (
-                  <li key={`${price}-${i}`} className="rounded-md border border-line bg-surface px-1.5 py-0.5 font-mono">
-                    ${price}
-                  </li>
-                ))}
-              </ul>
+              /* The range and the count above are the finding. The prices behind them are for a reader who wants to check. */
+              <details className="mt-1" data-testid="listing-prices">
+                <summary className="inline-flex min-h-11 cursor-pointer items-center font-semibold text-[var(--accent-ink)] underline-offset-2 hover:underline">
+                  Show the {sources.prices.length} listings
+                </summary>
+                <ul className="mt-1 flex flex-wrap gap-1" aria-label="Listing prices">
+                  {sources.prices.map((price, i) => (
+                    <li key={`${price}-${i}`} className="rounded-md border border-line bg-surface px-1.5 py-0.5 font-mono">
+                      ${price}
+                    </li>
+                  ))}
+                </ul>
+              </details>
             ) : null}
           </div>
         ) : null}
