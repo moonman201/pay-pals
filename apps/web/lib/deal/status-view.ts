@@ -634,9 +634,14 @@ const STAGE_NAMES: Readonly<Record<StatusGroupId, string>> = {
   delivery: "delivery",
 };
 
-/** True when every line in the group is Missing, which is what "never started" looks like. */
+/**
+ * True when nothing in the group has happened. Every line Missing is that
+ * everywhere. On the card group an unlocked card also reads Unverified
+ * ("Not yet", a step not reached), so that one line counts as untouched too.
+ */
 function untouched(group: StatusGroup): boolean {
-  return group.items.length > 0 && group.items.every((item) => item.status === "missing");
+  const idle = (item: StatusItem) => item.status === "missing" || (group.id === "card" && item.id === "card-locked" && item.status === "unverified");
+  return group.items.length > 0 && group.items.every(idle);
 }
 
 /**
@@ -679,14 +684,18 @@ export function splitUnreached(groups: readonly StatusGroup[], deal: Pick<Deal, 
   const reached = REACHED[deal.state];
   const collapsible = (g: StatusGroup) => untouched(g) && reached < STAGE_AT[g.id];
   while (shown.length > 1 && collapsible(shown[shown.length - 1]!)) dropped.unshift(shown.pop()!);
-  if (dropped.length === 0) return { shown, skipped: null };
   const blocked = deal.state === "BLOCKED" || deal.state === "CANCELLED";
+  // A deal that ended can never agree a card it had not agreed, so the card
+  // group is not "yet to come" but never reached, and it collapses from the
+  // front as well. A deal still moving shows it normally.
+  if (blocked && shown.length > 1 && shown[0]!.id === "card" && untouched(shown[0]!)) dropped.unshift(shown.shift()!);
+  if (dropped.length === 0) return { shown, skipped: null };
   const first = STAGE_NAMES[dropped[0]!.id];
   return {
     shown,
     skipped: {
       names: list(dropped.map((g) => STAGE_NAMES[g.id])),
-      because: blocked ? `This deal ended before ${first}, so no money moved.` : `This deal has not reached ${first} yet.`,
+      because: blocked ? (dropped[0]!.id === "card" ? "This deal ended before the card was agreed, so no money moved." : `This deal ended before ${first}, so no money moved.`) : `This deal has not reached ${first} yet.`,
     },
   };
 }

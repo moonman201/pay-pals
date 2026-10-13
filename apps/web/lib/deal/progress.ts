@@ -32,6 +32,12 @@ export type ProgressEnd =
 
 export interface Progress {
   steps: { id: ProgressStepId; label: string; status: StepStatus }[];
+  /**
+   * Labels of the steps a deal that ended early will never reach, left out of
+   * `steps` so the stepper does not list things that cannot happen. Empty for
+   * a deal still moving and for one that ended after the last step.
+   */
+  notReached: string[];
   /** Set when the deal ended off the happy path. The badge sits after the last step reached. */
   end: ProgressEnd;
   /** True once every step is done. */
@@ -94,10 +100,12 @@ export function dealProgress(state: DealState, events: readonly DealEvent[]): Pr
   const doneCount = byState >= 0 ? byState : reachedFromEvents(events);
   // Off the happy path nothing is current: the end badge is what the reader needs next.
   const currentIndex = end ? -1 : doneCount;
-  const steps = PROGRESS_STEPS.map((id, i) => ({
+  const all = PROGRESS_STEPS.map((id, i) => ({
     id,
     label: PROGRESS_LABELS[id],
     status: (i < doneCount ? "done" : i === currentIndex ? "current" : "upcoming") as StepStatus,
   }));
-  return { steps, end, complete: doneCount >= PROGRESS_STEPS.length };
+  // The end badge needs a step to sit after, so at least one stays.
+  const keep = end ? Math.max(doneCount, 1) : all.length;
+  return { steps: all.slice(0, keep), notReached: all.slice(keep).map((step) => step.label), end, complete: doneCount >= PROGRESS_STEPS.length };
 }

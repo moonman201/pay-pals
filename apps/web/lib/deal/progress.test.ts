@@ -45,14 +45,15 @@ describe("dealProgress", () => {
 
   it("keeps the steps a blocked deal reached and ends with a Blocked badge", () => {
     const p = dealProgress("BLOCKED", [ev("seller_invited"), ev("card_updated"), ev("review_posted")]);
-    expect(p.steps.map((s) => s.status)).toEqual([D, D, D, U, U, U, U]);
+    expect(p.steps.map((s) => s.status)).toEqual([D, D, D]);
     expect(p.end).toEqual({ kind: "blocked", label: "Blocked" });
+    expect(p.notReached).toEqual(["Agreed and locked", "Paid", "Shipped", "Arrived"]);
     expect(p.complete).toBe(false);
   });
 
   it("a refusal with no card is blocked after the review of what the seller said", () => {
     const p = dealProgress("BLOCKED", [ev("seller_invited"), ev("invite_declined"), ev("review_posted")]);
-    expect(p.steps.map((s) => s.status)).toEqual([D, D, D, U, U, U, U]);
+    expect(p.steps.map((s) => s.status)).toEqual([D, D, D]);
   });
 
   it("an issue after arrival keeps everything through Arrived done and ends with Issue open", () => {
@@ -63,7 +64,7 @@ describe("dealProgress", () => {
 
   it("a cancelled deal keeps what it reached", () => {
     const p = dealProgress("CANCELLED", [ev("card_updated")]);
-    expect(p.steps.map((s) => s.status)).toEqual([D, D, U, U, U, U, U]);
+    expect(p.steps.map((s) => s.status)).toEqual([D, D]);
     expect(p.end).toEqual({ kind: "cancelled", label: "Cancelled" });
   });
 
@@ -79,7 +80,7 @@ describe("a deal the buyer took off Pay Pals", () => {
 
   it("does not advance the steps, because nothing was paid through Pay Pals", () => {
     // Cancelled at the payment step: four steps reached, and Paid never ticks.
-    expect(statuses("CANCELLED", offPlatform)).toEqual([D, D, D, D, U, U, U]);
+    expect(statuses("CANCELLED", offPlatform)).toEqual([D, D, D, D]);
   });
 
   it("carries its own end badge rather than the state it left behind", () => {

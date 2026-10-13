@@ -310,6 +310,28 @@ describe("splitUnreached", () => {
     expect(skipped?.because).toBe("This deal ended before payment, so no money moved.");
   });
 
+  it("collapses the card group too when a deal ended before any card was agreed", () => {
+    const open = { ...cleanPs5.deal, state: "BLOCKED" as const, lockedCardVersion: null, buyerAgreedAt: null, sellerAgreedAt: null };
+    const groups = dealStatusView(input({ ...early, lockedCard: null, deal: open }));
+    expect(group(groups, "card").items.map((i) => i.status)).toEqual(["unverified", "missing", "missing"]);
+    const { shown, skipped } = splitUnreached(groups, { state: "BLOCKED" });
+    expect(shown.map((g) => g.id)).toEqual(["evidence"]);
+    expect(skipped?.names).toBe("the item card, payment, shipping and delivery");
+    expect(skipped?.because).toBe("This deal ended before the card was agreed, so no money moved.");
+  });
+
+  it("keeps the card group on a blocked deal whose card was half agreed", () => {
+    const half = { ...cleanPs5.deal, state: "BLOCKED" as const, lockedCardVersion: null, sellerAgreedAt: null, buyerAgreedAt: "2026-10-09T09:00:00.000Z" };
+    const { shown } = splitUnreached(dealStatusView(input({ ...early, lockedCard: null, deal: half })), { state: "BLOCKED" });
+    expect(shown.map((g) => g.id)).toContain("card");
+  });
+
+  it("shows an unlocked card normally while the deal is still moving", () => {
+    const open = { ...cleanPs5.deal, state: "REVIEWED" as const, lockedCardVersion: null, buyerAgreedAt: null, sellerAgreedAt: null };
+    const { shown } = splitUnreached(dealStatusView(input({ ...early, lockedCard: null, deal: open })), { state: "REVIEWED" });
+    expect(shown.map((g) => g.id)).toEqual(["card", "evidence"]);
+  });
+
   it("says not yet, rather than ended, for a deal still working through it", () => {
     expect(splitUnreached(dealStatusView(input(early)), { state: "REVIEWED" }).skipped?.because).toBe("This deal has not reached payment yet.");
   });
