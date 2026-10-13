@@ -6,7 +6,7 @@ import { pricePosition } from "./price-position";
 const reasons = (askingPrice: number, marketLow: number, marketHigh: number, flags: Parameters<typeof reviewReasoning>[0]["flags"] = []) =>
   reviewReasoning({
     card: { ...cleanPs5.cards[0]!, askingPrice },
-    priceCheck: { ...cleanPs5.priceCheck!, marketLow, marketHigh },
+    priceCheck: { ...cleanPs5.marketPrice, marketLow, marketHigh },
     certCheck: null,
     certLookupFailed: false,
     readings: [],
