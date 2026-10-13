@@ -278,32 +278,50 @@ export async function seedFixtureDeals(services: SeedServices, log: Log, time: R
   return ids;
 }
 
+/** What happened to one scenario. "stale" means a seed from another version is there and nothing was replayed. */
+export type SeedOutcome = { scenario: ScenarioId; dealId: string; outcome: "existing" | "seeded" | "stale"; seedVersion?: string };
+
 /**
- * Idempotent seed for a durable store. Replays a scenario only when no
- * finished deal for it exists, checks again after the replay, and settles on
- * the oldest finished deal so two instances seeding at once converge.
+ * One scenario of the idempotent seed. Replays it only when no seed-stamped
+ * finished deal exists, checks again after the replay, and settles on the
+ * oldest so two seeders running at once converge. A seed from another version
+ * is reported as "stale" and left alone: removing it is the sweep's job.
+ * Throws if the replay fails; callers decide what a failure means.
  */
+export async function seedScenarioIfMissing(
+  services: SeedServices,
+  finder: DealFinder,
+  fixture: ScenarioFixture,
+  log: Log,
+  time: ReplayTime = noClock,
+  nowMs: number = Date.now(),
+): Promise<SeedOutcome> {
+  const query = { scenario: fixture.id, states: FINISHED_STATES };
+  // Only a stamped deal counts as the seed; a judge's own finished run of the scenario is just their deal.
+  const existing = await oldestSeeded(services.store, await finder.findDeals(query));
+  if (existing) {
+    if (existing.seedVersion !== SEED_VERSION) {
+      log(`[pay-pals] demo: stale demo seed for ${fixture.id} (seed ${existing.seedVersion}, current ${SEED_VERSION}); run npm run db:delete-seeded-demo-deals -w packages/db, then npm run demo:seed -w apps/web`);
+      return { scenario: fixture.id, dealId: existing.deal.id, outcome: "stale", seedVersion: existing.seedVersion };
+    }
+    return { scenario: fixture.id, dealId: existing.deal.id, outcome: "existing", seedVersion: existing.seedVersion };
+  }
+  const created = await replay(services, fixture, time, nowMs);
+  // Another instance may have seeded the same scenario meanwhile. Both pick the oldest stamped one.
+  const settled = await oldestSeeded(services.store, await finder.findDeals(query));
+  if (settled && settled.deal.id !== created) log(`[pay-pals] demo: ${fixture.id} was seeded twice, using the oldest`);
+  return { scenario: fixture.id, dealId: settled?.deal.id ?? created, outcome: "seeded", seedVersion: SEED_VERSION };
+}
+
+/** Idempotent seed of every scenario into a durable store. Used by the CLI path and the tests; the app never calls it on a request. */
 export async function seedFixtureDealsIfMissing(services: SeedServices, finder: DealFinder, log: Log, time: ReplayTime = noClock, nowMs: number = Date.now()): Promise<SeededIds> {
   const ids: SeededIds = {};
   let replayed = 0;
   for (const fixture of ALL_FIXTURES) {
     try {
-      const query = { scenario: fixture.id, states: FINISHED_STATES };
-      // Only a stamped deal counts as the seed; a judge's own finished run of the scenario is just their deal.
-      const existing = await oldestSeeded(services.store, await finder.findDeals(query));
-      if (existing) {
-        ids[fixture.id] = existing.deal.id;
-        if (existing.seedVersion !== SEED_VERSION) {
-          log(`[pay-pals] demo: stale demo seed for ${fixture.id} (seed ${existing.seedVersion}, current ${SEED_VERSION}); run npm run db:delete-seeded-demo-deals -w packages/db and redeploy`);
-        }
-        continue;
-      }
-      const created = await replay(services, fixture, time, nowMs);
-      replayed += 1;
-      // Another instance may have seeded the same scenario meanwhile. Both pick the oldest stamped one.
-      const settled = await oldestSeeded(services.store, await finder.findDeals(query));
-      ids[fixture.id] = settled?.deal.id ?? created;
-      if (settled && settled.deal.id !== created) log(`[pay-pals] demo: ${fixture.id} was seeded twice, using the oldest`);
+      const result = await seedScenarioIfMissing(services, finder, fixture, log, time, nowMs);
+      ids[fixture.id] = result.dealId;
+      if (result.outcome === "seeded") replayed += 1;
     } catch (error) {
       log(`[pay-pals] demo: could not seed ${fixture.id} (${error instanceof Error ? error.message : String(error)})`);
     }

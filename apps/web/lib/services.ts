@@ -5,7 +5,8 @@
  *
  * Choices, each logged once at startup (never a value):
  *   store   DATABASE_URL set      -> Postgres (migrated through `ready`)
- *           otherwise             -> in-memory, seeded with the three demo deals
+ *           otherwise             -> in-memory, seeded with the three demo deals (rules-only, no model call)
+ *   Postgres is never seeded here: a visitor's request must not wait on a replay. `npm run demo:seed -w apps/web` does it after a deploy.
  *   pals    always the real @pay-pals/agents; without ANTHROPIC_API_KEY they run rules only
  *   prices  CHANNEL3_API_KEY set  -> Channel3, otherwise the fixture ranges
  *   paypal  PAYPAL_CLIENT_ID set  -> sandbox gateway, otherwise a mock that never leaves the process
@@ -26,7 +27,7 @@ import { createPayPalGateway, handleWebhookEvent, loadPayPalConfig, type PayPals
 import path from "node:path";
 import { photoBase } from "./deal/photo-urls";
 import { buildKnownPhotos, localAwareFetcher } from "./demo/known-photos";
-import { asDealFinder, seedFixtureDeals, seedFixtureDealsIfMissing } from "./demo/seed-fixtures";
+import { seedFixtureDeals } from "./demo/seed-fixtures";
 import { loadRootEnvLocal } from "./env";
 import { isPublicMode, publicModeLine } from "./public-mode";
 import { detectUploadsEnabled } from "./uploads";
@@ -154,8 +155,6 @@ export function createServices(env: Env = process.env, log: Log = (line) => cons
 
   if (modes.store === "postgres") {
     const url = env.DATABASE_URL!.trim();
-    // Two store instances on the same database: one on the replay clock for seeding, one on wall time for live deals.
-    const seedingStore = createPostgresDealStore(url, { clock: replay.clock });
     const pg = createPostgresDealStore(url);
     store = pg;
     services.store = store;
@@ -163,20 +162,22 @@ export function createServices(env: Env = process.env, log: Log = (line) => cons
     const migrated = pg.migrate().catch((error: unknown) => {
       log(`[pay-pals] store: migration did not run (${error instanceof Error ? error.message : String(error)}). Run: npm run migrate -w packages/db`);
     });
-    const finder = asDealFinder(seedingStore);
-    seededDeals = migrated.then(() => {
-      if (finder) return seedFixtureDealsIfMissing({ ...services, store: seedingStore, clock: replay.clock }, finder, log, replay);
-      log("[pay-pals] demo: finished demo deals are off on this store; it has no findDeals(scenario, states) to seed idempotently");
-      return {};
-    });
-    ready = seededDeals.then(() => undefined);
+    // No seeding on this path. A cold start that replayed the fixtures with real model calls kept the first visitor waiting 119 s.
+    log("[pay-pals] demo: finished demo deals are not seeded at start; run npm run demo:seed -w apps/web after a deploy");
+    seededDeals = migrated.then(() => ({}));
+    ready = migrated;
   } else {
     // One memory store holds everything, so its clock is the replay clock while seeding and the wall clock after.
     let seeding = true;
     store = createMemoryDealStore({ clock: () => (seeding ? replay.clock() : systemClock()) });
     log("[pay-pals] store: in memory (DATABASE_URL not set), demo deals live until the process restarts");
     services.store = store;
-    seededDeals = seedFixtureDeals({ ...services, clock: replay.clock }, log, replay).finally(() => {
+    // Rules-only pals for the replay, whatever keys are set: it stays fast, and a keyed local run spends no model calls on start.
+    const rulesOnly = {
+      buyerPal: createBuyerPal({ anthropic: null, priceLookup: createFixturePriceLookup(), certLookup: createFixtureCertLookup(), knownPhotos, photoBaseUrl, publicMode, fetchImage: localAwareFetcher(publicDir) }),
+      buildEvidencePack: createEvidencePackBuilder({ anthropic: null, publicMode }),
+    };
+    seededDeals = seedFixtureDeals({ ...services, ...rulesOnly, clock: replay.clock }, log, replay).finally(() => {
       seeding = false;
     });
     ready = seededDeals.then(() => undefined);

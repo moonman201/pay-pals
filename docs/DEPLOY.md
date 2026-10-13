@@ -30,6 +30,21 @@ Copy the names from `.env.example`. Sandbox values only.
 
 Do not set `PAY_PALS_DEMO_ONLY` in production. It is a test knob.
 
+## After every deploy: sweep, seed, smoke
+The app never seeds the database on a request or a cold start. A start that replayed the demo deals with real model calls once kept the first visitor waiting 119 s. The three finished example deals are written by a separate step, run from your machine after the deploy is live. Until it has run, the landing hides the "See the finished deal" buttons and `/deals/finished/<scenario>` shows a plain "not ready yet" page.
+
+Run these in order, from the repo root, with `DATABASE_URL`, `ANTHROPIC_API_KEY` and the other keys in `.env.local`:
+1. Push, and wait for the Vercel deployment to show Ready.
+2. Sweep stale seeds. Only needed when `SEED_VERSION` (`apps/web/lib/demo/seed-version.ts`) changed or you want a clean re-seed. Run without `--yes` first to see what it would delete:
+   `npm run db:delete-seeded-demo-deals -w packages/db -- --sweep --keep-seed <current SEED_VERSION> --yes`
+   (`--keep-seed none` deletes every stamped seed.)
+3. Seed. It skips any scenario whose current-version seed exists, prints each deal id and the time it took, and exits non-zero on a failure or a stale seed. `--base` is the deployed URL, so the pals fetch real photo files:
+   `npm run demo:seed -w apps/web -- --base https://pay-pals-m00n1.vercel.app`
+4. Smoke and warm. It loads the landing, both views of each finished deal and the evidence pages, prints status and time per URL, and exits non-zero on a non-200, a page over 10 s or a missing string. Run it twice; the second run is the timing a judge sees:
+   `npm run smoke:prod -w apps/web -- --base https://pay-pals-m00n1.vercel.app`
+
+`demo:seed` exit 2 means a missing setting (`DATABASE_URL`, or `--base` with a model key set), exit 1 means a scenario failed or a stale seed is still there.
+
 ## After the first deploy
 1. Open `/` and run the clean scenario as the buyer through to payment. The PayPal button should open the sandbox wallet; approve as the sandbox buyer.
 2. Create the sandbox webhook in the PayPal developer dashboard, paste its id into `PAYPAL_WEBHOOK_ID`, redeploy, pay once more and confirm the deal moves to PAID from the webhook (timeline line from `paypal`).

@@ -169,7 +169,7 @@ describe("seedFixtureDealsIfMissing", () => {
     expect(again).toEqual(ids);
     const staleLines = lines.filter((l) => /stale demo seed/.test(l));
     expect(staleLines).toHaveLength(3);
-    expect(staleLines[0]).toMatch(/run npm run db:delete-seeded-demo-deals -w packages\/db and redeploy/);
+    expect(staleLines[0]).toMatch(/run npm run db:delete-seeded-demo-deals -w packages\/db, then npm run demo:seed -w apps\/web/);
     expect(lines.at(-1)).toMatch(/0 seeded now/);
   });
 

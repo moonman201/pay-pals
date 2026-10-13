@@ -162,3 +162,34 @@ describe("createServices with no keys", () => {
     expect(log).not.toMatch(/secret-value/);
   });
 });
+
+describe("createServices and seeding", () => {
+  it("never seeds a Postgres store at start, so a visitor's first request does not wait on a replay", async () => {
+    const lines: string[] = [];
+    // Nothing listens on port 1: the migration fails fast and is logged, and no seeding is attempted either way.
+    const services = createServices({ DATABASE_URL: "postgres://nobody@127.0.0.1:1/none" }, (l) => lines.push(l));
+    expect(services.modes.store).toBe("postgres");
+    expect(await services.seededDeals).toEqual({});
+    await services.ready;
+    expect(lines.join("\n")).toMatch(/not seeded at start/);
+  });
+
+  it("seeds the in-memory store without a model call, even with an Anthropic key set", async () => {
+    const calls: string[] = [];
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = (async (input: RequestInfo | URL) => {
+      calls.push(String(input));
+      throw new Error("no network in this test");
+    }) as typeof fetch;
+    try {
+      const started = Date.now();
+      const services = createServices({ ANTHROPIC_API_KEY: "test-key-not-real" }, () => {});
+      const seeded = await services.seededDeals;
+      expect(Object.keys(seeded).sort()).toEqual(["clean-ps5", "empty-box", "fake-slab"]);
+      expect(Date.now() - started).toBeLessThan(5000);
+      expect(calls.filter((u) => /anthropic/i.test(u))).toEqual([]);
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+  });
+});

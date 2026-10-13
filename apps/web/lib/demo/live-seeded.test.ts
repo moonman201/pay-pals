@@ -105,3 +105,17 @@ describe("resolveSeededDeals", () => {
     expect(store.getDeal).not.toHaveBeenCalled();
   });
 });
+
+describe("resolveSeededDeals with nothing seeded at start", () => {
+  it("finds the CLI-seeded deal through the finder, and leaves a scenario with none out", async () => {
+    const fresh = deal("clean-9", "clean-ps5");
+    const store = lookup({}, { "clean-9": stamped("clean-9", "clean-ps5") });
+    const finder: DealFinder = { findDeals: vi.fn(async ({ scenario }) => (scenario === "clean-ps5" ? [fresh] : [])) };
+    expect(await resolveSeededDeals({}, store, finder)).toEqual({ "clean-ps5": "clean-9" });
+  });
+
+  it("answers an empty set, not an error, when no seed exists at all", async () => {
+    const finder: DealFinder = { findDeals: vi.fn(async () => []) };
+    expect(await resolveSeededDeals({}, lookup({}), finder)).toEqual({});
+  });
+});
