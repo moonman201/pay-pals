@@ -268,6 +268,33 @@ describe("the PayPal address against the seller's name", () => {
     expect(line.detail).toMatch(/not proof of who owns the account/);
   });
 
+  const asSeller = (displayName: string, email: string, paypal: string) => {
+    const card = { ...lockedCard, sellerPaypalEmail: paypal };
+    return input({ lockedCard: card, cards: [card], deal: { ...cleanPs5.deal, seller: { ...cleanPs5.deal.seller, displayName, email } } });
+  };
+
+  it("says the address contains the name only when it does", () => {
+    const line = item(dealStatusView(asSeller("Dana Moore", "dana@example.com", "dana.moore@example.com")), "evidence", "payee-name");
+    expect(line.status).toBe("verified");
+    expect(line.detail).toContain("The address contains part of the seller's name.");
+    expect(line.detail).not.toMatch(/\bagree\b/);
+  });
+
+  it("does not say they agree when the address is just the seller's contact email", () => {
+    const line = item(dealStatusView(asSeller("Dana Moore", "quickpay2026@example.com", "quickpay2026@example.com")), "evidence", "payee-name");
+    expect(line.detail).toContain("compared quickpay2026@example.com with Dana Moore");
+    expect(line.detail).toContain("does not appear in the address");
+    expect(line.detail).toContain("contact email");
+    expect(line.detail).not.toMatch(/\bagree\b/);
+  });
+
+  it("names what was compared on a flag whose evidence does not", () => {
+    const bare = { ...nameFlag, evidence: "The name and the address differ." };
+    const line = item(dealStatusView(input({ verdicts: [verdict({ flags: [bare] })] })), "evidence", "payee-name");
+    expect(line.status).toBe("flagged");
+    expect(line.detail).toContain(`compared ${lockedCard.sellerPaypalEmail} with ${cleanPs5.deal.seller.displayName}`);
+  });
+
   it("flags it when the pal raised the mismatch, in the pal's own words", () => {
     const line = item(dealStatusView(input({ verdicts: [verdict({ flags: [nameFlag] })] })), "evidence", "payee-name");
     expect(line.status).toBe("flagged");
@@ -285,6 +312,18 @@ describe("the PayPal address against the seller's name", () => {
     const line = item(dealStatusView(input({ verdicts: [verdict({ reasoning })] })), "evidence", "payee-name");
     expect(line.status).toBe("unverified");
     expect(line.detail).toMatch(/not given the seller's name/);
+  });
+
+  it("is unverified, and says why, when the seller's name is only initials", () => {
+    const reasoning = {
+      checked: [],
+      found: [],
+      couldNotVerify: ["The seller's name on the account is only initials, so I could not check it against the PayPal address on the card."],
+      wouldChangeMyMind: [],
+    };
+    const line = item(dealStatusView(input({ verdicts: [verdict({ reasoning })] })), "evidence", "payee-name");
+    expect(line.status).toBe("unverified");
+    expect(line.detail).toMatch(/only initials/);
   });
 
   it("has no line at all before a review has run, rather than claiming a pass", () => {

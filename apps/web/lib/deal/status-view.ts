@@ -284,18 +284,30 @@ function payeeNameItem(input: StatusInput): StatusItem | null {
   const verdict = latest(input.verdicts);
   if (!card || !verdict) return null;
   const flag = verdict.flags.find((f) => f.code === "NAME_MISMATCH");
-  if (flag) return { id, label, status: "flagged", detail: `${flag.explanation} ${flag.evidence}` };
-  // The pal says this itself when it was handed no seller to compare against.
-  const notGiven = couldNotVerify(verdict.reasoning).some((line) => /seller's name on the account/i.test(line));
-  if (notGiven) {
-    return { id, label, status: "unverified", detail: `The Buyer Pal was not given the seller's name, so it could not check it against ${card.sellerPaypalEmail}.` };
+  const { seller } = input.deal;
+  if (flag) {
+    // The flag's evidence normally names both sides. When it does not, say what was compared.
+    const compared = flag.evidence.includes(card.sellerPaypalEmail) ? "" : `The Buyer Pal compared ${card.sellerPaypalEmail} with ${seller.displayName}, the seller on this deal. `;
+    return { id, label, status: "flagged", detail: `${compared}${flag.explanation} ${flag.evidence}` };
   }
-  return {
-    id,
-    label,
-    status: "verified",
-    detail: `The Buyer Pal compared ${card.sellerPaypalEmail} with ${input.deal.seller.displayName}, the seller on this deal, and they agree. This checks that the address looks like the seller's. It is not proof of who owns the account.`,
-  };
+  // The pal says this itself when it was handed no seller to compare against.
+  const undecided = couldNotVerify(verdict.reasoning).find((line) => /seller's name on the account/i.test(line));
+  if (undecided) {
+    const reason = /only initials/i.test(undecided) ? "The seller's name is only initials" : "The Buyer Pal was not given the seller's name";
+    return { id, label, status: "unverified", detail: `${reason}, so it could not check it against ${card.sellerPaypalEmail}.` };
+  }
+  const compared = `The Buyer Pal compared ${card.sellerPaypalEmail} with ${seller.displayName}, the seller on this deal, and raised no flag.`;
+  const local = (card.sellerPaypalEmail.split("@")[0] ?? "").toLowerCase();
+  const nameInAddress = seller.displayName
+    .toLowerCase()
+    .split(/[^a-z]+/)
+    .some((token) => token.length >= 3 && local.includes(token));
+  const why = nameInAddress
+    ? "The address contains part of the seller's name."
+    : card.sellerPaypalEmail.toLowerCase() === seller.email.toLowerCase()
+      ? "The seller's name does not appear in the address. It is the contact email they gave, so the address was not checked against the name."
+      : "The seller's name does not appear in the address.";
+  return { id, label, status: "verified", detail: `${compared} ${why} This is not proof of who owns the account.` };
 }
 
 /**
