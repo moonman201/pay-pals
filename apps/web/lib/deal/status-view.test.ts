@@ -212,7 +212,7 @@ describe("the evidence", () => {
     const groups = dealStatusView(input({ verdicts: [verdict({ questionsForSeller: ["Can you send a close-up of the serial label?"] })] }));
     const evidence = group(groups, "evidence");
     expect(evidence.items.some((i) => i.id.startsWith("question-"))).toBe(false);
-    expect(evidence.note?.text).toContain("1 open question");
+    expect(evidence.note?.text).toContain("1 question for the seller");
     expect(evidence.note?.href).toBe("#buyer-pal-review");
   });
 
