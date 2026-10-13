@@ -28,6 +28,10 @@ describe("BuyerPal.review on fake-slab", () => {
     expect(codes).not.toContain("OFF_PLATFORM_PAYMENT");
     expect(codes).not.toContain("STOCK_OR_REUSED_PHOTO");
     expect(codes).not.toContain("MISSING_SERIAL");
+    // The PayPal address is the seller's own contact email. That agreement proves nothing about the name.
+    const mismatch = verdict.flags.find((f) => f.code === "NAME_MISMATCH")!;
+    expect(mismatch.severity).toBe("caution");
+    expect(mismatch.evidence).toBe("PayPal address cashdeals.quick2026@example.com, seller name Chris W.");
     expect(verdict.overall).toBe("stop");
     expect(verdict.priceCheck?.marketLow).toBe(305);
     expect(codes).not.toContain("CERT_MISMATCH");
@@ -301,6 +305,7 @@ describe("BuyerPal.review on clean-ps5", () => {
       const { data: verdict } = await pal.review(card, cleanPs5.chat, { seller: cleanPs5.seller });
       expect(["go", "caution"]).toContain(verdict.overall);
       expect(hasStop(verdict.flags)).toBe(false);
+      expect(verdict.flags.map((f) => f.code)).not.toContain("NAME_MISMATCH");
       expect(verdict.certCheck).toBeUndefined();
       expect(VerdictSchema.safeParse(verdict).success).toBe(true);
     }
