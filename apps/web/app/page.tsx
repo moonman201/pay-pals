@@ -2,6 +2,7 @@ import { ALL_FIXTURES } from "@pay-pals/contracts";
 import Image from "next/image";
 import Link from "next/link";
 import { HeroHeadline } from "@/components/landing/HeroHeadline";
+import { HowItsBuilt } from "@/components/landing/HowItsBuilt";
 import { ProtectionPanel } from "@/components/landing/ProtectionPanel";
 import { ScenarioCard } from "@/components/landing/ScenarioCard";
 import { PalAvatar } from "@/components/pal/PalAvatar";
@@ -126,6 +127,8 @@ export default async function HomePage() {
           ))}
         </div>
       </section>
+
+      <HowItsBuilt />
 
       <footer className="mt-14 border-t border-line pt-6 text-center text-xs text-muted">
         Built for the PayPal AI Hackathon. Sandbox only. Pay Pals never moves money outside a PayPal Goods and Services payment.
