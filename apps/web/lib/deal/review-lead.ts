@@ -90,8 +90,14 @@ const MOST_ASKS = 2;
 function joinAsks(asks: readonly string[]): string | null {
   const cleaned = asks.map((a) => a.trim()).filter(Boolean).slice(0, MOST_ASKS);
   if (cleaned.length === 0) return null;
-  const parts = cleaned.map((a, i) => (i === 0 ? a : a.charAt(0).toLowerCase() + a.slice(1)));
-  return parts.join(" ");
+  // An ask is either a full sentence or a clause that finishes "I'd look again if". Clauses
+  // have no full stop, so run on without "or" they read as one garbled line.
+  let line = "";
+  cleaned.forEach((a, i) => {
+    const text = i === 0 ? a : a.charAt(0).toLowerCase() + a.slice(1);
+    line += i === 0 ? text : /[.!?]$/.test(line) ? ` ${text}` : ` or ${text}`;
+  });
+  return /[.!?]$/.test(line) ? line : `${line}.`;
 }
 
 /** The pal's own sentence when it is already a line, otherwise this app's fallback for that code. */
