@@ -20,6 +20,8 @@ interface Props {
   hasLockedCard: boolean;
   /** A pack has been built. A deal that finished with no issue has none, so no link is offered. */
   hasEvidence?: boolean;
+  /** A seeded example deal. A visitor cannot cancel it, so no Cancel button. */
+  example?: boolean;
   agreement: Agreement;
   cardVersion: number;
   /** This side agreed to an earlier version and the card changed since. */
@@ -54,8 +56,16 @@ const ENDINGS: Partial<Record<DealState, string>> = {
   CANCELLED: "This deal was cancelled before any money moved.",
 };
 
+function EvidenceLink({ dealId, role }: { dealId: string; role: Role }) {
+  return (
+    <Link href={`/deals/${dealId}/evidence?as=${role}`} className="mt-1 inline-flex min-h-11 items-center text-sm font-semibold text-[var(--accent-ink)] underline-offset-2 hover:underline">
+      Open the evidence pack
+    </Link>
+  );
+}
+
 /** The moves this side can make right now, straight from the transition table. */
-export function ActionBar({ state, role, verdict, dealId, busy, hasLockedCard, hasEvidence = false, agreement, cardVersion, cardChangedSinceAgree, refusalToReview = false, hasCert = false, reviewing = false, reviewingLine = "", onAction }: Props) {
+export function ActionBar({ state, role, verdict, dealId, busy, hasLockedCard, hasEvidence = false, example = false, agreement, cardVersion, cardChangedSinceAgree, refusalToReview = false, hasCert = false, reviewing = false, reviewingLine = "", onAction }: Props) {
   const [understood, setUnderstood] = useState(false);
   const other = otherRole(role);
   const agreeing = state === "REVIEWED" && cardVersion > 0;
@@ -73,34 +83,33 @@ export function ActionBar({ state, role, verdict, dealId, busy, hasLockedCard, h
   });
   const waiting = isWaitingOnOther(state, role) || (actions.every((a) => a.id === "cancel") && (mineDone || state === "INVITED" || (state === "REVIEWED" && cardVersion === 0)));
 
-  if (isTerminal(state)) {
+  if (state === "BLOCKED") {
+    // The deal cannot go on, and the one move that closes it is the buyer's. Only the buyer sees it, and never on an example deal.
+    const canCancel = role === "buyer" && !example && actions.some((a) => a.id === "cancel");
     return (
       <Panel title="Next step" accent>
-        <p className="text-sm">{ENDINGS[state]}</p>
-        {hasLockedCard && hasEvidence ? (
-          <Link href={`/deals/${dealId}/evidence?as=${role}`} className="mt-1 inline-flex min-h-11 items-center text-sm font-semibold text-[var(--accent-ink)] underline-offset-2 hover:underline">
-            Open the evidence pack
-          </Link>
+        <p className="text-sm">{ENDINGS.BLOCKED}</p>
+        {canCancel ? (
+          <div className="mt-3">
+            <Button variant="primary" disabled={busy !== null} onClick={() => onAction("cancel")}>
+              {busy === "cancel" ? "Working" : "Cancel deal"}
+            </Button>
+          </div>
         ) : null}
+        {hasLockedCard && hasEvidence ? <EvidenceLink dealId={dealId} role={role} /> : null}
       </Panel>
     );
   }
 
-  /*
-    OPEN, WAITING ON MATT (Oct 11 room pass). On a deal the payment-method
-    rule has blocked, Agree is filtered out above and Cancel is the only
-    action left, so it renders in the danger variant as the one button on
-    the panel: the page reads as though Pay Pals is telling the buyer to
-    cancel. Matt flagged that and has not said what should take its place.
+  if (isTerminal(state)) {
+    return (
+      <Panel title="Next step" accent>
+        <p className="text-sm">{ENDINGS[state]}</p>
+        {hasLockedCard && hasEvidence ? <EvidenceLink dealId={dealId} role={role} /> : null}
+      </Panel>
+    );
+  }
 
-    The options, none of them free: leave Cancel as the only move; demote it
-    and offer nothing, which leaves a dead end; or make "I will pay another
-    way" the primary, which would have Pay Pals nudging a buyer off its own
-    protection. That last one is a product call about what Pay Pals is for,
-    not a styling choice, so nothing here guesses at it.
-
-    Everything else in this panel is built. This comment is the gap.
-  */
   return (
     <Panel title="Next step" accent>
       {gate === "blocked" ? <p className="mb-3 text-sm font-semibold text-stop">{BLOCKED_SENTENCE}</p> : null}

@@ -124,4 +124,18 @@ describe("timelineRows", () => {
     expect(rows[0]!.note).toBeNull();
     expect(rows[0]!.noteActor).toBeNull();
   });
+
+  it("keeps a cancel after a block as its own row, whether or not the block carried a note", () => {
+    for (const blockSummary of ["Blocked.", "Blocked. No order was created."]) {
+      const rows = timelineRows([
+        event({ id: "1", kind: "review_posted", actor: "buyer_pal", summary: "Review posted." }),
+        event({ id: "2", kind: "state_changed", actor: "buyer_pal", toState: "REVIEWED", summary: "Reviewed." }),
+        event({ id: "3", kind: "state_changed", actor: "buyer_pal", toState: "BLOCKED", summary: blockSummary }),
+        event({ id: "4", kind: "state_changed", actor: "buyer", toState: "CANCELLED", summary: "Buyer cancelled after a stop." }),
+      ]);
+      expect(rows.map((r) => r.event.id)).toEqual(["1", "4"]);
+      expect(rows[0]!.became).toBe("BLOCKED");
+      expect(rows[1]!.became).toBeNull();
+    }
+  });
 });
