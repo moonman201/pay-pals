@@ -3,7 +3,7 @@
 Full-page screenshots of each finished deal room, once as the buyer and once as the seller, at 1280 px and 390 px wide. Night mode, which is what every visitor gets until they press the toggle.
 
 - Date: 2026-10-13
-- Commit: all 12 shots were taken from one tree, this branch at `ac5f41f` (main `582fe50` plus the refreshed e2e baselines).
+- Commit: all 12 shots were taken from one tree, this branch at `ce94a0c` (main `66fc7ea` plus the refreshed e2e baselines).
 - Environment: the e2e suite's own pinned dev server (`E2E_SERVER_ENV` in `tests/e2e/src/env.ts`) on port 3281. Demo-only mode, memory store, no Claude, Channel3, PSA or PayPal keys.
 - Seeded verdicts in this environment come from the rules, not the live model. The pal's words in these shots are the rule-based wording, so they can differ from what the live model writes on the deployed site.
 - Every shot is at device scale 1, so a 1280 px shot is 1280 px wide. The files are large (0.5 to 1.5 MB each) because of that.
