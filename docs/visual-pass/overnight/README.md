@@ -3,7 +3,7 @@
 Full-page screenshots of each finished deal room, once as the buyer and once as the seller, at 1280 px and 390 px wide. Night mode, which is what every visitor gets until they press the toggle.
 
 - Date: 2026-10-13
-- Commit: app code at `f02c507` (main). The capture script change that added the seller shots is in the commit after it.
+- Commit: all 12 shots were taken from one tree, main at `802fc33`.
 - Environment: the e2e suite's own pinned dev server (`E2E_SERVER_ENV` in `tests/e2e/src/env.ts`) on port 3241. Demo-only mode, memory store, no Claude, Channel3, PSA or PayPal keys.
 - Seeded verdicts in this environment come from the rules, not the live model. The pal's words in these shots are the rule-based wording, so they can differ from what the live model writes on the deployed site.
 - Every shot is at device scale 1, so a 1280 px shot is 1280 px wide. The files are large (0.5 to 1.5 MB each) because of that.
@@ -15,10 +15,6 @@ Full-page screenshots of each finished deal room, once as the buyer and once as 
 | Fake slab (scam stopped) | `fake-slab-buyer-1280.png`, `fake-slab-buyer-390.png` | `fake-slab-seller-1280.png`, `fake-slab-seller-390.png` |
 | Clean PS5 (paid) | `clean-ps5-buyer-1280.png`, `clean-ps5-buyer-390.png` | `clean-ps5-seller-1280.png`, `clean-ps5-seller-390.png` |
 | Empty box (evidence pack) | `empty-box-buyer-1280.png`, `empty-box-buyer-390.png` | `empty-box-seller-1280.png`, `empty-box-seller-390.png` |
-
-## Known problem in these shots
-
-The two `fake-slab-*-390.png` files are 431 px wide, not 390. The Deal status panel's count chips ("1 flagged", "1 verified", "1 unverified", "1 missing") do not wrap at phone width and push the page sideways. It is a bug in the room, not a capture error. See `coordination/REVIEW.md`.
 
 ## How to retake them
 
