@@ -331,6 +331,28 @@ describe("VerdictPanel", () => {
   });
 });
 
+describe("VerdictPanel, the seller's view", () => {
+  const asks = ["he sends a close-up of the serial label on the console", "he sends the slab next to his name and today's date"];
+  const v = () =>
+    verdict({
+      overall: "caution",
+      flags: [flag("STOCK_OR_REUSED_PHOTO", "caution", "One of his photos matches a listing photo already on file.")],
+      reasoning: { checked: [], found: [], couldNotVerify: [], wouldChangeMyMind: asks },
+    });
+
+  it("speaks to the seller as you in the look-again line", () => {
+    render(<VerdictPanel verdict={v()} currentVersion={1} locked={false} role="seller" />);
+    const line = screen.getByTestId("look-again");
+    expect(line).toHaveTextContent("The Buyer Pal would look again if you send a close-up of the serial label on the console or you send the slab next to your name and today's date.");
+    expect(screen.getByTestId("verdict").textContent).not.toMatch(/\b(he|his|him)\b/i);
+  });
+
+  it("keeps the buyer's wording for the buyer", () => {
+    render(<VerdictPanel verdict={v()} currentVersion={1} locked={false} role="buyer" />);
+    expect(screen.getByTestId("look-again")).toHaveTextContent("I'd look again if he sends a close-up");
+  });
+});
+
 describe("VerdictPanel, the lead", () => {
   it("leads with three words and one line per reason, not a paragraph", () => {
     const v = verdict({

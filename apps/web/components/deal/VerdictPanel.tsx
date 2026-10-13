@@ -3,6 +3,7 @@ import { certRows } from "@/lib/deal/cert-compare";
 import { certHeadline, graderName } from "@/lib/deal/cert-copy";
 import { GRADED_PRICE_LINK_LEAD, GRADED_PRICE_NOTE, gradedPriceLinks, isGradedCard } from "@/lib/deal/graded-price";
 import { reviewLead } from "@/lib/deal/review-lead";
+import { sellerVoice } from "@/lib/deal/seller-voice";
 import { evidenceSourceId } from "@/lib/deal/evidence-source";
 import { flagLabel } from "@/lib/deal/override";
 import { hasUsableRange, priceRangeLine, priceSourceNote } from "@/lib/deal/price-copy";
@@ -44,9 +45,11 @@ interface Props {
   card?: ItemCard | null;
   /** The shared chat, so a flag's quote can link to the message it was taken from. */
   chat?: readonly Message[];
+  /** Whose room this is. The seller is spoken to as "you", never "he" or "the seller". Defaults to the buyer. */
+  role?: "buyer" | "seller";
 }
 
-export function VerdictPanel({ verdict, currentVersion, locked, cardTitle = null, cardGrade = null, askingPrice = null, card = null, chat = [] }: Props) {
+export function VerdictPanel({ verdict, currentVersion, locked, cardTitle = null, cardGrade = null, askingPrice = null, card = null, chat = [], role = "buyer" }: Props) {
   const stale = !locked && verdict.cardVersion > 0 && verdict.cardVersion !== currentVersion;
   // Matt, Oct 9: the listings behind the range are a count, a split and prices. Never the shop names.
   const sources = summariseSources(verdict.priceCheck);
@@ -57,7 +60,20 @@ export function VerdictPanel({ verdict, currentVersion, locked, cardTitle = null
   const retail = retailRange(verdict.priceCheck);
   // A graded card gets no price block at all, whatever the lookup returned for it.
   const graded = isGradedCard(card) ? card : null;
-  const lead = reviewLead(verdict);
+  const seller = role === "seller";
+  // The buyer's phrasing, said to the seller. Only the words that name the seller change.
+  const say = (text: string) => (seller ? sellerVoice(text) : text);
+  const rawLead = reviewLead(verdict);
+  const lead = { ...rawLead, reasons: rawLead.reasons.map(say), lookAgain: rawLead.lookAgain === null ? null : say(rawLead.lookAgain), restOfAsks: rawLead.restOfAsks.map(say) };
+  const reasoning =
+    verdict.reasoning && seller
+      ? {
+          checked: verdict.reasoning.checked.map(say),
+          found: verdict.reasoning.found.map(say),
+          couldNotVerify: verdict.reasoning.couldNotVerify.map(say),
+          wouldChangeMyMind: verdict.reasoning.wouldChangeMyMind.map(say),
+        }
+      : verdict.reasoning;
   const style = VERDICT_STYLE[verdict.overall];
   return (
     <Panel title="Buyer Pal review" id="buyer-pal-review">
@@ -88,7 +104,7 @@ export function VerdictPanel({ verdict, currentVersion, locked, cardTitle = null
           ) : null}
           {lead.lookAgain ? (
             <p className="mt-3 text-sm leading-relaxed text-ink" data-testid="look-again">
-              <span className="font-bold">I&apos;d look again if</span> {lead.lookAgain}
+              <span className="font-bold">{seller ? "The Buyer Pal would look again if" : "I'd look again if"}</span> {lead.lookAgain}
             </p>
           ) : null}
         </div>
@@ -182,7 +198,7 @@ export function VerdictPanel({ verdict, currentVersion, locked, cardTitle = null
             rule 1 is about: the table is the detail, this is the finding.
           */}
           <p className="font-semibold" data-testid="cert-headline">
-            {certHeadline(verdict.certCheck)}
+            {say(certHeadline(verdict.certCheck))}
           </p>
           <Comparison
             leftTitle="Card says"
@@ -193,7 +209,7 @@ export function VerdictPanel({ verdict, currentVersion, locked, cardTitle = null
         </div>
       ) : null}
 
-      <PalWork reasoning={verdict.reasoning} restOfAsks={lead.restOfAsks} />
+      <PalWork reasoning={reasoning} restOfAsks={lead.restOfAsks} />
 
       {verdict.flags.length > 0 ? (
         <ul className="mt-4 space-y-2" aria-label="Red flags">
@@ -207,7 +223,7 @@ export function VerdictPanel({ verdict, currentVersion, locked, cardTitle = null
                   {isPaymentMethodFlag(f) ? <Badge tone="stop">no override</Badge> : null}
                 </div>
                 {/* The lead above already says this line when the pal's own explanation was short enough to use. The card keeps the evidence. */}
-                {lead.reasons.includes(f.explanation.trim()) ? null : <p className="mt-1">{f.explanation}</p>}
+                {lead.reasons.includes(say(f.explanation.trim())) ? null : <p className="mt-1">{say(f.explanation)}</p>}
                 <FlagEvidence evidence={f.evidence} sourceMessageId={evidenceSourceId(f.evidence, chat)} />
               </div>
             </li>
