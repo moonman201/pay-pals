@@ -73,7 +73,7 @@ const FLAG_WORDS: Record<RedFlag["code"], string> = {
   OFF_PLATFORM_PAYMENT: "payment outside the PayPal checkout",
   PRICE_FAR_BELOW_MARKET: "a price far below market",
   URGENCY_PRESSURE: "pressure to pay right now",
-  NAME_MISMATCH: "a PayPal account that does not match the seller",
+  NAME_MISMATCH: "a PayPal address that looks like a deals account",
   STOCK_OR_REUSED_PHOTO: "a photo that is the same picture as one Pay Pals already holds",
   MISSING_SERIAL: "no serial number",
   SHIP_BEFORE_PAY_TRICK: "a trick to get money or a confirmation before shipping",
