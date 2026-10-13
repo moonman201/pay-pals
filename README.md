@@ -38,7 +38,7 @@ Scam patterns (Friends and Family requests, off-platform payment, urgency, ship 
 ## Sponsor tools
 
 - **Channel3** for the Buyer Pal's market price check on retail items such as the PS5. Graded cards are outside what Channel3 covers, and the pal says so instead of guessing.
-- Graded card certs are checked against PSA's public cert API.
+- Graded card certs: the code can check a cert against PSA's cert API, but PSA limits that API to approved customers, so the hosted demo checks the slab's cert against a demo PSA record and says so on the page.
 
 ## Try it yourself
 
@@ -55,8 +55,8 @@ Run the three in this order.
 Play as buyer. Press **Ask my pal to review**. The listing photo is an exact match
 to a listing photo Pay Pals already has on file, the seller pushes Friends and Family and sets a
 deadline, and the Buyer Pal stops the deal. Read the flags: each one quotes what
-it is based on. The cert on the slab label is real and matches the card in the
-picture, and the pal says what that does and does not show. No money moves, and
+it is based on. The cert number on the slab label matches the card in the
+picture against a demo PSA record, and the pal says what that does and does not show. No money moves, and
 Pay Pals will not create the order.
 
 ### 2. Clean deal
@@ -123,7 +123,7 @@ For the real thing, copy `.env.example` to `.env.local` and fill in:
 | `DATABASE_URL` | Postgres (Neon) instead of the in-memory store. |
 | `SANDBOX_SELLER_PERSONAL_EMAIL` | The sandbox seller account demo deals pay, so a capture lands in a real sandbox account. |
 | `SANDBOX_BUYER_EMAIL`, `SANDBOX_BUYER_PASSWORD` | The sandbox test buyer the pay panel shows on demo deals, so anyone can approve the checkout. Shown only when both are set. |
-| `PSA_API_TOKEN` | Live PSA cert lookups for graded cards. Without it the cert check uses demo records and labels them as such. |
+| `PSA_API_TOKEN` | PSA cert lookups for graded cards. PSA only answers approved customers; without access the cert check uses demo records and labels them as such. |
 
 The hosted demo above runs on the PayPal sandbox with Neon, live Claude and live Channel3. In development for the PayPal AI Hackathon.
 
