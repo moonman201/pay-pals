@@ -42,6 +42,14 @@ function visibleWords(firstScreenOnly: boolean): string[] {
         hidden = true;
         break;
       }
+      // A screen-reader-only box is one pixel with its overflow clipped, and its text still lays out at full size.
+      if (cs.overflow !== "visible") {
+        const box = a.getBoundingClientRect();
+        if (box.width <= 1 || box.height <= 1) {
+          hidden = true;
+          break;
+        }
+      }
     }
     if (hidden) continue;
     const range = document.createRange();

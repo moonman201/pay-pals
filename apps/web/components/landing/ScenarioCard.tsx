@@ -6,13 +6,14 @@ import { HappyPath } from "./HappyPath";
 import type { PathStep } from "./happy-path";
 import { ArrowIcon, IssueIcon, ShieldCheckIcon, ShieldStopIcon } from "../ui/icons";
 
-type Outcome = { kind: "blocked" | "complete" | "issue"; line: string };
+/** `gist` is the one sentence on the card. The fixture's longer summary and `line` sit behind "What happens". */
+type Outcome = { kind: "blocked" | "complete" | "issue"; line: string; gist: string };
 
 /** How each scenario ends. The visual on the card says it before the text does. */
 const ENDINGS: Record<ScenarioFixture["id"], Outcome> = {
-  "fake-slab": { kind: "blocked", line: "Ends blocked. No money moves." },
-  "clean-ps5": { kind: "complete", line: "Ends complete. Paid, shipped, matched." },
-  "empty-box": { kind: "issue", line: "Ends in an issue with an evidence pack." },
+  "fake-slab": { kind: "blocked", line: "Ends blocked. No money moves.", gist: "A graded card, a real cert, and a seller pushing Friends and Family." },
+  "clean-ps5": { kind: "complete", line: "Ends complete. Paid, shipped, matched.", gist: "A PlayStation 5 where the pal asks for one close-up, then it goes through." },
+  "empty-box": { kind: "issue", line: "Ends in an issue with an evidence pack.", gist: "A PlayStation 5 that arrives as an empty box, with proof kept." },
 };
 
 const OUTCOME_STYLE: Record<Outcome["kind"], { box: string; label: string }> = {
@@ -54,9 +55,19 @@ export function ScenarioCard({ fixture, hasFinishedDeal, path }: { fixture: Scen
         <OutcomeMark kind={ending.kind} />
       </div>
       <h3 className="mt-3 text-xl font-bold text-navy">{fixture.name}</h3>
-      <p className="mt-2 flex-1 text-sm leading-relaxed text-ink">{fixture.summary}</p>
+      <p className="mt-2 text-sm leading-relaxed text-ink">{ending.gist}</p>
       {path && path.length > 0 ? <HappyPath steps={path} /> : null}
-      <p className="mt-3 text-xs text-muted">{ending.line}</p>
+      {/* The full story and the ending line, one tap away. Nothing the card used to say is gone. */}
+      <details className="group mt-1 flex-1" data-testid="scenario-more">
+        <summary className="flex min-h-11 cursor-pointer list-none items-center gap-1 text-sm font-semibold text-[var(--accent-ink)] [&::-webkit-details-marker]:hidden">
+          <span aria-hidden className="inline-block transition-transform group-open:rotate-90">
+            &rsaquo;
+          </span>
+          What happens
+        </summary>
+        <p className="text-sm leading-relaxed text-ink">{fixture.summary}</p>
+        <p className="mt-2 text-xs text-muted">{ending.line}</p>
+      </details>
       <form method="post" action="/api/demo/start" className="mt-4 grid grid-cols-2 gap-2">
         <input type="hidden" name="scenario" value={fixture.id} />
         <button type="submit" name="as" value="buyer" className={`theme-buyer ${buttonClass("primary")}`}>

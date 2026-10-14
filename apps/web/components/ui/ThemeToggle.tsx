@@ -25,11 +25,11 @@ export function ThemeToggle({ className = "" }: { className?: string }) {
     >
       <span className="day-only items-center gap-1.5">
         <MoonIcon size={18} />
-        <span className="sr-only sm:not-sr-only">Night mode</span>
+        <span className="sr-only">Night mode</span>
       </span>
       <span className="night-only items-center gap-1.5">
         <SunIcon size={18} />
-        <span className="sr-only sm:not-sr-only">Day mode</span>
+        <span className="sr-only">Day mode</span>
       </span>
     </button>
   );

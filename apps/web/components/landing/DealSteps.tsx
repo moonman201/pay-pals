@@ -1,46 +1,74 @@
+"use client";
+
 import { PalAvatar } from "../pal/PalAvatar";
-import { LinkIcon, LockIcon } from "../ui/icons";
-import type { Role } from "@/lib/role";
-
-type Step = { who: string; what: string; tone: "theme-seller" | "theme-buyer"; pal: Role | null };
-
-const STEPS: Step[] = [
-  { who: "You invite the seller", what: "with their PayPal email and the listing link. They get a link to join.", tone: "theme-buyer", pal: null },
-  { who: "Seller Pal", what: "turns their photos into an item card with the serial or cert number on it.", tone: "theme-seller", pal: "seller" },
-  { who: "Buyer Pal", what: "checks the price, the cert and the chat. A refusal to use Pay Pals is a risk signal.", tone: "theme-buyer", pal: "buyer" },
-  { who: "Both agree, then proof", what: "the card locks into a PayPal Goods and Services order; packing photos, tracking and an arrival check follow.", tone: "theme-seller", pal: null },
-];
-
-function StepMark({ step }: { step: Step }) {
-  if (step.pal) return <PalAvatar pal={step.pal} size={40} />;
-  const Icon = step.who.startsWith("You") ? LinkIcon : LockIcon;
-  return (
-    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--accent-soft)] text-[var(--accent-ink)] ring-2 ring-[var(--accent)]">
-      <Icon size={20} />
-    </span>
-  );
-}
-
+import { ChipDeck, type DeckItem } from "../ui/ChipDeck";
+import { BoxIcon, LinkIcon, ShieldCheckIcon } from "../ui/icons";
 
 /**
- * The four steps, numbered once. The number is typed into the heading line, so the list carries no
- * marker of its own: list-none is explicit so a change to the base styles cannot bring back "1. 1.".
+ * How a deal goes, as three icons with a few words each. The paragraphs the section used to carry
+ * are the taps behind them, word for word: the four old steps sit under the three icons they fold into.
  */
+const STEPS = [
+  {
+    id: "invite",
+    label: "Invite, build the card",
+    icon: <LinkIcon size={22} />,
+    tone: "theme-buyer",
+    pal: "seller",
+    detail: [
+      "You invite the seller with their PayPal email and the listing link. They get a link to join.",
+      "Seller Pal turns their photos into an item card with the serial or cert number on it.",
+    ],
+  },
+  {
+    id: "check",
+    label: "Buyer Pal checks it",
+    icon: <ShieldCheckIcon size={22} />,
+    tone: "theme-buyer",
+    pal: "buyer",
+    detail: ["Buyer Pal checks the price, the cert and the chat. A refusal to use Pay Pals is a risk signal."],
+  },
+  {
+    id: "lock",
+    label: "Agree, lock, ship",
+    icon: <BoxIcon size={22} />,
+    tone: "theme-seller",
+    pal: "seller",
+    detail: ["Both agree, then the card locks into a PayPal Goods and Services order; packing photos, tracking and an arrival check follow."],
+  },
+] as const;
+
 export function DealSteps() {
+  const items: DeckItem[] = STEPS.map((s, i) => ({
+    id: s.id,
+    testId: `deal-step-${s.id}`,
+    chipClass: `${s.tone} in-box w-full !items-start !gap-3 !rounded-2xl border-[var(--accent-line)] bg-surface !px-4 !py-3 text-left shadow-card`,
+    chip: (
+      <>
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--accent-soft)] text-[var(--accent-ink)] ring-2 ring-[var(--accent)]">{s.icon}</span>
+        <span className="flex flex-col">
+          <span className="text-xs font-bold text-muted">Step {i + 1}</span>
+          <span className="text-sm font-bold text-[var(--accent-ink)]">{s.label}</span>
+        </span>
+      </>
+    ),
+    detail: (
+      <div className="flex items-start gap-3 text-sm leading-relaxed text-ink">
+        <PalAvatar pal={s.pal} size={32} />
+        <div className="space-y-1">
+          {s.detail.map((line) => (
+            <p key={line}>{line}</p>
+          ))}
+        </div>
+      </div>
+    ),
+  }));
   return (
-    <ol className="mt-5 grid list-none gap-3 p-0 sm:grid-cols-2 lg:grid-cols-4">
-      {STEPS.map((s, i) => (
-        <li key={s.who} className={`${s.tone} in-box flex gap-3 rounded-2xl border border-[var(--accent-line)] bg-surface p-4 shadow-card`}>
-          <StepMark step={s} />
-          <div className="min-w-0">
-            <p className="text-sm font-bold text-[var(--accent-ink)]">
-              <span className="text-muted">{i + 1}. </span>
-              {s.who}
-            </p>
-            <p className="mt-1 text-sm leading-relaxed text-ink">{s.what}</p>
-          </div>
-        </li>
-      ))}
-    </ol>
+    <ChipDeck
+      items={items}
+      label="How a deal goes. Tap a step for the detail."
+      className="mt-4 grid grid-cols-1 sm:grid-cols-3 [&>li]:flex"
+      slotClassName="mt-3 rounded-2xl border border-line bg-wash p-4"
+    />
   );
 }

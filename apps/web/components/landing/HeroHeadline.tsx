@@ -6,7 +6,7 @@ export function HeroHeadline() {
   return (
     <>
       <h1 className="text-[1.65rem] font-black leading-[1.15] tracking-tight text-navy sm:text-4xl lg:text-[2.35rem]">{HERO_HEADLINE}</h1>
-      <p className="mt-3 text-lg font-bold text-[var(--accent-ink)] sm:text-xl">{HERO_TAGLINE}</p>
+      <p className="mt-2 text-sm font-semibold text-[var(--accent-ink)]">{HERO_TAGLINE}</p>
     </>
   );
 }
