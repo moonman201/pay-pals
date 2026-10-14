@@ -4,7 +4,7 @@
  * landing, deal room at several states, and the evidence pack. And every
  * button and link in the main flow is at least 44 px tall (PLAN item 11).
  */
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./fixtures";
 import { ALL_FIXTURES, cleanPs5 } from "@pay-pals/contracts";
 import { WEB_PRESENT } from "./env";
 import { driveToDelivered, runArrivalCheck } from "./flows";

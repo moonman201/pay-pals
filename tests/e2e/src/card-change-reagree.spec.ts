@@ -5,7 +5,7 @@
  * photo (card version 2), the deal reads Listed again, the buyer reviews and
  * agrees again, the seller agrees, locked at version 2. Fixtures only, no keys.
  */
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./fixtures";
 import { cleanPs5 } from "@pay-pals/contracts";
 import { WEB_PRESENT } from "./env";
 import { CONSOLE_PROOF_QUESTION, agreeAsBuyer, agreeAsSeller, answerPalWithDemoPhoto, expectAskedQuestion, reviewAsBuyer } from "./flows";

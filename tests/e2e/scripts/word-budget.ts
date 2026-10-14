@@ -3,10 +3,7 @@
  * design budgets (Matt, Oct 13): the whole landing page at most 250 words, and each finished deal
  * room's first screen at 1280x800, as the buyer, at most 60.
  *
- * "Visible" means a text node whose element is rendered (not display:none, visibility:hidden or
- * opacity 0), is not a one-pixel screen-reader-only span, and is not inside a closed <details>
- * (its <summary> counts). The first-screen count also needs the text to sit inside the viewport
- * at scroll 0. Images, placeholders and alt text are not words on the page and are not counted.
+ * What counts as visible is defined in src/word-count.ts, which folds.spec.ts shares.
  *
  *   npm run words -w tests/e2e                     starts its own server on E2E_PORT, as the suite does
  *   E2E_BASE_URL=http://localhost:3000 npm run words -w tests/e2e   uses a server that is already up
@@ -14,57 +11,10 @@
  *   WORDS_DUMP=1 ...                               also prints the counted words of each first screen
  */
 import { spawn, type ChildProcess } from "node:child_process";
-import { chromium, type Page } from "@playwright/test";
+import { chromium } from "@playwright/test";
 import { ALL_FIXTURES } from "@pay-pals/contracts";
 import { BASE_URL, E2E_SERVER_ENV, PORT, REPO_ROOT, STARTS_SERVER } from "../src/env";
-
-const LANDING_BUDGET = 250;
-const ROOM_BUDGET = 60;
-
-/** Runs in the page. Returns the visible words, optionally only those inside the first screen. */
-function visibleWords(firstScreenOnly: boolean): string[] {
-  const out: string[] = [];
-  const vw = window.innerWidth;
-  const vh = window.innerHeight;
-  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
-  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
-    const text = (node.textContent ?? "").trim();
-    if (!text) continue;
-    const el = node.parentElement;
-    if (!el || ["SCRIPT", "STYLE", "NOSCRIPT", "TEMPLATE"].includes(el.tagName)) continue;
-    // A closed <details> shows its first <summary> and nothing else.
-    const details = el.closest("details");
-    if (details && !details.open && !el.closest("summary")) continue;
-    let hidden = false;
-    for (let a: Element | null = el; a; a = a.parentElement) {
-      const cs = getComputedStyle(a);
-      if (cs.display === "none" || cs.visibility === "hidden" || cs.opacity === "0" || cs.contentVisibility === "hidden") {
-        hidden = true;
-        break;
-      }
-      // A screen-reader-only box is one pixel with its overflow clipped, and its text still lays out at full size.
-      if (cs.overflow !== "visible") {
-        const box = a.getBoundingClientRect();
-        if (box.width <= 1 || box.height <= 1) {
-          hidden = true;
-          break;
-        }
-      }
-    }
-    if (hidden) continue;
-    const range = document.createRange();
-    range.selectNodeContents(node);
-    const rects = Array.from(range.getClientRects()).filter((r) => r.width > 1 && r.height > 1);
-    if (rects.length === 0) continue;
-    if (firstScreenOnly && !rects.some((r) => r.bottom > 0 && r.top < vh && r.right > 0 && r.left < vw)) continue;
-    out.push(...text.split(/\s+/).filter(Boolean));
-  }
-  return out;
-}
-
-async function words(page: Page, firstScreenOnly: boolean): Promise<string[]> {
-  return page.evaluate(visibleWords, firstScreenOnly);
-}
+import { LANDING_BUDGET, ROOM_BUDGET, visibleWords } from "../src/word-count";
 
 async function waitForServer(): Promise<void> {
   for (let i = 0; i < 120; i++) {
@@ -90,7 +40,7 @@ async function main(): Promise<void> {
     const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.goto(BASE_URL + "/", { waitUntil: "networkidle" });
-    const landing = await words(page, false);
+    const landing = await visibleWords(page, false);
     console.log(`landing, whole page: ${landing.length} words (budget ${LANDING_BUDGET})`);
     if (process.env.WORDS_DUMP) console.log(landing.join(" "));
     if (landing.length > LANDING_BUDGET) failures.push(`landing ${landing.length} > ${LANDING_BUDGET}`);
@@ -98,7 +48,7 @@ async function main(): Promise<void> {
     for (const f of ALL_FIXTURES) {
       await page.goto(`${BASE_URL}/deals/finished/${f.id}?as=buyer`, { waitUntil: "networkidle" });
       await page.waitForTimeout(500);
-      const w = await words(page, true);
+      const w = await visibleWords(page, true);
       console.log(`${f.id}, buyer, first screen 1280x800: ${w.length} words (budget ${ROOM_BUDGET})`);
       if (process.env.WORDS_DUMP) console.log(w.join(" "));
       if (w.length > ROOM_BUDGET) failures.push(`${f.id} ${w.length} > ${ROOM_BUDGET}`);

@@ -8,6 +8,11 @@ import { useEffect } from "react";
  * note to the panel it counts) would land on nothing, so every folded ancestor is opened first.
  */
 export function openFoldsAround(target: Element | null): void {
+  // The target may be a folded panel itself: its details element is its child, not its ancestor.
+  if (target?.hasAttribute("data-fold")) {
+    const own = target.querySelector(":scope > details");
+    if (own instanceof HTMLDetailsElement) own.open = true;
+  }
   for (let el = target; el; el = el.parentElement) {
     if (el instanceof HTMLDetailsElement) el.open = true;
   }

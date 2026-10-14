@@ -172,6 +172,27 @@ export async function timelineItems(page: Page): Promise<Locator> {
   return items;
 }
 
+/**
+ * The Pal's work section: the flags with their evidence, the price check, what the pal checked and could not check,
+ * and what it asked of the seller. 2026-10-13: these used to sit in the "Buyer Pal review" panel; the verdict card
+ * took that name and the detail moved into this section, closed by default (the fixtures open it).
+ */
+export function palWork(page: Page): Locator {
+  return page.locator("[data-fold]").filter({ has: page.getByRole("heading", { name: "Pal's work", exact: true }) });
+}
+
+/** The full sentences the header shortens: who you are, the example label, the history seal, the seven named steps. */
+export function dealFacts(page: Page): Locator {
+  return page.getByTestId("deal-facts");
+}
+
+/** Open the "Details" note on the verdict card's action area, where a closed deal says what its ending means. */
+export async function openEndingNote(page: Page): Promise<void> {
+  const note = page.getByTestId("ending-note");
+  if ((await note.count()) === 0) return;
+  await note.locator("summary").click();
+}
+
 /** Press a button in the "Next step" panel, where the transition-table moves live. */
 export async function pressAction(page: Page, label: string): Promise<void> {
   await panel(page, "Next step").getByRole("button", { name: label }).click();

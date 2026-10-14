@@ -25,7 +25,8 @@
  * Every row is printed, so a reviewer reading a failure sees the whole view
  * rather than one assertion. Fixtures only, no keys.
  */
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "./fixtures";
+import type { Page } from "@playwright/test";
 import { ALL_FIXTURES, type ScenarioFixture } from "@pay-pals/contracts";
 import { WEB_PRESENT } from "./env";
 import { panel, waitForHydration, waitForReviewIdle } from "./helpers";

@@ -5,10 +5,10 @@
  * refusal with no card at all: INVITE_REFUSED, a payment-method stop, no
  * override, Blocked. Fixtures only, no keys.
  */
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./fixtures";
 import { fakeSlab } from "@pay-pals/contracts";
 import { WEB_PRESENT } from "./env";
-import { PAL_TIMEOUT, expectState, expectStateAfterPal, joinPath, openRoomAs, panel, pressAction, snapshot, startBuyerFirst, timelineItems, waitForHydration } from "./helpers";
+import { PAL_TIMEOUT, openEndingNote, palWork, expectState, expectStateAfterPal, joinPath, openRoomAs, panel, pressAction, snapshot, startBuyerFirst, timelineItems, waitForHydration } from "./helpers";
 
 const REASON = "Friends and Family only, I am not paying fees.";
 
@@ -52,17 +52,18 @@ test.describe("seller refuses the invite", () => {
     await pressAction(page, "Ask my pal to review the refusal");
     await expectStateAfterPal(page, "Blocked");
 
-    const review = panel(page, "Buyer Pal review");
+    const hero = panel(page, "Buyer Pal review");
     // The verdict is a headline now ("Stop. Don't pay."), so the block's own data says which
     // verdict it is and the spec stops restating the copy.
-    await expect(review.getByTestId("verdict")).toHaveAttribute("data-overall", "stop");
-    const flags = review.getByRole("list", { name: "Red flags" }).getByRole("listitem");
+    await expect(hero.getByTestId("verdict")).toHaveAttribute("data-overall", "stop");
+    const flags = palWork(page).getByRole("list", { name: "Red flags" }).getByRole("listitem");
     const refused = flags.filter({ hasText: "refused Pay Pals protection" });
     await expect(refused).toHaveCount(1);
     await expect(refused).toContainText(/no override/i);
     await expect(page.getByRole("checkbox")).toHaveCount(0);
     await expect(page.getByRole("button", { name: /^Agree/ })).toHaveCount(0);
     await expect(panel(page, "Item card")).toHaveCount(0);
+    await openEndingNote(page);
     await expect(panel(page, "Next step").getByText("Goods and Services", { exact: false })).toBeVisible();
     await expect(timeline.last()).toContainText("Pay Pals will not move money outside a Goods and Services payment");
 

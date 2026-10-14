@@ -16,12 +16,12 @@ import { buttonClass } from "../ui/Button";
 function Shell({ inline, children }: { inline: boolean; children: React.ReactNode }) {
   if (!inline) return <Panel title="Next step" accent>{children}</Panel>;
   return (
-    <section aria-labelledby="next-step-title" data-testid="next-step">
+    <div role="group" aria-labelledby="next-step-title" data-testid="next-step">
       <h2 id="next-step-title" className="sr-only">
         Next step
       </h2>
       {children}
-    </section>
+    </div>
   );
 }
 

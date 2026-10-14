@@ -5,11 +5,11 @@
  * opens that link, joins with the listing text and a photo, and the deal
  * reads Listed. Fixtures only, no keys.
  */
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./fixtures";
 import { cleanPs5 } from "@pay-pals/contracts";
 import { WEB_PRESENT } from "./env";
 import { joinAsSeller } from "./flows";
-import { expectState, joinPath, panel, snapshot, startBuyerFirst, timelineItems } from "./helpers";
+import { dealFacts, expectState, joinPath, panel, snapshot, startBuyerFirst, timelineItems } from "./helpers";
 
 const LISTING_URL = "https://marketplace.example/listings/5120";
 
@@ -27,7 +27,7 @@ test.describe("buyer-first start", () => {
     // The buyer's room: no card yet, waiting on the seller, with the link to send.
     await expectState(page, "Waiting for the seller");
     await expect(page.getByRole("banner").getByRole("heading", { name: "New deal" })).toBeVisible();
-    await expect(page.getByRole("banner").getByText(`You are the buyer, ${cleanPs5.buyer.displayName}`, { exact: false })).toBeVisible();
+    await expect(dealFacts(page).getByText(`You are the buyer, ${cleanPs5.buyer.displayName}`, { exact: false })).toBeVisible();
     await expect(panel(page, "Item card")).toHaveCount(0);
 
     const invite = panel(page, "Send this link to the seller");
@@ -64,7 +64,7 @@ test.describe("buyer-first start", () => {
 
     // The seller opens the invite link, joins, and their pal builds the card.
     await joinAsSeller(page, dealId, cleanPs5);
-    await expect(page.getByRole("banner").getByText(`You are the seller, ${cleanPs5.seller.displayName}`, { exact: false })).toBeVisible();
+    await expect(dealFacts(page).getByText(`You are the seller, ${cleanPs5.seller.displayName}`, { exact: false })).toBeVisible();
     await expect(panel(page, "Item card")).toBeVisible();
     await expect(panel(page, "Item card").getByText("Version 1, draft")).toBeVisible();
     const after = await timelineItems(page);

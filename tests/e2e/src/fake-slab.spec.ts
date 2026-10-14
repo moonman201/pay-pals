@@ -7,10 +7,10 @@
  * today and priced it far under market. Blocked, no override.
  * Fixtures only, no keys.
  */
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./fixtures";
 import { FAKE_SLAB_CERT, fakeSlab } from "@pay-pals/contracts";
 import { WEB_PRESENT } from "./env";
-import { expectState, expectStateAfterPal, openRoomAs, panel, pressAction, snapshot, startDemo, timelineItems, waitForHydration } from "./helpers";
+import { expectState, expectStateAfterPal, openEndingNote, openRoomAs, palWork, panel, pressAction, snapshot, startDemo, timelineItems, waitForHydration } from "./helpers";
 import { finishedDeal } from "./layout-helpers";
 
 test.describe("fake slab stopped", () => {
@@ -36,7 +36,8 @@ test.describe("fake slab stopped", () => {
     await pressAction(page, "Ask my pal to review");
     await expectStateAfterPal(page, "Blocked");
 
-    const review = panel(page, "Buyer Pal review");
+    // 2026-10-13: the flags and what the pal asked moved from the "Buyer Pal review" panel into the Pal's work section.
+    const review = palWork(page);
     const flags = review.getByRole("list", { name: "Red flags" }).getByRole("listitem");
     // One payment flag that quotes the seller once (review item 6), marked as not overridable (item 13 wording).
     await expect(flags.filter({ hasText: /friends and family/i }).filter({ hasText: /no override/i })).toHaveCount(1);
@@ -57,8 +58,8 @@ test.describe("fake slab stopped", () => {
     await expect(certCheck.getByTestId('cert-headline')).toContainText(/doesn't prove|does not prove/i);
     // A real cert is not a reason to trust the seller, and the panel says which of the two it
     // is. The words changed with Matt's pass; the claim is what is pinned.
-    await expect(review).toContainText(/slab exists/i);
-    await expect(review).toContainText(/doesn't prove the seller has it|not that this seller/i);
+    await expect(certCheck).toContainText(/slab exists/i);
+    await expect(certCheck).toContainText(/doesn't prove the seller has it|not that this seller/i);
     // The cert row on the item card says what the grader's record did, next to the cert number (review item 12).
     const certRow = card.locator("dd").filter({ hasText: FAKE_SLAB_CERT });
     await expect(certRow).toHaveCount(1);
@@ -74,6 +75,8 @@ test.describe("fake slab stopped", () => {
     await expect(page.getByText(/\$0 to \$0/)).toHaveCount(0);
     expect(((await page.locator("main").textContent()) ?? "")).not.toMatch(/\$(\d[\d,]*(?:\.\d+)?) to \$\1\b/);
 
+    // 2026-10-13: what a blocked deal means is one tap behind "Details" on the verdict card.
+    await openEndingNote(page);
     const next = panel(page, "Next step");
     await expect(next).toBeVisible();
     await expect(page.getByRole("button", { name: /^Agree/ })).toHaveCount(0);
