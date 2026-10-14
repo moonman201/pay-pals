@@ -91,18 +91,19 @@ export const fakeSlab: ScenarioFixture = {
     { id: "m6", dealId, channel: "deal", author: "seller", text: "I'm at work, not digging it out again for one picture. Two other people have asked today and I'm moving tomorrow.", photos: [], at: at(13) },
     { id: "m7", dealId, channel: "deal", author: "seller", text: "Send the $140 F&F or Zelle in the next hour and it's yours, otherwise I'll let the next person have it.", photos: [], at: at(15) },
   ],
+  /**
+   * No price for a graded card (Matt, Oct 10 F14 and Oct 14): Channel3 covers
+   * retail stores, not graded cards, so the demo must not hold a comp range the
+   * live product could never produce. This is the unknown shape the live path
+   * returns when nothing relevant comes back.
+   */
   marketPrice: {
-    marketLow: 305,
-    marketHigh: 493,
+    marketLow: 0,
+    marketHigh: 0,
     currency: "USD",
     provider: "fixture",
     checkedAt: at(18),
-    sources: [
-      { name: "Graded sale, PSA 10", price: 418, condition: "like_new" },
-      { name: "Graded sale, PSA 10", price: 305, condition: "like_new" },
-      { name: "Graded sale, PSA 10", price: 493, condition: "like_new" },
-      { name: "Reference range from recent PSA 10 sold prices for this card, October 2026." },
-    ],
+    sources: [],
   },
   certRecord: {
     provider: "fixture",
@@ -116,7 +117,7 @@ export const fakeSlab: ScenarioFixture = {
   },
   expectedVerdict: {
     overall: "stop",
-    requiredFlags: ["FRIENDS_AND_FAMILY_REQUEST", "PRICE_FAR_BELOW_MARKET", "URGENCY_PRESSURE"],
+    requiredFlags: ["FRIENDS_AND_FAMILY_REQUEST", "URGENCY_PRESSURE"],
     optionalFlags: ["OFF_PLATFORM_PAYMENT", "INVITE_REFUSED", "STOCK_OR_REUSED_PHOTO", "NAME_MISMATCH"],
     forbiddenSeverity: null,
   },
