@@ -452,7 +452,9 @@ describe("createFixturePriceLookup", () => {
   it("answers the fixture products and says unknown otherwise", async () => {
     const lookup = createFixturePriceLookup();
     expect((await lookup.priceRange({ brand: "Sony", model: PS5, condition: "good" })).marketLow).toBe(380);
-    expect((await lookup.priceRange({ brand: "Pokemon", model: SLAB, condition: "like_new" })).marketLow).toBe(305);
+    // Changed 2026-10-14 (Decision 16, F14): a graded card is never priced, so the slab is unknown, not $305.
+    const slab = await lookup.priceRange({ brand: "Pokemon", model: SLAB, condition: "like_new" });
+    expect(slab).toMatchObject({ marketLow: 0, marketHigh: 0, sources: [], provider: "fixture" });
     expect((await lookup.priceRange({ brand: "Acme", model: "Thing", condition: "good" })).marketLow).toBe(0);
   });
 });
