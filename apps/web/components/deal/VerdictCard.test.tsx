@@ -1,4 +1,4 @@
-import { cleanPs5, type RedFlag, type Verdict } from "@pay-pals/contracts";
+import { cleanPs5, fakeSlab, type RedFlag, type Verdict } from "@pay-pals/contracts";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { VerdictCard } from "./VerdictCard";
@@ -54,9 +54,59 @@ describe("VerdictCard", () => {
     expect(within(slot as HTMLElement).getByTestId("flag-evidence")).toHaveTextContent('Seller wrote: "F&F only"');
   });
 
-  it("falls back to plain facts when there is nothing to flag", () => {
+  it("with nothing to flag, the only chip is the real price position, in used-range words", () => {
     render(<VerdictCard verdict={verdict({ overall: "go", priceCheck: cleanPs5.marketPrice })} role="buyer" {...base} />);
-    expect(screen.getAllByTestId("verdict-chip")[0]).toHaveTextContent("No red flags");
+    const chips = screen.getAllByTestId("verdict-chip");
+    expect(chips).toHaveLength(1);
+    expect(chips[0]).toHaveTextContent("Fair used price");
+    expect(screen.queryByText("No red flags")).not.toBeInTheDocument();
+  });
+
+  it("shows the price line on the card: asking, new at retail, the source, and the listings behind a tap", () => {
+    render(<VerdictCard verdict={verdict({ overall: "go", priceCheck: cleanPs5.marketPrice })} role="buyer" {...base} />);
+    const line = screen.getByTestId("price-line-card");
+    expect(line).toHaveTextContent("Asking $420.00, new at retail $499.00, demo prices.");
+    expect(line).toHaveTextContent("Show the listings");
+    expect(line.textContent).not.toMatch(/amazon|walmart|best buy|ebay/i);
+  });
+
+  it("says via Channel3 when Channel3 gave the numbers, and leaves out a retail range it did not get", () => {
+    const check = { ...cleanPs5.marketPrice, provider: "channel3" as const, sources: cleanPs5.marketPrice.sources.filter((s) => s.condition !== "new") };
+    render(<VerdictCard verdict={verdict({ overall: "go", priceCheck: check })} role="buyer" {...base} />);
+    const line = screen.getByTestId("price-line-card");
+    expect(line).toHaveTextContent("Asking $420.00, via Channel3.");
+    expect(line.textContent).not.toContain("new at retail");
+  });
+
+  it("shows no price line for a graded card", () => {
+    const slab = fakeSlab.cards[fakeSlab.cards.length - 1]!;
+    render(<VerdictCard verdict={verdict({ priceCheck: cleanPs5.marketPrice })} role="buyer" card={slab} chat={[]} stale={null} />);
+    expect(screen.queryByTestId("price-line-card")).not.toBeInTheDocument();
+  });
+
+  it("opens the cert table right under the chips, in place", () => {
+    const slab = fakeSlab.cards[fakeSlab.cards.length - 1]!;
+    const v = verdict({ certCheck: { record: fakeSlab.certRecord!, matches: true, explanation: "Matches." } });
+    const { container } = render(<VerdictCard verdict={v} role="buyer" card={slab} chat={[]} stale={null} />);
+    const chip = screen.getByRole("button", { name: /Cert on record/ });
+    expect(chip).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(chip);
+    expect(chip).toHaveAttribute("aria-expanded", "true");
+    const slot = container.querySelector("[data-deck-detail]:not([hidden])")!;
+    expect(within(slot as HTMLElement).getByTestId("comparison")).toBeInTheDocument();
+    expect(slot).toHaveTextContent(/doesn't prove the seller has it/);
+  });
+
+  it("opens one chip at a time, and the chips are real buttons a keyboard can reach", () => {
+    const v = verdict({ flags: [flag("FRIENDS_AND_FAMILY_REQUEST", "stop", "One."), flag("URGENCY_PRESSURE", "caution", "Two.")] });
+    render(<VerdictCard verdict={v} role="buyer" {...base} />);
+    const [a, b] = screen.getAllByRole("button");
+    expect(a!.tagName).toBe("BUTTON");
+    fireEvent.click(a!);
+    expect(a).toHaveAttribute("aria-expanded", "true");
+    fireEvent.click(b!);
+    expect(a).toHaveAttribute("aria-expanded", "false");
+    expect(b).toHaveAttribute("aria-expanded", "true");
   });
 
   it("speaks to the seller as you in the seller's room", () => {

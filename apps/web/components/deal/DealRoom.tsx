@@ -209,8 +209,8 @@ export function DealRoom({ snapshot, role }: { snapshot: DealSnapshot; role: Rol
         {reviewing ? <LiveReview state={live.running ? live : startedReview()} photoTotal={currentCard?.photos.length ?? 0} hasCert={Boolean(currentCard?.certNumber)} /> : null}
 
         {/* The first screen: one verdict with its one move, and the item beside it. */}
-        <div className="grid gap-4 md:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
-          <div className="flex min-w-0 flex-col gap-4">
+        <div className="grid items-start gap-4 md:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
+          <div className="min-w-0 space-y-4">
             {snapshot.verdict ? (
               <VerdictCard verdict={snapshot.verdict} card={currentCard ?? null} chat={shared} role={role} stale={verdictStale ? { reviewed: snapshot.verdict.cardVersion, current: deal.currentCardVersion } : null}>
                 {actionBar}
@@ -224,7 +224,7 @@ export function DealRoom({ snapshot, role }: { snapshot: DealSnapshot; role: Rol
               </p>
             ) : null}
           </div>
-          {currentCard ? <ItemGlance card={snapshot.lockedCard ?? currentCard} lockedVersion={deal.lockedCardVersion} /> : null}
+          {currentCard ? <ItemGlance card={snapshot.lockedCard ?? currentCard} lockedVersion={deal.lockedCardVersion} ended={terminal} /> : null}
         </div>
 
         {/* The next step, when there is a form for it. These are the moves, so they are never folded. */}

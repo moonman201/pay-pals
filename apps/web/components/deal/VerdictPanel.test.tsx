@@ -7,6 +7,12 @@ import { VerdictPanel } from "./VerdictPanel";
    sentence is preferred when it has one, which review-lead.test.ts covers. */
 const flag = (code: RedFlag["code"], severity: RedFlag["severity"], explanation = ""): RedFlag => ({ code, severity, evidence: "e", explanation, raisedByRule: true });
 
+/**
+ * A price check that came back with a range. The slab fixture no longer carries one (a graded card cannot be priced, F14),
+ * and the panel's rule is about what it does when a check returns one anyway.
+ */
+const RETURNED_RANGE = { ...cleanPs5.marketPrice, marketLow: 305, marketHigh: 493, sources: [{ name: "Graded sale, PSA 10", price: 305, condition: "like_new" }, { name: "Graded sale, PSA 10", price: 493, condition: "like_new" }] };
+
 function verdict(overrides: Partial<Verdict> = {}): Verdict {
   return { dealId: "d1", cardVersion: 1, overall: "stop", flags: [], priceCheck: null, questionsForSeller: [], palMessage: "Stop.", createdAt: new Date().toISOString(), ...overrides };
 }
@@ -210,7 +216,7 @@ describe("VerdictPanel", () => {
 
   it("offers no retail comparison for a graded card, whose sales are all used", () => {
     // Every slab source is a like_new graded sale, so there is no "new at retail" to compare to.
-    render(<VerdictPanel verdict={verdict({ overall: "go", priceCheck: fakeSlab.marketPrice })} currentVersion={1} locked={false} askingPrice={140} />);
+    render(<VerdictPanel verdict={verdict({ overall: "go", priceCheck: RETURNED_RANGE })} currentVersion={1} locked={false} askingPrice={140} />);
     expect(screen.queryByTestId("price-comparison")).not.toBeInTheDocument();
     expect(screen.getByTestId("price-check")).toHaveTextContent("demo prices");
   });
@@ -225,9 +231,9 @@ describe("VerdictPanel", () => {
   });
 
   it("renders a real range with its sources", () => {
-    const real = verdict({ overall: "go", priceCheck: fakeSlab.marketPrice });
+    const real = verdict({ overall: "go", priceCheck: RETURNED_RANGE });
     render(<VerdictPanel verdict={real} currentVersion={1} locked={false} />);
-    expect(screen.getByTestId("price-check")).toHaveTextContent(`Market range $${fakeSlab.marketPrice.marketLow} to $${fakeSlab.marketPrice.marketHigh}`);
+    expect(screen.getByTestId("price-check")).toHaveTextContent(`Market range $${RETURNED_RANGE.marketLow} to $${RETURNED_RANGE.marketHigh}`);
     expect(screen.getByTestId("price-check")).toHaveTextContent("demo prices");
   });
 
@@ -357,10 +363,9 @@ describe("VerdictPanel, a graded card", () => {
   const slabCard = fakeSlab.cards[fakeSlab.cards.length - 1]!;
 
   it("claims no market price for a graded card, even when the check returned one", () => {
-    // The slab fixture carries a 305 to 493 range. Channel3 prices retail stock,
+    // The check carries a 305 to 493 range. Channel3 prices retail stock,
     // so for one graded slab that number would be about a different thing.
-    expect(fakeSlab.marketPrice.marketLow).toBeGreaterThan(0);
-    render(<VerdictPanel verdict={verdict({ overall: "stop", priceCheck: fakeSlab.marketPrice })} currentVersion={1} locked={false} card={slabCard} askingPrice={140} />);
+    render(<VerdictPanel verdict={verdict({ overall: "stop", priceCheck: RETURNED_RANGE })} currentVersion={1} locked={false} card={slabCard} askingPrice={140} />);
     const block = screen.getByTestId("price-check");
     expect(block).toHaveTextContent("Price: can't check automatically. Channel3 covers retail stores, not graded cards.");
     expect(block.textContent).not.toMatch(/305|493|Market range|New at retail/);
@@ -368,7 +373,7 @@ describe("VerdictPanel, a graded card", () => {
   });
 
   it("gives PriceCharting and 130point each a link, in a new tab", () => {
-    render(<VerdictPanel verdict={verdict({ overall: "stop", priceCheck: fakeSlab.marketPrice })} currentVersion={1} locked={false} card={slabCard} />);
+    render(<VerdictPanel verdict={verdict({ overall: "stop", priceCheck: RETURNED_RANGE })} currentVersion={1} locked={false} card={slabCard} />);
     const pc = screen.getByRole("link", { name: "PriceCharting" });
     const pt = screen.getByRole("link", { name: "130point" });
     for (const link of [pc, pt]) {
