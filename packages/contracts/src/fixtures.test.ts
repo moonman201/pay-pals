@@ -81,13 +81,14 @@ describe("scenario fixtures", () => {
     });
   }
 
-  it("stolen photo scenario stops on the payment demand, the price and the pressure, not on the cert", () => {
+  it("stolen photo scenario stops on the payment demand and the pressure, not on the price or the cert", () => {
     const fx = FIXTURES["fake-slab"];
     const v = fx.expectedVerdict;
     expect(v.overall).toBe("stop");
     expect(v.requiredFlags).toEqual(
-      expect.arrayContaining(["FRIENDS_AND_FAMILY_REQUEST", "PRICE_FAR_BELOW_MARKET", "URGENCY_PRESSURE"]),
+      expect.arrayContaining(["FRIENDS_AND_FAMILY_REQUEST", "URGENCY_PRESSURE"]),
     );
+    // 2026-10-14: the price flag was required here; a graded card has no price check (F14).
     // The cert is real and matches the card, so CERT_MISMATCH must never be expected here.
     expect(v.requiredFlags).not.toContain("CERT_MISMATCH");
     expect(v.optionalFlags).not.toContain("CERT_MISMATCH");
@@ -97,8 +98,12 @@ describe("scenario fixtures", () => {
     // The grader's record describes the same card and the same grade.
     expect(fx.certRecord!.grade).toMatch(/10/);
     expect(fx.certRecord!.subject).toMatch(/GENGAR & MIMIKYU GX/i);
-    // Priced far under the real comp range.
-    expect(card.askingPrice).toBeLessThan(fx.marketPrice.marketLow * 0.6);
+    // 2026-10-14: this asserted the ask sat far under a graded comp range. The
+    // expectation was wrong, not the code: Pay Pals cannot price a graded card
+    // (F14), so the fixture holds no range and the deal stops on other grounds.
+    expect(fx.marketPrice.marketLow).toBe(0);
+    expect(fx.marketPrice.sources).toHaveLength(0);
+    expect(fx.expectedVerdict.requiredFlags).not.toContain("PRICE_FAR_BELOW_MARKET");
   });
 
   it("clean scenario starts with no readable console serial and ends with one that matches the box", () => {
