@@ -5,7 +5,7 @@
  */
 import { expect, type Page } from "@playwright/test";
 import type { ScenarioFixture } from "@pay-pals/contracts";
-import { PAL_TIMEOUT, addAllDemoPhotos, expectState, expectStateAfterPal, joinPath, openRoomAs, panel, pressAction, timelineItems, waitForHydration } from "./helpers";
+import { PAL_TIMEOUT, addAllDemoPhotos, expectState, expectStateAfterPal, joinPath, openRoomAs, palWork, panel, pressAction, timelineItems, waitForHydration } from "./helpers";
 
 /**
  * The seller opens the invite link and joins with the scenario's listing text
@@ -56,7 +56,7 @@ export const CONSOLE_PROOF_QUESTION = /close-up of the serial label on the conso
  * what was asked, not how many times the panel mentions it.
  */
 export async function expectAskedQuestion(page: Page, question: RegExp | null): Promise<void> {
-  const review = panel(page, "Buyer Pal review");
+  const review = palWork(page);
   const asked = review.getByText("Asked of the seller", { exact: true });
   if (question === null) {
     await expect(asked).toHaveCount(0);

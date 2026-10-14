@@ -1,6 +1,6 @@
 "use client";
 
-import { canTransition, isCardEditable } from "@pay-pals/contracts";
+import { canTransition, isCardEditable, isTerminal } from "@pay-pals/contracts";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { ActionId } from "@/lib/deal/actions";
@@ -17,7 +17,12 @@ import { scrollToPanel } from "@/lib/client/scroll";
 import { isConfirmedMismatch } from "@/lib/deal/arrival-outcome";
 import { agreeLockedLine, applyProgress, finishReview, IDLE_REVIEW, startedReview, type LiveReviewState } from "@/lib/deal/live-review";
 import { palChannel, type Role } from "@/lib/role";
+import { useFoldHashOpen } from "@/lib/client/open-fold";
 import { ActionBar } from "./ActionBar";
+import { DealFacts } from "./DealFacts";
+import { ItemGlance } from "./ItemGlance";
+import { VerdictCard } from "./VerdictCard";
+import { FoldBox } from "../ui/FoldBox";
 import { ArrivalResult } from "./ArrivalResult";
 import { DealHeader } from "./DealHeader";
 import { ItemCardView } from "./ItemCardView";
@@ -51,6 +56,8 @@ import { ShipStep } from "./steps/ShipStep";
  */
 export function DealRoom({ snapshot, role }: { snapshot: DealSnapshot; role: Role }) {
   const router = useRouter();
+  // Most panels are folded; a link to something inside one opens it first.
+  useFoldHashOpen();
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [issueOpen, setIssueOpen] = useState(false);
@@ -153,29 +160,126 @@ export function DealRoom({ snapshot, role }: { snapshot: DealSnapshot; role: Rol
   });
   const statusGroups = role === "seller" ? sellerStatusGroups(builtGroups) : builtGroups;
 
+  const terminal = isTerminal(state);
+  const verdictStale = snapshot.verdict ? deal.lockedCardVersion === null && snapshot.verdict.cardVersion > 0 && snapshot.verdict.cardVersion !== deal.currentCardVersion : false;
+  const checks = snapshot.verdict?.reasoning?.checked.length ?? snapshot.verdict?.flags.length ?? 0;
+  const chatCount = myPal.length + shared.length;
+
+  // The one move, built once. On a room with a verdict it sits inside the verdict card; before the first review it stands alone.
+  const actionBar =
+    needsBuyer || offPlatform ? null : (
+      <ActionBar
+        state={state}
+        role={role}
+        verdict={snapshot.verdict}
+        dealId={deal.id}
+        busy={busy}
+        hasLockedCard={snapshot.lockedCard !== null}
+        hasEvidence={snapshot.hasEvidence}
+        example={snapshot.example}
+        agreement={{ buyerAgreedAt: deal.buyerAgreedAt, sellerAgreedAt: deal.sellerAgreedAt }}
+        cardVersion={deal.currentCardVersion}
+        cardChangedSinceAgree={cardChangedSinceAgree}
+        refusalToReview={snapshot.inviteDeclined || shared.length > 0}
+        hasCert={Boolean(currentCard?.certNumber)}
+        reviewing={reviewing}
+        reviewingLine={agreeLockedLine({ ...live, running: reviewing })}
+        onAction={onAction}
+        inline={Boolean(snapshot.verdict)}
+      />
+    );
+
   return (
     <div className={`theme-${role} min-h-screen bg-[var(--bg-room)]`} data-review={reviewing ? "running" : "idle"}>
       <DealHeader snapshot={snapshot} role={role} />
-      <main className="mx-auto grid max-w-6xl gap-4 px-4 py-4 md:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] md:py-6">
-        <div className="min-w-0 space-y-4">
-          {currentCard ? (
-            <ItemCardView role={role} cards={snapshot.cards} currentVersion={deal.currentCardVersion} lockedVersion={deal.lockedCardVersion} certCheck={snapshot.verdict?.certCheck ?? null} dealId={deal.id} />
-          ) : null}
-          {role === "buyer" && state === "INVITED" ? <InvitePanel deal={deal} /> : null}
-          {role === "buyer" && state === "INVITED" && !snapshot.inviteDeclined ? <RefusalStep dealId={deal.id} onDone={refresh} /> : null}
-          {role === "seller" && state === "INVITED" ? (
-            <Panel title="You have not joined yet" accent>
-              <p className="text-sm">
-                The buyer invited you. Open the{" "}
-                <Link href={`/deals/${deal.id}/join?as=seller`} className={`${TAP_LINK} font-semibold text-[var(--accent-ink)] underline-offset-2 hover:underline`}>
-                  join page
-                </Link>{" "}
-                to add your photos, or to say you will not use Pay Pals.
+      <main className="mx-auto max-w-6xl space-y-4 px-4 py-4 md:py-6">
+        {role === "buyer" && state === "INVITED" ? <InvitePanel deal={deal} /> : null}
+        {role === "buyer" && state === "INVITED" && !snapshot.inviteDeclined ? <RefusalStep dealId={deal.id} onDone={refresh} /> : null}
+        {role === "seller" && state === "INVITED" ? (
+          <Panel title="You have not joined yet" accent>
+            <p className="text-sm">
+              The buyer invited you. Open the{" "}
+              <Link href={`/deals/${deal.id}/join?as=seller`} className={`${TAP_LINK} font-semibold text-[var(--accent-ink)] underline-offset-2 hover:underline`}>
+                join page
+              </Link>{" "}
+              to add your photos, or to say you will not use Pay Pals.
+            </p>
+          </Panel>
+        ) : null}
+        {reviewing ? <LiveReview state={live.running ? live : startedReview()} photoTotal={currentCard?.photos.length ?? 0} hasCert={Boolean(currentCard?.certNumber)} /> : null}
+
+        {/* The first screen: one verdict with its one move, and the item beside it. */}
+        <div className="grid items-start gap-4 md:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
+          <div className="min-w-0 space-y-4">
+            {snapshot.verdict ? (
+              <VerdictCard verdict={snapshot.verdict} card={currentCard ?? null} chat={shared} role={role} stale={verdictStale ? { reviewed: snapshot.verdict.cardVersion, current: deal.currentCardVersion } : null}>
+                {actionBar}
+              </VerdictCard>
+            ) : (
+              actionBar
+            )}
+            {error ? (
+              <p role="alert" className="rounded-lg border border-stop-line bg-stop-soft px-3 py-2 text-sm text-stop">
+                {error}
               </p>
-            </Panel>
-          ) : null}
-          {reviewing ? <LiveReview state={live.running ? live : startedReview()} photoTotal={currentCard?.photos.length ?? 0} hasCert={Boolean(currentCard?.certNumber)} /> : null}
+            ) : null}
+          </div>
+          {currentCard ? <ItemGlance card={snapshot.lockedCard ?? currentCard} lockedVersion={deal.lockedCardVersion} ended={terminal} /> : null}
+        </div>
+
+        {/* The next step, when there is a form for it. These are the moves, so they are never folded. */}
+        {needsBuyer ? <JoinForm dealId={deal.id} onDone={refresh} /> : null}
+        {offPlatform ? <OffPlatformNotice state={state} orderId={snapshot.payment?.paypalOrderId ?? null} /> : null}
+        {!needsBuyer && !offPlatform ? (
+          <>
+            {role === "seller" && isCardEditable(state) && currentCard ? (
+              <RequestStep dealId={deal.id} questions={openQuestions} suggestions={snapshot.demo?.requestPhotos ?? []} uploadsEnabled={snapshot.uploadsEnabled} onDone={refresh} />
+            ) : null}
+            {role === "buyer" && canStillPay(state) && snapshot.lockedCard ? (
+              <PayStep dealId={deal.id} card={snapshot.lockedCard} payMode={snapshot.payMode} payment={snapshot.payment} sandboxBuyer={snapshot.sandboxBuyer} onDone={refresh} />
+            ) : null}
+            {role === "seller" && state === "PAID" && snapshot.checklist ? (
+              <ShipStep dealId={deal.id} checklist={snapshot.checklist} palMessage={snapshot.checklistMessage} demo={snapshot.demo?.packing ?? null} uploadsEnabled={snapshot.uploadsEnabled} onDone={refresh} />
+            ) : null}
+            {role === "buyer" && issueOpen && canTransition(state, "ISSUE") ? (
+              <IssueStep
+                dealId={deal.id}
+                state={state}
+                // Only a confirmed mismatch preselects the wrong-item reason. An unsettled comparison is
+                // not a finding against the seller, so it must not fill that in for the buyer.
+                preselect={isConfirmedMismatch(snapshot.arrivalCheck) ? "arrival_mismatch" : undefined}
+                onDone={() => {
+                  setIssueOpen(false);
+                  refresh();
+                }}
+                onClose={() => setIssueOpen(false)}
+              />
+            ) : null}
+            {role === "buyer" && state === "DELIVERED" && !snapshot.arrivalCheck ? (
+              <ArrivalStep dealId={deal.id} suggestions={snapshot.demo?.arrivalPhotos ?? []} uploadsEnabled={snapshot.uploadsEnabled} onDone={refresh} />
+            ) : null}
+          </>
+        ) : null}
+
+        {/* Everything else, closed, each behind a label and a count. One tap opens a section; nothing in them was cut. */}
+        <div className="space-y-2" data-testid="room-sections">
           {snapshot.verdict ? (
+            <FoldBox title="Pal's work" count={checks} unit="checks" id="pals-work">
+              <VerdictPanel
+                verdict={snapshot.verdict}
+                currentVersion={deal.currentCardVersion}
+                locked={deal.lockedCardVersion !== null}
+                cardTitle={currentCard?.title ?? null}
+                cardGrade={currentCard?.grade ?? null}
+                askingPrice={currentCard?.askingPrice ?? null}
+                card={currentCard ?? null}
+                chat={shared}
+                role={role}
+                part="work"
+              />
+            </FoldBox>
+          ) : null}
+          {snapshot.verdict?.certCheck ? (
             <VerdictPanel
               verdict={snapshot.verdict}
               currentVersion={deal.currentCardVersion}
@@ -186,10 +290,19 @@ export function DealRoom({ snapshot, role }: { snapshot: DealSnapshot; role: Rol
               card={currentCard ?? null}
               chat={shared}
               role={role}
+              part="cert"
+              certOpen={!terminal}
             />
           ) : null}
-          {verdictDiff ? <VerdictDiffPanel diff={verdictDiff} /> : null}
-          <StatusView groups={statusGroups} deal={deal} />
+          {currentCard ? (
+            <ItemCardView role={role} cards={snapshot.cards} currentVersion={deal.currentCardVersion} lockedVersion={deal.lockedCardVersion} certCheck={snapshot.verdict?.certCheck ?? null} dealId={deal.id} foldOpen={!terminal && deal.lockedCardVersion === null} />
+          ) : null}
+          <StatusView groups={statusGroups} deal={deal} lead={<DealFacts snapshot={snapshot} role={role} />} />
+          <FoldBox title="Chat" count={chatCount} unit="messages" id="chat">
+            <PalPane role={role} messages={myPal} flat />
+            <SharedChat deal={deal} role={role} messages={shared} onSend={(text) => run("chat", () => postJson(dealApi(deal.id, "messages"), { by: role, text }))} flat />
+          </FoldBox>
+          <Timeline deal={deal} events={snapshot.events} />
           {snapshot.payment ? (
             <PaymentSummary
               payment={snapshot.payment}
@@ -209,70 +322,12 @@ export function DealRoom({ snapshot, role }: { snapshot: DealSnapshot; role: Rol
           ) : null}
           {snapshot.shipment ? <ShipmentSummary shipment={snapshot.shipment} /> : null}
           {snapshot.arrivalCheck ? <ArrivalResult check={snapshot.arrivalCheck} lockedCard={snapshot.lockedCard} /> : null}
-          {offPlatform ? <OffPlatformNotice state={state} orderId={snapshot.payment?.paypalOrderId ?? null} /> : null}
-
-          {needsBuyer ? (
-            <JoinForm dealId={deal.id} onDone={refresh} />
-          ) : offPlatform ? null : (
-            <>
-              <ActionBar
-                state={state}
-                role={role}
-                verdict={snapshot.verdict}
-                dealId={deal.id}
-                busy={busy}
-                hasLockedCard={snapshot.lockedCard !== null}
-                hasEvidence={snapshot.hasEvidence}
-                example={snapshot.example}
-                agreement={{ buyerAgreedAt: deal.buyerAgreedAt, sellerAgreedAt: deal.sellerAgreedAt }}
-                cardVersion={deal.currentCardVersion}
-                cardChangedSinceAgree={cardChangedSinceAgree}
-                refusalToReview={snapshot.inviteDeclined || shared.length > 0}
-                hasCert={Boolean(currentCard?.certNumber)}
-                reviewing={reviewing}
-                reviewingLine={agreeLockedLine({ ...live, running: reviewing })}
-                onAction={onAction}
-              />
-              {error ? (
-                <p role="alert" className="rounded-lg border border-stop-line bg-stop-soft px-3 py-2 text-sm text-stop">
-                  {error}
-                </p>
-              ) : null}
-              {role === "seller" && isCardEditable(state) && currentCard ? (
-                <RequestStep dealId={deal.id} questions={openQuestions} suggestions={snapshot.demo?.requestPhotos ?? []} uploadsEnabled={snapshot.uploadsEnabled} onDone={refresh} />
-              ) : null}
-              {role === "buyer" && canStillPay(state) && snapshot.lockedCard ? (
-                <PayStep dealId={deal.id} card={snapshot.lockedCard} payMode={snapshot.payMode} payment={snapshot.payment} sandboxBuyer={snapshot.sandboxBuyer} onDone={refresh} />
-              ) : null}
-              {role === "seller" && state === "PAID" && snapshot.checklist ? (
-                <ShipStep dealId={deal.id} checklist={snapshot.checklist} palMessage={snapshot.checklistMessage} demo={snapshot.demo?.packing ?? null} uploadsEnabled={snapshot.uploadsEnabled} onDone={refresh} />
-              ) : null}
-              {role === "buyer" && issueOpen && canTransition(state, "ISSUE") ? (
-                <IssueStep
-                  dealId={deal.id}
-                  state={state}
-                  // Only a confirmed mismatch preselects the wrong-item reason. An unsettled comparison is
-                  // not a finding against the seller, so it must not fill that in for the buyer.
-                  preselect={isConfirmedMismatch(snapshot.arrivalCheck) ? "arrival_mismatch" : undefined}
-                  onDone={() => { setIssueOpen(false); refresh(); }}
-                  onClose={() => setIssueOpen(false)}
-                />
-              ) : null}
-              {role === "buyer" && state === "DELIVERED" && !snapshot.arrivalCheck ? (
-                <ArrivalStep dealId={deal.id} suggestions={snapshot.demo?.arrivalPhotos ?? []} uploadsEnabled={snapshot.uploadsEnabled} onDone={refresh} />
-              ) : null}
-              {role === "buyer" && canChooseOffPlatform(state, snapshot.events) ? (
-                /* The Next step panel prints the Goods and Services rule on a blocked deal, so this one does not repeat it. */
-                <OffPlatformStep dealId={deal.id} onDone={refresh} rulePrinted={state === "BLOCKED"} />
-              ) : null}
-            </>
-          )}
+          {verdictDiff ? <VerdictDiffPanel diff={verdictDiff} /> : null}
         </div>
-        <aside className="min-w-0 space-y-4">
-          <PalPane role={role} messages={myPal} />
-          <SharedChat deal={deal} role={role} messages={shared} onSend={(text) => run("chat", () => postJson(dealApi(deal.id, "messages"), { by: role, text }))} />
-          <Timeline deal={deal} events={snapshot.events} />
-        </aside>
+        {!needsBuyer && !offPlatform && role === "buyer" && canChooseOffPlatform(state, snapshot.events) ? (
+          /* The Next step panel prints the Goods and Services rule on a blocked deal, so this one does not repeat it. */
+          <OffPlatformStep dealId={deal.id} onDone={refresh} rulePrinted={state === "BLOCKED"} />
+        ) : null}
       </main>
     </div>
   );

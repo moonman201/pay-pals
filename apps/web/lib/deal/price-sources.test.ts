@@ -183,8 +183,11 @@ describe("methodNote", () => {
     expect(methodNote(check(sources))).toBe(reference);
   });
 
-  it("renders the slab fixture's own reference sentence", () => {
-    expect(methodNote(fakeSlab.marketPrice)).toBe(fakeSlab.marketPrice.sources[fakeSlab.marketPrice.sources.length - 1]!.name);
+  it("renders a reference sentence that sits after the listings", () => {
+    // 2026-10-14: this read the slab fixture's reference sentence. The slab carries no price range now (a graded
+    // card cannot be priced, F14), so the same shape is built here: a note in last place, not first.
+    const sources = [{ name: "Graded sale, PSA 10", price: 418, condition: "like_new" }, { name: "Reference range from recent PSA 10 sold prices for this card." }];
+    expect(methodNote(check(sources))).toBe("Reference range from recent PSA 10 sold prices for this card.");
   });
 
   it("takes the earlier of two notes", () => {

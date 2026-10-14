@@ -7,6 +7,12 @@ import { VerdictPanel } from "./VerdictPanel";
    sentence is preferred when it has one, which review-lead.test.ts covers. */
 const flag = (code: RedFlag["code"], severity: RedFlag["severity"], explanation = ""): RedFlag => ({ code, severity, evidence: "e", explanation, raisedByRule: true });
 
+/**
+ * A price check that came back with a range. The slab fixture no longer carries one (a graded card cannot be priced, F14),
+ * and the panel's rule is about what it does when a check returns one anyway.
+ */
+const RETURNED_RANGE = { ...cleanPs5.marketPrice, marketLow: 305, marketHigh: 493, sources: [{ name: "Graded sale, PSA 10", price: 305, condition: "like_new" }, { name: "Graded sale, PSA 10", price: 493, condition: "like_new" }] };
+
 function verdict(overrides: Partial<Verdict> = {}): Verdict {
   return { dealId: "d1", cardVersion: 1, overall: "stop", flags: [], priceCheck: null, questionsForSeller: [], palMessage: "Stop.", createdAt: new Date().toISOString(), ...overrides };
 }
@@ -210,7 +216,7 @@ describe("VerdictPanel", () => {
 
   it("offers no retail comparison for a graded card, whose sales are all used", () => {
     // Every slab source is a like_new graded sale, so there is no "new at retail" to compare to.
-    render(<VerdictPanel verdict={verdict({ overall: "go", priceCheck: fakeSlab.marketPrice })} currentVersion={1} locked={false} askingPrice={140} />);
+    render(<VerdictPanel verdict={verdict({ overall: "go", priceCheck: RETURNED_RANGE })} currentVersion={1} locked={false} askingPrice={140} />);
     expect(screen.queryByTestId("price-comparison")).not.toBeInTheDocument();
     expect(screen.getByTestId("price-check")).toHaveTextContent("demo prices");
   });
@@ -225,9 +231,9 @@ describe("VerdictPanel", () => {
   });
 
   it("renders a real range with its sources", () => {
-    const real = verdict({ overall: "go", priceCheck: fakeSlab.marketPrice });
+    const real = verdict({ overall: "go", priceCheck: RETURNED_RANGE });
     render(<VerdictPanel verdict={real} currentVersion={1} locked={false} />);
-    expect(screen.getByTestId("price-check")).toHaveTextContent(`Market range $${fakeSlab.marketPrice.marketLow} to $${fakeSlab.marketPrice.marketHigh}`);
+    expect(screen.getByTestId("price-check")).toHaveTextContent(`Market range $${RETURNED_RANGE.marketLow} to $${RETURNED_RANGE.marketHigh}`);
     expect(screen.getByTestId("price-check")).toHaveTextContent("demo prices");
   });
 
@@ -247,7 +253,7 @@ describe("VerdictPanel", () => {
     expect(screen.getByText("Why")).toBeInTheDocument();
   });
 
-  it("says a flag's reason once: in the lead when it is already a line, and the card keeps the evidence", () => {
+  it("says a flag's reason once on the card, with its evidence", () => {
     const own = "Wants Friends and Family. That has no buyer protection.";
     const v = verdict({ flags: [{ ...flag("FRIENDS_AND_FAMILY_REQUEST", "stop", own), evidence: 'Seller wrote: "F&F only"' }] });
     render(<VerdictPanel verdict={v} currentVersion={1} locked={false} />);
@@ -306,7 +312,7 @@ describe("VerdictPanel", () => {
     render(<VerdictPanel verdict={v} currentVersion={1} locked={false} />);
     expect(screen.getByTestId("look-again")).toHaveTextContent("I'd look again if The seller agreeing to wait");
     expect(screen.queryByText("What would change my mind")).not.toBeInTheDocument();
-    expect(screen.getByTestId("verdict").textContent?.match(/would change this/g)).toHaveLength(1);
+    expect(document.body.textContent?.match(/would change this/g)).toHaveLength(1);
   });
 
   it("keeps every ask on the page when the lead has room for only two", () => {
@@ -344,7 +350,7 @@ describe("VerdictPanel, the seller's view", () => {
     render(<VerdictPanel verdict={v()} currentVersion={1} locked={false} role="seller" />);
     const line = screen.getByTestId("look-again");
     expect(line).toHaveTextContent("The Buyer Pal would look again if you send a close-up of the serial label on the console or you send the slab next to your name and today's date.");
-    expect(screen.getByTestId("verdict").textContent).not.toMatch(/\b(he|his|him)\b/i);
+    expect(line.textContent).not.toMatch(/\b(he|his|him)\b/i);
   });
 
   it("keeps the buyer's wording for the buyer", () => {
@@ -353,63 +359,13 @@ describe("VerdictPanel, the seller's view", () => {
   });
 });
 
-describe("VerdictPanel, the lead", () => {
-  it("leads with three words and one line per reason, not a paragraph", () => {
-    const v = verdict({
-      overall: "stop",
-      palMessage: "A long paragraph that used to be the first thing anybody read, and which repeated every flag below it in prose.",
-      flags: [flag("FRIENDS_AND_FAMILY_REQUEST", "stop"), flag("STOCK_OR_REUSED_PHOTO", "caution"), flag("URGENCY_PRESSURE", "caution")],
-    });
-    render(<VerdictPanel verdict={v} currentVersion={1} locked={false} />);
-    expect(screen.getByTestId("verdict-headline")).toHaveTextContent("Stop. Don't pay.");
-    const reasons = within(screen.getByTestId("verdict-reasons")).getAllByRole("listitem");
-    expect(reasons).toHaveLength(3);
-    for (const reason of reasons) expect(reason.textContent!.split(/\s+/).filter(Boolean).length).toBeLessThanOrEqual(13);
-    // The paragraph it replaced is gone from the page.
-    expect(screen.queryByText(/A long paragraph that used to be/)).not.toBeInTheDocument();
-  });
-
-  it("names no more than three reasons however many flags there are, worst first", () => {
-    const v = verdict({
-      overall: "stop",
-      flags: [flag("URGENCY_PRESSURE", "caution"), flag("OTHER", "info"), flag("INVITE_REFUSED", "stop"), flag("MISSING_SERIAL", "caution")],
-    });
-    render(<VerdictPanel verdict={v} currentVersion={1} locked={false} />);
-    const reasons = within(screen.getByTestId("verdict-reasons")).getAllByRole("listitem");
-    expect(reasons).toHaveLength(3);
-    expect(reasons[0]).toHaveTextContent("The seller refused Pay Pals protection.");
-    // The info flag is the one that drops off the end.
-    expect(screen.getByTestId("verdict-reasons")).not.toHaveTextContent("Something else the pal wanted you to see.");
-  });
-
-  it("shows the pal's own sentence as the reason, not a second phrasing of it", () => {
-    const own = "His only photo matches a listing photo already on file.";
-    const v = verdict({ overall: "caution", flags: [flag("STOCK_OR_REUSED_PHOTO", "caution", own)] });
-    render(<VerdictPanel verdict={v} currentVersion={1} locked={false} />);
-    expect(screen.getByTestId("verdict-reasons")).toHaveTextContent(own);
-    // The check is against Pay Pals' own file of photos, so no line may imply a search.
-    expect(screen.getByTestId("verdict-reasons").textContent).not.toMatch(/online|web|internet|searched/i);
-  });
-
-  it("falls back to the pal's own findings when there are no flags to name", () => {
-    const v = verdict({
-      overall: "go",
-      reasoning: { checked: ["The serial."], found: ["The serial matches the box label.", "The price sits inside the range."], couldNotVerify: [], wouldChangeMyMind: [] },
-    });
-    render(<VerdictPanel verdict={v} currentVersion={1} locked={false} />);
-    expect(screen.getByTestId("verdict-headline")).toHaveTextContent("Looks good.");
-    expect(screen.getByTestId("verdict-reasons")).toHaveTextContent("The serial matches the box label.");
-  });
-});
-
 describe("VerdictPanel, a graded card", () => {
   const slabCard = fakeSlab.cards[fakeSlab.cards.length - 1]!;
 
   it("claims no market price for a graded card, even when the check returned one", () => {
-    // The slab fixture carries a 305 to 493 range. Channel3 prices retail stock,
+    // The check carries a 305 to 493 range. Channel3 prices retail stock,
     // so for one graded slab that number would be about a different thing.
-    expect(fakeSlab.marketPrice.marketLow).toBeGreaterThan(0);
-    render(<VerdictPanel verdict={verdict({ overall: "stop", priceCheck: fakeSlab.marketPrice })} currentVersion={1} locked={false} card={slabCard} askingPrice={140} />);
+    render(<VerdictPanel verdict={verdict({ overall: "stop", priceCheck: RETURNED_RANGE })} currentVersion={1} locked={false} card={slabCard} askingPrice={140} />);
     const block = screen.getByTestId("price-check");
     expect(block).toHaveTextContent("Price: can't check automatically. Channel3 covers retail stores, not graded cards.");
     expect(block.textContent).not.toMatch(/305|493|Market range|New at retail/);
@@ -417,7 +373,7 @@ describe("VerdictPanel, a graded card", () => {
   });
 
   it("gives PriceCharting and 130point each a link, in a new tab", () => {
-    render(<VerdictPanel verdict={verdict({ overall: "stop", priceCheck: fakeSlab.marketPrice })} currentVersion={1} locked={false} card={slabCard} />);
+    render(<VerdictPanel verdict={verdict({ overall: "stop", priceCheck: RETURNED_RANGE })} currentVersion={1} locked={false} card={slabCard} />);
     const pc = screen.getByRole("link", { name: "PriceCharting" });
     const pt = screen.getByRole("link", { name: "130point" });
     for (const link of [pc, pt]) {

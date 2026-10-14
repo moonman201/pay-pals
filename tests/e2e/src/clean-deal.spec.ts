@@ -7,7 +7,7 @@
  * asked and never got. The state badge is asserted at every step.
  * Fixtures only, no keys.
  */
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./fixtures";
 import { cleanPs5 } from "@pay-pals/contracts";
 import { WEB_PRESENT } from "./env";
 import {
@@ -22,14 +22,16 @@ import {
   runArrivalCheck,
   shipAsSeller,
 } from "./flows";
-import { expectState, openRoomAs, panel, pressAction, snapshot, startDemo, waitForHydration } from "./helpers";
+import { dealFacts, expectState, openEndingNote, openRoomAs, panel, pressAction, snapshot, startDemo, waitForHydration } from "./helpers";
 
 test.describe("clean deal", () => {
   test.skip(!WEB_PRESENT, "apps/web is not on this branch yet, nothing to load");
 
   test("runs from Listed to Complete with the card locked at version 2 and the serial confirmed", async ({ page }) => {
     const dealId = await startDemo(page, cleanPs5, "buyer");
-    await expect(page.getByRole("banner").getByRole("heading", { name: cleanPs5.cards[0]!.title })).toBeVisible();
+    // 2026-10-13: the header carries the short name; the full title is the item card's own heading.
+    await expect(page.getByRole("banner").getByRole("heading", { name: "Sony PlayStation 5 disc edition" })).toBeVisible();
+    await expect(panel(page, "Item card").getByRole("heading", { name: cleanPs5.cards[0]!.title })).toBeVisible();
 
     // Version 1 has the wide back shot and the box label: the box serial is on the card, the console's own is not.
     const card = panel(page, "Item card");
@@ -91,7 +93,7 @@ test.describe("clean deal", () => {
     await expect(payment.getByText("PayPal order", { exact: true })).toBeVisible();
     await expect(payment.getByText(/Example order id|placeholders/)).toHaveCount(0);
     await expect(page.getByText("Example deal, seeded from a scenario")).toHaveCount(0);
-    await expect(page.getByRole("banner").getByText(/History unchanged since PayPal order/)).toBeVisible();
+    await expect(dealFacts(page).getByText(/History unchanged since PayPal order/)).toBeVisible();
 
     await runArrivalCheck(page, cleanPs5);
     const result = panel(page, "Arrival check");
@@ -101,6 +103,8 @@ test.describe("clean deal", () => {
 
     await pressAction(page, "Complete the deal");
     await expectState(page, "Complete");
+    // 2026-10-13: what a complete deal means is one tap behind "Details" on the verdict card.
+    await openEndingNote(page);
     await expect(panel(page, "Next step").getByText("complete", { exact: false })).toBeVisible();
     expect(await steps.evaluateAll((items) => items.map((li) => li.getAttribute("data-status")))).toEqual(Array(7).fill("done"));
 

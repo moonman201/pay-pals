@@ -32,15 +32,9 @@ export function Timeline({ deal, events }: { deal: Deal; events: DealEvent[] }) 
     <Panel
       title="Timeline"
       id="timeline"
-      aside={<span className="text-xs text-muted">{events.length} events</span>}
+      fold={{ count: events.length, unit: "events" }}
     >
-      <details className="group" data-testid="timeline-details">
-        <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 text-sm font-bold text-[var(--accent-ink)] [&::-webkit-details-marker]:hidden">
-          <span aria-hidden="true" className="inline-block transition-transform group-open:rotate-90">
-            &rsaquo;
-          </span>
-          Show the timeline
-        </summary>
+      <div data-testid="timeline-details">
         <ol className="relative mt-3 space-y-3 border-l border-line pl-5">
           {rows.map(({ event, became, note, noteActor, hashes }) => {
             const pal = event.actor === "buyer_pal" ? "buyer" : event.actor === "seller_pal" ? "seller" : null;
@@ -80,7 +74,7 @@ export function Timeline({ deal, events }: { deal: Deal; events: DealEvent[] }) 
             );
           })}
         </ol>
-      </details>
+      </div>
     </Panel>
   );
 }

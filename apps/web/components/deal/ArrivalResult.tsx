@@ -63,6 +63,7 @@ export function ArrivalResult({ check, lockedCard = null }: { check: ArrivalChec
   return (
     <Panel
       title="Arrival check"
+      fold={{}}
       aside={
         <Badge tone={OUTCOME_TONE[outcome]} data-testid="arrival-outcome">
           {OUTCOME_LABEL[outcome]}

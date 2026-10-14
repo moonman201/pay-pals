@@ -4,7 +4,7 @@
  * landing, deal room at several states, and the evidence pack. And every
  * button and link in the main flow is at least 44 px tall (PLAN item 11).
  */
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./fixtures";
 import { ALL_FIXTURES, cleanPs5 } from "@pay-pals/contracts";
 import { WEB_PRESENT } from "./env";
 import { driveToDelivered, runArrivalCheck } from "./flows";
@@ -18,6 +18,9 @@ test.describe("phone width", () => {
     expect(testInfo.project.use.viewport?.width, "run this spec through the phone project").toBe(390);
 
     await page.goto("/");
+    // 2026-10-14: the protection form is folded behind one button and opens in place.
+    await expect(page.getByRole("form", { name: "Use Pay Pals Protection" })).toHaveCount(0);
+    await page.getByTestId("start-protected").click();
     const protection = page.getByRole("form", { name: "Use Pay Pals Protection" });
     await expect(protection).toBeVisible();
     await expect(protection.getByLabel("Seller's PayPal email")).toBeVisible();

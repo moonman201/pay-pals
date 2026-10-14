@@ -11,11 +11,12 @@
 import { mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { expect, test, type Locator, type Page } from "@playwright/test";
+import { expect, test } from "./fixtures";
+import type { Locator, Page } from "@playwright/test";
 import { ALL_FIXTURES } from "@pay-pals/contracts";
 import type { ScenarioFixture } from "@pay-pals/contracts";
 import { STARTS_SERVER, WEB_PRESENT } from "./env";
-import { expectNoHorizontalScroll, snapshot, timelineItems, waitForHydration } from "./helpers";
+import { dealFacts, expectNoHorizontalScroll, snapshot, timelineItems, waitForHydration } from "./helpers";
 import { finishedDeal } from "./layout-helpers";
 
 /** Against a server we did not start (E2E_BASE_URL, for example production) the pass is read-only: no evidence build. */
@@ -153,8 +154,9 @@ test.describe("finished demo deals, desktop and phone", () => {
 
         // PLAN item 10 and J6: the finished demo deals are seeded examples. The header says so, the chain chip
         // reads as chained but not anchored, and nothing claims PayPal holds the hash. Never the warning.
-        const header = page.getByRole("banner");
-        await expect(header.getByText(/History does not match|History chain is broken/)).toHaveCount(0);
+        // 2026-10-13: the header holds one-word chips now; the full example label and history sentence are in Deal status.
+        const header = dealFacts(page);
+        await expect(page.getByText(/History does not match|History chain is broken/)).toHaveCount(0);
         await expect(header.getByText("Example deal, seeded from a scenario")).toBeVisible();
         await expect(header.getByText(/Tamper-evident history, \d+ events?/)).toBeVisible();
         await expect(header.getByText(/History unchanged since PayPal order/)).toHaveCount(0);

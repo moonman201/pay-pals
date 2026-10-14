@@ -4,7 +4,7 @@
  * and the evidence page shows the locked card and the arrival photos.
  * Fixtures only, no keys.
  */
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./fixtures";
 import { EMPTY_BOX_LOCKED_SERIAL, emptyBox } from "@pay-pals/contracts";
 import { WEB_PRESENT } from "./env";
 import { CONSOLE_PROOF_QUESTION, driveToDelivered, runArrivalCheck } from "./flows";

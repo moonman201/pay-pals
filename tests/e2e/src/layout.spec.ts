@@ -6,7 +6,8 @@
  * text, the history chip, and the scenario cards' outcome marks.
  * Fixtures only, no keys.
  */
-import { expect, test, type Locator, type Page } from "@playwright/test";
+import { expect, test } from "./fixtures";
+import type { Locator, Page } from "@playwright/test";
 import { ALL_FIXTURES, FAKE_SLAB_CERT, cleanPs5, emptyBox, fakeSlab, type ScenarioFixture } from "@pay-pals/contracts";
 import { WEB_PRESENT } from "./env";
 import { panel, waitForHydration } from "./helpers";

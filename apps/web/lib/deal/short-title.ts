@@ -42,3 +42,19 @@ export function shortTitle(card: Pick<ItemCard, "title" | "model" | "grade" | "c
   // A "shorter" title that is not shorter is just a different title, which helps nobody.
   return short.length < full.length ? short : full;
 }
+
+/**
+ * The name on the first screen of a room, shorter again than shortTitle for an item with no cert:
+ * the card's own brand and the first part of its model ("Sony PlayStation 5 disc edition"), with
+ * the full title one fold down on the item card. Falls back to shortTitle whenever the card's
+ * fields do not make something shorter, so a name is never guessed.
+ */
+export function glanceTitle(card: Pick<ItemCard, "title" | "model" | "brand" | "grade" | "certNumber"> | null | undefined): string {
+  const base = shortTitle(card);
+  if (!card || card.certNumber) return base;
+  const brand = (card.brand ?? "").trim();
+  const model = (card.model ?? "").split(",")[0]?.trim() ?? "";
+  if (!brand || !model) return base;
+  const short = model.toLowerCase().startsWith(brand.toLowerCase()) ? model : `${brand} ${model}`;
+  return short.length < base.length ? short : base;
+}

@@ -9,7 +9,7 @@ import { ShipmentFlags } from "./ShipmentFlags";
 export function ShipmentSummary({ shipment }: { shipment: Shipment }) {
   const undone = shipment.checklist.filter((c) => c.required && !c.done);
   return (
-    <Panel title="Shipment" aside={<Badge tone={shipment.deliveredAt ? "go" : "accent"}>{shipment.deliveredAt ? "delivered" : "in transit"}</Badge>}>
+    <Panel title="Shipment" fold={{}} aside={<Badge tone={shipment.deliveredAt ? "go" : "accent"}>{shipment.deliveredAt ? "delivered" : "in transit"}</Badge>}>
       <p className="text-sm">
         {shipment.carrier}, tracking <span className="font-mono">{shipment.trackingNumber}</span>. Shipped {formatTime(shipment.shippedAt)}.
         {shipment.deliveredAt ? ` Delivered ${formatTime(shipment.deliveredAt)}.` : ""}

@@ -6,7 +6,7 @@ import { PhotoGrid } from "../photos/PhotoGrid";
 import { Panel } from "../ui/Panel";
 
 /** Your own pal's private channel. Blue for the buyer, gold for the seller. */
-export function PalPane({ role, messages }: { role: Role; messages: Message[] }) {
+export function PalPane({ role, messages, flat = false }: { role: Role; messages: Message[]; flat?: boolean }) {
   return (
     <Panel
       title={
@@ -16,6 +16,7 @@ export function PalPane({ role, messages }: { role: Role; messages: Message[] })
         </span>
       }
       accent
+      flat={flat}
       aside={<span className="text-xs text-[var(--accent-ink)]">private to you</span>}
     >
       {messages.length === 0 ? (

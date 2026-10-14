@@ -40,13 +40,22 @@ export function ProtectionPanel() {
 
   return (
     <form onSubmit={submit} className="theme-buyer in-box rounded-2xl border border-[var(--accent-line)] bg-surface p-5 shadow-card sm:p-6" aria-labelledby="protection-title">
-      <h2 id="protection-title" className="text-2xl font-bold text-navy">
+      <h2 id="protection-title" className="text-xl font-bold text-navy">
         Use Pay Pals Protection
       </h2>
-      <p className="mt-1 text-sm text-muted">
-        Paste the seller&apos;s PayPal email and the listing. You get a link to send them. Their pal builds the item card, your pal checks it, and you pay only through
-        PayPal Goods and Services.
-      </p>
+      <details className="group" data-testid="protection-more">
+        <summary className="inline-flex min-h-11 cursor-pointer list-none items-center gap-1 text-sm font-semibold text-[var(--accent-ink)] [&::-webkit-details-marker]:hidden">
+          <span aria-hidden className="inline-block transition-transform group-open:rotate-90">
+            &rsaquo;
+          </span>
+          How this works
+        </summary>
+        <p className="text-sm text-muted">
+          Paste the seller&apos;s PayPal email and the listing. You get a link to send them. Their pal builds the item card, your pal checks it, and you pay only through
+          PayPal Goods and Services.
+        </p>
+        <p className="mt-2 text-sm text-muted">No account needed. Nothing is charged until both sides agree to the item card.</p>
+      </details>
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
         <label className="text-sm sm:col-span-2">
           <span className="font-semibold">Seller&apos;s PayPal email</span>
@@ -68,7 +77,6 @@ export function ProtectionPanel() {
       <Button type="submit" disabled={busy} className="mt-4 w-full sm:w-auto">
         {busy ? "Starting" : "Use Pay Pals Protection"}
       </Button>
-      <p className="mt-2 text-xs text-muted">No account needed. Nothing is charged until both sides agree to the item card.</p>
       {error ? (
         <p role="alert" className="mt-2 text-sm text-stop">
           {error}

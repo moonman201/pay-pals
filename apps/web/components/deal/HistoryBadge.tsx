@@ -15,6 +15,8 @@ interface Props {
   /** The order the hash was read from, for the tooltip. Only with source "live_order". */
   orderId?: string | null;
   className?: string;
+  /** One word on the header. The whole sentence is the same badge in the Deal status section. */
+  compact?: boolean;
 }
 
 function titleFor(source: "payment_record" | "live_order", historyHash: string | null | undefined, example: boolean, orderId: string | null): string {
@@ -45,7 +47,7 @@ function Seal({ verified }: { verified: boolean }) {
  * recorded on the PayPal order: a green seal when it verifies, a red seal
  * when it does not, a plain chip before any order or on an example deal.
  */
-export function HistoryBadge({ events, historyHash, example = false, source = "payment_record", orderId = null, className = "" }: Props) {
+export function HistoryBadge({ events, historyHash, example = false, source = "payment_record", orderId = null, className = "", compact = false }: Props) {
   const status = historyStatus(events, example ? null : historyHash);
   const line = historyLine(status);
   const bad = status.kind === "mismatch" || (status.kind === "unanchored" && !status.chainOk);
@@ -58,7 +60,7 @@ export function HistoryBadge({ events, historyHash, example = false, source = "p
     <a
       href="#timeline"
       role={status.kind === "mismatch" ? "alert" : undefined}
-      data-testid="history-badge"
+      data-testid={compact ? "history-chip" : "history-badge"}
       data-status={status.kind}
       title={titleFor(source, example ? null : historyHash, example, orderId)}
       className={`inline-flex min-h-11 items-center gap-1.5 rounded-full border py-0.5 pl-1 pr-2.5 text-xs font-semibold underline-offset-2 hover:underline ${tone} ${className}`}
@@ -68,7 +70,7 @@ export function HistoryBadge({ events, historyHash, example = false, source = "p
       ) : (
         <span aria-hidden className="ml-1.5 inline-block h-2 w-2 rounded-full border-2 border-current" />
       )}
-      {line}
+      {compact && !bad ? "History" : line}
     </a>
   );
 }

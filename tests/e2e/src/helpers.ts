@@ -69,6 +69,8 @@ export interface BuyerFirstInput {
 export async function startBuyerFirst(page: Page, input: BuyerFirstInput): Promise<string> {
   await page.goto("/");
   await waitForHydration(page);
+  // 2026-10-14: the form is folded behind one button, "Start a protected deal", and opens in place.
+  await page.getByTestId("start-protected").click();
   const form = page.getByRole("form", { name: "Use Pay Pals Protection" });
   await expect(form).toBeVisible();
   await form.getByLabel("Seller's PayPal email").fill(input.sellerEmail);
@@ -112,14 +114,24 @@ export async function waitForReviewIdle(page: Page): Promise<void> {
   await page.waitForFunction(() => document.querySelector('[data-review="running"]') === null, undefined, { timeout: PAL_TIMEOUT });
 }
 
-/** The state badge in the deal room header. */
+/**
+ * The state badge in the deal room header.
+ *
+ * 2026-10-14: the progress bar says where the deal stands in words too ("Reviewed", "Paid"), so the same word can
+ * be in the banner twice. The state is the chip, found by its test id.
+ */
+function stateChip(page: Page, label: string): Locator {
+  const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return page.getByRole("banner").getByTestId("state-chip").filter({ hasText: new RegExp("^" + escaped + "$") });
+}
+
 export async function expectState(page: Page, label: string): Promise<void> {
-  await expect(page.getByRole("banner").getByText(label, { exact: true })).toBeVisible();
+  await expect(stateChip(page, label)).toBeVisible();
 }
 
 /** The state badge after a move that waited on a pal. */
 export async function expectStateAfterPal(page: Page, label: string): Promise<void> {
-  await expect(page.getByRole("banner").getByText(label, { exact: true })).toBeVisible({ timeout: PAL_TIMEOUT });
+  await expect(stateChip(page, label)).toBeVisible({ timeout: PAL_TIMEOUT });
 }
 
 /**
@@ -170,6 +182,27 @@ export async function timelineItems(page: Page): Promise<Locator> {
     expect(await items.count(), "the timeline expander opened").toBeGreaterThan(0);
   }).toPass({ timeout: 15_000 });
   return items;
+}
+
+/**
+ * The Pal's work section: the flags with their evidence, the price check, what the pal checked and could not check,
+ * and what it asked of the seller. 2026-10-13: these used to sit in the "Buyer Pal review" panel; the verdict card
+ * took that name and the detail moved into this section, closed by default (the fixtures open it).
+ */
+export function palWork(page: Page): Locator {
+  return page.locator("[data-fold]").filter({ has: page.getByRole("heading", { name: "Pal's work", exact: true }) });
+}
+
+/** The full sentences the header shortens: who you are, the example label, the history seal, the seven named steps. */
+export function dealFacts(page: Page): Locator {
+  return page.getByTestId("deal-facts");
+}
+
+/** Open the "Details" note on the verdict card's action area, where a closed deal says what its ending means. */
+export async function openEndingNote(page: Page): Promise<void> {
+  const note = page.getByTestId("ending-note");
+  if ((await note.count()) === 0) return;
+  await note.locator("summary").click();
 }
 
 /** Press a button in the "Next step" panel, where the transition-table moves live. */
