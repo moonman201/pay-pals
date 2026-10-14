@@ -4,7 +4,7 @@ import Link from "next/link";
 import { DealSteps } from "@/components/landing/DealSteps";
 import { HeroHeadline } from "@/components/landing/HeroHeadline";
 import { HowItsBuilt } from "@/components/landing/HowItsBuilt";
-import { ProtectionPanel } from "@/components/landing/ProtectionPanel";
+import { StartProtected } from "@/components/landing/StartProtected";
 import { ScenarioCard } from "@/components/landing/ScenarioCard";
 import { PalAvatar } from "@/components/pal/PalAvatar";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
@@ -62,7 +62,8 @@ export default async function HomePage() {
               </span>
               What Pay Pals does
             </summary>
-            <p className="text-base leading-relaxed text-muted">
+            <p className="text-base font-semibold text-[var(--accent-ink)]">Two AI agents. One safe deal.</p>
+            <p className="mt-1 text-base leading-relaxed text-muted">
               Buying from a stranger on an online marketplace. Your Buyer Pal vets the listing. The seller&apos;s pal locks the exact item into a PayPal Goods and Services payment.
               Both keep proof until it arrives.
             </p>
@@ -77,21 +78,11 @@ export default async function HomePage() {
               </li>
             </ul>
           </details>
+          <StartProtected />
         </div>
       </header>
 
-      <section className="mx-auto mt-10 max-w-2xl sm:mt-14">
-        <ProtectionPanel />
-      </section>
-
-      <section className="mt-12 sm:mt-16" aria-labelledby="how-title">
-        <h2 id="how-title" className="text-xl font-bold text-navy">
-          How a deal goes
-        </h2>
-        <DealSteps />
-      </section>
-
-      <section className="mt-12 sm:mt-16" aria-labelledby="demo-title">
+      <section className="mt-10 sm:mt-14" aria-labelledby="demo-title">
         <div className="flex flex-wrap items-end justify-between gap-2">
           <div>
             <h2 id="demo-title" className="text-2xl font-bold text-navy">
@@ -105,6 +96,13 @@ export default async function HomePage() {
             <ScenarioCard key={f.id} fixture={f} hasFinishedDeal={Boolean(seeded[f.id])} path={f.id === "clean-ps5" ? cleanPath : undefined} />
           ))}
         </div>
+      </section>
+
+      <section className="mt-12 sm:mt-16" aria-labelledby="how-title">
+        <h2 id="how-title" className="text-xl font-bold text-navy">
+          How a deal goes
+        </h2>
+        <DealSteps />
       </section>
 
       <HowItsBuilt />

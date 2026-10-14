@@ -17,7 +17,7 @@ export const BUILT_WITH: { id: string; short: string; line: string; backedBy: st
   { id: "claude", short: "Claude", line: "Claude runs both pals.", backedBy: "packages/agents/src/claude/" },
   { id: "channel3", short: "Channel3", line: "Channel3 for retail prices.", backedBy: "packages/agents/src/price/channel3-api.ts" },
   { id: "psa", short: "Demo PSA record", line: "Cert check against a demo PSA record. It is labelled demo wherever it shows.", backedBy: "packages/agents/src/cert/fixture-lookup.ts" },
-  { id: "chain", short: "Hash-chained history", line: "Tamper-evident history. Each event is hash-chained, and the chain head goes into the order's custom_id.", backedBy: "packages/contracts/src/history.ts, apps/web/lib/deal/flows/pay.ts" },
+  { id: "chain", short: "Tamper-proof history", line: "Tamper-evident history. Each event is hash-chained, and the chain head goes into the order's custom_id.", backedBy: "packages/contracts/src/history.ts, apps/web/lib/deal/flows/pay.ts" },
 ];
 
 export function HowItsBuilt() {

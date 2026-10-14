@@ -69,6 +69,8 @@ export interface BuyerFirstInput {
 export async function startBuyerFirst(page: Page, input: BuyerFirstInput): Promise<string> {
   await page.goto("/");
   await waitForHydration(page);
+  // 2026-10-14: the form is folded behind one button, "Start a protected deal", and opens in place.
+  await page.getByTestId("start-protected").click();
   const form = page.getByRole("form", { name: "Use Pay Pals Protection" });
   await expect(form).toBeVisible();
   await form.getByLabel("Seller's PayPal email").fill(input.sellerEmail);

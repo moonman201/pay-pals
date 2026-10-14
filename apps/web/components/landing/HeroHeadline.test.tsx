@@ -3,16 +3,19 @@ import { describe, expect, it } from "vitest";
 import { HeroHeadline } from "./HeroHeadline";
 
 describe("HeroHeadline", () => {
-  it("leads with the buyer's question, word for word", () => {
+  it("leads with Matt's line, word for word", () => {
     render(<HeroHeadline />);
-    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
-      "Buying a $400 console or a $2,000 card from a stranger? Pay Pals checks the photos, the cert and the chat before you pay.",
-    );
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Don't get scammed buying from strangers.");
   });
 
-  it("keeps the old headline as a smaller line under it, not as a second heading", () => {
+  it("says what the pals do in one small line under it, not as a second heading", () => {
     render(<HeroHeadline />);
-    expect(screen.getByText("Two AI agents. One safe deal.").tagName).toBe("P");
+    expect(screen.getByText("Two AI pals check the photos, the cert and the chat before you pay.").tagName).toBe("P");
     expect(screen.getAllByRole("heading")).toHaveLength(1);
+  });
+
+  it('keeps "Two AI agents. One safe deal." out of the hero', () => {
+    const { container } = render(<HeroHeadline />);
+    expect(container.textContent).not.toContain("One safe deal");
   });
 });

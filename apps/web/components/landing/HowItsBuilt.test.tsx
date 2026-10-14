@@ -27,6 +27,13 @@ describe("HowItsBuilt", () => {
     expect(text).toMatch(/dispute webhook/);
   });
 
+  it("calls the history chip Tamper-proof history, and the line behind it still says what is true", () => {
+    const chain = BUILT_WITH.find((b) => b.id === "chain")!;
+    expect(chain.short).toBe("Tamper-proof history");
+    expect(chain.line).toMatch(/hash-chained/);
+    expect(chain.line).toMatch(/chain head goes into the order's custom_id/);
+  });
+
   it("labels the PSA check as a demo record", () => {
     expect(BUILT_WITH.find((b) => b.id === "psa")!.line).toMatch(/demo PSA record/);
   });
