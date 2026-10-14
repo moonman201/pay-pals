@@ -1,34 +1,41 @@
 /**
- * The three short reasons on the verdict card, each a few words with the full sentence behind it.
+ * The short reasons on the verdict card, each a few words with the pal's own evidence behind it.
  *
- * Nothing here is a new finding. A chip is either one of the pal's flags (worst first, its own
- * explanation and evidence behind it) or a plain restatement of a fact already on the page: the
- * cert record agreed, the serial matched the box, the price sat inside the range. A card with no
- * flags and none of those facts says "No red flags", which is what the review says.
+ * A chip exists only because the pal produced something for it. There are exactly three sources:
  *
- * Every sentence that used to be a bullet in the review is still reachable: a flag chip carries the
- * pal's explanation and its evidence quote, and a fact chip carries the sentence it summarises.
+ *   flag    one of the verdict's red flags, worst first with a stop always ahead of a caution
+ *           (ties keep the order the pal raised them in). Its explanation and evidence ride along.
+ *   cert    the grader comparison, when one ran (certCheck.matches is true or false, not null).
+ *   price   where the ask sits against the price check's own range, when a usable check exists and
+ *           the card is not graded. It is priceStance(), which mirrors the agents' price position.
+ *
+ * Nothing is a filler. A deal with no flags, no cert comparison and no usable price result has no
+ * chips, and the card says so with nothing at all rather than "No red flags" or "Serial matches".
+ * lib/deal/verdict-chips.test.ts holds every chip of every scenario to one of the three sources.
  */
-import { isGradedCard } from "./graded-price";
-import { boxSerialLabel, boxSerialStatus } from "./box-serial";
-import { certHeadline } from "./cert-copy";
-import { hasUsableRange, priceRangeLine } from "./price-copy";
+import type { CertCheck, ItemCard, RedFlag, RedFlagCode, Verdict } from "@pay-pals/contracts";
+import { priceStance, type PriceStance } from "./price-stance";
 import { reasonFor } from "./review-lead";
-import type { ItemCard, RedFlag, RedFlagCode, Verdict } from "@pay-pals/contracts";
 
 export type ChipTone = "go" | "caution" | "stop";
+export type ChipKind = "flag" | "cert" | "price";
 
 export interface VerdictChip {
   id: string;
-  /** A few words. Never more than three. */
+  kind: ChipKind;
+  /** A few words. */
   label: string;
   tone: ChipTone;
   /** The sentence behind the chip. For a flag, the pal's own explanation in full. */
   detail: string;
-  /** The quote a stop or caution flag rests on, shown with the detail. */
+  /** The quote a flag rests on, shown with the detail. */
   evidence: string | null;
-  /** The cert chip offers the table. */
-  opensCertTable: boolean;
+  /** Set on the flag chip only: which rule raised it, so a test can match the chip to the verdict. */
+  flagCode: RedFlagCode | null;
+  /** Set on a cert chip: the comparison that ran. */
+  cert: CertCheck | null;
+  /** Set on a price chip: the stance, from the real price check. */
+  price: PriceStance | null;
 }
 
 const FLAG_CHIP_LABELS: Readonly<Record<RedFlagCode, string>> = {
@@ -55,50 +62,41 @@ export function flagChipLabel(code: RedFlagCode): string {
   return FLAG_CHIP_LABELS[code];
 }
 
+const blank = { evidence: null, flagCode: null, cert: null, price: null } as const;
+
 function flagChips(verdict: Verdict): VerdictChip[] {
   return [...verdict.flags]
     .map((flag, i) => ({ flag, i }))
     .sort((a, b) => SEVERITY_ORDER[a.flag.severity] - SEVERITY_ORDER[b.flag.severity] || a.i - b.i)
     .slice(0, MOST_CHIPS)
     .map(({ flag }, i) => ({
+      ...blank,
       id: `flag-${flag.code}-${i}`,
+      kind: "flag" as const,
       label: flagChipLabel(flag.code),
       tone: SEVERITY_TONE[flag.severity],
       // The pal's own full explanation. reasonFor() would swap in a fallback line for a long one.
       detail: flag.explanation.trim() || reasonFor(flag),
       evidence: flag.evidence ?? null,
-      opensCertTable: flag.code === "CERT_MISMATCH",
+      flagCode: flag.code,
     }));
 }
 
-function factChips(verdict: Verdict, card: ItemCard | null, taken: ReadonlySet<string>): VerdictChip[] {
-  const out: VerdictChip[] = [];
-  if (verdict.flags.length === 0) {
-    out.push({ id: "fact-no-flags", label: "No red flags", tone: "go", detail: verdict.reasoning?.found[0] ?? "The Buyer Pal found nothing to flag.", evidence: null, opensCertTable: false });
-  }
-  if (verdict.certCheck && verdict.certCheck.matches === true && !taken.has("Cert mismatch")) {
-    out.push({ id: "fact-cert", label: "Cert on record", tone: "go", detail: certHeadline(verdict.certCheck), evidence: null, opensCertTable: true });
-  }
-  if (card && card.serial && card.boxSerial) {
-    const status = boxSerialStatus(card);
-    if (status === "match") out.push({ id: "fact-serial", label: "Serial matches box", tone: "go", detail: `The serial on the box label ${boxSerialLabel(card)}.`, evidence: null, opensCertTable: false });
-    if (status === "mismatch" && !taken.has("Cert mismatch")) out.push({ id: "fact-serial", label: "Serial mismatch", tone: "stop", detail: `The serial on the box label ${boxSerialLabel(card)}.`, evidence: null, opensCertTable: false });
-  }
-  const check = verdict.priceCheck;
-  if (card && !isGradedCard(card) && hasUsableRange(check) && !taken.has("Price too low")) {
-    const asking = card.askingPrice;
-    const inside = asking >= check.marketLow && asking <= check.marketHigh;
-    if (inside) out.push({ id: "fact-price", label: "Price in range", tone: "go", detail: `The $${asking} ask sits inside the range. ${priceRangeLine(check)}.`, evidence: null, opensCertTable: false });
-    else if (asking < check.marketLow) out.push({ id: "fact-price", label: "Price below range", tone: "caution", detail: `The $${asking} ask is under the range. ${priceRangeLine(check)}.`, evidence: null, opensCertTable: false });
-    else out.push({ id: "fact-price", label: "Price above range", tone: "caution", detail: `The $${asking} ask is over the range. ${priceRangeLine(check)}.`, evidence: null, opensCertTable: false });
-  }
-  return out;
-}
-
-/** At most three chips: the worst flags first, then plain facts to fill the row. */
+/** At most three chips, each from a flag, a cert comparison that ran, or the price check's own range. */
 export function verdictChips(verdict: Verdict, card: ItemCard | null): VerdictChip[] {
-  const flags = flagChips(verdict);
-  const taken = new Set(flags.map((c) => c.label));
-  const facts = factChips(verdict, card, taken);
-  return [...flags, ...facts].slice(0, MOST_CHIPS);
+  const chips = flagChips(verdict);
+  const hasFlag = (code: RedFlagCode) => verdict.flags.some((f) => f.code === code);
+
+  const cert = verdict.certCheck;
+  if (cert && cert.matches === true) {
+    chips.push({ ...blank, id: "cert", kind: "cert", label: "Cert on record", tone: "go", detail: "", cert });
+  } else if (cert && cert.matches === false && !hasFlag("CERT_MISMATCH")) {
+    chips.push({ ...blank, id: "cert", kind: "cert", label: "Cert mismatch", tone: "stop", detail: "", cert });
+  }
+
+  // A price flag already says it, and a graded card gets no price stance at all.
+  const stance = hasFlag("PRICE_FAR_BELOW_MARKET") ? null : priceStance(verdict.priceCheck, card);
+  if (stance) chips.push({ ...blank, id: "price", kind: "price", label: stance.label, tone: stance.tone, detail: stance.sentence, price: stance });
+
+  return chips.slice(0, MOST_CHIPS);
 }
