@@ -63,14 +63,16 @@ function Note({ note }: { note: StatusNote }) {
  * review panel already prints are counted and linked instead of repeated,
  * and trailing stages nobody reached collapse to one line.
  */
-export function StatusView({ groups, deal }: { groups: readonly StatusGroup[]; deal: Pick<Deal, "state"> }) {
+export function StatusView({ groups, deal, lead = null }: { groups: readonly StatusGroup[]; deal: Pick<Deal, "state">; lead?: React.ReactNode }) {
   const { shown, skipped } = splitUnreached(groups, deal);
   // Counted over what is on the page, so the chips and the rows can always be reconciled by eye.
   const counts = countStatuses(shown);
   return (
     <Panel
       title="Deal status"
+      id="deal-status"
       accent
+      fold={{ count: counts.flagged + counts.verified + counts.unverified + counts.missing, unit: "checks" }}
       aside={
         <span className="flex min-w-0 flex-wrap gap-1" data-testid="status-counts">
           {ORDER.map((status) =>
@@ -83,6 +85,7 @@ export function StatusView({ groups, deal }: { groups: readonly StatusGroup[]; d
         </span>
       }
     >
+      {lead ? <div className="mb-4">{lead}</div> : null}
       <p className="rounded-lg bg-wash p-3 text-xs leading-relaxed text-muted" data-testid="status-legend">
         {STATUS_LEGEND}
       </p>

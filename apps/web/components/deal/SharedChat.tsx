@@ -16,15 +16,16 @@ interface Props {
   role: Role;
   messages: Message[];
   onSend: (text: string) => void;
+  flat?: boolean;
 }
 
 /** The chat both people see. Pals post here too when they have something for the other side. */
-export function SharedChat({ deal, role, messages, onSend }: Props) {
+export function SharedChat({ deal, role, messages, onSend, flat = false }: Props) {
   const [text, setText] = useState("");
   const closed = isTerminal(deal.state);
 
   return (
-    <Panel title="Deal chat" aside={<span className="text-xs text-muted">both sides see this</span>}>
+    <Panel title="Deal chat" flat={flat} aside={<span className="text-xs text-muted">both sides see this</span>}>
       {messages.length === 0 ? <p className="text-sm text-muted">No messages yet.</p> : null}
       <ol className="space-y-2">
         {messages.map((m) => {

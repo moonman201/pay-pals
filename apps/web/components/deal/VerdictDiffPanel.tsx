@@ -60,7 +60,7 @@ export function VerdictDiffPanel({ diff }: { diff: VerdictDiff }) {
   const cleared = new Set(diff.cleared.map((f) => f.code));
   const appeared = new Set(diff.appeared.map((f) => f.code));
   return (
-    <Panel title="The review, before and after new evidence">
+    <Panel title="What changed" fold={{}}>
       <div className="flex gap-3">
         <PalAvatar pal="buyer" size={32} className="mt-0.5 shrink-0" />
         <p className="text-sm leading-relaxed text-ink">

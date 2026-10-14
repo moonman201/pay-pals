@@ -43,7 +43,7 @@ export function OffPlatformStep({ dealId, onDone, rulePrinted = false }: { dealI
 
   return (
     <div id="step-off-platform">
-      <Panel title="Paying another way" labelAs="region">
+      <Panel title="Paying another way" fold={{}}>
         {/*
           The first line is the Goods and Services rule, which the Next step
           panel states in its own words on a blocked deal. Said once per page

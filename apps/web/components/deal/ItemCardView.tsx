@@ -22,6 +22,8 @@ interface Props {
   dealId?: string | null;
   /** Whose room this is. The caveat is said to the seller as "you". */
   role?: "buyer" | "seller";
+  /** Fold the panel. Open while the card can still change, because its versions are the thing being read. */
+  foldOpen?: boolean;
 }
 
 const CERT_TONE: Record<CertTone, string> = { go: "text-go", stop: "text-stop", muted: "text-muted" };
@@ -59,7 +61,7 @@ function OrderText({ card, dealId }: { card: ItemCard; dealId: string | null }) 
 const NUMBER_CAVEAT = "A matching serial or cert number supports the listing. It is not a check that the seller owns the item, and not a check that the item is genuine.";
 
 /** The item card. Shows every version until the lock, then only the locked one, styled as the fixed record it has become. */
-export function ItemCardView({ cards, currentVersion, lockedVersion, certCheck = null, dealId = null, role = "buyer" }: Props) {
+export function ItemCardView({ cards, currentVersion, lockedVersion, certCheck = null, dealId = null, role = "buyer", foldOpen = false }: Props) {
   const [selected, setSelected] = useState<number>(lockedVersion ?? currentVersion);
   // A new version arrived (the seller saved one, and the page refreshed in place). Follow it, or the
   // card keeps showing the old version while the status beside it already reads the new one.
@@ -78,7 +80,9 @@ export function ItemCardView({ cards, currentVersion, lockedVersion, certCheck =
   return (
     <Panel
       title="Item card"
-      className={locked ? "motion-lock ring-2 ring-[var(--accent)]" : ""}
+      id="item-card"
+      fold={{ count: card.photos.length, unit: "photos", defaultOpen: foldOpen }}
+      className={locked ? "motion-lock" : ""}
       aside={
         locked ? (
           <Badge tone="accent" className="gap-1.5 py-1" data-testid="lock-badge">

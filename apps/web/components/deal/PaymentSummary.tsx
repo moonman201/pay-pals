@@ -37,7 +37,7 @@ export function PaymentSummary({ payment, read, record, dealId, events }: Props)
   const captured = payment.status === "CAPTURED";
   const approve = approveLink(payment);
   return (
-    <Panel title="Payment" aside={<Badge tone={captured ? "go" : payment.status === "FAILED" ? "stop" : "neutral"}>{payment.status.toLowerCase()}</Badge>}>
+    <Panel title="Payment" fold={{}} aside={<Badge tone={captured ? "go" : payment.status === "FAILED" ? "stop" : "neutral"}>{payment.status.toLowerCase()}</Badge>}>
       {approve ? (
         <p className="mb-3 text-sm">
           The order is waiting for the buyer&apos;s approval.{" "}
