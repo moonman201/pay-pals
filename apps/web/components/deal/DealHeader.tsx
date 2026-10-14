@@ -44,8 +44,10 @@ export function DealHeader({ snapshot, role }: { snapshot: DealSnapshot; role: R
           <span className="sr-only">Pay Pals</span>
         </Link>
         <nav className="no-print -mr-2 flex items-center text-xs font-semibold text-[var(--accent-ink)]">
-          <Link href={`/deals/${deal.id}?as=${other}`} className={NAV_LINK}>
-            View as {other}
+          {/* The other side's pal, as the way to switch. Its name is in the link for a screen reader and the tooltip. */}
+          <Link href={`/deals/${deal.id}?as=${other}`} className={`${NAV_LINK} gap-1.5`} title={`View as ${other}`}>
+            <PalAvatar pal={other} size={24} />
+            <span className="sr-only">View as {other}</span>
           </Link>
           {!isTerminal(deal.state) ? (
             <button type="button" onClick={() => setShowLinks((v) => !v)} className={NAV_LINK}>
@@ -62,8 +64,7 @@ export function DealHeader({ snapshot, role }: { snapshot: DealSnapshot; role: R
           <h1 className="text-xl font-bold leading-tight text-ink">{glanceTitle(currentCard)}</h1>
           <p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted">
             <PalAvatar pal={role} size={16} />
-            <span className="sr-only">You are the </span>
-            <span className="capitalize">{role}</span>
+            <span className="sr-only">You are the {role}</span>
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">

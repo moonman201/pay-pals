@@ -50,7 +50,8 @@ function visibleWordsInPage(firstScreenOnly: boolean): string[] {
     const rects = Array.from(range.getClientRects()).filter((r) => r.width > 1 && r.height > 1);
     if (rects.length === 0) continue;
     if (firstScreenOnly && !rects.some((r) => r.bottom > 0 && r.top < vh && r.right > 0 && r.left < vw)) continue;
-    out.push(...text.split(/\s+/).filter(Boolean));
+    // A word has a letter or a digit in it. A bare arrow, comma or full stop is not one.
+    out.push(...text.split(/\s+/).filter((w) => /[\p{L}\p{N}]/u.test(w)));
   }
   return out;
 }
