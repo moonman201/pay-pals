@@ -22,6 +22,7 @@ function stateTone(state: DealSnapshot["deal"]["state"]): "accent" | "go" | "sto
 }
 
 const NAV_LINK = "inline-flex min-h-11 items-center px-2 underline-offset-2 hover:underline";
+const SWITCH_LINK = "inline-flex min-h-11 min-w-11 items-center justify-center gap-1.5 px-2";
 
 /**
  * The first line of the room: where you are, the item's short name and the deal's state, in as few
@@ -45,7 +46,7 @@ export function DealHeader({ snapshot, role }: { snapshot: DealSnapshot; role: R
         </Link>
         <nav className="no-print -mr-2 flex items-center text-xs font-semibold text-[var(--accent-ink)]">
           {/* The other side's pal, as the way to switch. Its name is in the link for a screen reader and the tooltip. */}
-          <Link href={`/deals/${deal.id}?as=${other}`} className={`${NAV_LINK} gap-1.5`} title={`View as ${other}`}>
+          <Link href={`/deals/${deal.id}?as=${other}`} className={SWITCH_LINK} title={"View as " + other}>
             <PalAvatar pal={other} size={24} />
             <span className="sr-only">View as {other}</span>
           </Link>

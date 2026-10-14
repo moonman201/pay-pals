@@ -57,8 +57,9 @@ describe("priceStance", () => {
 
   it("never invents a price for a graded card, whatever the check returned", () => {
     const slab = fakeSlab.cards[fakeSlab.cards.length - 1]!;
-    expect(fakeSlab.marketPrice.marketLow).toBeGreaterThan(0);
-    expect(priceStance(fakeSlab.marketPrice, slab)).toBeNull();
+    // The slab fixture carries no range now (F14); give the check one anyway, which is the case being guarded.
+    const returned = { ...cleanPs5.marketPrice, marketLow: 305, marketHigh: 493 };
+    expect(priceStance(returned, slab)).toBeNull();
   });
 
   it("says nothing without a usable price result", () => {
