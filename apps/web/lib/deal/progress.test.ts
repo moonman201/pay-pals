@@ -1,6 +1,6 @@
 import type { DealEvent, DealEventKind } from "@pay-pals/contracts";
 import { describe, expect, it } from "vitest";
-import { dealProgress, PROGRESS_STEPS } from "./progress";
+import { progressStatusText, SEGMENT_LABELS, dealProgress, PROGRESS_STEPS } from "./progress";
 
 const ev = (kind: DealEventKind): DealEvent =>
   ({ id: kind, dealId: "d", kind, actor: "system", summary: kind, at: "2026-10-01T00:00:00.000Z", prevHash: null, hash: "0".repeat(64) }) as DealEvent;
@@ -94,5 +94,24 @@ describe("a deal the buyer took off Pay Pals", () => {
     expect(dealProgress("BLOCKED", [ev("review_posted")]).end).toEqual({ kind: "blocked", label: "Blocked" });
     expect(dealProgress("ISSUE", [ev("delivered")]).end).toEqual({ kind: "issue", label: "Issue open" });
     expect(dealProgress("AGREED", []).end).toBeNull();
+  });
+});
+
+describe("progressStatusText", () => {
+  it("says where a deal stopped, in words", () => {
+    expect(progressStatusText(dealProgress("BLOCKED", [ev("seller_invited"), ev("card_updated"), ev("review_posted")]))).toBe("Stopped at Reviewed");
+    expect(progressStatusText(dealProgress("ISSUE", [ev("arrival_checked")]))).toBe("Issue at Arrived");
+    expect(progressStatusText(dealProgress("CANCELLED", [ev("seller_invited"), ev("card_updated")]))).toBe("Cancelled at Card");
+  });
+
+  it("names the last step reached while a deal is moving, and that it is finished when it is", () => {
+    expect(progressStatusText(dealProgress("PAID", []))).toBe("Paid");
+    expect(progressStatusText(dealProgress("REVIEWED", []))).toBe("Reviewed");
+    expect(progressStatusText(dealProgress("COMPLETE", []))).toBe("Arrived");
+    expect(progressStatusText(dealProgress("DRAFT", []))).toBe("Not started");
+  });
+
+  it("labels all seven segments", () => {
+    expect(Object.values(SEGMENT_LABELS)).toEqual(["Invited", "Card", "Reviewed", "Agreed", "Paid", "Shipped", "Arrived"]);
   });
 });

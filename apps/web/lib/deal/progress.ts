@@ -109,3 +109,37 @@ export function dealProgress(state: DealState, events: readonly DealEvent[]): Pr
   const keep = end ? Math.max(doneCount, 1) : all.length;
   return { steps: all.slice(0, keep), notReached: all.slice(keep).map((step) => step.label), end, complete: doneCount >= PROGRESS_STEPS.length };
 }
+
+/** The one-word names for the bar's segments: the same seven steps as the full stepper, short enough for a phone. */
+export const SEGMENT_LABELS: Readonly<Record<ProgressStepId, string>> = {
+  invited: "Invited",
+  card: "Card",
+  reviewed: "Reviewed",
+  locked: "Agreed",
+  paid: "Paid",
+  shipped: "Shipped",
+  arrived: "Arrived",
+};
+
+/**
+ * Where the deal stands, in words, for the text beside the progress bar and for screen readers.
+ * The last step reached, or how the deal ended and where: "Reviewed", "Stopped at Reviewed",
+ * "Issue at Arrived", "Cancelled at Card". Colour alone never carries it.
+ */
+export function progressStatusText(progress: Progress): string {
+  const done = progress.steps.filter((s) => s.status === "done");
+  const last = done.length > 0 ? SEGMENT_LABELS[done[done.length - 1]!.id] : null;
+  const at = (lead: string) => (last ? `${lead} at ${last}` : lead);
+  switch (progress.end?.kind) {
+    case "blocked":
+      return at("Stopped");
+    case "issue":
+      return at("Issue");
+    case "cancelled":
+      return at("Cancelled");
+    case "off_platform":
+      return "Paying another way";
+    default:
+      return last ?? "Not started";
+  }
+}

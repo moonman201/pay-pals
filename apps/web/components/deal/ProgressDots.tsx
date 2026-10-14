@@ -1,31 +1,43 @@
 import type { DealEvent, DealState } from "@pay-pals/contracts";
-import { dealProgress, PROGRESS_LABELS, PROGRESS_STEPS } from "@/lib/deal/progress";
+import { dealProgress, progressStatusText, PROGRESS_STEPS, SEGMENT_LABELS } from "@/lib/deal/progress";
 
 /**
- * Seven dots for where the deal stands, with no words on screen: the full stepper, with every step
- * named and the steps a deal will never reach, is in the Deal status section. A screen reader gets one
- * sentence ("Step 3 of 7, Reviewed. Blocked.") and a sighted reader gets the same through the title.
+ * Seven labelled segments and the status in words next to them: "Stopped at Reviewed", "Paid",
+ * "Issue at Arrived". Colour is never the only carrier. Every segment is named (Invited, Card,
+ * Reviewed, Agreed, Paid, Shipped, Arrived) in its tooltip and for a screen reader, with whether it is
+ * done, current or not reached, and a done segment is solid while an unreached one is hollow, so the
+ * bar reads in greyscale too. The one line of visible text is what keeps the first screen short; the
+ * full stepper, with every step spelled out, is in the Deal status section.
  */
 export function ProgressDots({ state, events }: { state: DealState; events: readonly DealEvent[] }) {
   const progress = dealProgress(state, events);
-  const doneCount = progress.steps.filter((s) => s.status === "done").length;
-  const current = progress.steps.find((s) => s.status === "current");
-  const reached = doneCount === 0 ? "Not started" : `${PROGRESS_LABELS[progress.steps[Math.max(doneCount - 1, 0)]!.id]} done`;
-  const sentence = `${current ? `Step ${doneCount + 1} of ${PROGRESS_STEPS.length}, ${current.label}` : `${doneCount} of ${PROGRESS_STEPS.length} steps, ${reached}`}${progress.end ? `. ${progress.end.label}.` : "."}`;
+  const status = progressStatusText(progress);
   const tone = progress.end?.kind === "blocked" ? "bg-stop" : progress.end ? "bg-caution" : "bg-[var(--accent)]";
   return (
-    <div role="img" aria-label={sentence} title={sentence} data-testid="progress-dots" className="flex items-center gap-1.5">
-      {PROGRESS_STEPS.map((id, i) => {
-        const done = i < doneCount;
-        const isCurrent = current?.id === id;
-        return (
-          <span
-            key={id}
-            aria-hidden
-            className={`h-2 flex-1 rounded-full ${done ? tone : isCurrent ? "bg-[var(--accent-soft)] ring-2 ring-[var(--accent)]" : "bg-line"}`}
-          />
-        );
-      })}
+    <div className="flex items-center gap-3" data-testid="progress-dots" role="group" aria-label={`Deal progress: ${status}`}>
+      <ol className="m-0 flex min-w-0 flex-1 list-none items-center gap-1.5 p-0">
+        {PROGRESS_STEPS.map((id) => {
+          const step = progress.steps.find((s) => s.id === id);
+          const stepStatus = step?.status ?? "upcoming";
+          const word = stepStatus === "done" ? "done" : stepStatus === "current" ? "current" : "not reached";
+          return (
+            <li
+              key={id}
+              title={`${SEGMENT_LABELS[id]}, ${word}`}
+              data-status={stepStatus}
+              aria-current={stepStatus === "current" ? "step" : undefined}
+              className={`h-2.5 flex-1 rounded-full ${stepStatus === "done" ? tone : stepStatus === "current" ? "border-2 border-[var(--accent)] bg-[var(--accent-soft)]" : "border border-dashed border-muted bg-transparent"}`}
+            >
+              <span className="sr-only">
+                {SEGMENT_LABELS[id]}, {word}
+              </span>
+            </li>
+          );
+        })}
+      </ol>
+      <p className="shrink-0 text-xs font-bold text-ink" data-testid="progress-status">
+        {status}
+      </p>
     </div>
   );
 }
