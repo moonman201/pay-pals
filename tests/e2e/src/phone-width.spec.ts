@@ -18,6 +18,9 @@ test.describe("phone width", () => {
     expect(testInfo.project.use.viewport?.width, "run this spec through the phone project").toBe(390);
 
     await page.goto("/");
+    // 2026-10-14: the protection form is folded behind one button and opens in place.
+    await expect(page.getByRole("form", { name: "Use Pay Pals Protection" })).toHaveCount(0);
+    await page.getByTestId("start-protected").click();
     const protection = page.getByRole("form", { name: "Use Pay Pals Protection" });
     await expect(protection).toBeVisible();
     await expect(protection.getByLabel("Seller's PayPal email")).toBeVisible();

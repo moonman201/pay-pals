@@ -41,7 +41,9 @@ test.describe("fake slab stopped", () => {
     const flags = review.getByRole("list", { name: "Red flags" }).getByRole("listitem");
     // One payment flag that quotes the seller once (review item 6), marked as not overridable (item 13 wording).
     await expect(flags.filter({ hasText: /friends and family/i }).filter({ hasText: /no override/i })).toHaveCount(1);
-    await expect(flags.filter({ hasText: /below market/i })).toHaveCount(1);
+    // 2026-10-14: a graded card has no market price (F14), so the review raises no price flag on it. The
+    // expectation that it raised one came from a fixture range that no longer exists.
+    await expect(flags.filter({ hasText: /below market/i })).toHaveCount(0);
     await expect(flags.filter({ hasText: /pressure|urgen/i }).first()).toBeVisible();
     // The listing photo is byte-identical to the one in the reference folder. This went dead once,
     // with NEXT_PUBLIC_APP_URL unset (this environment), and nothing noticed.

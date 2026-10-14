@@ -107,6 +107,65 @@ test.describe("word budgets and folds", () => {
     await expect(page.getByTestId("order-text")).toContainText("On the PayPal order");
   });
 
+  test("landing: Matt's hero line, the demo cards under it, and the protection form folded behind one button", async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("/");
+    await waitForHydration(page);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Don't get scammed buying from strangers.");
+    await expect(page.getByText("Two AI pals check the photos, the cert and the chat before you pay.")).toBeVisible();
+    const demo = await page.getByRole("heading", { name: "Try a demo deal" }).boundingBox();
+    const how = await page.getByRole("heading", { name: "How a deal goes" }).boundingBox();
+    const hero = await page.getByRole("heading", { level: 1 }).boundingBox();
+    expect(demo!.y, "the demo cards come right after the hero").toBeGreaterThan(hero!.y);
+    expect(demo!.y, "and before how a deal goes").toBeLessThan(how!.y);
+    await expect(page.getByRole("form", { name: "Use Pay Pals Protection" })).toHaveCount(0);
+    await page.getByRole("button", { name: "Start a protected deal" }).click();
+    await expect(page.getByRole("form", { name: "Use Pay Pals Protection" })).toBeVisible();
+    await expect(page.getByTestId("built-chain")).toHaveText("Tamper-proof history");
+  });
+
+  test("the stolen-photo room: the stop flag leads, no price chip, no empty band, Never locked, the status in words", async ({ page }) => {
+    await openFinished(page, fakeSlab);
+    const chips = page.getByTestId("verdict-chip");
+    await expect(chips.first()).toHaveAttribute("data-tone", "stop");
+    await expect(chips.first()).toHaveAttribute("data-kind", "flag");
+    expect(await chips.evaluateAll((els) => els.map((e) => e.getAttribute("data-kind")))).not.toContain("price");
+    await expect(page.getByTestId("price-line-card")).toHaveCount(0);
+    await expect(page.getByTestId("glance-version")).toHaveText("Never locked");
+    await expect(page.getByTestId("progress-status")).toHaveText("Stopped at Reviewed");
+    // The card closes the gap: it ends where its content ends, not where the item card ends.
+    const verdict = await page.getByTestId("verdict").boundingBox();
+    const glance = await page.getByTestId("item-glance").boundingBox();
+    expect(verdict!.height).toBeLessThan(glance!.height);
+  });
+
+  for (const [fixture, status] of [
+    [cleanPs5, "Arrived"],
+    [emptyBox, "Issue at Arrived"],
+  ] as const) {
+    test(`${fixture.id}: the price line is on the first screen, from the real price check`, async ({ page }) => {
+      await page.setViewportSize({ width: 1280, height: 800 });
+      await openFinished(page, fixture);
+      const line = page.getByTestId("price-line-card");
+      await expect(line).toBeVisible();
+      await expect(line).toContainText(/Asking \$\d+\.\d\d, new at retail \$499\.00, demo prices\./);
+      await expect(line.getByText("Show the listings")).toBeVisible();
+      await expect(page.getByTestId("verdict-chip").filter({ hasText: "Fair used price" })).toBeVisible();
+      await expect(page.getByTestId("progress-status")).toHaveText(status);
+      // One tap on the price chip opens the same line, in place, under the chips.
+      await page.getByTestId("verdict-chip").filter({ hasText: "Fair used price" }).click();
+      await expect(page.getByTestId("price-line-chip")).toBeVisible();
+    });
+  }
+
+  test("every segment of the progress bar is named, and the status is not colour alone", async ({ page }) => {
+    await openFinished(page, cleanPs5);
+    const segments = page.getByTestId("progress-dots").getByRole("listitem");
+    await expect(segments).toHaveCount(7);
+    expect((await segments.allTextContents()).map((t) => t.split(",")[0])).toEqual(["Invited", "Card", "Reviewed", "Agreed", "Paid", "Shipped", "Arrived"]);
+    await expect(page.getByTestId("progress-dots")).toHaveAccessibleName(/Deal progress: Arrived/);
+  });
+
   test("a finished room works at 390 px: no sideways scroll, every tap target at least 44 px", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     for (const fixture of ALL_FIXTURES) {

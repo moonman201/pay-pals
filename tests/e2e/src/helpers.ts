@@ -114,14 +114,24 @@ export async function waitForReviewIdle(page: Page): Promise<void> {
   await page.waitForFunction(() => document.querySelector('[data-review="running"]') === null, undefined, { timeout: PAL_TIMEOUT });
 }
 
-/** The state badge in the deal room header. */
+/**
+ * The state badge in the deal room header.
+ *
+ * 2026-10-14: the progress bar says where the deal stands in words too ("Reviewed", "Paid"), so the same word can
+ * be in the banner twice. The state is the chip, found by its test id.
+ */
+function stateChip(page: Page, label: string): Locator {
+  const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return page.getByRole("banner").getByTestId("state-chip").filter({ hasText: new RegExp("^" + escaped + "$") });
+}
+
 export async function expectState(page: Page, label: string): Promise<void> {
-  await expect(page.getByRole("banner").getByText(label, { exact: true })).toBeVisible();
+  await expect(stateChip(page, label)).toBeVisible();
 }
 
 /** The state badge after a move that waited on a pal. */
 export async function expectStateAfterPal(page: Page, label: string): Promise<void> {
-  await expect(page.getByRole("banner").getByText(label, { exact: true })).toBeVisible({ timeout: PAL_TIMEOUT });
+  await expect(stateChip(page, label)).toBeVisible({ timeout: PAL_TIMEOUT });
 }
 
 /**
