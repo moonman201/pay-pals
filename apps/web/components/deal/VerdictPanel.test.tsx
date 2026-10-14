@@ -247,7 +247,7 @@ describe("VerdictPanel", () => {
     expect(screen.getByText("Why")).toBeInTheDocument();
   });
 
-  it("says a flag's reason once: in the lead when it is already a line, and the card keeps the evidence", () => {
+  it("says a flag's reason once on the card, with its evidence", () => {
     const own = "Wants Friends and Family. That has no buyer protection.";
     const v = verdict({ flags: [{ ...flag("FRIENDS_AND_FAMILY_REQUEST", "stop", own), evidence: 'Seller wrote: "F&F only"' }] });
     render(<VerdictPanel verdict={v} currentVersion={1} locked={false} />);
@@ -306,7 +306,7 @@ describe("VerdictPanel", () => {
     render(<VerdictPanel verdict={v} currentVersion={1} locked={false} />);
     expect(screen.getByTestId("look-again")).toHaveTextContent("I'd look again if The seller agreeing to wait");
     expect(screen.queryByText("What would change my mind")).not.toBeInTheDocument();
-    expect(screen.getByTestId("verdict").textContent?.match(/would change this/g)).toHaveLength(1);
+    expect(document.body.textContent?.match(/would change this/g)).toHaveLength(1);
   });
 
   it("keeps every ask on the page when the lead has room for only two", () => {
@@ -344,61 +344,12 @@ describe("VerdictPanel, the seller's view", () => {
     render(<VerdictPanel verdict={v()} currentVersion={1} locked={false} role="seller" />);
     const line = screen.getByTestId("look-again");
     expect(line).toHaveTextContent("The Buyer Pal would look again if you send a close-up of the serial label on the console or you send the slab next to your name and today's date.");
-    expect(screen.getByTestId("verdict").textContent).not.toMatch(/\b(he|his|him)\b/i);
+    expect(line.textContent).not.toMatch(/\b(he|his|him)\b/i);
   });
 
   it("keeps the buyer's wording for the buyer", () => {
     render(<VerdictPanel verdict={v()} currentVersion={1} locked={false} role="buyer" />);
     expect(screen.getByTestId("look-again")).toHaveTextContent("I'd look again if he sends a close-up");
-  });
-});
-
-describe("VerdictPanel, the lead", () => {
-  it("leads with three words and one line per reason, not a paragraph", () => {
-    const v = verdict({
-      overall: "stop",
-      palMessage: "A long paragraph that used to be the first thing anybody read, and which repeated every flag below it in prose.",
-      flags: [flag("FRIENDS_AND_FAMILY_REQUEST", "stop"), flag("STOCK_OR_REUSED_PHOTO", "caution"), flag("URGENCY_PRESSURE", "caution")],
-    });
-    render(<VerdictPanel verdict={v} currentVersion={1} locked={false} />);
-    expect(screen.getByTestId("verdict-headline")).toHaveTextContent("Stop. Don't pay.");
-    const reasons = within(screen.getByTestId("verdict-reasons")).getAllByRole("listitem");
-    expect(reasons).toHaveLength(3);
-    for (const reason of reasons) expect(reason.textContent!.split(/\s+/).filter(Boolean).length).toBeLessThanOrEqual(13);
-    // The paragraph it replaced is gone from the page.
-    expect(screen.queryByText(/A long paragraph that used to be/)).not.toBeInTheDocument();
-  });
-
-  it("names no more than three reasons however many flags there are, worst first", () => {
-    const v = verdict({
-      overall: "stop",
-      flags: [flag("URGENCY_PRESSURE", "caution"), flag("OTHER", "info"), flag("INVITE_REFUSED", "stop"), flag("MISSING_SERIAL", "caution")],
-    });
-    render(<VerdictPanel verdict={v} currentVersion={1} locked={false} />);
-    const reasons = within(screen.getByTestId("verdict-reasons")).getAllByRole("listitem");
-    expect(reasons).toHaveLength(3);
-    expect(reasons[0]).toHaveTextContent("The seller refused Pay Pals protection.");
-    // The info flag is the one that drops off the end.
-    expect(screen.getByTestId("verdict-reasons")).not.toHaveTextContent("Something else the pal wanted you to see.");
-  });
-
-  it("shows the pal's own sentence as the reason, not a second phrasing of it", () => {
-    const own = "His only photo matches a listing photo already on file.";
-    const v = verdict({ overall: "caution", flags: [flag("STOCK_OR_REUSED_PHOTO", "caution", own)] });
-    render(<VerdictPanel verdict={v} currentVersion={1} locked={false} />);
-    expect(screen.getByTestId("verdict-reasons")).toHaveTextContent(own);
-    // The check is against Pay Pals' own file of photos, so no line may imply a search.
-    expect(screen.getByTestId("verdict-reasons").textContent).not.toMatch(/online|web|internet|searched/i);
-  });
-
-  it("falls back to the pal's own findings when there are no flags to name", () => {
-    const v = verdict({
-      overall: "go",
-      reasoning: { checked: ["The serial."], found: ["The serial matches the box label.", "The price sits inside the range."], couldNotVerify: [], wouldChangeMyMind: [] },
-    });
-    render(<VerdictPanel verdict={v} currentVersion={1} locked={false} />);
-    expect(screen.getByTestId("verdict-headline")).toHaveTextContent("Looks good.");
-    expect(screen.getByTestId("verdict-reasons")).toHaveTextContent("The serial matches the box label.");
   });
 });
 

@@ -2,7 +2,7 @@ import { isPaymentMethodFlag, type ItemCard, type Message, type RedFlag, type Ve
 import { certRows } from "@/lib/deal/cert-compare";
 import { certHeadline, graderName } from "@/lib/deal/cert-copy";
 import { GRADED_PRICE_LINK_LEAD, GRADED_PRICE_NOTE, gradedPriceLinks, isGradedCard } from "@/lib/deal/graded-price";
-import { reviewLead } from "@/lib/deal/review-lead";
+import { reasonFor, reviewLead } from "@/lib/deal/review-lead";
 import { sellerVoice } from "@/lib/deal/seller-voice";
 import { evidenceSourceId } from "@/lib/deal/evidence-source";
 import { flagLabel } from "@/lib/deal/override";
@@ -11,7 +11,7 @@ import { methodNote, priceText, retailRange, summariseSources } from "@/lib/deal
 import { PalAvatar } from "../pal/PalAvatar";
 import { PalWork } from "../pal/PalWork";
 import { Badge, type Tone } from "../ui/Badge";
-import { CautionIcon, CheckIcon, StopIcon } from "../ui/icons";
+import { CheckIcon } from "../ui/icons";
 import { Panel } from "../ui/Panel";
 import { TAP_LINK_WRAPPING } from "../ui/tap";
 import { Comparison } from "./Comparison";
@@ -19,19 +19,7 @@ import { FlagEvidence } from "./FlagEvidence";
 
 const FLAG_TONE: Record<RedFlag["severity"], Tone> = { info: "neutral", caution: "caution", stop: "stop" };
 
-const VERDICT_STYLE: Record<Verdict["overall"], { box: string; word: string }> = {
-  go: { box: "border-go-line bg-go-soft", word: "text-go" },
-  caution: { box: "border-caution-line bg-caution-soft", word: "text-caution" },
-  stop: { box: "border-stop-line bg-stop-soft", word: "text-stop" },
-};
-
-function VerdictIcon({ overall }: { overall: Verdict["overall"] }) {
-  if (overall === "stop") return <StopIcon size={28} strokeWidth={2.5} />;
-  if (overall === "caution") return <CautionIcon size={28} strokeWidth={2.5} />;
-  return <CheckIcon size={28} strokeWidth={3} />;
-}
-
-/** The Buyer Pal's review: verdict, price check, flags with evidence, open questions. */
+/** The detail behind the verdict card: price check, cert comparison, flags with evidence, open questions. */
 interface Props {
   verdict: Verdict;
   currentVersion: number;
@@ -47,9 +35,17 @@ interface Props {
   chat?: readonly Message[];
   /** Whose room this is. The seller is spoken to as "you", never "he" or "the seller". Defaults to the buyer. */
   role?: "buyer" | "seller";
+  /**
+   * Which half to draw. The verdict itself is on the verdict card at the top of the room, so this panel is
+   * the detail behind it: "work" is the pal's findings (flags, price, what it checked), "cert" is the cert
+   * comparison, and "all" is both under one title.
+   */
+  part?: "all" | "work" | "cert";
+  /** The cert panel open on load. Open while a deal is live, folded on a finished one, which is a record. */
+  certOpen?: boolean;
 }
 
-export function VerdictPanel({ verdict, currentVersion, locked, cardTitle = null, cardGrade = null, askingPrice = null, card = null, chat = [], role = "buyer" }: Props) {
+export function VerdictPanel({ verdict, currentVersion, locked, cardTitle = null, cardGrade = null, askingPrice = null, card = null, chat = [], role = "buyer", part = "all", certOpen = false }: Props) {
   const stale = !locked && verdict.cardVersion > 0 && verdict.cardVersion !== currentVersion;
   // Matt, Oct 9: the listings behind the range are a count, a split and prices. Never the shop names.
   const sources = summariseSources(verdict.priceCheck);
@@ -74,43 +70,23 @@ export function VerdictPanel({ verdict, currentVersion, locked, cardTitle = null
           wouldChangeMyMind: verdict.reasoning.wouldChangeMyMind.map(say),
         }
       : verdict.reasoning;
-  const style = VERDICT_STYLE[verdict.overall];
-  return (
-    <Panel title="Buyer Pal review" id="buyer-pal-review">
-      {stale ? (
+  const showWork = part !== "cert";
+  const showCert = part !== "work";
+  const content = (
+    <>
+      {stale && part === "all" ? (
         <p className="mb-3 rounded-lg bg-caution-soft px-3 py-2 text-xs text-caution">
           This review was for card version {verdict.cardVersion}. The card is now version {currentVersion}, so it needs another look.
         </p>
       ) : null}
 
-      <div className={`motion-reveal flex gap-3 rounded-xl border p-4 sm:gap-4 ${style.box}`} data-testid="verdict" data-overall={verdict.overall}>
-        <PalAvatar pal="buyer" size={56} className="mt-0.5" />
-        <div className="min-w-0 flex-1">
-          <p className={`flex items-center gap-2 text-3xl font-black leading-none tracking-tight ${style.word}`} data-testid="verdict-headline">
-            <VerdictIcon overall={verdict.overall} />
-            {lead.headline}
-          </p>
-          {lead.reasons.length > 0 ? (
-            <ul className="mt-3 space-y-1 text-sm leading-relaxed text-ink" data-testid="verdict-reasons">
-              {lead.reasons.map((reason) => (
-                <li key={reason} className="flex gap-2">
-                  <span aria-hidden="true" className={style.word}>
-                    &bull;
-                  </span>
-                  <span className="min-w-0">{reason}</span>
-                </li>
-              ))}
-            </ul>
-          ) : null}
-          {lead.lookAgain ? (
-            <p className="mt-3 text-sm leading-relaxed text-ink" data-testid="look-again">
-              <span className="font-bold">{seller ? "The Buyer Pal would look again if" : "I'd look again if"}</span> {lead.lookAgain}
-            </p>
-          ) : null}
-        </div>
-      </div>
+      {showWork && lead.lookAgain ? (
+        <p className="mb-4 text-sm leading-relaxed text-ink" data-testid="look-again">
+          <span className="font-bold">{seller ? "The Buyer Pal would look again if" : "I'd look again if"}</span> {lead.lookAgain}
+        </p>
+      ) : null}
 
-      {graded ? (
+      {showWork && graded ? (
         /*
           No range, no band, no listing count. A graded card is one slab and
           Channel3 prices retail stock, so any number here would be invented.
@@ -134,7 +110,7 @@ export function VerdictPanel({ verdict, currentVersion, locked, cardTitle = null
             ))}
           </p>
         </div>
-      ) : (
+      ) : showWork ? (
       <div className="mt-4 rounded-lg bg-wash p-3 text-sm" data-testid="price-check">
         {retail ? (
           <dl
@@ -188,9 +164,9 @@ export function VerdictPanel({ verdict, currentVersion, locked, cardTitle = null
           </div>
         ) : null}
       </div>
-      )}
+      ) : null}
 
-      {verdict.certCheck ? (
+      {showCert && verdict.certCheck ? (
         <div className="mt-4 rounded-lg bg-wash p-3 text-sm" data-testid="cert-check">
           {/*
             One header line, then the table. The closing paragraph used to
@@ -209,9 +185,9 @@ export function VerdictPanel({ verdict, currentVersion, locked, cardTitle = null
         </div>
       ) : null}
 
-      <PalWork reasoning={reasoning} restOfAsks={lead.restOfAsks} />
+      {showWork ? <PalWork reasoning={reasoning} restOfAsks={lead.restOfAsks} bare={part === "work"} /> : null}
 
-      {verdict.flags.length > 0 ? (
+      {showWork && verdict.flags.length > 0 ? (
         <ul className="mt-4 space-y-2" aria-label="Red flags">
           {verdict.flags.map((f, i) => (
             <li key={`${f.code}-${i}`} className="motion-reveal flex gap-3 rounded-lg border border-line p-3 text-sm" style={{ animationDelay: `${Math.min(i, 6) * 60}ms` }}>
@@ -222,21 +198,20 @@ export function VerdictPanel({ verdict, currentVersion, locked, cardTitle = null
                   <span className="rounded-md border border-line bg-wash px-2 py-0.5 font-semibold">{flagLabel(f.code)}</span>
                   {isPaymentMethodFlag(f) ? <Badge tone="stop">no override</Badge> : null}
                 </div>
-                {/* The lead above already says this line when the pal's own explanation was short enough to use. The card keeps the evidence. */}
-                {lead.reasons.includes(say(f.explanation.trim())) ? null : <p className="mt-1">{say(f.explanation)}</p>}
+                <p className="mt-1">{say(f.explanation.trim() ? f.explanation : reasonFor(f))}</p>
                 <FlagEvidence evidence={f.evidence} sourceMessageId={evidenceSourceId(f.evidence, chat)} />
               </div>
             </li>
           ))}
         </ul>
-      ) : (
+      ) : showWork ? (
         <p className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-go">
           <CheckIcon size={16} strokeWidth={3} />
           No red flags.
         </p>
-      )}
+      ) : null}
 
-      {verdict.questionsForSeller.length > 0 ? (
+      {showWork && verdict.questionsForSeller.length > 0 ? (
         <div className="mt-4 text-sm">
           <p className="font-semibold">Asked of the seller</p>
           <ul className="mt-1 list-disc pl-5">
@@ -247,6 +222,9 @@ export function VerdictPanel({ verdict, currentVersion, locked, cardTitle = null
         </div>
       ) : null}
 
-    </Panel>
+    </>
   );
+  if (part === "work") return content;
+  if (part === "cert") return <Panel title="Cert check" id="cert-check" fold={{ defaultOpen: certOpen }}>{content}</Panel>;
+  return <Panel title="Buyer Pal review" id="buyer-pal-review">{content}</Panel>;
 }

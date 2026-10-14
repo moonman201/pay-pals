@@ -10,6 +10,36 @@ import { otherRole, type Role } from "@/lib/role";
 import { Button, type ButtonVariant } from "../ui/Button";
 import { WorkingStatus } from "../ui/WorkingStatus";
 import { Panel } from "../ui/Panel";
+import { buttonClass } from "../ui/Button";
+
+/** The panel the moves sit in, or just the moves when the verdict card already holds them. The heading stays for a screen reader. */
+function Shell({ inline, children }: { inline: boolean; children: React.ReactNode }) {
+  if (!inline) return <Panel title="Next step" accent>{children}</Panel>;
+  return (
+    <section aria-labelledby="next-step-title" data-testid="next-step">
+      <h2 id="next-step-title" className="sr-only">
+        Next step
+      </h2>
+      {children}
+    </section>
+  );
+}
+
+/** What a closed deal means. A line of text in a panel, one tap behind a label in the verdict card. */
+function EndingNote({ inline, children }: { inline: boolean; children: React.ReactNode }) {
+  if (!inline) return <p className="text-sm">{children}</p>;
+  return (
+    <details className="group mt-1" data-testid="ending-note">
+      <summary className="flex min-h-11 cursor-pointer list-none items-center gap-1 text-sm font-semibold text-[var(--accent-ink)] [&::-webkit-details-marker]:hidden">
+        <span aria-hidden="true" className="inline-block transition-transform group-open:rotate-90">
+          &rsaquo;
+        </span>
+        Details
+      </summary>
+      <p className="text-sm leading-relaxed">{children}</p>
+    </details>
+  );
+}
 
 interface Props {
   state: DealState;
@@ -39,6 +69,8 @@ interface Props {
   /** Why Agree is locked, in plain words. Shown whenever `reviewing`. */
   reviewingLine?: string;
   onAction: (id: ActionId, opts?: { override?: boolean }) => void;
+  /** Sits inside the verdict card instead of in a panel of its own. The words stay, the card around them goes. */
+  inline?: boolean;
 }
 
 const VARIANT: Partial<Record<ActionId, ButtonVariant>> = { cancel: "danger", report_issue: "danger", complete: "primary" };
@@ -56,16 +88,16 @@ const ENDINGS: Partial<Record<DealState, string>> = {
   CANCELLED: "This deal was cancelled before any money moved.",
 };
 
-function EvidenceLink({ dealId, role }: { dealId: string; role: Role }) {
+function EvidenceLink({ dealId, role, inline }: { dealId: string; role: Role; inline: boolean }) {
   return (
-    <Link href={`/deals/${dealId}/evidence?as=${role}`} className="mt-1 inline-flex min-h-11 items-center text-sm font-semibold text-[var(--accent-ink)] underline-offset-2 hover:underline">
+    <Link href={`/deals/${dealId}/evidence?as=${role}`} className={inline ? buttonClass("primary", "mt-1") : "mt-1 inline-flex min-h-11 items-center text-sm font-semibold text-[var(--accent-ink)] underline-offset-2 hover:underline"}>
       Open the evidence pack
     </Link>
   );
 }
 
 /** The moves this side can make right now, straight from the transition table. */
-export function ActionBar({ state, role, verdict, dealId, busy, hasLockedCard, hasEvidence = false, example = false, agreement, cardVersion, cardChangedSinceAgree, refusalToReview = false, hasCert = false, reviewing = false, reviewingLine = "", onAction }: Props) {
+export function ActionBar({ state, role, verdict, dealId, busy, hasLockedCard, hasEvidence = false, example = false, agreement, cardVersion, cardChangedSinceAgree, refusalToReview = false, hasCert = false, reviewing = false, reviewingLine = "", onAction, inline = false }: Props) {
   const [understood, setUnderstood] = useState(false);
   const other = otherRole(role);
   const agreeing = state === "REVIEWED" && cardVersion > 0;
@@ -87,8 +119,8 @@ export function ActionBar({ state, role, verdict, dealId, busy, hasLockedCard, h
     // The deal cannot go on, and the one move that closes it is the buyer's. Only the buyer sees it, and never on an example deal.
     const canCancel = role === "buyer" && !example && actions.some((a) => a.id === "cancel");
     return (
-      <Panel title="Next step" accent>
-        <p className="text-sm">{ENDINGS.BLOCKED}</p>
+      <Shell inline={inline}>
+        {inline ? null : <p className="text-sm">{ENDINGS.BLOCKED}</p>}
         {canCancel ? (
           <div className="mt-3">
             <Button variant="primary" disabled={busy !== null} onClick={() => onAction("cancel")}>
@@ -96,22 +128,24 @@ export function ActionBar({ state, role, verdict, dealId, busy, hasLockedCard, h
             </Button>
           </div>
         ) : null}
-        {hasLockedCard && hasEvidence ? <EvidenceLink dealId={dealId} role={role} /> : null}
-      </Panel>
+        {hasLockedCard && hasEvidence ? <EvidenceLink dealId={dealId} role={role} inline={inline} /> : null}
+        {inline ? <EndingNote inline>{ENDINGS.BLOCKED}</EndingNote> : null}
+      </Shell>
     );
   }
 
   if (isTerminal(state)) {
     return (
-      <Panel title="Next step" accent>
-        <p className="text-sm">{ENDINGS[state]}</p>
-        {hasLockedCard && hasEvidence ? <EvidenceLink dealId={dealId} role={role} /> : null}
-      </Panel>
+      <Shell inline={inline}>
+        {inline ? null : <EndingNote inline={false}>{ENDINGS[state]}</EndingNote>}
+        {hasLockedCard && hasEvidence ? <EvidenceLink dealId={dealId} role={role} inline={inline} /> : null}
+        {inline ? <EndingNote inline>{ENDINGS[state]}</EndingNote> : null}
+      </Shell>
     );
   }
 
   return (
-    <Panel title="Next step" accent>
+    <Shell inline={inline}>
       {gate === "blocked" ? <p className="mb-3 text-sm font-semibold text-stop">{BLOCKED_SENTENCE}</p> : null}
       {gate === "stop_override" && verdict ? (
         <div role="alert" className="mb-3 rounded-lg border border-stop-line bg-stop-soft p-3 text-sm text-ink">
@@ -176,6 +210,6 @@ export function ActionBar({ state, role, verdict, dealId, busy, hasLockedCard, h
           )}
         </p>
       ) : null}
-    </Panel>
+    </Shell>
   );
 }
