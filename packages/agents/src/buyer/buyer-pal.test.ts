@@ -33,7 +33,9 @@ describe("BuyerPal.review on fake-slab", () => {
     expect(mismatch.severity).toBe("caution");
     expect(mismatch.evidence).toBe("PayPal address cashdeals.quick2026@example.com, seller name Chris W.");
     expect(verdict.overall).toBe("stop");
-    expect(verdict.priceCheck?.marketLow).toBe(305);
+    // Changed 2026-10-14 (Decision 16, F14): a graded card is never priced, so there is no range and no price flag.
+    expect(verdict.priceCheck?.marketLow).toBe(0);
+    expect(codes).not.toContain("PRICE_FAR_BELOW_MARKET");
     expect(codes).not.toContain("CERT_MISMATCH");
     expect(verdict.certCheck?.matches).toBe(true);
     expect(verdict.certCheck?.record.certNumber).toBe(FAKE_SLAB_CERT);
@@ -63,7 +65,8 @@ describe("BuyerPal.review on fake-slab", () => {
     expect(codes).toContain("FRIENDS_AND_FAMILY_REQUEST");
     expect(codes).not.toContain("INVITE_REFUSED");
     expect(verdict.flags.find((f) => f.code === "FRIENDS_AND_FAMILY_REQUEST")!.severity).toBe("stop");
-    expect(verdict.flags.find((f) => f.code === "PRICE_FAR_BELOW_MARKET")!.severity).toBe("stop");
+    // Changed 2026-10-14 (Decision 16, F14): the slab raises no price flag, so the model's price "downgrade" has nothing to act on.
+    expect(verdict.flags.map((f) => f.code)).not.toContain("PRICE_FAR_BELOW_MARKET");
     expect(verdict.flags.find((f) => f.code === "URGENCY_PRESSURE")!.severity).toBe("caution");
     // Corrected 2026-10-11: the model used to write this paragraph and the test checked its words
     // came through. It no longer writes it, so the assertion is the stronger one: a model selling
@@ -72,7 +75,7 @@ describe("BuyerPal.review on fake-slab", () => {
     expect(verdict.palMessage.split("\n")[0]).toBe("Stop. Don't pay.");
   });
 
-  it("stops with no model, says the range is a reference, and shows the model the fixed facts", async () => {
+  it("stops with no model, raises no price claim, and shows the model the fixed facts", async () => {
     const offline = createBuyerPal({ anthropic: null, priceLookup, certLookup });
     const { data: verdict } = await offline.review(card, fakeSlab.chat);
     expect(verdict.overall).toBe("stop");
@@ -87,7 +90,9 @@ describe("BuyerPal.review on fake-slab", () => {
     expect(shown).toContain("Fixed facts");
     expect(shown).toContain("Cert check (fixed fact)");
     expect(shown).toContain("that does not show this seller has the slab");
-    expect(shown).toContain(REFERENCE_RANGE_NOTE);
+    // Changed 2026-10-14 (Decision 16, F14): no reference range for a graded card, only the honest can't-check line.
+    expect(shown).not.toContain(REFERENCE_RANGE_NOTE);
+    expect(shown).toContain("no automatic check to make");
   });
 
   it("without a cert lookup the cert is not checked and no CERT_MISMATCH is raised", async () => {
