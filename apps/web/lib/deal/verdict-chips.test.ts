@@ -32,6 +32,25 @@ describe("verdictChips", () => {
     expect(chips.map((c) => c.tone)).toEqual(["stop", "caution", "caution"]);
   });
 
+  it("ranks within a severity by evidence, not by the order the pal listed: the finished slab shows Friends and Family, Reused photo, Urgency pressure", () => {
+    // The stored order of the finished slab's flags, exactly.
+    const stored = [flag("FRIENDS_AND_FAMILY_REQUEST", "stop"), flag("URGENCY_PRESSURE", "caution"), flag("NAME_MISMATCH", "caution"), flag("STOCK_OR_REUSED_PHOTO", "caution")];
+    const chips = verdictChips(verdict({ overall: "stop", flags: stored }), null);
+    expect(chips.map((c) => c.label)).toEqual(["Friends and Family", "Reused photo", "Urgency pressure"]);
+  });
+
+  it("follows the whole evidence order, and a stop still comes before every caution", () => {
+    const order = ["CERT_MISMATCH", "STOCK_OR_REUSED_PHOTO", "PRICE_FAR_BELOW_MARKET", "URGENCY_PRESSURE", "MISSING_SERIAL", "NAME_MISMATCH", "OTHER"] as const;
+    const shuffled = [...order].reverse().map((code) => flag(code, "caution"));
+    const first = verdictChips(verdict({ flags: [...shuffled, flag("OFF_PLATFORM_PAYMENT", "caution")] }), null);
+    expect(first[0]!.flagCode).toBe("OFF_PLATFORM_PAYMENT");
+    const all = [...order].reverse().map((code) => flag(code, "caution"));
+    // Three chips at most, so check the ranking through the first three of any shuffle.
+    expect(verdictChips(verdict({ flags: all }), null).map((c) => c.flagCode)).toEqual(["CERT_MISMATCH", "STOCK_OR_REUSED_PHOTO", "PRICE_FAR_BELOW_MARKET"]);
+    const stopLast = verdictChips(verdict({ flags: [flag("CERT_MISMATCH", "caution"), flag("STOCK_OR_REUSED_PHOTO", "caution"), flag("URGENCY_PRESSURE", "stop")] }), null);
+    expect(stopLast[0]!.flagCode).toBe("URGENCY_PRESSURE");
+  });
+
   it("keeps the pal's full explanation and evidence on a flag chip, not a shortened one", () => {
     const [chip] = verdictChips(verdict({ flags: [{ ...flag("URGENCY_PRESSURE", "caution", "A long explanation that runs on well past the length of a chip label."), evidence: 'Seller wrote: "today only"' }] }), null);
     expect(chip!.detail).toBe("A long explanation that runs on well past the length of a chip label.");

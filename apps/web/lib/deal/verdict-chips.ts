@@ -3,8 +3,9 @@
  *
  * A chip exists only because the pal produced something for it. There are exactly three sources:
  *
- *   flag    one of the verdict's red flags, worst first with a stop always ahead of a caution
- *           (ties keep the order the pal raised them in). Its explanation and evidence ride along.
+ *   flag    one of the verdict's red flags, worst first with a stop always ahead of a caution.
+ *           Within a severity they follow a fixed evidence order (EVIDENCE_ORDER below), not the order
+ *           the pal listed them in, so the same deal always shows the same three chips. Its explanation and evidence ride along.
  *   cert    the grader comparison, when one ran (certCheck.matches is true or false, not null).
  *   price   where the ask sits against the price check's own range, when a usable check exists and
  *           the card is not graded. It is priceStance(), which mirrors the agents' price position.
@@ -13,7 +14,7 @@
  * chips, and the card says so with nothing at all rather than "No red flags" or "Serial matches".
  * lib/deal/verdict-chips.test.ts holds every chip of every scenario to one of the three sources.
  */
-import type { CertCheck, ItemCard, RedFlag, RedFlagCode, Verdict } from "@pay-pals/contracts";
+import { PAYMENT_METHOD_FLAGS, type CertCheck, type ItemCard, type RedFlag, type RedFlagCode, type Verdict } from "@pay-pals/contracts";
 import { priceStance, type PriceStance } from "./price-stance";
 import { reasonFor } from "./review-lead";
 
@@ -53,6 +54,33 @@ const FLAG_CHIP_LABELS: Readonly<Record<RedFlagCode, string>> = {
   OTHER: "Other concern",
 };
 
+/**
+ * How strong the evidence behind a flag is, strongest first, for ranking within one severity (Matt, Oct 14):
+ * payment-method flags, cert mismatch, reused photo, price far below market, urgency or pay-before-ship,
+ * a missing serial or packing photo, name mismatch, then anything else.
+ */
+function evidenceRank(code: RedFlagCode): number {
+  if (PAYMENT_METHOD_FLAGS.includes(code)) return 0;
+  switch (code) {
+    case "CERT_MISMATCH":
+      return 1;
+    case "STOCK_OR_REUSED_PHOTO":
+      return 2;
+    case "PRICE_FAR_BELOW_MARKET":
+      return 3;
+    case "URGENCY_PRESSURE":
+    case "SHIP_BEFORE_PAY_TRICK":
+      return 4;
+    case "MISSING_SERIAL":
+    case "MISSING_PACKING_PHOTO":
+      return 5;
+    case "NAME_MISMATCH":
+      return 6;
+    default:
+      return 7;
+  }
+}
+
 const SEVERITY_TONE: Readonly<Record<RedFlag["severity"], ChipTone>> = { stop: "stop", caution: "caution", info: "caution" };
 const SEVERITY_ORDER: Readonly<Record<RedFlag["severity"], number>> = { stop: 0, caution: 1, info: 2 };
 
@@ -67,7 +95,7 @@ const blank = { evidence: null, flagCode: null, cert: null, price: null } as con
 function flagChips(verdict: Verdict): VerdictChip[] {
   return [...verdict.flags]
     .map((flag, i) => ({ flag, i }))
-    .sort((a, b) => SEVERITY_ORDER[a.flag.severity] - SEVERITY_ORDER[b.flag.severity] || a.i - b.i)
+    .sort((a, b) => SEVERITY_ORDER[a.flag.severity] - SEVERITY_ORDER[b.flag.severity] || evidenceRank(a.flag.code) - evidenceRank(b.flag.code) || a.i - b.i)
     .slice(0, MOST_CHIPS)
     .map(({ flag }, i) => ({
       ...blank,
