@@ -91,6 +91,13 @@ model parameter when launching a subagent; the file decides.
 **Fable is not used without Matt's explicit approval, and only after Opus has
 failed twice on the same problem.**
 
+### Spend rules (Oct 14, Matt)
+
+The API spend was 7.8M tokens in 7 days, and the key hit its usage limit on Oct 14.
+- **The keyed gate runs only immediately before a push to main.** Lanes run keyless tests; a lane may make a handful of real calls to verify one change, never the keyed suite.
+- **Prompt caching is on** for each call site's tools and stable system prompt (packages/agents/src/claude/cache.ts). The review (3,359-token prefix) and vision (1,725) prefixes cache; build-card, apply-request and the evidence summary sit under Sonnet 5's 1,024-token minimum and do not.
+- **Measure, don't guess:** `PAY_PALS_LOG_USAGE=1 PAY_PALS_USAGE_LOG=<file>` logs token counts per real call (never content), and `npm run usage:summary -w packages/agents -- <file>` prices them. Measured Oct 14: one keyed gate run is 13 real calls, about 88k tokens, about $0.25.
+
 ### What the pals run on, at runtime
 
 One model for every step. `modelId()` in `packages/agents/src/claude/client.ts`
