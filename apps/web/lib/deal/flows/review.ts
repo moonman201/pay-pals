@@ -97,6 +97,13 @@ export async function runReview(services: Services, dealId: string, options: Run
   const result = await services.buyerPal.review(card ? absoluteCard(card) : null, absoluteMessages(chat), reviewContext(deal, events), {
     onProgress: options.onProgress,
   });
+  // A second review of the same card can be running on another server instance, which the
+  // in-process registry cannot see. Whoever finishes first saves; the other stops here, so
+  // one card version never gets two verdicts.
+  const after = await mustDeal(services, dealId);
+  if (after.state !== deal.state || after.currentCardVersion !== deal.currentCardVersion) {
+    throw new FlowError("This deal was already reviewed. Reload the page to see the result.", 409);
+  }
   const verdict = await store.saveVerdict(result.data);
   await say(services, dealId, "buyer_pal", "buyer_pal", result.palMessage);
   const what = card ? `card version ${card.version}` : "the seller's reply, with no card";
