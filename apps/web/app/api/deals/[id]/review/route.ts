@@ -62,7 +62,7 @@ export async function POST(req: Request, { params }: Params) {
     function from being frozen before the save.
   */
   const review = await withRequestOrigin(req, async () => startOrJoinReview(id, (onProgress) => runReview(services, id, { onProgress })));
-  // Holds the function open past the end of the response, so the save is guaranteed and not luck.
+  // Holds the function open past the end of the response, so the save does not depend on luck.
   keepAliveUntil(review.done);
   return reviewStreamResponse(review);
 }
