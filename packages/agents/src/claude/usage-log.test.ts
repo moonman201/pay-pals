@@ -1,9 +1,9 @@
 import { mkdtempSync, readFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { z } from "zod";
-import type Anthropic from "@anthropic-ai/sdk";
+import Anthropic from "@anthropic-ai/sdk";
 import { fakeClaude } from "../testing/fake-claude";
 import { callText } from "./text-call";
 import { callTool } from "./tool-call";
@@ -11,22 +11,34 @@ import { logUsage, usageLine } from "./usage-log";
 import { costOf, formatSummary, parseLines, totalsBySite } from "./usage-summary";
 
 const TOOL: Anthropic.Tool = { name: "answer", description: "Answer.", input_schema: { type: "object", properties: {} } };
+/** A real SDK client object. Nothing is sent: tests replace messages.create. */
+const realClient = () => new Anthropic({ apiKey: "not-a-key" });
 const message = { model: "claude-sonnet-5", usage: { input_tokens: 10, cache_creation_input_tokens: 20, cache_read_input_tokens: 30, output_tokens: 40 } } as Anthropic.Message;
 
 function tempLog(): string {
   return join(mkdtempSync(join(tmpdir(), "usage-")), "log.jsonl");
 }
 
-afterEach(() => {
+// The outer environment may have the flag set (cost measurement does), so each test starts clean and restores it.
+const outer = { flag: process.env.PAY_PALS_LOG_USAGE, file: process.env.PAY_PALS_USAGE_LOG };
+function restore(name: string, value: string | undefined) {
+  if (value === undefined) delete process.env[name];
+  else process.env[name] = value;
+}
+beforeEach(() => {
   delete process.env.PAY_PALS_LOG_USAGE;
   delete process.env.PAY_PALS_USAGE_LOG;
+});
+afterEach(() => {
+  restore("PAY_PALS_LOG_USAGE", outer.flag);
+  restore("PAY_PALS_USAGE_LOG", outer.file);
 });
 
 describe("usage log", () => {
   it("writes nothing when the flag is off", () => {
     const file = tempLog();
     process.env.PAY_PALS_USAGE_LOG = file;
-    logUsage("test", message);
+    logUsage("test", message, realClient());
     expect(existsSync(file)).toBe(false);
   });
 
@@ -34,24 +46,55 @@ describe("usage log", () => {
     const file = tempLog();
     process.env.PAY_PALS_LOG_USAGE = "1";
     process.env.PAY_PALS_USAGE_LOG = file;
-    logUsage("test", message);
-    logUsage("test", message);
+    logUsage("test", message, realClient());
+    logUsage("test", message, realClient());
     const lines = readFileSync(file, "utf8").trim().split("\n").map((l) => JSON.parse(l));
     expect(lines).toHaveLength(2);
     expect(lines[0]).toMatchObject({ site: "test", model: "claude-sonnet-5", input_tokens: 10, cache_creation_input_tokens: 20, cache_read_input_tokens: 30, output_tokens: 40 });
     expect(Object.keys(lines[0]).sort()).toEqual(["at", "cache_creation_input_tokens", "cache_read_input_tokens", "input_tokens", "model", "output_tokens", "site"]);
   });
 
-  it("callTool and callText log under their site, without content", async () => {
+  /** A real SDK client whose network call is replaced by a response shaped like the API's. */
+  function stubbedRealClient(usage: Record<string, number>) {
+    const client = realClient();
+    client.messages.create = (async () => ({
+      id: "msg_x",
+      type: "message",
+      role: "assistant",
+      model: "claude-sonnet-5",
+      stop_reason: "tool_use",
+      content: [
+        { type: "tool_use", id: "t", name: "answer", input: {} },
+        { type: "text", text: "ok" },
+      ],
+      usage: { cache_creation: null, service_tier: "standard", ...usage },
+    })) as never;
+    return client;
+  }
+
+  it("callTool and callText log counts under their site, cache writes included, without content", async () => {
     const file = tempLog();
     process.env.PAY_PALS_LOG_USAGE = "1";
     process.env.PAY_PALS_USAGE_LOG = file;
-    const client = fakeClaude(() => ({}));
+    const client = stubbedRealClient({ input_tokens: 2332, cache_creation_input_tokens: 3284, cache_read_input_tokens: 0, output_tokens: 2285 });
     await callTool({ client, site: "site.a", system: "s", content: [{ type: "text", text: "SECRET-CARD-TEXT" }], tool: TOOL, schema: z.object({}) });
     await callText(client, "site.b", "s", "SECRET-PROMPT");
     const raw = readFileSync(file, "utf8");
     expect(raw).not.toContain("SECRET");
-    expect(parseLines(raw).map((l) => l.site)).toEqual(["site.a", "site.b"]);
+    const lines = parseLines(raw);
+    expect(lines.map((l) => l.site)).toEqual(["site.a", "site.b"]);
+    for (const line of lines) expect(line).toMatchObject({ input_tokens: 2332, cache_creation_input_tokens: 3284, cache_read_input_tokens: 0, output_tokens: 2285 });
+    expect(totalsBySite(lines).get("site.a")?.cacheWrite).toBe(3284);
+  });
+
+  it("logs nothing for a fake client", async () => {
+    const file = tempLog();
+    process.env.PAY_PALS_LOG_USAGE = "1";
+    process.env.PAY_PALS_USAGE_LOG = file;
+    const client = fakeClaude(() => ({}));
+    await callTool({ client, site: "site.a", system: "s", content: [{ type: "text", text: "x" }], tool: TOOL, schema: z.object({}) });
+    await callText(client, "site.b", "s", "x");
+    expect(existsSync(file)).toBe(false);
   });
 
   it("fills zeros when usage fields are missing", () => {

@@ -62,7 +62,7 @@ export async function callTool<T>(request: ToolCallRequest<T>): Promise<ToolCall
     return { value: null, reason };
   }
 
-  logUsage(request.site, message);
+  logUsage(request.site, message, request.client);
   if (message.stop_reason === "refusal") return { value: null, reason: "Claude declined the request." };
 
   const toolUse = message.content.find(

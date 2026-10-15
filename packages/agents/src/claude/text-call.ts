@@ -17,7 +17,7 @@ export async function callText(client: ClaudeClient, site: string, system: strin
       system: cachedSystem(system, systemTail),
       messages: [{ role: "user", content: prompt }],
     });
-    logUsage(site, message);
+    logUsage(site, message, client);
     if (message.stop_reason === "refusal") return null;
     const text = message.content
       .filter((block): block is Anthropic.TextBlock => block.type === "text")
