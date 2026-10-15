@@ -176,12 +176,13 @@ export function ActionBar({ state, role, verdict, dealId, busy, hasLockedCard, h
       ) : null}
       <div className="flex flex-wrap gap-2">
         {actions.map((a) => {
-          const disabled = busy !== null || (a.id === "agree" && needsCheckbox && !understood);
+          // A review already running (started here, before a reload, or on another tab) is never started twice.
+          const disabled = busy !== null || (a.id === "review" && reviewing) || (a.id === "agree" && needsCheckbox && !understood);
           const variant: ButtonVariant = VARIANT[a.id] ?? (a.id === "cancel" ? "danger" : actions.length > 1 && a.id !== actions[0]?.id ? "secondary" : "primary");
           const label = a.id === "agree" ? agreeLabel(role, agreement) : a.id === "review" && state === "INVITED" ? "Ask my pal to review the refusal" : a.label;
           return (
             <Button key={a.id} variant={variant} disabled={disabled} onClick={() => onAction(a.id, { override: a.id === "agree" && needsCheckbox })}>
-              {busy === a.id ? "Working" : label}
+              {busy === a.id ? "Working" : a.id === "review" && reviewing ? "Review running" : label}
             </Button>
           );
         })}

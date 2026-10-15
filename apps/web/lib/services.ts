@@ -32,6 +32,7 @@ import { loadRootEnvLocal } from "./env";
 import { isPublicMode, publicModeLine } from "./public-mode";
 import { detectUploadsEnabled } from "./uploads";
 import { createMockPayPalGateway } from "./mocks/paypal-gateway";
+import { reviewDelayMs, withReviewDelay } from "./mocks/slow-review";
 import { demoPayeesFromEnv, type DemoPayees } from "./demo/demo-payee";
 
 /**
@@ -124,7 +125,10 @@ export function createServices(env: Env = process.env, log: Log = (line) => cons
   const publicMode = isPublicMode(env, publicDir);
   log(publicModeLine(publicMode, env));
   const sellerPal = createSellerPal({ anthropic, photoBaseUrl, publicMode });
-  const buyerPal = createBuyerPal({ anthropic, priceLookup, certLookup, knownPhotos, photoBaseUrl, publicMode, fetchImage: localAwareFetcher(publicDir) });
+  const buyerPal = withReviewDelay(
+    createBuyerPal({ anthropic, priceLookup, certLookup, knownPhotos, photoBaseUrl, publicMode, fetchImage: localAwareFetcher(publicDir) }),
+    reviewDelayMs(env.PAY_PALS_REVIEW_DELAY_MS),
+  );
   log(`[pay-pals] photos: ${knownPhotos.length} known photos for the reused-photo check, base URL ${photoBaseUrl ? "configured" : "from each request"}`);
   const buildEvidencePack = createEvidencePackBuilder({ anthropic, publicMode });
   const paypal = modes.paypal === "sandbox" ? createPayPalGateway(loadPayPalConfig(env)) : createMockPayPalGateway();
