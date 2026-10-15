@@ -2,6 +2,14 @@
 
 Owner: the Lead (the one Claude Code session Matt runs; see CLAUDE.md). Draft written 2026-10-06. The Lead refines it while writing contracts and keeps the status table current.
 
+## Feature complete (Oct 15, Matt)
+
+**Pay Pals is feature-complete as of Oct 15.** From now until submission, the only work is:
+- bug fixes, and
+- anything the demo video exposes.
+
+**No new features without Matt's approval**, however small. A lane that finds a gap that wants a feature writes it up for Matt instead of building it. The spend rules below still hold: keyed gate only before a push.
+
 ## Stack (decided, do not relitigate)
 - **TypeScript monorepo, npm workspaces.** Node 20+.
 - **apps/web:** Next.js (App Router). UI plus API routes. Mobile-friendly.
