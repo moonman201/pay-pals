@@ -1,7 +1,7 @@
 import { mkdtempSync, readFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { z } from "zod";
 import type Anthropic from "@anthropic-ai/sdk";
 import { fakeClaude } from "../testing/fake-claude";
@@ -17,9 +17,19 @@ function tempLog(): string {
   return join(mkdtempSync(join(tmpdir(), "usage-")), "log.jsonl");
 }
 
-afterEach(() => {
+// The outer environment may have the flag set (cost measurement does), so each test starts clean and restores it.
+const outer = { flag: process.env.PAY_PALS_LOG_USAGE, file: process.env.PAY_PALS_USAGE_LOG };
+function restore(name: string, value: string | undefined) {
+  if (value === undefined) delete process.env[name];
+  else process.env[name] = value;
+}
+beforeEach(() => {
   delete process.env.PAY_PALS_LOG_USAGE;
   delete process.env.PAY_PALS_USAGE_LOG;
+});
+afterEach(() => {
+  restore("PAY_PALS_LOG_USAGE", outer.flag);
+  restore("PAY_PALS_USAGE_LOG", outer.file);
 });
 
 describe("usage log", () => {
