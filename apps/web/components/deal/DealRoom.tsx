@@ -18,7 +18,9 @@ import { isConfirmedMismatch } from "@/lib/deal/arrival-outcome";
 import { agreeLockedLine, applyProgress, finishReview, IDLE_REVIEW, startedReview, type LiveReviewState } from "@/lib/deal/live-review";
 import { palChannel, type Role } from "@/lib/role";
 import { useFoldHashOpen } from "@/lib/client/open-fold";
+import { clearReviewMarker, markReviewStarted } from "@/lib/deal/review-marker";
 import { ActionBar } from "./ActionBar";
+import { useResumedReview } from "./useResumedReview";
 import { DealFacts } from "./DealFacts";
 import { ItemGlance } from "./ItemGlance";
 import { VerdictCard } from "./VerdictCard";
@@ -70,7 +72,13 @@ export function DealRoom({ snapshot, role }: { snapshot: DealSnapshot; role: Rol
   const { deal, currentCard } = snapshot;
   const state = deal.state;
   // A reload mid-review is still running; a review this page just finished is not, even before the refreshed snapshot says so.
-  const reviewing = live.running || (snapshot.reviewInFlight && !live.done);
+  const resumed = useResumedReview({
+    dealId: deal.id,
+    waitingForReview: state === "LISTED" || state === "INVITED",
+    serverRunning: snapshot.reviewInFlight,
+    pageIsRunning: live.running || live.done,
+  });
+  const reviewing = live.running || resumed || (snapshot.reviewInFlight && !live.done);
 
   async function run(label: string, fn: () => Promise<unknown>) {
     setBusy(label);
@@ -90,6 +98,7 @@ export function DealRoom({ snapshot, role }: { snapshot: DealSnapshot; role: Rol
     setBusy("review");
     setError(null);
     setLive(startedReview());
+    markReviewStarted(window.localStorage, deal.id, Date.now());
     // The progress panel sits above Deal status, off screen from the button that started it. Take the visitor to it.
     requestAnimationFrame(() => scrollToPanel("live-review"));
     try {
@@ -101,6 +110,7 @@ export function DealRoom({ snapshot, role }: { snapshot: DealSnapshot; role: Rol
       // Cleared either way: a review that ended is not a review in flight, and Agree must open
       // again. The finished verdict comes from the refresh, never from what streamed in.
       setLive(finishReview);
+      clearReviewMarker(window.localStorage, deal.id);
       setBusy(null);
     }
   }
