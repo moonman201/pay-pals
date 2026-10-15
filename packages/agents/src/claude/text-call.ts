@@ -7,8 +7,9 @@ import Anthropic from "@anthropic-ai/sdk";
 import type { ClaudeClient } from "./client";
 import { cachedSystem } from "./cache";
 import { modelId } from "./client";
+import { logUsage } from "./usage-log";
 
-export async function callText(client: ClaudeClient, system: string, prompt: string, maxTokens = 2048, systemTail?: string): Promise<string | null> {
+export async function callText(client: ClaudeClient, site: string, system: string, prompt: string, maxTokens = 2048, systemTail?: string): Promise<string | null> {
   try {
     const message = await client.messages.create({
       model: modelId(),
@@ -16,6 +17,7 @@ export async function callText(client: ClaudeClient, system: string, prompt: str
       system: cachedSystem(system, systemTail),
       messages: [{ role: "user", content: prompt }],
     });
+    logUsage(site, message);
     if (message.stop_reason === "refusal") return null;
     const text = message.content
       .filter((block): block is Anthropic.TextBlock => block.type === "text")

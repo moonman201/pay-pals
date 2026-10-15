@@ -224,6 +224,6 @@ export async function writeSummary(input: EvidenceInput, client: ClaudeClient | 
     unanswered.length > 0 || (input.shipment?.flags ?? []).length > 0
       ? " State plainly any question the Buyer Pal asked the seller before payment that never got an answer, and any required packing photo the seller shipped without."
       : "";
-  const text = await callText(client, STABLE_SYSTEM, `Facts, in order:\n${facts}\n\nWrite the summary.${arrivalNote}${gapsNote}${publicNote}`, undefined, ANCHOR_INSTRUCTION[input.historyAnchor ?? "recorded_only"]);
+  const text = await callText(client, "evidence.summary", STABLE_SYSTEM, `Facts, in order:\n${facts}\n\nWrite the summary.${arrivalNote}${gapsNote}${publicNote}`, undefined, ANCHOR_INSTRUCTION[input.historyAnchor ?? "recorded_only"]);
   return text ? dropHeadingLine(plainCopy(text, MAX_SUMMARY_LENGTH)) : facts;
 }

@@ -80,6 +80,7 @@ async function draftFields(input: BuildCardInput, client: ClaudeClient | null): 
   if (!client) return fallback;
   const result = await callTool({
     client,
+    site: "seller.build_card",
     system: SYSTEM,
     content: [
       { type: "text", text: `Listing text:\n${input.listingText}` },

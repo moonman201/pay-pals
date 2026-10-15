@@ -107,6 +107,7 @@ async function cardSentence(
   if (!client || fallback.length === 0) return { sentence: fallback, droppedPhotoClaim: dropped };
   const result = await callTool({
     client,
+    site: "seller.apply_request",
     system:
       "You are the Seller Pal in Pay Pals. You write one plain sentence for an item card that reports what the seller says, using only what the seller said. Do not turn the seller's claim into a fact, and do not say a photo was added.",
     content: [

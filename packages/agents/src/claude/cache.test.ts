@@ -25,7 +25,7 @@ describe("prompt caching", () => {
 
   it("callTool sends a cached system block and a cached tool, with the data in the user message", async () => {
     const client = fakeClaude(() => ({}));
-    await callTool({ client, system: "rules", content: [{ type: "text", text: "the card" }], tool: TOOL, schema: z.object({}) });
+    await callTool({ client, site: "test", system: "rules", content: [{ type: "text", text: "the card" }], tool: TOOL, schema: z.object({}) });
     const params = client.calls[0]!;
     expect(params.system).toEqual([{ type: "text", text: "rules", cache_control: { type: "ephemeral" } }]);
     expect(params.tools?.at(-1)).toHaveProperty("cache_control", { type: "ephemeral" });
@@ -34,7 +34,7 @@ describe("prompt caching", () => {
 
   it("two calls with different data send a byte-identical prefix", async () => {
     const client = fakeClaude(() => ({}));
-    const ask = (text: string) => callTool({ client, system: "rules", content: [{ type: "text", text }], tool: TOOL, schema: z.object({}) });
+    const ask = (text: string) => callTool({ client, site: "test", system: "rules", content: [{ type: "text", text }], tool: TOOL, schema: z.object({}) });
     await ask("first card");
     await ask("second card");
     const prefix = (p: Anthropic.MessageCreateParamsNonStreaming) => JSON.stringify([p.tools, p.system]);
@@ -43,7 +43,7 @@ describe("prompt caching", () => {
 
   it("callText caches the stable block and sends the tail after it", async () => {
     const client = fakeClaude(() => null);
-    await callText(client, "rules", "prompt", 100, "case line");
+    await callText(client, "test", "rules", "prompt", 100, "case line");
     expect(client.calls[0]!.system).toEqual([
       { type: "text", text: "rules", cache_control: { type: "ephemeral" } },
       { type: "text", text: "case line" },

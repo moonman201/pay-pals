@@ -8,9 +8,12 @@ import type { ZodType, ZodTypeDef } from "zod";
 import type { ClaudeClient } from "./client";
 import { cachedSystem, cachedTools } from "./cache";
 import { modelId } from "./client";
+import { logUsage } from "./usage-log";
 
 export interface ToolCallRequest<T> {
   client: ClaudeClient;
+  /** Which call site this is, for the opt-in usage log. */
+  site: string;
   /** Stable instructions only. Cached, so nothing per-request belongs here. */
   system: string;
   /** Instructions that vary a little between calls. Sent after the cached block so they never break it. */
@@ -59,6 +62,7 @@ export async function callTool<T>(request: ToolCallRequest<T>): Promise<ToolCall
     return { value: null, reason };
   }
 
+  logUsage(request.site, message);
   if (message.stop_reason === "refusal") return { value: null, reason: "Claude declined the request." };
 
   const toolUse = message.content.find(
