@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { EvidenceInput, HistoryAnchor } from "@pay-pals/contracts";
 import { EMPTY_BOX_LOCKED_SERIAL, cleanPs5, emptyBox } from "@pay-pals/contracts";
-import { fakeClaude } from "../testing/fake-claude";
+import { fakeClaude, systemText } from "../testing/fake-claude";
 import { dropHeadingLine, deterministicSummary, tamperCheck, writeSummary } from "./summary";
 
 const input = (fixture: typeof emptyBox): EvidenceInput => ({
@@ -138,7 +138,7 @@ describe("the tamper check tells the three anchoring cases apart", () => {
     let system = "";
     const client = fakeClaude(() => null);
     client.messages.create = async (params) => {
-      system = String(params.system);
+      system = systemText(params);
       return { content: [{ type: "text", text: "A summary." }], stop_reason: "end_turn" } as never;
     };
     await writeSummary(withHash(anchor), client);
@@ -154,7 +154,7 @@ describe("the tamper check tells the three anchoring cases apart", () => {
     let system = "";
     const client = fakeClaude(() => null);
     client.messages.create = async (params) => {
-      system = String(params.system);
+      system = systemText(params);
       return { content: [{ type: "text", text: "A summary." }], stop_reason: "end_turn" } as never;
     };
     await writeSummary(withHash(), client);
@@ -225,7 +225,7 @@ describe("writeSummary with a model", () => {
     let system = "";
     const client = fakeClaude(() => null);
     client.messages.create = async (params) => {
-      system = typeof params.system === "string" ? params.system : "";
+      system = systemText(params);
       return { content: [{ type: "text", text: "Plain prose." }], stop_reason: "end_turn" } as never;
     };
     await writeSummary(input(emptyBox), client);
@@ -250,7 +250,7 @@ describe("writeSummary with a model", () => {
     let system = "";
     const client = fakeClaude(() => null);
     client.messages.create = async (params) => {
-      system = typeof params.system === "string" ? params.system : "";
+      system = systemText(params);
       return { content: [{ type: "text", text: "Plain prose." }], stop_reason: "end_turn" } as never;
     };
     await writeSummary(input(emptyBox), client);

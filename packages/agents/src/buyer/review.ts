@@ -201,11 +201,11 @@ function fallbackQuestions(card: ItemCard | null, flags: RedFlag[]): string[] {
  * offending phrases named, exactly as before.
  */
 async function askModel(client: ClaudeClient, content: Array<{ type: "text"; text: string }>, claims: ClaimContext): Promise<ModelReview | null> {
-  const first = await callTool({ client, system: SYSTEM, content, tool: REVIEW_TOOL, schema: ModelReviewSchema });
+  const first = await callTool({ client, site: "buyer.review", system: SYSTEM, content, tool: REVIEW_TOOL, schema: ModelReviewSchema });
   if (!first.value) return null;
   const bad = modelClaims(first.value).flatMap((text) => unfoundedClaims(text, claims));
   if (bad.length === 0) return first.value;
-  const second = await callTool({ client, system: SYSTEM, content: [...content, { type: "text", text: reaskInstruction([...new Set(bad)], claims) }], tool: REVIEW_TOOL, schema: ModelReviewSchema });
+  const second = await callTool({ client, site: "buyer.review_reask", system: SYSTEM, content: [...content, { type: "text", text: reaskInstruction([...new Set(bad)], claims) }], tool: REVIEW_TOOL, schema: ModelReviewSchema });
   return second.value ?? first.value;
 }
 

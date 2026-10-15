@@ -16,7 +16,8 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.test.json",
-    "test": "vitest run"
+    "test": "vitest run",
+    "usage:summary": "tsx src/claude/usage-summary.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.131.0",

@@ -211,10 +211,8 @@ const SYSTEM_LINES = [
   "Put the 64-character history hash at the end of its sentence, with a full stop after it and nothing else. The page prints a hash on a line of its own, so a comma or more words after it are left hanging there.",
 ];
 
-/** The writing rules, plus the one line that says which hash case this pack is in. */
-export function systemFor(anchor: HistoryAnchor): string {
-  return [...SYSTEM_LINES, ANCHOR_INSTRUCTION[anchor]].join("\n");
-}
+/** The writing rules every pack shares. This is the cached part of the prompt. */
+export const STABLE_SYSTEM = SYSTEM_LINES.join("\n");
 
 export async function writeSummary(input: EvidenceInput, client: ClaudeClient | null, publicMode = false): Promise<string> {
   const facts = deterministicSummary(input);
@@ -226,6 +224,6 @@ export async function writeSummary(input: EvidenceInput, client: ClaudeClient | 
     unanswered.length > 0 || (input.shipment?.flags ?? []).length > 0
       ? " State plainly any question the Buyer Pal asked the seller before payment that never got an answer, and any required packing photo the seller shipped without."
       : "";
-  const text = await callText(client, systemFor(input.historyAnchor ?? "recorded_only"), `Facts, in order:\n${facts}\n\nWrite the summary.${arrivalNote}${gapsNote}${publicNote}`);
+  const text = await callText(client, "evidence.summary", STABLE_SYSTEM, `Facts, in order:\n${facts}\n\nWrite the summary.${arrivalNote}${gapsNote}${publicNote}`, undefined, ANCHOR_INSTRUCTION[input.historyAnchor ?? "recorded_only"]);
   return text ? dropHeadingLine(plainCopy(text, MAX_SUMMARY_LENGTH)) : facts;
 }

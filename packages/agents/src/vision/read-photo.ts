@@ -146,6 +146,7 @@ export async function readPhoto(photo: Photo, deps: ReadPhotoDeps): Promise<Phot
   const hintText = deps.hints?.model ? `The deal card describes the item as ${deps.hints.brand ?? ""} ${deps.hints.model}. Do not let that influence what you read.` : "";
   const result = await callTool({
     client: deps.client,
+    site: "vision.read_photo",
     system: SYSTEM,
     content: [
       { type: "image", source: { type: "base64", media_type: image.mediaType, data: image.data } },

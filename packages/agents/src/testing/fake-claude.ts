@@ -59,10 +59,16 @@ export function fakeClaude(respond: FakeResponder): FakeClaude {
   };
 }
 
+/** The whole system prompt a request carried, whether it was a string or a list of blocks. */
+export function systemText(params: Anthropic.MessageCreateParamsNonStreaming): string {
+  if (typeof params.system === "string") return params.system;
+  return (params.system ?? []).map((block) => block.text).join("\n");
+}
+
 /** Text the fake was shown, joined, so tests can check what the model saw. */
 export function promptText(params: Anthropic.MessageCreateParamsNonStreaming): string {
   const parts: string[] = [];
-  if (typeof params.system === "string") parts.push(params.system);
+  parts.push(systemText(params));
   for (const message of params.messages) {
     if (typeof message.content === "string") parts.push(message.content);
     else for (const block of message.content) if (block.type === "text") parts.push(block.text);
