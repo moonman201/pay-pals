@@ -5,14 +5,15 @@
  */
 import Anthropic from "@anthropic-ai/sdk";
 import type { ClaudeClient } from "./client";
+import { cachedSystem } from "./cache";
 import { modelId } from "./client";
 
-export async function callText(client: ClaudeClient, system: string, prompt: string, maxTokens = 2048): Promise<string | null> {
+export async function callText(client: ClaudeClient, system: string, prompt: string, maxTokens = 2048, systemTail?: string): Promise<string | null> {
   try {
     const message = await client.messages.create({
       model: modelId(),
       max_tokens: maxTokens,
-      system,
+      system: cachedSystem(system, systemTail),
       messages: [{ role: "user", content: prompt }],
     });
     if (message.stop_reason === "refusal") return null;
