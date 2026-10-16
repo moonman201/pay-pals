@@ -13,14 +13,16 @@
  *   buyer blue (PayPal)   the Buyer Pal side: its avatar ring, buyer
  *                         buttons, the buyer view's accents, and anything
  *                         that is true of the deal and not a judgement
- *                         (a paid or complete state, a version, a count)
+ *                         (a paid state, a version, a count)
  *   seller gold           the same, for the Seller Pal side
- *   stop red, caution     a pal's verdict, a flag, or a check that came
- *   amber, go green       back for or against the item. Nothing else.
- *                         An error message, a destructive button, a state
- *                         such as Paid or Shipped, a progress step or a
- *                         scenario's ending takes the side colour or
- *                         neutral ink, never these three.
+ *   stop red, caution     a pal's verdict, a flag, a check that came
+ *   amber, go green       back for or against the item, and a deal's
+ *                         outcome, which is a verdict: Blocked is red,
+ *                         Issue open is amber, Complete is green, wherever
+ *                         they show. Error messages are red too. Nothing
+ *                         else: a destructive button, a state such as
+ *                         Paid or Shipped, a progress step or a count
+ *                         takes the side colour or neutral ink.
  *
  * Use them through --accent (side) and --stop, --caution, --go (verdict),
  * so this file stays the one place that decides which is which.

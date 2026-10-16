@@ -4,7 +4,7 @@ import { CheckIcon, IssueIcon, ShieldStopIcon } from "../ui/icons";
 
 const END_STYLE: Record<NonNullable<ProgressEnd>["kind"], string> = {
   blocked: "text-stop",
-  issue: "text-[var(--accent-ink)]",
+  issue: "text-caution",
   cancelled: "text-muted",
   off_platform: "text-caution",
 };

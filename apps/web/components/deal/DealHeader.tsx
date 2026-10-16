@@ -16,7 +16,9 @@ import { ThemeToggle } from "../ui/ThemeToggle";
 import { IssueIcon, ShieldCheckIcon, ShieldStopIcon } from "../ui/icons";
 
 function stateTone(state: DealSnapshot["deal"]["state"]): "accent" | "go" | "stop" | "caution" | "neutral" {
+  if (state === "COMPLETE") return "go";
   if (state === "BLOCKED") return "stop";
+  if (state === "ISSUE") return "caution";
   if (state === "CANCELLED") return "neutral";
   return "accent";
 }

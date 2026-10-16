@@ -78,7 +78,7 @@ export function ProtectionPanel() {
         {busy ? "Starting" : "Use Pay Pals Protection"}
       </Button>
       {error ? (
-        <p role="alert" className="mt-2 text-sm font-semibold text-ink">
+        <p role="alert" className="mt-2 text-sm text-stop">
           {error}
         </p>
       ) : null}

@@ -30,7 +30,7 @@ export function BuildEvidenceButton({ dealId, role }: { dealId: string; role: Ro
       >
         {busy ? "Building" : "Build the evidence pack"}
       </Button>
-      {error ? <p className="mt-2 text-sm font-semibold text-ink">{error}</p> : null}
+      {error ? <p className="mt-2 text-sm text-stop">{error}</p> : null}
     </div>
   );
 }

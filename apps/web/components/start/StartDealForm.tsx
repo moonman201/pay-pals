@@ -105,7 +105,7 @@ export function StartDealForm({ uploadsEnabled = false }: { uploadsEnabled?: boo
         {busy ? "Building the card" : "Build the card and start"}
       </Button>
       {error ? (
-        <p role="alert" className="text-sm font-semibold text-ink">
+        <p role="alert" className="text-sm text-stop">
           {error}
         </p>
       ) : null}
