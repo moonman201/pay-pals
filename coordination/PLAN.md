@@ -2,6 +2,10 @@
 
 Owner: the Lead (the one Claude Code session Matt runs; see CLAUDE.md). Draft written 2026-10-06. The Lead refines it while writing contracts and keeps the status table current.
 
+## MAIN IS FROZEN (Oct 16, Matt): recording the demo video
+
+**No push to `main` until Matt says he is done recording.** Production must not change under the camera: no deploy, no re-seed, no sweep, no deleting deals, nothing that touches the production database or the Vercel project. Work may continue on branches and stay unmerged. Bugs found during recording are written up in `coordination/REVIEW.md` and wait.
+
 ## Feature complete (Oct 15, Matt)
 
 **Pay Pals is feature-complete as of Oct 15.** From now until submission, the only work is:
