@@ -28,7 +28,7 @@ function titleFor(source: "payment_record" | "live_order", historyHash: string |
 
 /** A round seal: a ring of ticks with a check inside when the history verifies, a broken ring with a mark when it does not. */
 function Seal({ verified }: { verified: boolean }) {
-  const colour = verified ? "text-go" : "text-stop";
+  const colour = verified ? "text-[var(--accent)]" : "text-stop";
   return (
     <svg viewBox="0 0 32 32" width="22" height="22" aria-hidden className={`shrink-0 ${colour}`}>
       <circle cx="16" cy="16" r="14" fill="currentColor" />
@@ -51,7 +51,7 @@ export function HistoryBadge({ events, historyHash, example = false, source = "p
   const status = historyStatus(events, example ? null : historyHash);
   const line = historyLine(status);
   const bad = status.kind === "mismatch" || (status.kind === "unanchored" && !status.chainOk);
-  const tone = status.kind === "verified" ? "text-go" : bad ? "text-stop font-bold" : "text-muted";
+  const tone = status.kind === "verified" ? "text-[var(--accent-ink)]" : bad ? "text-stop font-bold" : "text-muted";
   return (
     /*
       A link, because the events it counts are the timeline, and a reader who

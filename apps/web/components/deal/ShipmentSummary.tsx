@@ -9,7 +9,7 @@ import { ShipmentFlags } from "./ShipmentFlags";
 export function ShipmentSummary({ shipment }: { shipment: Shipment }) {
   const undone = shipment.checklist.filter((c) => c.required && !c.done);
   return (
-    <Panel title="Shipment" fold={{}} aside={<Badge tone={shipment.deliveredAt ? "go" : "accent"}>{shipment.deliveredAt ? "delivered" : "in transit"}</Badge>}>
+    <Panel title="Shipment" fold={{}} aside={<Badge tone={shipment.deliveredAt ? "accent" : "neutral"}>{shipment.deliveredAt ? "delivered" : "in transit"}</Badge>}>
       <p className="text-sm">
         {shipment.carrier}, tracking <span className="font-mono">{shipment.trackingNumber}</span>. Shipped {formatTime(shipment.shippedAt)}.
         {shipment.deliveredAt ? ` Delivered ${formatTime(shipment.deliveredAt)}.` : ""}
@@ -19,13 +19,13 @@ export function ShipmentSummary({ shipment }: { shipment: Shipment }) {
       </div>
       <ul className="mt-3 space-y-1 text-sm">
         {shipment.checklist.map((c) => (
-          <li key={c.id} className={c.done ? "text-ink" : "text-caution"}>
+          <li key={c.id} className={c.done ? "text-ink" : "font-semibold text-muted"}>
             {c.done ? "Done: " : "Not done: "}
             {c.label}
           </li>
         ))}
       </ul>
-      {undone.length > 0 ? <p className="mt-2 text-xs text-caution">{undone.length} required step{undone.length === 1 ? "" : "s"} left undone. This is on the timeline.</p> : null}
+      {undone.length > 0 ? <p className="mt-2 text-xs font-semibold text-muted">{undone.length} required step{undone.length === 1 ? "" : "s"} left undone. This is on the timeline.</p> : null}
       {shipment.flags && shipment.flags.length > 0 ? <ShipmentFlags flags={shipment.flags} /> : null}
     </Panel>
   );

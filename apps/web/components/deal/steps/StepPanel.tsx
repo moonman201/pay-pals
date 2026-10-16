@@ -16,7 +16,7 @@ export function StepPanel({ id, title, intro, children }: { id: string; title: s
 export function StepError({ error }: { error: string | null }) {
   if (!error) return null;
   return (
-    <p role="alert" className="text-sm text-stop">
+    <p role="alert" className="text-sm font-semibold text-ink">
       {error}
     </p>
   );

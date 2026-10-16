@@ -34,9 +34,9 @@ describe("HistoryBadge", () => {
     expect(screen.getByTestId("history-badge")).toHaveTextContent("Tamper-evident history, 3 events");
   });
 
-  it("wears a seal only once there is a verdict: green when verified, red on a mismatch, none before an order", () => {
+  it("wears a seal only once there is a verdict: the side colour when verified, red on a mismatch, none before an order", () => {
     const { container, unmount } = render(<HistoryBadge events={events} historyHash={head} />);
-    expect(container.querySelector("svg.text-go")).not.toBeNull();
+    expect(container.querySelector('svg[class~="text-[var(--accent)]"]')).not.toBeNull();
     unmount();
     const edited = events.map((e, i) => (i === 1 ? { ...e, summary: "changed" } : e));
     const red = render(<HistoryBadge events={edited} historyHash={head} />);

@@ -12,7 +12,7 @@ import { dealProgress, progressStatusText, PROGRESS_STEPS, SEGMENT_LABELS } from
 export function ProgressDots({ state, events }: { state: DealState; events: readonly DealEvent[] }) {
   const progress = dealProgress(state, events);
   const status = progressStatusText(progress);
-  const tone = progress.end?.kind === "blocked" ? "bg-stop" : progress.end ? "bg-caution" : "bg-[var(--accent)]";
+  const tone = progress.end?.kind === "blocked" ? "bg-stop" : progress.end?.kind === "off_platform" ? "bg-caution" : "bg-[var(--accent)]";
   return (
     <div className="flex items-center gap-3" data-testid="progress-dots" role="group" aria-label={`Deal progress: ${status}`}>
       <ol className="m-0 flex min-w-0 flex-1 list-none items-center gap-1.5 p-0">

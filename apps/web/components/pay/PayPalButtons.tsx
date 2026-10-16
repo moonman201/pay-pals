@@ -68,7 +68,7 @@ export function PayPalButtons({ clientId, amount, createOrder, onApproved, onErr
   }, [clientId, amount, onApproved, onError]);
 
   if (!clientId) return <PlaceholderPayButtons createOrder={createOrder} onApproved={onApproved} onError={onError} />;
-  if (loadError) return <p className="text-sm text-stop">{loadError}</p>;
+  if (loadError) return <p className="text-sm font-semibold text-ink">{loadError}</p>;
   if (!eligible) return <p className="text-sm text-muted">Loading PayPal.</p>;
 
   const start = (method: PaymentMethod) => {

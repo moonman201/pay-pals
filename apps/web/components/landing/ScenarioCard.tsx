@@ -18,8 +18,8 @@ const ENDINGS: Record<ScenarioFixture["id"], Outcome> = {
 
 const OUTCOME_STYLE: Record<Outcome["kind"], { box: string; label: string }> = {
   blocked: { box: "text-stop", label: "Blocked" },
-  complete: { box: "text-go", label: "Complete" },
-  issue: { box: "text-caution", label: "Issue open" },
+  complete: { box: "text-[var(--accent-ink)]", label: "Complete" },
+  issue: { box: "text-[var(--accent-ink)]", label: "Issue open" },
 };
 
 function OutcomeMark({ kind }: { kind: Outcome["kind"] }) {

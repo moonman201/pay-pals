@@ -229,7 +229,7 @@ export function DealRoom({ snapshot, role }: { snapshot: DealSnapshot; role: Rol
               actionBar
             )}
             {error ? (
-              <p role="alert" className="rounded-lg border border-stop-line bg-stop-soft px-3 py-2 text-sm text-stop">
+              <p role="alert" className="rounded-lg border border-line bg-wash px-3 py-2 text-sm font-semibold text-ink">
                 {error}
               </p>
             ) : null}

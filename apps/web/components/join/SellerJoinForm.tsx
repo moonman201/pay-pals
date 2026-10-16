@@ -106,7 +106,7 @@ export function SellerJoinForm({ deal, uploadsEnabled = false }: { deal: Deal; u
           {busy && !declining ? "Building the card" : "Join and add your photos"}
         </Button>
         {error ? (
-          <p role="alert" className="text-sm text-stop">
+          <p role="alert" className="text-sm font-semibold text-ink">
             {error}
           </p>
         ) : null}

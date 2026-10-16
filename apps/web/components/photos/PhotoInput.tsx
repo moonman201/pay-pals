@@ -140,7 +140,7 @@ export function PhotoInput({ value, onChange, addedBy, suggestions = [], label =
         />
       </label>
       ) : null}
-      {error ? <p className="text-xs text-stop">{error}</p> : null}
+      {error ? <p className="text-xs font-semibold text-ink">{error}</p> : null}
     </div>
   );
 }
