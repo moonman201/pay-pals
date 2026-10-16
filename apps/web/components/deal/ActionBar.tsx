@@ -165,7 +165,7 @@ export function ActionBar({ state, role, verdict, dealId, busy, hasLockedCard, h
         <p className="mb-3 text-sm">The seller has not joined. Ask your pal to review what they said before you do anything else.</p>
       ) : null}
       {agreeing && cardChangedSinceAgree && !mineDone ? (
-        <p className="mb-3 text-sm text-caution">Card changed since you agreed. Read version {cardVersion} and agree again.</p>
+        <p className="mb-3 text-sm font-semibold text-ink">Card changed since you agreed. Read version {cardVersion} and agree again.</p>
       ) : null}
       {agreeing && !mineDone && hasAgreed(agreement, other) ? <p className="mb-3 text-sm text-muted">The {other} has agreed to version {cardVersion}.</p> : null}
       {needsCheckbox && !mineDone ? (

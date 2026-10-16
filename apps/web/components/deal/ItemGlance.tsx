@@ -62,7 +62,7 @@ export function ItemGlance({ card, lockedVersion, ended = false }: { card: ItemC
         <p className="text-3xl font-black leading-none tracking-tight text-[var(--accent-ink)]" data-testid="glance-price">
           {card.currency === "USD" ? "$" + card.askingPrice.toFixed(2) : formatMoney(card.askingPrice, card.currency)}
         </p>
-        <span className="inline-flex items-center gap-1 rounded-full border border-[var(--accent-line)] bg-[var(--accent-soft)] px-2.5 py-1 text-xs font-bold text-[var(--accent-ink)]" data-testid="glance-version">
+        <span className="inline-flex items-center gap-1 text-xs font-bold text-[var(--accent-ink)]" data-testid="glance-version">
           {locked ? <LockIcon size={13} strokeWidth={2.5} /> : null}
           {locked ? <span title={`Locked, version ${lockedVersion}`}>{`v${lockedVersion}`}<span className="sr-only"> locked</span></span> : ended ? "Never locked" : `Draft v${card.version}`}
         </span>

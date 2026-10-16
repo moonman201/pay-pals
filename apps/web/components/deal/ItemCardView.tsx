@@ -97,7 +97,7 @@ export function ItemCardView({ cards, currentVersion, lockedVersion, certCheck =
                 role="tab"
                 aria-selected={c.version === shown}
                 onClick={() => setSelected(c.version)}
-                className={`min-h-9 rounded-full px-3 text-xs font-semibold ${
+                className={`min-h-9 rounded-md px-3 text-xs font-semibold ${
                   c.version === shown ? "bg-[var(--accent)] text-[var(--accent-contrast)]" : "bg-wash text-muted hover:bg-[var(--accent-soft)]"
                 }`}
               >
@@ -124,7 +124,7 @@ export function ItemCardView({ cards, currentVersion, lockedVersion, certCheck =
         <Field label="Serial">
           {/* "None printed on this card" only when the item has no serial, such as a graded card.
               A box label means the console has one, so the row says it is not read yet. */}
-          <span className={card.serial ? "font-mono" : "text-caution"}>{card.serial ?? (card.boxSerial ? "Not read yet" : "None printed on this card")}</span>
+          <span className={card.serial ? "font-mono" : "text-muted"}>{card.serial ?? (card.boxSerial ? "Not read yet" : "None printed on this card")}</span>
         </Field>
         {card.certNumber ? (
           <Field label="Cert number" wide>

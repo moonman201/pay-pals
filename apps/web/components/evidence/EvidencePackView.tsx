@@ -199,7 +199,7 @@ export function EvidencePackView({
               <p className="mt-2">
                 {live.length} events are stored, {pack.timeline.length} events at the time the pack was built.{" "}
                 {historyStatus(live, pack.historyHash).kind === "verified" ? (
-                  <span className="font-semibold text-go">Verified: the stored events reproduce this hash.</span>
+                  <span className="font-semibold text-[var(--accent-ink)]">Verified: the stored events reproduce this hash.</span>
                 ) : (
                   <span className="font-semibold text-stop">Does not verify: the stored events do not reproduce this hash.</span>
                 )}

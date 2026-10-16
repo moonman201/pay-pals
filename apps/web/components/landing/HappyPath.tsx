@@ -1,10 +1,10 @@
 import type { PathStep, PathTone } from "./happy-path";
 
 const TONE: Record<PathTone, string> = {
-  go: "bg-go-soft text-go ring-go-line",
-  caution: "bg-caution-soft text-caution ring-caution-line",
-  stop: "bg-stop-soft text-stop ring-stop-line",
-  done: "bg-[var(--accent-soft)] text-[var(--accent-ink)] ring-[var(--accent-line)]",
+  go: "rounded-full px-2 ring-1 bg-go-soft text-go ring-go-line",
+  caution: "rounded-full px-2 ring-1 bg-caution-soft text-caution ring-caution-line",
+  stop: "rounded-full px-2 ring-1 bg-stop-soft text-stop ring-stop-line",
+  done: "text-[var(--accent-ink)]",
 };
 
 /** A row of small labelled steps, in order. Wraps at phone width; the order is also the list order for a screen reader. */
@@ -18,7 +18,7 @@ export function HappyPath({ steps }: { steps: PathStep[] }) {
               &rarr;
             </span>
           ) : null}
-          <span className={`rounded-full px-2 py-0.5 text-xs font-bold ring-1 ${TONE[s.tone]}`}>{s.label}</span>
+          <span className={`py-0.5 text-xs font-bold ${TONE[s.tone]}`}>{s.label}</span>
         </li>
       ))}
     </ol>

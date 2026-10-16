@@ -10,7 +10,7 @@ import { HistoryBadge } from "./HistoryBadge";
 export function OrderHistoryPanel({ check, events, orderId }: { check: OrderHistory; events: readonly DealEvent[]; orderId: string }) {
   const warning = dealIdWarning(check);
   return (
-    <div data-testid="order-history" className="mt-4 border-t border-go-line pt-3">
+    <div data-testid="order-history" className="mt-4 border-t border-line pt-3">
       <h4 className="text-xs font-semibold uppercase tracking-wide text-muted">Deal history hash, in PayPal&apos;s record of this order</h4>
       <p className="mt-1 text-xs leading-relaxed text-muted">custom_id on the order, exactly as PayPal returned it:</p>
       <p data-testid="order-custom-id" className="mt-1 break-all font-mono text-xs">

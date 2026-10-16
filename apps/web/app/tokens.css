@@ -8,6 +8,25 @@
  * ink (text on a light surface), a soft fill and a line. The side in
  * play sets --accent and friends through .theme-buyer / .theme-seller.
  *
+ * COLOUR ROLES. Three jobs, and a colour does one of them.
+ *
+ *   buyer blue (PayPal)   the Buyer Pal side: its avatar ring, buyer
+ *                         buttons, the buyer view's accents, and anything
+ *                         that is true of the deal and not a judgement
+ *                         (a paid state, a version, a count)
+ *   seller gold           the same, for the Seller Pal side
+ *   stop red, caution     a pal's verdict, a flag, a check that came
+ *   amber, go green       back for or against the item, and a deal's
+ *                         outcome, which is a verdict: Blocked is red,
+ *                         Issue open is amber, Complete is green, wherever
+ *                         they show. Error messages are red too. Nothing
+ *                         else: a destructive button, a state such as
+ *                         Paid or Shipped, a progress step or a count
+ *                         takes the side colour or neutral ink.
+ *
+ * Use them through --accent (side) and --stop, --caution, --go (verdict),
+ * so this file stays the one place that decides which is which.
+ *
  * TWO LAYERS, NOT TWO THEMES. The boxes are navy in both modes: panels,
  * cards, forms, the deal header banner and the chat bubbles keep the same
  * navy fill, light ink, accent tints and borders whatever the device says.
@@ -92,6 +111,11 @@
  *     PayPal demo button on surface   10.36
  *     Venmo demo button, white on blue 4.55
  *     Venmo demo button on surface     3.62
+ *
+ *   (added Oct 15, plain text on the page or a box, both modes)
+ *     buyer ink on surface 10.01, on the day page 11.85, on the night page 11.29
+ *     seller ink on surface 10.61, on the day page 8.06, on the night page 11.97
+ *     buyer fill on surface 5.96 and seller fill 7.99 (graphic: the history seal)
  *
  *   on the page layer                  day    night
  *     ink on the page                 16.15   15.96

@@ -16,7 +16,7 @@ export function ShipmentFlags({ flags }: { flags: readonly RedFlag[] }) {
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <span className="font-semibold">Buyer Pal:</span>
-              <Badge tone={FLAG_TONE[f.severity]}>{f.severity}</Badge>
+              <Badge pill tone={FLAG_TONE[f.severity]}>{f.severity}</Badge>
               <span className="rounded-md border border-line bg-surface px-2 py-0.5 font-semibold">{flagLabel(f.code)}</span>
             </div>
             <p className="mt-1">{f.explanation}</p>

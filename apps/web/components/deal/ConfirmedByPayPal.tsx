@@ -45,9 +45,9 @@ export function ConfirmedByPayPal({ result, payment, fallbackFields = true, prom
     <section
       data-testid="paypal-confirmation"
       data-confirmed={described.confirmed ? "true" : "false"}
-      className={`break-inside-avoid rounded-xl border p-4 ${described.confirmed ? "border-go-line bg-go-soft" : "border-line bg-wash"}`}
+      className={`break-inside-avoid rounded-xl border p-4 ${described.confirmed ? "border-[var(--accent-line)] bg-[var(--accent-soft)]" : "border-line bg-wash"}`}
     >
-      <h3 className={`${headingSize} ${described.confirmed ? "text-go" : "text-navy"}`}>{described.heading}</h3>
+      <h3 className={`${headingSize} ${described.confirmed ? "text-[var(--accent-ink)]" : "text-navy"}`}>{described.heading}</h3>
       <p className={`mt-1 leading-relaxed ${noteSize}`}>{described.note}</p>
       {read.kind === "confirmed" ? (
         <dl className="mt-3 grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2">

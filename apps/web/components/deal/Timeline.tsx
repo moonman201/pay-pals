@@ -8,12 +8,12 @@ import { Panel } from "../ui/Panel";
 const DOT: Partial<Record<DealEvent["kind"], string>> = {
   agreed: "bg-[var(--accent)]",
   seller_joined: "bg-gold",
-  invite_declined: "bg-stop",
-  off_platform_chosen: "bg-caution",
-  shipment_checked: "bg-caution",
+  invite_declined: "bg-muted",
+  off_platform_chosen: "bg-muted",
+  shipment_checked: "bg-muted",
   card_locked: "bg-navy",
-  payment_captured: "bg-go",
-  evidence_built: "bg-stop",
+  payment_captured: "bg-[var(--accent)]",
+  evidence_built: "bg-caution",
   arrival_checked: "bg-blue",
 };
 
