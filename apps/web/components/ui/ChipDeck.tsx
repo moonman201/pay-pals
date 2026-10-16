@@ -37,11 +37,6 @@ export function ChipDeck({ items, label, className = "", slotClassName = "", ini
           const isOpen = open === item.id;
           return (
             <li key={item.id} className={text ? "inline-flex items-center" : undefined}>
-              {text && index > 0 ? (
-                <span aria-hidden className="px-2 text-muted">
-                  &middot;
-                </span>
-              ) : null}
               <button
                 type="button"
                 aria-expanded={isOpen}
@@ -57,6 +52,11 @@ export function ChipDeck({ items, label, className = "", slotClassName = "", ini
               >
                 {item.chip}
               </button>
+              {text && index < items.length - 1 ? (
+                <span aria-hidden className="px-2 text-muted">
+                  &middot;
+                </span>
+              ) : null}
             </li>
           );
         })}
