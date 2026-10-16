@@ -97,7 +97,7 @@ export function ItemCardView({ cards, currentVersion, lockedVersion, certCheck =
                 role="tab"
                 aria-selected={c.version === shown}
                 onClick={() => setSelected(c.version)}
-                className={`min-h-9 rounded-full px-3 text-xs font-semibold ${
+                className={`min-h-9 rounded-md px-3 text-xs font-semibold ${
                   c.version === shown ? "bg-[var(--accent)] text-[var(--accent-contrast)]" : "bg-wash text-muted hover:bg-[var(--accent-soft)]"
                 }`}
               >

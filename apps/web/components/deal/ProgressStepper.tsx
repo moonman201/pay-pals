@@ -3,10 +3,10 @@ import { dealProgress, type ProgressEnd } from "@/lib/deal/progress";
 import { CheckIcon, IssueIcon, ShieldStopIcon } from "../ui/icons";
 
 const END_STYLE: Record<NonNullable<ProgressEnd>["kind"], string> = {
-  blocked: "border-stop-line bg-stop-soft text-stop",
-  issue: "border-caution-line bg-caution-soft text-caution",
-  cancelled: "border-line bg-wash text-muted",
-  off_platform: "border-caution-line bg-caution-soft text-caution",
+  blocked: "text-stop",
+  issue: "text-caution",
+  cancelled: "text-muted",
+  off_platform: "text-caution",
 };
 
 function EndIcon({ kind }: { kind: NonNullable<ProgressEnd>["kind"] }) {
@@ -40,7 +40,7 @@ export function ProgressStepper({ state, events, className = "" }: { state: Deal
           return (
             <li key={step.id} className="flex items-center" aria-current={current ? "step" : undefined} data-status={step.status}>
               {i > 0 ? <span aria-hidden className={`hidden h-0.5 w-5 sm:inline-block sm:w-6 lg:w-8 ${done || current ? "bg-[var(--accent)]" : "bg-line"}`} /> : null}
-              <span className={`mr-1 flex items-center gap-1.5 rounded-full py-1 pl-1 pr-2 sm:mr-0 sm:bg-transparent ${current ? "bg-[var(--accent-soft)]" : done ? "bg-wash" : ""}`}>
+              <span className={`mr-1 flex items-center gap-1.5 py-1 pl-1 pr-2 sm:mr-0`}>
                 <span
                   aria-hidden
                   className={`motion-step flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 text-[11px] font-bold ${
@@ -58,7 +58,7 @@ export function ProgressStepper({ state, events, className = "" }: { state: Deal
               {progress.end && i === Math.max(lastDone, 0) ? (
                 <>
                   <span aria-hidden className="hidden h-0.5 w-5 bg-line sm:inline-block sm:w-6 lg:w-8" />
-                  <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-bold ${END_STYLE[progress.end.kind]}`} data-testid="progress-end">
+                  <span className={`inline-flex items-center gap-1.5 py-1 text-xs font-bold ${END_STYLE[progress.end.kind]}`} data-testid="progress-end">
                     <EndIcon kind={progress.end.kind} />
                     {progress.end.label}
                   </span>

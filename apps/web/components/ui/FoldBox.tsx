@@ -16,7 +16,7 @@ export function FoldBox({ title, count, unit, id, defaultOpen = false, children 
           </span>
           <h2 className="text-sm font-bold text-muted">{title}</h2>
           {count !== undefined ? (
-            <span className="rounded-full bg-[var(--accent-soft)] px-2 text-xs font-bold text-[var(--accent-ink)]" data-testid="fold-count">
+            <span className="text-xs font-semibold text-muted" data-testid="fold-count">
               {count}
               {unit ? <span className="sr-only"> {unit}</span> : null}
             </span>

@@ -68,11 +68,11 @@ export default async function HomePage() {
               Both keep proof until it arrives.
             </p>
             <ul className="mt-3 flex flex-wrap gap-2 text-sm font-semibold" aria-label="The two pals">
-              <li className="theme-buyer inline-flex min-h-11 items-center gap-2 rounded-full border border-[var(--accent-line)] bg-[var(--accent-soft)] py-1 pl-1 pr-4 text-[var(--accent-ink)]">
+              <li className="theme-buyer inline-flex min-h-11 items-center gap-2 py-1 pr-4 text-[var(--accent-ink)]">
                 <PalAvatar pal="buyer" size={32} />
                 Buyer Pal, on your side
               </li>
-              <li className="theme-seller inline-flex min-h-11 items-center gap-2 rounded-full border border-[var(--accent-line)] bg-[var(--accent-soft)] py-1 pl-1 pr-4 text-[var(--accent-ink)]">
+              <li className="theme-seller inline-flex min-h-11 items-center gap-2 py-1 pr-4 text-[var(--accent-ink)]">
                 <PalAvatar pal="seller" size={32} />
                 Seller Pal, on theirs
               </li>

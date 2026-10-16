@@ -13,12 +13,21 @@ import { otherRole, type Role } from "@/lib/role";
 import { PalAvatar } from "../pal/PalAvatar";
 import { Badge } from "../ui/Badge";
 import { ThemeToggle } from "../ui/ThemeToggle";
+import { IssueIcon, ShieldCheckIcon, ShieldStopIcon } from "../ui/icons";
 
 function stateTone(state: DealSnapshot["deal"]["state"]): "accent" | "go" | "stop" | "caution" | "neutral" {
   if (state === "COMPLETE") return "go";
   if (state === "BLOCKED" || state === "ISSUE") return "stop";
   if (state === "CANCELLED") return "neutral";
   return "accent";
+}
+
+/** The state chip is plain text now, so the three end states keep their icon. */
+function StateIcon({ state }: { state: DealSnapshot["deal"]["state"] }) {
+  if (state === "COMPLETE") return <ShieldCheckIcon size={14} />;
+  if (state === "BLOCKED") return <ShieldStopIcon size={14} />;
+  if (state === "ISSUE") return <IssueIcon size={14} />;
+  return null;
 }
 
 const NAV_LINK = "inline-flex min-h-11 items-center px-2 underline-offset-2 hover:underline";
@@ -69,14 +78,15 @@ export function DealHeader({ snapshot, role }: { snapshot: DealSnapshot; role: R
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Badge tone={stateTone(deal.state)} className="py-1" data-testid="state-chip">
+          <Badge tone={stateTone(deal.state)} className="gap-1 py-1" data-testid="state-chip">
+            <StateIcon state={deal.state} />
             {STATE_LABELS[deal.state]}
           </Badge>
           {snapshot.example ? (
             <button
               type="button"
               onClick={() => openFold("deal-status")}
-              className="inline-flex min-h-11 items-center rounded-full border border-line bg-wash px-2.5 text-xs font-semibold text-muted underline-offset-2 hover:underline"
+              className="inline-flex min-h-11 items-center text-xs font-semibold text-muted underline-offset-2 hover:underline"
               data-testid="example-chip"
             >
               Example

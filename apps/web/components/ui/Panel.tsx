@@ -52,7 +52,7 @@ export function Panel({
             </span>
             <h2 className={`${titleClass} !normal-case !tracking-normal !text-sm`}>{title}</h2>
             {fold.count !== undefined ? (
-              <span className="rounded-full bg-[var(--accent-soft)] px-2 text-xs font-bold text-[var(--accent-ink)]" data-testid="fold-count">
+              <span className="text-xs font-semibold text-muted" data-testid="fold-count">
                 {fold.count}
                 {fold.unit ? <span className="sr-only"> {fold.unit}</span> : null}
               </span>

@@ -26,7 +26,7 @@ export function HowItsBuilt() {
     testId: `built-${item.id}`,
     data: { built: item.id },
     chip: item.short,
-    chipClass: "border-line bg-surface text-ink hover:bg-wash",
+    chipClass: "text-ink",
     detail: <p className="text-sm leading-relaxed text-ink">{item.line}</p>,
   }));
   return (
@@ -35,7 +35,7 @@ export function HowItsBuilt() {
         How it&apos;s built
       </h2>
       <div className="mt-3">
-        <ChipDeck items={items} label="What Pay Pals is built on. Tap one for the detail." slotClassName="mt-3 rounded-xl border border-line bg-wash px-4 py-3" />
+        <ChipDeck variant="text" items={items} label="What Pay Pals is built on. Tap one for the detail." slotClassName="mt-3 rounded-xl border border-line bg-wash px-4 py-3" />
       </div>
     </section>
   );

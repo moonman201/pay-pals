@@ -22,17 +22,26 @@ export interface DeckItem {
  * every line that used to be a paragraph is still here, one tap away, with its chip as the handle.
  * Tapping the open chip closes it. Only one detail is open at a time, which keeps the slot a fixed
  * place to look.
+ *
+ * `variant="text"` drops the pills: the row is plain text separated by middle dots, and the open item is
+ * underlined. The pill shape is kept for verdict chips.
  */
-export function ChipDeck({ items, label, className = "", slotClassName = "", initialOpen = null }: { items: readonly DeckItem[]; label: string; className?: string; slotClassName?: string; initialOpen?: string | null }) {
+export function ChipDeck({ items, label, className = "", slotClassName = "", initialOpen = null, variant = "pill" }: { items: readonly DeckItem[]; label: string; className?: string; slotClassName?: string; initialOpen?: string | null; variant?: "pill" | "text" }) {
   const [open, setOpen] = useState<string | null>(initialOpen);
   const base = useId();
+  const text = variant === "text";
   return (
     <div>
-      <ul className={`flex list-none flex-wrap gap-2 p-0 ${className}`} aria-label={label}>
-        {items.map((item) => {
+      <ul className={`flex list-none flex-wrap p-0 ${text ? "items-center" : "gap-2"} ${className}`} aria-label={label}>
+        {items.map((item, index) => {
           const isOpen = open === item.id;
           return (
-            <li key={item.id}>
+            <li key={item.id} className={text ? "inline-flex items-center" : undefined}>
+              {text && index > 0 ? (
+                <span aria-hidden className="px-2 text-muted">
+                  &middot;
+                </span>
+              ) : null}
               <button
                 type="button"
                 aria-expanded={isOpen}
@@ -40,7 +49,11 @@ export function ChipDeck({ items, label, className = "", slotClassName = "", ini
                 data-testid={item.testId}
                 {...Object.fromEntries(Object.entries(item.data ?? {}).map(([k, v]) => [`data-${k}`, v]))}
                 onClick={() => setOpen(isOpen ? null : item.id)}
-                className={`inline-flex min-h-11 items-center gap-1.5 rounded-full border px-3 text-sm font-semibold transition focus-visible:outline-2 ${item.chipClass ?? "border-line bg-wash text-ink"} ${isOpen ? "ring-2 ring-[var(--accent)]" : ""}`}
+                className={
+                  text
+                    ? `inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold underline-offset-4 transition hover:underline focus-visible:outline-2 ${item.chipClass ?? "text-ink"} ${isOpen ? "underline decoration-2 decoration-[var(--accent)]" : ""}`
+                    : `inline-flex min-h-11 items-center gap-1.5 rounded-full border px-3 text-sm font-semibold transition focus-visible:outline-2 ${item.chipClass ?? "border-line bg-wash text-ink"} ${isOpen ? "ring-2 ring-[var(--accent)]" : ""}`
+                }
               >
                 {item.chip}
               </button>

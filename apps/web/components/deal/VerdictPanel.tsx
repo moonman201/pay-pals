@@ -194,9 +194,9 @@ export function VerdictPanel({ verdict, currentVersion, locked, cardTitle = null
               <PalAvatar pal="buyer" size={28} className="mt-0.5" />
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2" data-testid="flag-badges">
-                  <Badge tone={FLAG_TONE[f.severity]}>{f.severity}</Badge>
+                  <Badge pill tone={FLAG_TONE[f.severity]}>{f.severity}</Badge>
                   <span className="rounded-md border border-line bg-wash px-2 py-0.5 font-semibold">{flagLabel(f.code)}</span>
-                  {isPaymentMethodFlag(f) ? <Badge tone="stop">no override</Badge> : null}
+                  {isPaymentMethodFlag(f) ? <Badge pill tone="stop">no override</Badge> : null}
                 </div>
                 <p className="mt-1">{say(f.explanation.trim() ? f.explanation : reasonFor(f))}</p>
                 <FlagEvidence evidence={f.evidence} sourceMessageId={evidenceSourceId(f.evidence, chat)} />

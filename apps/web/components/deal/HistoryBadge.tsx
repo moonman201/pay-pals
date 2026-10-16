@@ -51,7 +51,7 @@ export function HistoryBadge({ events, historyHash, example = false, source = "p
   const status = historyStatus(events, example ? null : historyHash);
   const line = historyLine(status);
   const bad = status.kind === "mismatch" || (status.kind === "unanchored" && !status.chainOk);
-  const tone = status.kind === "verified" ? "border-go-line bg-go-soft text-go" : bad ? "border-stop-line bg-stop-soft text-stop font-bold" : "border-line bg-wash text-muted";
+  const tone = status.kind === "verified" ? "text-go" : bad ? "text-stop font-bold" : "text-muted";
   return (
     /*
       A link, because the events it counts are the timeline, and a reader who
@@ -63,12 +63,12 @@ export function HistoryBadge({ events, historyHash, example = false, source = "p
       data-testid={compact ? "history-chip" : "history-badge"}
       data-status={status.kind}
       title={titleFor(source, example ? null : historyHash, example, orderId)}
-      className={`inline-flex min-h-11 items-center gap-1.5 rounded-full border py-0.5 pl-1 pr-2.5 text-xs font-semibold underline-offset-2 hover:underline ${tone} ${className}`}
+      className={`inline-flex min-h-11 items-center gap-1.5 py-0.5 pr-1 text-xs font-semibold underline-offset-2 hover:underline ${tone} ${className}`}
     >
       {status.kind === "verified" || bad ? (
         <Seal verified={status.kind === "verified"} />
       ) : (
-        <span aria-hidden className="ml-1.5 inline-block h-2 w-2 rounded-full border-2 border-current" />
+        <span aria-hidden className="inline-block h-2 w-2 rounded-full border-2 border-current" />
       )}
       {compact && !bad ? "History" : line}
     </a>

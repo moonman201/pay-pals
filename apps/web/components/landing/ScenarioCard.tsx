@@ -17,16 +17,16 @@ const ENDINGS: Record<ScenarioFixture["id"], Outcome> = {
 };
 
 const OUTCOME_STYLE: Record<Outcome["kind"], { box: string; label: string }> = {
-  blocked: { box: "bg-stop-soft text-stop ring-stop-line", label: "Blocked" },
-  complete: { box: "bg-go-soft text-go ring-go-line", label: "Complete" },
-  issue: { box: "bg-caution-soft text-caution ring-caution-line", label: "Issue open" },
+  blocked: { box: "text-stop", label: "Blocked" },
+  complete: { box: "text-go", label: "Complete" },
+  issue: { box: "text-caution", label: "Issue open" },
 };
 
 function OutcomeMark({ kind }: { kind: Outcome["kind"] }) {
   const style = OUTCOME_STYLE[kind];
   const Icon = kind === "blocked" ? ShieldStopIcon : kind === "complete" ? ShieldCheckIcon : IssueIcon;
   return (
-    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold ring-1 ${style.box}`} data-outcome={kind}>
+    <span className={`inline-flex items-center gap-1.5 py-1 text-xs font-bold ${style.box}`} data-outcome={kind}>
       <Icon size={16} />
       {style.label}
     </span>
