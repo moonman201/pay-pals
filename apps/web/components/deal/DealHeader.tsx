@@ -76,7 +76,7 @@ export function DealHeader({ snapshot, role }: { snapshot: DealSnapshot; role: R
             <span className="sr-only">You are the {role}</span>
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
           <Badge tone={stateTone(deal.state)} className="gap-1 py-1" data-testid="state-chip">
             <StateIcon state={deal.state} />
             {STATE_LABELS[deal.state]}
